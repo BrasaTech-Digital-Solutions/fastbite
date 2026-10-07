@@ -80,6 +80,7 @@ class GuestCartPricingTest {
     void setUp() {
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
         when(orderCheckoutService.isAvailable()).thenReturn(true);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(true);
         when(productService.findById("kebab")).thenReturn(Optional.of(new ProductDto("kebab", "Kebab",
                 new BigDecimal("6.50"), "Beef kebab", "/kebab.webp", Set.of("toppings"), true)));
         when(productService.findById("gone")).thenReturn(Optional.empty());
@@ -146,12 +147,12 @@ class GuestCartPricingTest {
 
     @Test
     void withoutTakeawayOnlyAGuestWithATableQrCodeCanOrder() throws Exception {
-        when(orderCheckoutService.isAvailable()).thenReturn(false);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(false);
         checkoutStep(new MockHttpSession())
                 .andExpect(content().string(containsString("data-can-order=\"false\"")))
                 .andExpect(content().string(not(containsString("id=\"customerName\""))));
 
-        when(orderCheckoutService.isAvailable()).thenReturn(true);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(true);
         when(settingsService.get()).thenReturn(new RestaurantSettings(true, false, 0, 0));
         checkoutStep(new MockHttpSession())
                 .andExpect(content().string(containsString("data-can-order=\"false\"")));

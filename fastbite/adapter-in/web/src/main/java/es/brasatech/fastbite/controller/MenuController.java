@@ -82,18 +82,22 @@ public class MenuController {
 
     @PostMapping({"/{tenantId}/api/calculate-confirmation", "/api/calculate-confirmation"})
     public String calculateConfirmation(
+            @PathVariable(value = "tenantId", required = false) String tenantId,
             @RequestBody List<CartItem> cartItems,
             @RequestParam(required = false) String couponCode,
             HttpSession session,
             Model model) {
+        String effectiveTenant = tenantId != null ? tenantId : es.brasatech.fastbite.domain.tenant.TenantContext.getCurrentTenant();
         String tableId = (String) session.getAttribute("tableNumber");
         calculate(cartItems, couponCode, tableId, model);
         // How this guest is served: at the table their QR code named, otherwise takeaway (paid online)
         var settings = settingsService.get();
         boolean atTable = tableId != null && settings.dineIn();
-        boolean takeawayOffered = settings.takeaway() && orderCheckoutService.isAvailable();
+        boolean paymentAvailable = orderCheckoutService.isAvailableForTenant(effectiveTenant);
+        boolean takeawayOffered = settings.takeaway() && paymentAvailable;
         model.addAttribute("atTable", atTable);
         model.addAttribute("canOrder", atTable || takeawayOffered);
+        model.addAttribute("takeawayPaymentUnconfigured", !atTable && settings.takeaway() && !paymentAvailable);
         // A guest without a QR code could order to a table by scanning one
         model.addAttribute("scanHint", tableId == null && settings.dineIn());
         return "fastfood/fragments/menu :: #confirmation";

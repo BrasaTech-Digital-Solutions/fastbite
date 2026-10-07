@@ -189,4 +189,22 @@ class OrderCheckoutServiceTest {
         assertThat(StripeService.toCents(new BigDecimal("0.1"))).isEqualTo(10);
         assertThat(StripeService.toCents(new BigDecimal("19.999"))).isEqualTo(2000);
     }
+
+    @Test
+    void isAvailableForTenantChecksStripeConfigurationAndAccountPresence() {
+        when(stripe.isConfigured()).thenReturn(false);
+        assertThat(checkout.isAvailableForTenant("kebab")).isFalse();
+
+        when(stripe.isConfigured()).thenReturn(true);
+        // Location has no connected account, fallback to default account which is set in setUp
+        assertThat(checkout.isAvailableForTenant("kebab")).isTrue();
+
+        // When neither location account nor default account is set
+        OrderCheckoutService unconfiguredDefault = new OrderCheckoutService(stripe, orders, locations, "");
+        assertThat(unconfiguredDefault.isAvailableForTenant("kebab")).isFalse();
+
+        when(locations.getLocation("kebab")).thenReturn(Optional.of(
+                new TenantLocation("1", "owner", "kebab", "RESTAURANT", null, "acct_kebab")));
+        assertThat(unconfiguredDefault.isAvailableForTenant("kebab")).isTrue();
+    }
 }

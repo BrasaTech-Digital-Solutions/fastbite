@@ -49,6 +49,20 @@ public class OrderCheckoutService {
         return stripeService.isConfigured();
     }
 
+    /** Whether guests of a specific tenant location can pay online. */
+    public boolean isAvailableForTenant(String tenantId) {
+        if (!isAvailable()) {
+            return false;
+        }
+        if (tenantId == null || tenantId.isBlank()) {
+            return defaultConnectedAccount != null && !defaultConnectedAccount.isBlank();
+        }
+        return tenantLocationService.getLocation(tenantId)
+                .map(TenantLocation::stripeAccountId)
+                .filter(account -> !account.isBlank())
+                .isPresent() || (defaultConnectedAccount != null && !defaultConnectedAccount.isBlank());
+    }
+
     /**
      * Starts a checkout for the order's saved total plus the chosen tip.
      *

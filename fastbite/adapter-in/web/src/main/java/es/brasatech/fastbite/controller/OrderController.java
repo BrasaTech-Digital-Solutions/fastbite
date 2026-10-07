@@ -85,10 +85,14 @@ public class OrderController {
     /** Saved now, but held back from the kitchen until the guest has paid online. */
     private Order takeawayOrder(CreateOrderRequest request, Locale locale) {
         var settings = settingsService.get();
-        if (!settings.takeaway() || !orderCheckoutService.isAvailable()) {
+        String currentTenant = es.brasatech.fastbite.domain.tenant.TenantContext.getCurrentTenant();
+        boolean paymentAvailable = orderCheckoutService.isAvailableForTenant(currentTenant);
+        if (!settings.takeaway() || !paymentAvailable) {
             throw new IllegalArgumentException(settings.dineIn()
                     ? "Scan the QR code on your table to order"
-                    : "This restaurant is not taking orders online right now");
+                    : (!paymentAvailable
+                            ? "Online takeaway orders are temporarily unavailable because diner payments are not configured"
+                            : "This restaurant is not taking orders online right now"));
         }
         if (request.customerName() == null || request.customerName().isBlank()) {
             throw new IllegalArgumentException("Tell us your name so we can call you when the order is ready");

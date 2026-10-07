@@ -148,6 +148,7 @@ class GuestOrderEndpointTest {
 
     private void takeawayCanBePaidOnline() {
         when(orderCheckoutService.isAvailable()).thenReturn(true);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(true);
         when(orderService.createOrder(any(), anyInt(), any(), any(), any(), any(), any(), any())).thenAnswer(call ->
                 new Order(call.getArgument(0), call.getArgument(1), call.getArgument(2), call.getArgument(3),
                         call.getArgument(4), call.getArgument(5), call.getArgument(6), call.getArgument(7)));
@@ -176,14 +177,14 @@ class GuestOrderEndpointTest {
                         .content(takeawayCart("Marta")))
                 .andExpect(jsonPath("$.status").value("error"));
 
-        when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
-        when(orderCheckoutService.isAvailable()).thenReturn(false);
+        when(settingsService.get()).thenReturn(new RestaurantSettings(false, true, 0, 0));
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(false);
         mockMvc.perform(post("/kebab/api/create-order").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                         .content(takeawayCart("Marta")))
                 .andExpect(jsonPath("$.status").value("error"))
-                .andExpect(jsonPath("$.message").value("Scan the QR code on your table to order"));
+                .andExpect(jsonPath("$.message").value("Online takeaway orders are temporarily unavailable because diner payments are not configured"));
 
-        when(orderCheckoutService.isAvailable()).thenReturn(true);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(true);
         mockMvc.perform(post("/kebab/api/create-order").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                         .content(takeawayCart(" ")))
                 .andExpect(jsonPath("$.status").value("error"));
@@ -215,10 +216,10 @@ class GuestOrderEndpointTest {
                 .andExpect(jsonPath("$.payFirst").value(true));
         verify(orderService, never()).createOrderForTable(any(), anyInt(), any(), any(), any());
 
-        when(orderCheckoutService.isAvailable()).thenReturn(false);
+        when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(false);
         mockMvc.perform(post("/kebab/api/create-order").session(atTable("t2")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(takeawayCart("Ana")))
-                .andExpect(jsonPath("$.message").value("This restaurant is not taking orders online right now"));
+                .andExpect(jsonPath("$.message").value("Online takeaway orders are temporarily unavailable because diner payments are not configured"));
     }
 
     @Test

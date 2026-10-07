@@ -153,7 +153,7 @@
                             <h5 class="mb-3 fw-bold"><i class="fas fa-user-tag me-2 text-primary"></i> <span
                                     th:text="#{label.your.details}">Your details</span></h5>
                             <div class="alert alert-warning mb-0" th:unless="${canOrder}"
-                                th:text="${scanHint} ? #{message.scan.table.qr} : #{message.ordering.unavailable}">This restaurant is not taking orders online right now.</div>
+                                th:text="${takeawayPaymentUnconfigured} ? #{message.takeaway.payments.unconfigured} : (${scanHint} ? #{message.scan.table.qr} : #{message.ordering.unavailable})">This restaurant is not taking orders online right now.</div>
                             <th:block th:if="${canOrder}">
                                 <div class="mb-3">
                                     <label for="customerName" class="form-label small fw-bold" th:text="#{label.your.name}">Your name</label>
