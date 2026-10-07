@@ -84,11 +84,21 @@ public class OrderCheckoutService {
         }
         BigDecimal tip = order.total().multiply(BigDecimal.valueOf(tipPercent))
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        String connectedAccount = tenantLocationService.getLocation(tenantId)
+        var locationOpt = tenantLocationService.getLocation(tenantId);
+        String connectedAccount = locationOpt
                 .map(TenantLocation::stripeAccountId)
                 .filter(account -> !account.isBlank())
                 .orElse(defaultConnectedAccount);
-        return stripeService.createOrderCheckoutSession(tenantId, order, tip, connectedAccount, successUrl, cancelUrl);
+
+        long applicationFeeCents = 0L;
+        boolean isFreePlan = locationOpt.map(loc -> "FREE".equalsIgnoreCase(loc.plan())).orElse(false);
+        if (isFreePlan && connectedAccount != null && !connectedAccount.isBlank()) {
+            BigDecimal orderTotalPlusTip = order.total().add(tip);
+            long totalCents = StripeService.toCents(orderTotalPlusTip);
+            applicationFeeCents = (totalCents * es.brasatech.fastbite.domain.tenant.SubscriptionPlan.FREE_PLAN_APPLICATION_FEE_BPS) / 10000;
+        }
+
+        return stripeService.createOrderCheckoutSession(tenantId, order, tip, connectedAccount, applicationFeeCents, successUrl, cancelUrl);
     }
 
     /**

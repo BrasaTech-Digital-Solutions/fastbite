@@ -32,7 +32,7 @@ public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
     }
 
     @Override
-    public void createOwner(String tenant, String username, String encodedPassword, String fullName) {
+    public void createOwner(String tenant, String username, String encodedPassword, String fullName, String plan) {
         String schema = "tenant_" + TenantRegistrationRules.tenantId(tenant);
         transaction(dataSource, connection -> {
             // Recover a crash after these writes committed but before the lifecycle update.
@@ -45,9 +45,14 @@ public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
                     update(connection, "INSERT INTO " + target + ".user_roles (user_id, role) VALUES (?, ?)", id, role);
                 }
             }
-            insertLocation(connection, tenant, username, "RESTAURANT");
+            insertLocation(connection, tenant, username, plan);
             return null;
         });
+    }
+
+    @Override
+    public void createOwner(String tenant, String username, String encodedPassword, String fullName) {
+        createOwner(tenant, username, encodedPassword, fullName, "RESTAURANT");
     }
 
     @Override
@@ -79,8 +84,10 @@ public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
     }
 
     private static void insertLocation(Connection connection, String tenant, String owner, String plan) throws SQLException {
+        String effectivePlan = (plan != null && !plan.isBlank()) ? plan.trim() : "RESTAURANT";
         update(connection, "INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan) VALUES (?, ?, ?, ?)",
-                UUID.randomUUID().toString(), owner, tenant, "RESTAURANT");
-        BillingJdbcAdapter.createTrial(connection, tenant);
+                UUID.randomUUID().toString(), owner, tenant, effectivePlan);
+        String initialBillingStatus = "FREE".equalsIgnoreCase(effectivePlan) ? "FREE" : "LOCAL_TRIAL";
+        BillingJdbcAdapter.createTrial(connection, tenant, initialBillingStatus);
     }
 }

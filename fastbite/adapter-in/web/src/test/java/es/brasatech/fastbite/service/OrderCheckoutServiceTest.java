@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -69,7 +70,7 @@ class OrderCheckoutServiceTest {
         checkout.start("kebab", order, 15, "https://ok", "https://back");
 
         // 15% of 13.50 = 2.025, rounded to cents
-        verify(stripe).createOrderCheckoutSession("kebab", order, new BigDecimal("2.03"), DEFAULT_ACCOUNT, "https://ok", "https://back");
+        verify(stripe).createOrderCheckoutSession("kebab", order, new BigDecimal("2.03"), DEFAULT_ACCOUNT, 0L, "https://ok", "https://back");
     }
 
     @Test
@@ -79,7 +80,18 @@ class OrderCheckoutServiceTest {
 
         checkout.start("kebab", order, 0, "https://ok", "https://back");
 
-        verify(stripe).createOrderCheckoutSession(eq("kebab"), eq(order), eq(new BigDecimal("0.00")), eq("acct_kebab"), any(), any());
+        verify(stripe).createOrderCheckoutSession(eq("kebab"), eq(order), eq(new BigDecimal("0.00")), eq("acct_kebab"), eq(0L), any(), any());
+    }
+
+    @Test
+    void freePlanTenantChargesApplicationFeeCut() throws Exception {
+        when(locations.getLocation("kebab")).thenReturn(Optional.of(
+                new TenantLocation("1", "owner", "kebab", "FREE", null, "acct_kebab")));
+
+        // Order total 13.50 (1350 cents) -> 2.5% fee = 33 cents (33.75 floored to 33)
+        checkout.start("kebab", order, 0, "https://ok", "https://back");
+
+        verify(stripe).createOrderCheckoutSession(eq("kebab"), eq(order), eq(new BigDecimal("0.00")), eq("acct_kebab"), eq(33L), any(), any());
     }
 
     @Test
@@ -93,7 +105,7 @@ class OrderCheckoutServiceTest {
         assertThatThrownBy(() -> checkout.start("kebab", order, 7, "a", "b"))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(stripe, never()).createOrderCheckoutSession(any(), any(), any(), any(), any(), any());
+        verify(stripe, never()).createOrderCheckoutSession(any(), any(), any(), any(), anyLong(), any(), any());
     }
 
     // ---- confirming a payment
@@ -107,7 +119,7 @@ class OrderCheckoutServiceTest {
                 es.brasatech.fastbite.domain.order.ServiceType.TAKEAWAY);
         assertThatThrownBy(() -> checkout.start("kebab", expired, 0, "a", "b"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("expired");
-        verify(stripe, never()).createOrderCheckoutSession(any(), any(), any(), any(), any(), any());
+        verify(stripe, never()).createOrderCheckoutSession(any(), any(), any(), any(), anyLong(), any(), any());
     }
 
     @Test

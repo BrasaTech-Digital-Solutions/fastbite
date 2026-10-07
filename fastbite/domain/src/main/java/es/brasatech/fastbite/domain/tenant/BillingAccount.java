@@ -9,6 +9,7 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
     public Instant trialEndsAt() { return trialStartedAt.plus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS); }
     public boolean canTakeOrders(Instant now) {
         return switch (status) {
+            case "FREE", "free" -> true;
             case "LOCAL_TRIAL" -> now.isBefore(trialEndsAt());
             case "trialing" -> stripeTrialEnd > now.getEpochSecond();
             case "active" -> periodEnd > now.getEpochSecond();
@@ -16,6 +17,7 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
         };
     }
     public String displayStatus() {
+        if ("FREE".equalsIgnoreCase(status)) return "Free Plan (0€/mo)";
         if ("LOCAL_TRIAL".equals(status)) return Instant.now().isBefore(trialEndsAt()) ? "Free trial" : "Trial ended";
         return status.replace('_', ' ') + (cancelAtPeriodEnd ? " (ends at period close)" : "");
     }

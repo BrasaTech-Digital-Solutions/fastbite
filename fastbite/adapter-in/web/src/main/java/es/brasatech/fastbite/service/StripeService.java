@@ -55,6 +55,11 @@ public class StripeService {
      */
     public Session createOrderCheckoutSession(String tenantId, Order order, BigDecimal tip, String connectedAccountId,
             String successUrl, String cancelUrl) throws StripeException {
+        return createOrderCheckoutSession(tenantId, order, tip, connectedAccountId, 0L, successUrl, cancelUrl);
+    }
+
+    public Session createOrderCheckoutSession(String tenantId, Order order, BigDecimal tip, String connectedAccountId,
+            long applicationFeeAmountCents, String successUrl, String cancelUrl) throws StripeException {
         requireSecretKey();
 
         Map<String, String> metadata = new HashMap<>();
@@ -76,11 +81,14 @@ public class StripeService {
         }
         if (connectedAccountId != null && !connectedAccountId.isBlank()) {
             // Destination charge: the platform takes the payment and passes it on to the restaurant's account
-            builder.setPaymentIntentData(SessionCreateParams.PaymentIntentData.builder()
+            var paymentIntentBuilder = SessionCreateParams.PaymentIntentData.builder()
                     .setTransferData(SessionCreateParams.PaymentIntentData.TransferData.builder()
                             .setDestination(connectedAccountId.trim())
-                            .build())
-                    .build());
+                            .build());
+            if (applicationFeeAmountCents > 0) {
+                paymentIntentBuilder.setApplicationFeeAmount(applicationFeeAmountCents);
+            }
+            builder.setPaymentIntentData(paymentIntentBuilder.build());
         }
         return Session.create(builder.build());
     }

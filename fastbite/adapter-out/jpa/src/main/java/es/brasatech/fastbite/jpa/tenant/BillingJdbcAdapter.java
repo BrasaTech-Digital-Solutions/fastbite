@@ -48,6 +48,9 @@ public class BillingJdbcAdapter implements BillingPort {
         });
     }
     static void createTrial(Connection c, String tenant) throws SQLException {
-        update(c, "INSERT INTO public.tenant_billing (tenant_id,billing_key) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM public.tenant_billing WHERE tenant_id=?)", tenant, java.util.UUID.randomUUID().toString(), tenant);
+        createTrial(c, tenant, "LOCAL_TRIAL");
+    }
+    static void createTrial(Connection c, String tenant, String status) throws SQLException {
+        update(c, "INSERT INTO public.tenant_billing (tenant_id,billing_key,status) SELECT ?,?,? WHERE NOT EXISTS (SELECT 1 FROM public.tenant_billing WHERE tenant_id=?)", tenant, java.util.UUID.randomUUID().toString(), status != null ? status : "LOCAL_TRIAL", tenant);
     }
 }

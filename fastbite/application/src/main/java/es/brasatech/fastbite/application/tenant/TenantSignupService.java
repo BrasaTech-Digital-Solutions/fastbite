@@ -16,8 +16,13 @@ public class TenantSignupService {
     }
 
     public void registerTenant(String tenantId, String username, String encodedPassword, String fullName) {
+        registerTenant(tenantId, username, encodedPassword, fullName, "RESTAURANT");
+    }
+
+    public void registerTenant(String tenantId, String username, String encodedPassword, String fullName, String plan) {
         String tenant = TenantRegistrationRules.tenantId(tenantId);
         TenantRegistrationRules.owner(username);
+        TenantRegistrationRules.plan(plan);
         if (encodedPassword == null || encodedPassword.isBlank() || encodedPassword.length() > 255
                 || fullName == null || fullName.length() > 255) {
             throw new IllegalArgumentException("Invalid owner details.");
@@ -25,7 +30,7 @@ public class TenantSignupService {
         registration.requireAvailableUsername(tenant, username);
         lifecycle.register(tenant, "signup:" + tenant, username, TenantLifecyclePort.State.ACTIVE, () -> {
             provisioner.provisionTenant(tenant);
-            registration.createOwner(tenant, username, encodedPassword, fullName);
+            registration.createOwner(tenant, username, encodedPassword, fullName, plan);
         });
     }
 
