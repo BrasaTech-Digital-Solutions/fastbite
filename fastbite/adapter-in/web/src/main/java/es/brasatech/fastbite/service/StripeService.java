@@ -126,4 +126,37 @@ public class StripeService {
         }
         return Webhook.constructEvent(payload, sigHeader, webhookSecret);
     }
+
+    /**
+     * Creates a Stripe Express connected account for a restaurant tenant.
+     */
+    public com.stripe.model.Account createConnectedAccount(String tenantId, String email, String businessName) throws StripeException {
+        requireSecretKey();
+        com.stripe.param.AccountCreateParams.Builder builder = com.stripe.param.AccountCreateParams.builder()
+                .setType(com.stripe.param.AccountCreateParams.Type.EXPRESS)
+                .putMetadata("tenantId", tenantId);
+        if (email != null && !email.isBlank()) {
+            builder.setEmail(email.trim());
+        }
+        if (businessName != null && !businessName.isBlank()) {
+            builder.setBusinessProfile(com.stripe.param.AccountCreateParams.BusinessProfile.builder()
+                    .setName(businessName.trim())
+                    .build());
+        }
+        return com.stripe.model.Account.create(builder.build());
+    }
+
+    /**
+     * Generates a hosted onboarding link for the connected Stripe account.
+     */
+    public com.stripe.model.AccountLink createAccountLink(String accountId, String refreshUrl, String returnUrl) throws StripeException {
+        requireSecretKey();
+        com.stripe.param.AccountLinkCreateParams params = com.stripe.param.AccountLinkCreateParams.builder()
+                .setAccount(accountId)
+                .setRefreshUrl(refreshUrl)
+                .setReturnUrl(returnUrl)
+                .setType(com.stripe.param.AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                .build();
+        return com.stripe.model.AccountLink.create(params);
+    }
 }
