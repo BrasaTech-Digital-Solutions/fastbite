@@ -135,43 +135,43 @@ public class OrderController {
     }
 
     @ResponseBody
-    @PostMapping("/api/order")
+    @PostMapping({"/{tenantId}/api/order", "/api/order"})
     public List<Order> postOrder() {
         return orderService.getAllOrder();
     }
 
     @ResponseBody
-    @PostMapping("/api/order/{id}/next")
+    @PostMapping({"/{tenantId}/api/order/{id}/next", "/api/order/{id}/next"})
     public void nextOrderStatus(@PathVariable String id) {
         orderService.moveToNextStatus(id);
     }
 
     @ResponseBody
-    @PostMapping("/api/order/{id}/previous")
+    @PostMapping({"/{tenantId}/api/order/{id}/previous", "/api/order/{id}/previous"})
     public void previousOrderStatus(@PathVariable String id) {
         orderService.moveToPreviousStatus(id);
     }
 
     @ResponseBody
-    @PostMapping("/api/order/batch/next")
+    @PostMapping({"/{tenantId}/api/order/batch/next", "/api/order/batch/next"})
     public void batchNextStatus(@RequestBody List<String> ids) {
         orderService.batchMoveStatus(ids, true);
     }
 
     @ResponseBody
-    @PostMapping("/api/order/batch/previous")
+    @PostMapping({"/{tenantId}/api/order/batch/previous", "/api/order/batch/previous"})
     public void batchPreviousStatus(@RequestBody List<String> ids) {
         orderService.batchMoveStatus(ids, false);
     }
 
     @ResponseBody
-    @PostMapping("/api/order/{id}/cancel")
+    @PostMapping({"/{tenantId}/api/order/{id}/cancel", "/api/order/{id}/cancel"})
     public void cancelOrder(@PathVariable String id, @RequestBody OrderCancelReason orderCancelReason) {
         orderService.cancelOrder(id, orderCancelReason.value());
     }
 
     @ResponseBody
-    @PostMapping("/api/order/{id}/status")
+    @PostMapping({"/{tenantId}/api/order/{id}/status", "/api/order/{id}/status"})
     public void changeStatus(@PathVariable String id, @RequestBody OrderStatusChange orderStatusChange) {
         orderService.setOrderStatus(id, orderStatusChange.value());
     }

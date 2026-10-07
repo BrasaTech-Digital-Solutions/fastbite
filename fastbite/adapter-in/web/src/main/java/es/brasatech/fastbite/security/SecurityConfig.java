@@ -47,8 +47,8 @@ public class SecurityConfig {
                         .requestMatchers("/owner/**").hasRole("OWNER")
 
                         // Dashboard access (all staff roles + Owner)
-                        .requestMatchers("/dashboard", "/dashboard/**", "/counter/**", "/api/order/**", "/api/orders/**", "/api/counter/**",
-                                "/*/dashboard/**", "/*/counter/**", "/*/api/order/**", "/*/api/orders/**", "/*/api/counter/**")
+                        .requestMatchers("/dashboard", "/dashboard/**", "/counter/**", "/api/order", "/api/order/**", "/api/orders/**", "/api/counter/**",
+                                "/*/dashboard", "/*/dashboard/**", "/*/counter/**", "/*/api/order", "/*/api/order/**", "/*/api/orders/**", "/*/api/counter/**")
                         .hasAnyRole("ADMIN", "MANAGER", "CASHIER", "COOK", "WAITER", "OWNER")
 
                         // Maintenance access (strictly Admin or Owner)

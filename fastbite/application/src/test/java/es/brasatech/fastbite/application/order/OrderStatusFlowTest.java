@@ -127,7 +127,7 @@ class OrderStatusFlowTest {
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orders).update(eq(online.id()), saved.capture());
         assertThat(saved.getValue().heldUntilPaid()).isFalse();
-        assertThat(saved.getValue().status()).as("enters the kitchen as a new order").isEqualTo(OrderStatus.CREATED);
+        assertThat(saved.getValue().status()).as("enters the kitchen as a confirmed order").isEqualTo(OrderStatus.ACCEPTED);
     }
 
     @Test

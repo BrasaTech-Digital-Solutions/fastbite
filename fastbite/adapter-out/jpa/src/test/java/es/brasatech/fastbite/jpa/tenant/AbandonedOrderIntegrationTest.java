@@ -68,7 +68,7 @@ class AbandonedOrderIntegrationTest {
         orders.markOrderPaid(id);
         orders.markOrderPaid(id);
         var paid = orders.findById(id).orElseThrow();
-        assertThat(paid.status()).isEqualTo(OrderStatus.CREATED);
+        assertThat(paid.status()).isEqualTo(OrderStatus.ACCEPTED);
         assertThat(paid.paymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
         assertThat(paid.cancelReason()).isNull();
         assertThat(paid.items()).isEqualTo(expired.items());
@@ -123,7 +123,7 @@ class AbandonedOrderIntegrationTest {
             }
             var paid = orders.findById(id).orElseThrow();
             assertThat(paid.paymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
-            assertThat(paid.status()).isEqualTo(OrderStatus.CREATED);
+            assertThat(paid.status()).isEqualTo(OrderStatus.ACCEPTED);
         }
     }
 

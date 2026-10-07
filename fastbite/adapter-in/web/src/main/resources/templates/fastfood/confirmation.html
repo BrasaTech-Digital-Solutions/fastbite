@@ -103,15 +103,29 @@
 
 
         // Live Order Progress Tracker JS (F-21)
-        // Relative URL, so it resolves to /{tenant}/api/order-status on path-based pages and /api/order-status on tenant hosts.
         const FINISHED_STATUSES = ['COMPLETE', 'CANCELLED'];
+
+        function getTenantPrefix() {
+            const path = window.location.pathname;
+            const segments = path.split('/');
+            if (segments.length > 1) {
+                const firstSegment = segments[1];
+                const reserved = ["signup", "login", "css", "js", "images", "webjars", "stripe", "error", "favicon.ico", "actuator", "api", "counter", "backoffice", "dashboard", "logout", "menu", "select-payment", "order-confirmation", ".well-known", "appspecific"];
+                if (firstSegment && !reserved.includes(firstSegment)) {
+                    return '/' + firstSegment;
+                }
+            }
+            return '';
+        }
 
         function startOrderProgressPolling() {
             let eventSource = null;
             let fallbackTimer = null;
+            const orderStatusUrl = getTenantPrefix() + '/api/order-status';
+            const sseUrl = getTenantPrefix() + '/api/order-status/live';
 
             const pollOnce = () => {
-                fetch('api/order-status')
+                fetch(orderStatusUrl)
                     .then(res => res.ok ? res.json() : null)
                     .then(order => {
                         if (!order) return;
@@ -128,7 +142,7 @@
 
             if (window.EventSource) {
                 try {
-                    eventSource = new EventSource('api/order-status/live');
+                    eventSource = new EventSource(sseUrl);
                     eventSource.addEventListener('order-update', (event) => {
                         try {
                             const data = JSON.parse(event.data);

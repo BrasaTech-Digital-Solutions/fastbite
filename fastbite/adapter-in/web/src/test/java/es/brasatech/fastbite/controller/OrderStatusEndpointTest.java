@@ -39,7 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = OrderController.class)
-@ContextConfiguration(classes = {TestConfig.class, OrderController.class, SecurityConfig.class})
+@ContextConfiguration(classes = {
+        TestConfig.class,
+        OrderController.class,
+        SecurityConfig.class,
+        es.brasatech.fastbite.config.TenantRoutingResolver.class,
+        es.brasatech.fastbite.config.WebConfig.class
+})
 class OrderStatusEndpointTest {
 
     @Autowired
@@ -107,7 +113,7 @@ class OrderStatusEndpointTest {
 
         mockMvc.perform(get("/kebab/order-confirmation").session(session))
                 .andExpect(status().isFound())
-                .andExpect(redirectedUrl("/select-payment"));
+                .andExpect(redirectedUrl("/kebab/select-payment"));
 
         when(orderService.findById("order-8")).thenReturn(Optional.of(takeaway.setPaymentStatus(OrderPaymentStatus.PAID)));
         mockMvc.perform(get("/kebab/order-confirmation").session(session))
@@ -118,5 +124,19 @@ class OrderStatusEndpointTest {
     void guestsCannotListTheKitchenOrders() throws Exception {
         mockMvc.perform(post("/api/order").with(csrf()))
                 .andExpect(status().isFound()); // sent to login
+        mockMvc.perform(post("/kebab/api/order").with(csrf()))
+                .andExpect(status().isFound());
+    }
+
+    @Test
+    void staffCanFetchOrdersWithTenantPrefix() throws Exception {
+        when(orderService.getAllOrder()).thenReturn(List.of());
+        var authorities = org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_CASHIER");
+        var tenantUser = new es.brasatech.fastbite.security.TenantUser("cashier", "pass", true, authorities, "kebab");
+        var auth = org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(tenantUser, null, authorities);
+
+        mockMvc.perform(post("/kebab/api/order").with(csrf()).with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("[]"));
     }
 }

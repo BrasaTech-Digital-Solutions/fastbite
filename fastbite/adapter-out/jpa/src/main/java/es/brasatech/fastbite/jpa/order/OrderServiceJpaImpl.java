@@ -99,13 +99,16 @@ public class OrderServiceJpaImpl implements OrderService {
         // Stripe may deliver a successful payment after on-access cleanup has run.
         if (entity.getStatus() == OrderStatus.CANCELLED
                 && Order.PAYMENT_EXPIRED_REASON.equals(entity.getCancelReason())) {
-            entity.setStatus(OrderStatus.CREATED);
+            entity.setStatus(OrderStatus.ACCEPTED);
             entity.setCancelReason(null);
+        } else if (entity.getStatus() == OrderStatus.CREATED) {
+            entity.setStatus(OrderStatus.ACCEPTED);
         }
         entity.setPaymentStatus(OrderPaymentStatus.PAID);
         entity.setUpdatedAt(java.time.LocalDateTime.now());
         tableService.findTableByOrderId(id).ifPresent(table -> tableService.resetTableSessionIfAllPaid(table.id()));
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
+        publishEvent(new es.brasatech.fastbite.domain.event.OrderStatusChangedEvent(toOrderWithTranslation(entity)));
     }
 
     @Override

@@ -99,7 +99,7 @@ class ResultsOutliveTheirTransactionIntegrationTest {
 
         Order saved = orders.findById(orderId).orElseThrow();
         assertThat(saved.paymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
-        assertThat(saved.status()).isEqualTo(OrderStatus.ACCEPTED);
+        assertThat(saved.status()).isEqualTo(OrderStatus.PROCESSING);
         assertThat(saved.serviceType()).isEqualTo(ServiceType.TAKEAWAY);
         assertThat(saved.items()).singleElement().satisfies(item ->
                 assertThat(item.customizations()).extracting(ProductCustomizer::name).containsExactly("Garlic"));
@@ -125,6 +125,6 @@ class ResultsOutliveTheirTransactionIntegrationTest {
 
         assertThat(orders.getAllOrder()).extracting(Order::id).containsExactlyInAnyOrder(atPickup, online);
         assertThat(orders.findTakeawayAwaitingPayment()).extracting(Order::id).containsExactly(atPickup);
-        assertThat(orders.findById(online).orElseThrow().status()).isEqualTo(OrderStatus.CREATED);
+        assertThat(orders.findById(online).orElseThrow().status()).isEqualTo(OrderStatus.ACCEPTED);
     }
 }

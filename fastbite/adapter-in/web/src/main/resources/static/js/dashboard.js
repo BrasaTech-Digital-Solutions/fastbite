@@ -15,12 +15,12 @@ function getTenantPrefix() {
 }
 
 const getOrderListUrl = () => getTenantPrefix() + '/api/order';
-const moveToNextStatusUrlTemplate = '/api/order/{id}/next';
-const moveToPreviousStatusUrlTemplate = '/api/order/{id}/previous';
+const moveToNextStatusUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/next';
+const moveToPreviousStatusUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/previous';
 const batchNextStatusUrl = () => getTenantPrefix() + '/api/order/batch/next';
 const batchPreviousStatusUrl = () => getTenantPrefix() + '/api/order/batch/previous';
-const cancelOrderUrlTemplate = '/api/order/{id}/cancel';
-const changeOrderStatusUrlTemplate = '/api/order/{id}/status';
+const cancelOrderUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/cancel';
+const changeOrderStatusUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/status';
 let currentCancelOrderId = null;
 let currentStatusChangeOrderId = null;
 let i18n = {};
@@ -400,8 +400,7 @@ function moveToNextStatus(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    const moveToNextStatusUrl = moveToNextStatusUrlTemplate.replace('{id}', order.id);
-    callAPI(moveToNextStatusUrl).then(response => updateOrders()).catch(error => console.error('Error:', error));
+    callAPI(moveToNextStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
     const nextStatus = getNextStatus(order.status)
     showToast(format(i18n.toastUpdated, nextStatus));
 }
@@ -411,8 +410,7 @@ function moveToPreviousStatus(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
-    const moveToPreviousStatusUrl = moveToPreviousStatusUrlTemplate.replace('{id}', order.id);
-    callAPI(moveToPreviousStatusUrl).then(response => updateOrders()).catch(error => console.error('Error:', error));
+    callAPI(moveToPreviousStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
     showToast(`Order #${order.orderNumber} moved to previous status`);
 }
 
@@ -428,7 +426,7 @@ function moveAllToNext(role) {
     
     if (orderIds.length === 0) return;
 
-    fetch(batchNextStatusUrl, {
+    fetch(batchNextStatusUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -452,7 +450,7 @@ function moveAllToPrevious(role) {
     
     if (orderIds.length === 0) return;
 
-    fetch(batchPreviousStatusUrl, {
+    fetch(batchPreviousStatusUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -479,9 +477,8 @@ function confirmCancel() {
     const order = orders.find(o => o.id === currentCancelOrderId);
 
     if (order) {
-        const cancelOrderUrl = cancelOrderUrlTemplate.replace('{id}', order.id);
         const cancelReason = document.getElementById('cancelReason').value;
-        fetch(cancelOrderUrl, {
+        fetch(cancelOrderUrl(order.id), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -513,13 +510,11 @@ function showStatusChangeModal(orderId) {
 function confirmStatusChange() {
     const order = orders.find(o => o.id === currentStatusChangeOrderId);
     if (order) {
-        const changeOrderStatusUrl = changeOrderStatusUrlTemplate.replace('{id}', order.id);
         const newStatus = document.getElementById('newStatus').value;
         const reason = document.getElementById('statusCancelReason').value;
 
         if (newStatus === 'CANCELLED') {
-            const cancelOrderUrl = cancelOrderUrlTemplate.replace('{id}', order.id);
-            fetch(cancelOrderUrl, {
+            fetch(cancelOrderUrl(order.id), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -532,7 +527,7 @@ function confirmStatusChange() {
                 bootstrap.Modal.getInstance(document.getElementById('statusChangeModal')).hide();
             }).catch(error => console.error('Error:', error));
         } else {
-            fetch(changeOrderStatusUrl, {
+            fetch(changeOrderStatusUrl(order.id), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -618,16 +613,23 @@ function addDemoOrder() {
 
 // Add demo order (for testing)
 function updateOrders() {
-    fetch(getOrderListUrl, {
+    fetch(getOrderListUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
         }
-    }).then(response => response.json()).then(data => {
-        orders = data;
-        renderAllDashboards();
-    }).catch(error => console.error('Error:', error));
+    }).then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    }).then(data => {
+        if (Array.isArray(data)) {
+            orders = data;
+            renderAllDashboards();
+        }
+    }).catch(error => console.error('Error fetching orders:', error));
 }
 
 function callAPI(url) {
