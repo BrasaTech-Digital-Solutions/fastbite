@@ -29,23 +29,28 @@ public class SignupController {
             @RequestParam String username,
             @RequestParam String password,
             @RequestParam String fullName,
+            @RequestParam(defaultValue = "RESTAURANT") String plan,
             jakarta.servlet.http.HttpServletRequest request,
             Model model) {
         model.addAttribute("tenantId", tenantId);
         model.addAttribute("username", username);
         model.addAttribute("fullName", fullName);
+        model.addAttribute("plan", plan);
         try {
             if (password.length() < 10 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
                 throw new IllegalArgumentException("Use a password of at least 10 characters and at most 72 UTF-8 bytes.");
             String encodedPassword = passwordEncoder.encode(password);
-            tenantSignupService.registerTenant(tenantId, username, encodedPassword, fullName);
+            tenantSignupService.registerTenant(tenantId, username, encodedPassword, fullName, plan);
             
             String normalizedTenant = es.brasatech.fastbite.application.tenant.TenantRegistrationRules.tenantId(tenantId);
             String subdomainUrl = "/" + normalizedTenant + "/login";
 
             model.addAttribute("registeredTenantId", tenantId);
             model.addAttribute("subdomainUrl", subdomainUrl);
-            model.addAttribute("success", "Restaurant " + tenantId + " has been successfully registered. Your 30-day trial is ready. You can now log in.");
+            String welcomeMsg = "FREE".equalsIgnoreCase(plan)
+                    ? "Restaurant " + tenantId + " has been successfully registered on the Free Plan (0€/mo). You can now log in."
+                    : "Restaurant " + tenantId + " has been successfully registered. Your 30-day trial is ready. You can now log in.";
+            model.addAttribute("success", welcomeMsg);
             return "fastfood/signup";
         } catch (IllegalArgumentException e) {
             log.warn("Failed tenant registration due to input validation: {}", e.getMessage());

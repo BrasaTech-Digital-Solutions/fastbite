@@ -38,6 +38,21 @@
 <form th:if="${success == null}" th:action="@{/signup}" method="post">
 <h2 style="font-size:27px">Let’s make it yours.</h2>
 <div class="field">
+<label>Choose your plan</label>
+<div style="display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;">
+  <label style="flex:1; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:12px; cursor:pointer; background:#fff; display:block;">
+    <input type="radio" name="plan" value="FREE" th:checked="${plan == 'FREE'}" style="margin-right:6px;">
+    <strong>Free Plan (0€/mo)</strong>
+    <p style="font-size:13px; color:#555; margin:6px 0 0 0;">Zero monthly fee. Accept card payments with a small 2.5% platform fee on takeaway orders.</p>
+  </label>
+  <label style="flex:1; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:12px; cursor:pointer; background:#fff; display:block;">
+    <input type="radio" name="plan" value="RESTAURANT" th:checked="${plan == null || plan == 'RESTAURANT'}" style="margin-right:6px;">
+    <strong>Restaurant Pro</strong>
+    <p style="font-size:13px; color:#555; margin:6px 0 0 0;">30-day free trial. Then €49/month. 0% platform order cut.</p>
+  </label>
+</div>
+</div>
+<div class="field">
 <label for="tenantId">Restaurant web address</label>
 <input id="tenantId" name="tenantId" th:value="${tenantId}" placeholder="yourcafe" pattern="[a-zA-Z0-9]{1,56}" maxlength="56" required autocomplete="off" aria-describedby="address-help">
 <small id="address-help">Letters and numbers only. Your menu will be at /yourcafe/menu. System addresses, including kebab (the legacy demo), are reserved.</small>
@@ -55,8 +70,8 @@
 <input id="password" name="password" type="password" minlength="10" maxlength="72" autocomplete="new-password" required aria-describedby="password-help">
 <small id="password-help">Use at least 10 characters.</small>
 </div>
-<button class="button" type="submit">Create my free trial ↗</button>
-<p class="form-note">Your 30-day trial starts when your restaurant is created. Activate the €49/month plan when you’re ready; VAT and payment-processing fees are separate.</p>
+<button class="button" type="submit">Get started ↗</button>
+<p class="form-note">Activate or change your plan at any time from your owner console. VAT and payment-processing fees are separate.</p>
 </form>
 </section>
 </main>

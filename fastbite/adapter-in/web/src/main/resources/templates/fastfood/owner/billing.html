@@ -19,13 +19,14 @@
 <div th:if="${param.checkout != null}" class="alert success" role="status">Back from checkout? Use “Refresh status” to check Stripe’s confirmation. Returning here does not itself activate a subscription.</div>
 <section class="billing-card">
 <h2 style="font-size:30px" th:text="${billing.tenantId}">Restaurant</h2>
-<p>Restaurant · €<span th:text="${monthlyPrice}">49</span> per month, per location, excluding VAT</p>
+<p th:if="${billing.status == 'FREE' || billing.status == 'free'}">Free Plan · 0€/month · 2.5% platform fee on takeaway card payments</p>
+<p th:unless="${billing.status == 'FREE' || billing.status == 'free'}">Restaurant · €<span th:text="${monthlyPrice}">49</span> per month, per location, excluding VAT</p>
 <dl class="billing-meta">
 <div>
 <dt>Billing status</dt>
 <dd th:text="${billing.displayStatus()}">Free trial</dd>
 </div>
-<div>
+<div th:if="${billing.status != 'FREE' && billing.status != 'free'}">
 <dt>Free trial ends (UTC)</dt>
 <dd th:text="${#temporals.format(billing.trialEndsAt(), 'd MMMM yyyy, HH:mm', 'UTC')}">
 </dd>
@@ -36,7 +37,8 @@
 </dd>
 </div>
 </dl>
-<p class="fine">If your trial or subscription ends, new orders pause. Existing orders, owner access and data export remain available.</p>
+<p class="fine" th:if="${billing.status == 'FREE' || billing.status == 'free'}">You can take unlimited orders on the Free Plan. Upgrade to Restaurant Pro at any time to remove the 2.5% platform fee.</p>
+<p class="fine" th:unless="${billing.status == 'FREE' || billing.status == 'free'}">If your trial or subscription ends, new orders pause. Existing orders, owner access and data export remain available.</p>
 <div th:unless="${billingConfigured}" class="alert error">Subscription checkout is not configured yet. Contact the platform operator before your trial ends.</div>
 <div class="billing-actions">
 <form th:if="${billing.subscriptionId == null || billing.status == 'canceled' || billing.status == 'incomplete_expired'}" th:action="@{/owner/billing/{tenant}/checkout(tenant=${billing.tenantId})}" method="post">
