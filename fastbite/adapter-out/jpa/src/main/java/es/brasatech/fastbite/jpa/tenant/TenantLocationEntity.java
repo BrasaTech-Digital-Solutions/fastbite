@@ -36,4 +36,10 @@ public class TenantLocationEntity {
 
     @Column(name = "stripe_account_id")
     private String stripeAccountId;
+
+    @Column(name = "stripe_charges_enabled")
+    private Boolean stripeChargesEnabled;
+
+    @Column(name = "stripe_details_submitted")
+    private Boolean stripeDetailsSubmitted;
 }

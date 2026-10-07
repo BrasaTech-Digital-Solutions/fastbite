@@ -229,4 +229,33 @@ class StripeWebhookControllerTest {
         mockMvc.perform(post("/api/webhooks/stripe").contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isOk());
         verify(subscriptions).refreshSubscription("sub_invoice");
     }
+
+    @Test
+    @DisplayName("POST /api/webhooks/stripe - account.updated synchronizes Stripe Connect capabilities")
+    void testAccountUpdatedWebhookSynchronizesCapabilities() throws Exception {
+        String payload = """
+            {
+              "id": "evt_account_123",
+              "object": "event",
+              "type": "account.updated",
+              "data": {
+                "object": {
+                  "id": "acct_test_connect",
+                  "charges_enabled": true,
+                  "details_submitted": true
+                }
+              }
+            }
+            """;
+        when(stripeService.constructEvent(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.nullable(String.class)))
+                .thenReturn(Event.GSON.fromJson(payload, Event.class));
+
+        mockMvc.perform(post("/api/webhooks/stripe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload)
+                        .with(csrf()))
+                .andExpect(status().isOk());
+
+        verify(tenantLocationService).syncStripeCapabilities("acct_test_connect", true, true);
+    }
 }

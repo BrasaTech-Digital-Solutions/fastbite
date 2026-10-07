@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS tenant_locations (
     tenant_id VARCHAR(255) NOT NULL UNIQUE,
     plan VARCHAR(255) NOT NULL DEFAULT 'Free Demo',
     custom_domain VARCHAR(255) UNIQUE,
-    stripe_account_id VARCHAR(255)
+    stripe_account_id VARCHAR(255),
+    stripe_charges_enabled BOOLEAN DEFAULT FALSE,
+    stripe_details_submitted BOOLEAN DEFAULT FALSE
 );
 
 -- Products

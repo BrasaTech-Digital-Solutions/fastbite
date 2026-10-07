@@ -11,4 +11,5 @@ public interface TenantLocationJpaRepository extends JpaRepository<TenantLocatio
     List<TenantLocationEntity> findByOwnerUsername(String ownerUsername);
     Optional<TenantLocationEntity> findByTenantId(String tenantId);
     Optional<TenantLocationEntity> findByCustomDomain(String customDomain);
+    Optional<TenantLocationEntity> findByStripeAccountId(String stripeAccountId);
 }

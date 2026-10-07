@@ -31,6 +31,7 @@ public class StripeWebhookController {
     private final TenantSignupService tenantSignupService;
     private final OrderCheckoutService orderCheckoutService;
     private final OwnerSetupService ownerSetupService;
+    private final es.brasatech.fastbite.application.tenant.TenantLocationService locationService;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/api/webhooks/stripe")
@@ -48,6 +49,22 @@ public class StripeWebhookController {
                 eventType = root.path("type").asText();
             }
             log.info("Processing verified Stripe event type: {}", eventType);
+
+            if ("account.updated".equals(eventType) || "capability.updated".equals(eventType)) {
+                JsonNode accountObj = objectMapper.readTree(payload).path("data").path("object");
+                String accountId = accountObj.path("id").asText();
+                if (accountId.isBlank() && accountObj.has("account")) {
+                    accountId = accountObj.path("account").asText();
+                }
+                if (!accountId.isBlank()) {
+                    boolean chargesEnabled = accountObj.path("charges_enabled").asBoolean(false);
+                    boolean detailsSubmitted = accountObj.path("details_submitted").asBoolean(false);
+                    locationService.syncStripeCapabilities(accountId, chargesEnabled, detailsSubmitted);
+                    log.info("Synchronized Stripe Connect account {} capabilities: chargesEnabled={}, detailsSubmitted={}",
+                            accountId, chargesEnabled, detailsSubmitted);
+                    return ResponseEntity.ok("Account synchronized");
+                }
+            }
 
             if (eventType.startsWith("customer.subscription.")) {
                 String id = objectMapper.readTree(payload).path("data").path("object").path("id").asText();

@@ -35,6 +35,24 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     @Override
+    public Optional<TenantLocation> findByStripeAccountId(String stripeAccountId) {
+        if (stripeAccountId == null || stripeAccountId.isBlank()) return Optional.empty();
+        return repository.findByStripeAccountId(stripeAccountId.trim())
+                .map(this::toDomain);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateStripeCapabilities(String stripeAccountId, boolean chargesEnabled, boolean detailsSubmitted) {
+        if (stripeAccountId == null || stripeAccountId.isBlank()) return;
+        repository.findByStripeAccountId(stripeAccountId.trim()).ifPresent(entity -> {
+            entity.setStripeChargesEnabled(chargesEnabled);
+            entity.setStripeDetailsSubmitted(detailsSubmitted);
+            repository.saveAndFlush(entity);
+        });
+    }
+
+    @Override
     @org.springframework.transaction.annotation.Transactional
     public void save(TenantLocation location) {
         TenantLocationEntity entity = repository.findByTenantId(location.tenantId())
@@ -45,6 +63,12 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
         entity.setPlan(effectivePlan);
         entity.setCustomDomain(location.customDomain());
         entity.setStripeAccountId(location.stripeAccountId());
+        if (location.stripeChargesEnabled() != null) {
+            entity.setStripeChargesEnabled(location.stripeChargesEnabled());
+        }
+        if (location.stripeDetailsSubmitted() != null) {
+            entity.setStripeDetailsSubmitted(location.stripeDetailsSubmitted());
+        }
         repository.saveAndFlush(entity);
         jdbc.update("INSERT INTO public.tenant_billing (tenant_id,billing_key) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM public.tenant_billing WHERE tenant_id=?)",
                 location.tenantId(), java.util.UUID.randomUUID().toString(), location.tenantId());
@@ -57,6 +81,9 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     private TenantLocation toDomain(TenantLocationEntity entity) {
-        return new TenantLocation(entity.getId(), entity.getOwnerUsername(), entity.getTenantId(), entity.getPlan(), entity.getCustomDomain(), entity.getStripeAccountId());
+        return new TenantLocation(entity.getId(), entity.getOwnerUsername(), entity.getTenantId(), entity.getPlan(),
+                entity.getCustomDomain(), entity.getStripeAccountId(),
+                Boolean.TRUE.equals(entity.getStripeChargesEnabled()),
+                Boolean.TRUE.equals(entity.getStripeDetailsSubmitted()));
     }
 }

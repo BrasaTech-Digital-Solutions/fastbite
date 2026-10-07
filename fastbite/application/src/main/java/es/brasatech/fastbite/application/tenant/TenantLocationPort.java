@@ -9,6 +9,8 @@ public interface TenantLocationPort {
     List<TenantLocation> findByOwner(String ownerUsername);
     Optional<TenantLocation> findByTenantId(String tenantId);
     Optional<TenantLocation> findByCustomDomain(String customDomain);
+    Optional<TenantLocation> findByStripeAccountId(String stripeAccountId);
+    void updateStripeCapabilities(String stripeAccountId, boolean chargesEnabled, boolean detailsSubmitted);
     void save(TenantLocation location);
     void delete(String tenantId);
 }

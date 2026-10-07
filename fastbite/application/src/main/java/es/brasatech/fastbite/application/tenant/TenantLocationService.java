@@ -87,6 +87,16 @@ public class TenantLocationService {
                 .orElse(false);
     }
 
+    public Optional<TenantLocation> getLocationByStripeAccount(String stripeAccountId) {
+        if (stripeAccountId == null || stripeAccountId.trim().isEmpty()) return Optional.empty();
+        return tenantLocationPort.findByStripeAccountId(stripeAccountId.trim());
+    }
+
+    public void syncStripeCapabilities(String stripeAccountId, boolean chargesEnabled, boolean detailsSubmitted) {
+        if (stripeAccountId == null || stripeAccountId.trim().isEmpty()) return;
+        tenantLocationPort.updateStripeCapabilities(stripeAccountId.trim(), chargesEnabled, detailsSubmitted);
+    }
+
     public void removeLocation(String tenantId) {
         tenantLocationPort.delete(tenantId);
     }
