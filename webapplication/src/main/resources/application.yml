@@ -64,11 +64,7 @@ spring:
           writetimeout: 10000
           starttls:
             enable: ${SMTP_STARTTLS:true}
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:user}
-    password: ${RABBITMQ_PASSWORD:password}
+
   servlet:
     multipart:
       max-file-size: 5MB
