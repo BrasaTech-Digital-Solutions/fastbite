@@ -62,4 +62,19 @@ class BillingJdbcIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.group_quote_requests WHERE owner_username='quoteowner'",Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT locations FROM public.group_quote_requests WHERE owner_username='quoteowner'",Integer.class)).isEqualTo(5);
     }
+    @Test void platformSettingsCanBeUpdatedDynamically() {
+        var initial = billing.getPlatformSettings();
+        assertThat(initial.monthlyPriceCents()).isEqualTo(4900);
+        billing.updatePlatformSettings(new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(5900, 45, 300));
+        var updated = billing.getPlatformSettings();
+        assertThat(updated.monthlyPriceCents()).isEqualTo(5900);
+        assertThat(updated.trialDays()).isEqualTo(45);
+        assertThat(updated.freePlanCutBps()).isEqualTo(300);
+    }
+    @Test void tenantPlanCanBeOverriddenDynamically() {
+        signup.registerTenant("planoverride","planowner","hash","Owner");
+        billing.updateTenantPlan("planoverride", "FREE");
+        assertThat(jdbc.queryForObject("SELECT plan FROM public.tenant_locations WHERE tenant_id='planoverride'", String.class)).isEqualTo("FREE");
+        assertThat(billing.find("planoverride").orElseThrow().status()).isEqualTo("FREE");
+    }
 }

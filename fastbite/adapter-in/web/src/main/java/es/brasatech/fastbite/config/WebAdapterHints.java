@@ -34,6 +34,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.DemoTemplateDescriptor.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.BillingAccount.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SubscriptionPlan.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.PlatformBillingSettings.class, MemberCategory.values());
         // Include directory entries too, so native resource discovery can traverse each location.
         hints.resources().registerPattern("db/migration/restaurant/**");
         hints.resources().registerPattern("db/migration/platform/**");

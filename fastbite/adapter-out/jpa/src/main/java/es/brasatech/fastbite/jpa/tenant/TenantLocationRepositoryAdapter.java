@@ -41,7 +41,8 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
                 .orElse(new TenantLocationEntity());
         entity.setOwnerUsername(location.ownerUsername());
         entity.setTenantId(location.tenantId());
-        entity.setPlan("RESTAURANT");
+        String effectivePlan = (location.plan() != null && !location.plan().isBlank()) ? location.plan() : (entity.getPlan() != null ? entity.getPlan() : "RESTAURANT");
+        entity.setPlan(effectivePlan);
         entity.setCustomDomain(location.customDomain());
         entity.setStripeAccountId(location.stripeAccountId());
         repository.saveAndFlush(entity);

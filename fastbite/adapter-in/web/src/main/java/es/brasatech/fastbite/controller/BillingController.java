@@ -43,4 +43,38 @@ public class BillingController {
         catch (IllegalArgumentException e) { flash.addFlashAttribute("error", e.getMessage()); }
         return "redirect:/owner/console?view=settings";
     }
+
+    @PostMapping("/owner/billing/settings")
+    public String updateSettings(@RequestParam long monthlyPriceEuros, @RequestParam int trialDays, @RequestParam int freePlanCutBps, RedirectAttributes flash) {
+        try {
+            subscriptions.updatePlatformSettings(new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(
+                    monthlyPriceEuros * 100, trialDays, freePlanCutBps));
+            flash.addFlashAttribute("notice", "Platform billing settings updated successfully.");
+        } catch (IllegalArgumentException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/owner/console?view=settings";
+    }
+
+    @PostMapping("/owner/billing/{tenant}/override-plan")
+    public String overridePlan(@PathVariable String tenant, @RequestParam String plan, RedirectAttributes flash) {
+        try {
+            subscriptions.updateTenantPlan(tenant, plan);
+            flash.addFlashAttribute("notice", "Plan for " + tenant + " updated to " + plan + ".");
+        } catch (IllegalArgumentException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/owner/billing/" + tenant;
+    }
+
+    @PostMapping("/owner/billing/{tenant}/extend-trial")
+    public String extendTrial(@PathVariable String tenant, @RequestParam int days, RedirectAttributes flash) {
+        try {
+            subscriptions.extendTenantTrial(tenant, days);
+            flash.addFlashAttribute("notice", "Trial for " + tenant + " extended by " + days + " days.");
+        } catch (IllegalArgumentException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/owner/billing/" + tenant;
+    }
 }

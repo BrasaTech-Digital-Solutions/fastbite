@@ -103,4 +103,19 @@ public class SubscriptionService {
             throw new IllegalArgumentException("Enter a valid email and between 3 and 1000 locations.");
         billing.requestGroupQuote(owner, email, locations);
     }
+    public es.brasatech.fastbite.domain.tenant.PlatformBillingSettings platformSettings() {
+        return billing.getPlatformSettings();
+    }
+    public void updatePlatformSettings(es.brasatech.fastbite.domain.tenant.PlatformBillingSettings settings) {
+        if (settings.monthlyPriceCents() < 0 || settings.trialDays() < 0 || settings.freePlanCutBps() < 0) {
+            throw new IllegalArgumentException("Billing parameters cannot be negative.");
+        }
+        billing.updatePlatformSettings(settings);
+    }
+    public void updateTenantPlan(String tenantId, String plan) {
+        billing.updateTenantPlan(tenantId, plan);
+    }
+    public void extendTenantTrial(String tenantId, int extraDays) {
+        billing.extendTenantTrial(tenantId, extraDays);
+    }
 }

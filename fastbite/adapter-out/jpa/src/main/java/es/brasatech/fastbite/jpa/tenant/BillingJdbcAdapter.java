@@ -47,6 +47,52 @@ public class BillingJdbcAdapter implements BillingPort {
             return null;
         });
     }
+    @Override public es.brasatech.fastbite.domain.tenant.PlatformBillingSettings getPlatformSettings() {
+        return transaction(source, c -> {
+            try (var q = statement(c, "SELECT monthly_price_cents, trial_days, free_plan_cut_bps FROM public.platform_billing_settings WHERE id = 'default'");
+                 var r = q.executeQuery()) {
+                if (r.next()) {
+                    return new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(
+                            r.getLong("monthly_price_cents"),
+                            r.getInt("trial_days"),
+                            r.getInt("free_plan_cut_bps"));
+                }
+            } catch (SQLException ignored) {
+                // Table might not exist in some unit environments; fallback to defaults
+            }
+            return es.brasatech.fastbite.domain.tenant.PlatformBillingSettings.defaultSettings();
+        });
+    }
+
+    @Override public void updatePlatformSettings(es.brasatech.fastbite.domain.tenant.PlatformBillingSettings s) {
+        transaction(source, c -> {
+            int updated = update(c, "UPDATE public.platform_billing_settings SET monthly_price_cents=?, trial_days=?, free_plan_cut_bps=? WHERE id='default'",
+                    s.monthlyPriceCents(), s.trialDays(), s.freePlanCutBps());
+            if (updated == 0) {
+                update(c, "INSERT INTO public.platform_billing_settings (id, monthly_price_cents, trial_days, free_plan_cut_bps) VALUES ('default', ?, ?, ?)",
+                        s.monthlyPriceCents(), s.trialDays(), s.freePlanCutBps());
+            }
+            return null;
+        });
+    }
+
+    @Override public void updateTenantPlan(String tenantId, String plan) {
+        transaction(source, c -> {
+            update(c, "UPDATE public.tenant_locations SET plan=? WHERE tenant_id=?", plan, tenantId);
+            if ("FREE".equalsIgnoreCase(plan)) {
+                update(c, "UPDATE public.tenant_billing SET status='FREE' WHERE tenant_id=?", tenantId);
+            }
+            return null;
+        });
+    }
+
+    @Override public void extendTenantTrial(String tenantId, int extraDays) {
+        transaction(source, c -> {
+            update(c, "UPDATE public.tenant_billing SET trial_started_at = trial_started_at + (? * INTERVAL '1 day') WHERE tenant_id=?", extraDays, tenantId);
+            return null;
+        });
+    }
+
     static void createTrial(Connection c, String tenant) throws SQLException {
         createTrial(c, tenant, "LOCAL_TRIAL");
     }

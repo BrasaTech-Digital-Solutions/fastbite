@@ -129,4 +129,13 @@ class SubscriptionServiceTest {
         assertThat(service.checkout("cafe","owner")).isEqualTo("/owner/billing/cafe");
         verify(gateway,never()).createCheckout(any(),anyString());
     }
+    @Test void platformSettingsDelegatesToPort() {
+        var settings = new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(5000, 20, 200);
+        when(port.getPlatformSettings()).thenReturn(settings);
+        assertThat(service.platformSettings()).isEqualTo(settings);
+        service.updatePlatformSettings(settings);
+        verify(port).updatePlatformSettings(settings);
+        assertThatThrownBy(() -> service.updatePlatformSettings(new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(-1, 20, 200)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

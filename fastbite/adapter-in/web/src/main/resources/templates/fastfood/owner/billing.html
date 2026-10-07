@@ -42,7 +42,7 @@
 <div th:unless="${billingConfigured}" class="alert error">Subscription checkout is not configured yet. Contact the platform operator before your trial ends.</div>
 <div class="billing-actions">
 <form th:if="${billing.subscriptionId == null || billing.status == 'canceled' || billing.status == 'incomplete_expired'}" th:action="@{/owner/billing/{tenant}/checkout(tenant=${billing.tenantId})}" method="post">
-<button class="button" th:disabled="${!billingConfigured}">Activate Restaurant — €49/month ↗</button>
+<button class="button" th:disabled="${!billingConfigured}">Activate Restaurant — €<span th:text="${monthlyPrice}">49</span>/month ↗</button>
 </form>
 <form th:if="${billing.customerId != null}" th:action="@{/owner/billing/{tenant}/portal(tenant=${billing.tenantId})}" method="post">
 <button class="button secondary" th:disabled="${!billingConfigured}">Manage payments & cancellation ↗</button>
@@ -53,6 +53,23 @@
 </div>
 <p class="form-note">Activating a subscription starts paid billing immediately and ends your free trial. Stripe shows your total, applicable taxes and any approved promotion before you confirm. Payment-processing fees for customer orders are separate.</p>
 </section>
+<details class="panel disclosure" style="margin-top: 1.5rem;"><summary>Location Plan &amp; Trial Overrides</summary>
+<div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
+<form class="compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post" style="flex: 1; min-width: 240px;">
+<label for="select-plan">Switch location plan</label>
+<select id="select-plan" name="plan">
+<option value="FREE" th:selected="${billing.status == 'FREE'}">Free (0€/mo + 2.5% card fee)</option>
+<option value="RESTAURANT" th:selected="${billing.status != 'FREE'}">Restaurant (€<span th:text="${monthlyPrice}">49</span>/mo)</option>
+</select>
+<button class="button secondary" style="margin-top: 0.5rem;">Update plan</button>
+</form>
+<form class="compact-form" th:action="@{/owner/billing/{tenant}/extend-trial(tenant=${billing.tenantId})}" method="post" style="flex: 1; min-width: 240px;">
+<label for="extend-days">Extend trial period</label>
+<input id="extend-days" name="days" type="number" min="1" max="180" value="14" required>
+<button class="button secondary" style="margin-top: 0.5rem;">+ Add trial days</button>
+</form>
+</div>
+</details>
 <p class="fine">Subscriptions are billed separately for each location. For 3+ locations, request volume pricing in Account &amp; billing before you subscribe.</p>
 </main>
 </div>
