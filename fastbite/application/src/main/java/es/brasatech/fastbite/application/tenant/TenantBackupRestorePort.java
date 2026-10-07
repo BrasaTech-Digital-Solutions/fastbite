@@ -8,7 +8,9 @@ import java.util.Optional;
 
 public interface TenantBackupRestorePort {
     void exportBackup(String tenantId, OutputStream outputStream);
+    void exportProductionBundle(String tenantId, OutputStream outputStream);
     void importRestore(String tenantId, InputStream inputStream);
+    void importProductionBundle(String tenantId, InputStream inputStream);
     void importDemoTemplate(String tenantId, InputStream inputStream);
     void importDemoTemplate(String tenantId, String templateId);
     void cleanTenantData(String tenantId);

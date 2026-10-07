@@ -80,11 +80,20 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
 
     @Override
     public void exportBackup(String tenantId, OutputStream outputStream) {
-        tenantMediaPath(tenantId); // Validate before starting any database/file operation.
-        inTenantTransaction(tenantId, true, () -> exportInTransaction(tenantId, outputStream));
+        exportArchive(tenantId, outputStream, false);
     }
 
-    private void exportInTransaction(String tenantId, OutputStream outputStream) {
+    @Override
+    public void exportProductionBundle(String tenantId, OutputStream outputStream) {
+        exportArchive(tenantId, outputStream, true);
+    }
+
+    private void exportArchive(String tenantId, OutputStream outputStream, boolean productionBundleOnly) {
+        tenantMediaPath(tenantId); // Validate before starting any database/file operation.
+        inTenantTransaction(tenantId, true, () -> exportInTransaction(tenantId, outputStream, productionBundleOnly));
+    }
+
+    private void exportInTransaction(String tenantId, OutputStream outputStream, boolean productionBundleOnly) {
         try {
             
             // 1. Gather all database entities
@@ -96,16 +105,24 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             backupData.setCustomizationOptions(customizationOptionJpaRepository.findAll());
             backupData.setTables(tableJpaRepository.findAll());
             backupData.setDiscountRules(discountRuleJpaRepository.findAll());
-            backupData.setOrders(orderJpaRepository.findAll());
-            backupData.setUsers(userJpaRepository.findAll().stream()
-                    .filter(user -> !isPlatformSchema(tenantId) || isDemoStaff(user)).toList());
-            backupData.setPaymentConfigs(paymentConfigJpaRepository.findAll());
-            backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
-            List<?> counters = entityManager.createNativeQuery("SELECT business_day, last_number FROM order_counter WHERE id = 1").getResultList();
-            if (!counters.isEmpty()) {
-                Object[] row = (Object[]) counters.getFirst();
-                backupData.setOrderCounter(new OrderCounterBackup(java.time.LocalDate.parse(row[0].toString()), ((Number) row[1]).intValue()));
+            if (productionBundleOnly) {
+                // Strictly exclude test orders, staff/test credentials, payment configurations, and order counters
+                backupData.setOrders(java.util.List.of());
+                backupData.setUsers(java.util.List.of());
+                backupData.setPaymentConfigs(java.util.List.of());
+                backupData.setOrderCounter(null);
+            } else {
+                backupData.setOrders(orderJpaRepository.findAll());
+                backupData.setUsers(userJpaRepository.findAll().stream()
+                        .filter(user -> !isPlatformSchema(tenantId) || isDemoStaff(user)).toList());
+                backupData.setPaymentConfigs(paymentConfigJpaRepository.findAll());
+                List<?> counters = entityManager.createNativeQuery("SELECT business_day, last_number FROM order_counter WHERE id = 1").getResultList();
+                if (!counters.isEmpty()) {
+                    Object[] row = (Object[]) counters.getFirst();
+                    backupData.setOrderCounter(new OrderCounterBackup(java.time.LocalDate.parse(row[0].toString()), ((Number) row[1]).intValue()));
+                }
             }
+            backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
 
 
             // 2. Write to ZIP
@@ -159,6 +176,11 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     @Override
     public void importRestore(String tenantId, InputStream inputStream) {
         restoreArchive(tenantId, inputStream, false);
+    }
+
+    @Override
+    public void importProductionBundle(String tenantId, InputStream inputStream) {
+        restoreArchive(tenantId, inputStream, true);
     }
 
     @Override

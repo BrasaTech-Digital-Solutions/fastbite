@@ -193,4 +193,22 @@ class TenantBackupRestoreAdapterTest {
             return null;
         });
     }
+
+    @Test
+    void testProductionBundleExcludesOrdersAndAccounts() {
+        String testTenant = "bundletenant";
+        tenantProvisionerAdapter.provisionTenant(testTenant);
+        TenantContext.setCurrentTenant(testTenant);
+
+        backupRestoreAdapter.importDemoTemplate(testTenant, "kebab");
+
+        ByteArrayOutputStream bundleOut = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(testTenant, bundleOut);
+        assertTrue(bundleOut.size() > 0);
+
+        var preview = backupRestoreAdapter.previewBackup(testTenant, new ByteArrayInputStream(bundleOut.toByteArray()));
+        assertTrue(preview.products() > 0);
+        assertEquals(0, preview.orders(), "Production bundle must not contain orders");
+        assertEquals(0, preview.accounts(), "Production bundle must not contain accounts");
+    }
 }

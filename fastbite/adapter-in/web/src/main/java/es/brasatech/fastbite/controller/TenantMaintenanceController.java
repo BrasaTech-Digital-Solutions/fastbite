@@ -52,6 +52,55 @@ public class TenantMaintenanceController {
         }
     }
 
+    @GetMapping("/export-production-bundle")
+    public void downloadProductionBundle(@PathVariable String tenantId, HttpServletResponse response) {
+        log.info("Requested clean production promotion bundle for tenant: {}", tenantId);
+        java.nio.file.Path archive = null;
+        try {
+            archive = java.nio.file.Files.createTempFile("fastbite-bundle-", ".zip");
+            try (var output = java.nio.file.Files.newOutputStream(archive)) {
+                tenantBackupRestorePort.exportProductionBundle(tenantId, output);
+            }
+            response.setContentType("application/zip");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + tenantId + "_production_bundle.zip");
+            response.setContentLengthLong(java.nio.file.Files.size(archive));
+            java.nio.file.Files.copy(archive, response.getOutputStream());
+            log.info("Production promotion bundle successfully streamed for tenant: {}", tenantId);
+        } catch (Exception e) {
+            log.error("Failed to stream production bundle for tenant: " + tenantId, e);
+            if (!response.isCommitted()) {
+                response.reset();
+                response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            }
+        } finally {
+            if (archive != null) {
+                try { java.nio.file.Files.deleteIfExists(archive); }
+                catch (java.io.IOException e) { log.warn("Could not remove temporary bundle archive", e); }
+            }
+        }
+    }
+
+    @PostMapping("/import-production-bundle")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> uploadProductionBundle(
+            @PathVariable String tenantId,
+            @RequestParam("file") MultipartFile file) {
+        log.info("Requested production promotion bundle import for tenant: {}", tenantId);
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Uploaded bundle file is empty."));
+        }
+
+        try (InputStream is = file.getInputStream()) {
+            tenantBackupRestorePort.importProductionBundle(tenantId, is);
+            log.info("Production bundle imported successfully for tenant: {}", tenantId);
+            return ResponseEntity.ok(Map.of("status", "success", "message", "Production bundle successfully imported into location."));
+        } catch (Exception e) {
+            log.error("Failed to import production bundle for tenant: " + tenantId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to import bundle: " + e.getMessage()));
+        }
+    }
+
     @PostMapping("/restore")
     @ResponseBody
     public ResponseEntity<Map<String, String>> uploadRestore(
