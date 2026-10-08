@@ -35,7 +35,7 @@ class TenantMigrationServiceTest {
         migrations.migrateAll(false);
         migrations.provision("alpha");
         migrations.validateAll();
-        assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8");
+        assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7");
         assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3");
         assertThat(versions("TENANT_BETA")).containsExactly("1", "3");
         assertThat(jdbc.queryForObject("SELECT price FROM tenant_alpha.products WHERE id = 'meal'", BigDecimal.class))

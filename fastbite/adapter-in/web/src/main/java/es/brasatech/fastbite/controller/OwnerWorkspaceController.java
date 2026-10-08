@@ -37,7 +37,6 @@ public class OwnerWorkspaceController {
         model.addAttribute("themes",themes.all());
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
         model.addAttribute("demoTemplates",backups.getAvailableTemplates(locale!=null?locale:Locale.getDefault()));
-        model.addAttribute("platformSettings",subscriptions.platformSettings());
         if(selected!=null) {
             model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
             model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));

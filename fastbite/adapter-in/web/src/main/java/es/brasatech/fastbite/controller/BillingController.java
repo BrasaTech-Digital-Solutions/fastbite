@@ -44,17 +44,6 @@ public class BillingController {
         return "redirect:/owner/console?view=settings";
     }
 
-    @PostMapping("/owner/billing/settings")
-    public String updateSettings(@RequestParam long monthlyPriceEuros, @RequestParam int trialDays, @RequestParam int freePlanCutBps, RedirectAttributes flash) {
-        try {
-            subscriptions.updatePlatformSettings(new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(
-                    monthlyPriceEuros * 100, trialDays, freePlanCutBps));
-            flash.addFlashAttribute("notice", "Platform billing settings updated successfully.");
-        } catch (IllegalArgumentException e) {
-            flash.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/owner/console?view=settings";
-    }
 
     @PostMapping("/owner/billing/{tenant}/override-plan")
     public String overridePlan(@PathVariable String tenant, @RequestParam String plan, RedirectAttributes flash) {
