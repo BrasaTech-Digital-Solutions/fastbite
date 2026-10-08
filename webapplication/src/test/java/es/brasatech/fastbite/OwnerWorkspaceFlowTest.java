@@ -40,7 +40,7 @@ class OwnerWorkspaceFlowTest {
         var created=post(owner,"/signup","tenantId=workspacecafe&username=workspaceowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
         assertTrue(created.body().contains("successfully registered"));
         post(owner,"/login","username=workspaceowner&password=local-test-password&_csrf="+csrf(get(owner,"/login").body()));
-        var overview=get(owner,"/owner/console");assertEquals(200,overview.statusCode());assertTrue(overview.body().contains("How would you like to start?"));
+        var overview=get(owner,"/owner/console");assertEquals(200,overview.statusCode());assertTrue(overview.body().contains("What kind of restaurant are you running?"));
         assertFalse(overview.body().contains("name=\"stripeAccountId\""));assertFalse(overview.body().contains("Request volume pricing"));
         String token=csrf(overview.body());
         assertEquals(302,post(owner,"/owner/appearance","theme=cafe&_csrf="+token).statusCode());

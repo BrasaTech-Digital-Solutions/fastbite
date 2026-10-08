@@ -91,3 +91,23 @@ window.addEventListener('hashchange',openSection);openSection();
   dialog.querySelectorAll('[data-preview-width]').forEach(option=>option.setAttribute('aria-pressed',String(option===button)));
  }));
 })();
+// Onboarding Archetype Selection
+(() => {
+  const cards = document.querySelectorAll('.archetype-card');
+  const tplInput = document.getElementById('selected-template-input');
+  const themeInput = document.getElementById('selected-theme-input');
+  const dishEm = document.getElementById('motion-current-dish');
+  if(!cards.length || !tplInput || !themeInput) return;
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      cards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      tplInput.value = card.dataset.archetype || 'kebab';
+      themeInput.value = card.dataset.theme || 'fastfood';
+      if(dishEm && card.dataset.dish) {
+        dishEm.textContent = card.dataset.dish;
+      }
+    });
+  });
+})();

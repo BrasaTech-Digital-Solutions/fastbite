@@ -13,12 +13,80 @@
 <section th:if="${view=='overview' && selected!=null}">
 <div class="page-heading"><div><p class="eyebrow">A LITTLE MORE FLOW, EVERY DAY</p><h1 th:text="${setup.ready()?'Welcome back.':'Let’s get '+selected.tenantId+' ready.'}">Let’s get your restaurant ready.</h1><p th:text="${setup.ready()?'Your daily tools, together in one place.':'A few simple steps, at your pace. We’ll save your progress as you go.'}"></p></div><a class="status-pill" th:href="@{/owner/billing/{tenant}(tenant=${selected.tenantId})}" th:text="${billing.displayStatus()+' · Billing →'}"></a></div>
 <section class="welcome-panel" th:if="${setup.needsStart() && !setup.progress.dismissed}">
-<div><p class="eyebrow">MAKE YOURSELF AT HOME</p><h2>How would you like to start?</h2><p>Explore with a sample restaurant, bring your data back, or make something your own.</p></div>
-<div class="starter-grid">
-<article class="starter-card"><span class="choice-icon" aria-hidden="true">☕</span><h3>Try the demo template</h3><p>Explore a sample restaurant menu and learn how the tools fit together.</p><button class="button" data-maintenance="restore-demo" th:data-tenant="${selected.tenantId}">Load demo template</button><small>Replaces location data. Review before loading.</small></article>
-<article class="starter-card"><span class="choice-icon" aria-hidden="true">↥</span><h3>Bring your backup</h3><p>Returning to FastBite? Preview your exported ZIP before restoring it.</p><a class="button secondary" th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}">Restore a backup</a></article>
-<article class="starter-card"><span class="choice-icon" aria-hidden="true">✎</span><h3>Start with your menu</h3><p>Add your own dishes, prices and options, one favourite at a time.</p><form th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post"><input type="hidden" name="action" value="start"><button class="button secondary">Build my own menu</button></form></article>
-</div></section>
+<div>
+<p class="eyebrow">TEST YOUR SERVICE TURNAROUND IN SANDBOX</p>
+<h2>What kind of restaurant are you running?</h2>
+<p>Choose your concept to preload realistic dishes, photos, and visual theme. See how zero-delay table ordering eliminates kitchen runner trips.</p>
+</div>
+
+<form id="onboarding-adopt-form" th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
+<input type="hidden" name="action" value="adopt">
+<input type="hidden" id="selected-template-input" name="template" value="kebab">
+<input type="hidden" id="selected-theme-input" name="theme" value="fastfood">
+
+<div class="archetype-picker">
+<div class="archetype-card selected" data-archetype="kebab" data-theme="fastfood" data-dish="Double Truffle Smashburger + Fries">
+<div class="icon">??</div>
+<h4>Casual / Fast Food</h4>
+<p>Smashburgers, loaded fries, sodas and fast casual dining.</p>
+<div><span class="archetype-tag">Fast Casual Theme</span></div>
+</div>
+
+<div class="archetype-card" data-archetype="cafe" data-theme="cafe" data-dish="Oat Flat White + Cardamom Bun">
+<div class="icon">?</div>
+<h4>Specialty Caf? &amp; Bakery</h4>
+<p>Flat whites, sourdough brunch, bakery treats, warm cafe vibes.</p>
+<div><span class="archetype-tag">Warm Bakery Theme</span></div>
+</div>
+
+<div class="archetype-card" data-archetype="michelin" data-theme="modern" data-dish="A5 Wagyu Carpaccio + Blue Lobster">
+<div class="icon">??</div>
+<h4>Fine Dining &amp; Bistro</h4>
+<p>Tasting menus, wine pairings, premium courses and elegant style.</p>
+<div><span class="archetype-tag">Minimal Luxury Theme</span></div>
+</div>
+</div>
+
+<div class="onboarding-motion-box">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+<strong style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;">?? See the turnaround difference in your dining room</strong>
+<span style="font-size: 11px; color: #a4b7ab;">Live motion comparison</span>
+</div>
+
+<div class="motion-track-grid">
+<div class="motion-track">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span class="motion-badge traditional">? Traditional Waiter Running</span>
+<span style="font-size: 11px; color: #f58d8d;">14m 30s wait</span>
+</div>
+<div class="motion-step"><span class="icon">??</span><div><strong>Table 4 orders</strong><em>Waiter writes on paper pad</em></div></div>
+<div class="motion-step"><span class="icon">?????</span><div><strong style="color: #f58d8d;">Walking to other tables &amp; kitchen...</strong><em>+8 to 12 minutes delayed ticket transmission</em></div></div>
+<div class="motion-step"><span class="icon">??</span><div><strong>Chef finally starts cooking</strong><em>Customer waits hungrily, food delays</em></div></div>
+</div>
+
+<div class="motion-track fastbite">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span class="motion-badge fastbite">? With FastBite</span>
+<span style="font-size: 11px; color: #7ee09e;">0.3s ticket sent</span>
+</div>
+<div class="motion-step"><span class="icon">??</span><div><strong>Table 4 orders via QR or Tablet</strong><em id="motion-current-dish">Double Truffle Smashburger + Fries</em></div></div>
+<div class="motion-step"><span class="icon">?</span><div><strong style="color: #7ee09e;">Instant Kitchen Screen Alert (KDS)</strong><em>Chef cooks immediately while waiter serves guests</em></div></div>
+<div class="motion-step"><span class="icon">???</span><div><strong>Order Ready Notification</strong><em>Waiter walks straight to Table 4 with hot food</em></div></div>
+</div>
+</div>
+
+<div class="motion-bar-track"><div class="motion-bar-fill"></div></div>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 22px; flex-wrap: wrap; gap: 12px;">
+<span class="fine">Choose a concept above to automatically seed sample items &amp; style into this location.</span>
+<div style="display: flex; gap: 12px; align-items: center;">
+<a class="button secondary" th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}">Bring my backup ZIP</a>
+<button type="submit" class="button">Apply Concept &amp; Enter Sandbox ?</button>
+</div>
+</div>
+</form>
+</section>
 <div class="overview-grid">
 <section class="panel setup-panel" th:unless="${setup.progress.dismissed}">
 <div class="panel-heading"><h2>Your opening checklist</h2><span class="status-pill" th:text="${setup.completed()+' of 3 ready'}"></span></div><progress max="3" th:value="${setup.completed()}" aria-label="Setup progress"></progress>

@@ -51,8 +51,25 @@ public class OwnerWorkspaceController {
         return "fastfood/owner/console";
     }
     @PostMapping("/owner/workspace/{tenant}/setup")
-    public String setup(@PathVariable String tenant,@RequestParam String action,Principal owner) {
-        check(owner,tenant);workspace.action(owner.getName(),tenant,action);
+    public String setup(@PathVariable String tenant,@RequestParam String action,
+            @RequestParam(required=false) String template,
+            @RequestParam(required=false) String theme,
+            Principal owner, RedirectAttributes flash) {
+        check(owner,tenant);
+        if("adopt".equals(action) && template != null && !template.isBlank()) {
+            try {
+                backups.importDemoTemplate(tenant, template);
+                if(theme != null && !theme.isBlank()) {
+                    appearance.saveLocationTheme(tenant, theme);
+                }
+                workspace.action(owner.getName(), tenant, "start");
+                flash.addFlashAttribute("notice", "Your restaurant menu and visual style are ready! Explore your kitchen, counter and tables below.");
+            } catch(Exception e) {
+                flash.addFlashAttribute("error", "Could not load selected concept: " + e.getMessage());
+            }
+            return "redirect:/owner/console?location=" + tenant;
+        }
+        workspace.action(owner.getName(),tenant,action);
         return action.equals("start")?"redirect:/"+tenant+"/backoffice":"redirect:/owner/console?location="+tenant;
     }
     @PostMapping("/owner/workspace/{tenant}/service")
