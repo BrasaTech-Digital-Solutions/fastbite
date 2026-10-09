@@ -44,3 +44,7 @@ build/
 CLAUDE.md
 AGENTS.md
 AGENT.md
+
+### Local secrets ###
+.env
+.env.*
