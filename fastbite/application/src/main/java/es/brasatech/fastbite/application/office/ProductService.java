@@ -33,6 +33,11 @@ public interface ProductService {
     Optional<ProductDto> update(String id, ProductDto productDto);
 
     /**
+     * Puts a product on sale or takes it off (sold out), leaving everything else as it is.
+     */
+    Optional<ProductDto> setActive(String id, boolean active);
+
+    /**
      * Delete a product
      */
     boolean delete(String id);

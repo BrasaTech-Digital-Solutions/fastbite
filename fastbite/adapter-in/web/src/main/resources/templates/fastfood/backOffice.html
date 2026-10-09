@@ -265,12 +265,24 @@
                                                 th:text="#{backoffice.products.label.name}">Product Name *</label>
                                             <input type="text" class="form-control" id="product-name" required>
                                         </div>
-                                        <div class="col-md-6 mb-3">
+                                        <div class="col-md-3 mb-3">
                                             <label for="product-price" class="form-label"
                                                 th:text="#{backoffice.products.label.price}">Price *</label>
                                             <input type="number" step="0.01" class="form-control" id="product-price"
                                                 required>
                                         </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="product-vat" class="form-label"
+                                                th:text="#{backoffice.products.label.vat}">VAT rate</label>
+                                            <select class="form-select" id="product-vat" aria-describedby="product-vat-hint">
+                                                <option value=""
+                                                    th:text="#{backoffice.products.vat.default(${defaultVatRate.intValue()})}">Location default (10%)</option>
+                                                <option th:each="rate : ${vatRates}" th:value="${rate}"
+                                                    th:text="${rate.intValue() + '%'}">21%</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12 form-text mt-0 mb-3" id="product-vat-hint"
+                                            th:text="#{backoffice.products.vat.hint}">Menu prices include VAT.</div>
                                     </div>
 
                                     <div class="mb-3">

@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.application.order;
 
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.office.CustomizationService;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
@@ -25,10 +26,14 @@ class OrderPricingServiceTest {
 
     private final ProductService products = mock(ProductService.class);
     private final CustomizationService customizations = mock(CustomizationService.class);
-    private final OrderPricingService pricing = new OrderPricingService(products, customizations);
+    private final FiscalProfileService fiscalProfile = mock(FiscalProfileService.class);
+    private final OrderPricingService pricing = new OrderPricingService(products, customizations, fiscalProfile);
 
     @BeforeEach
     void catalog() {
+        when(fiscalProfile.defaultVatRate()).thenReturn(new BigDecimal("10.00"));
+        when(products.findById("beer")).thenReturn(Optional.of(new ProductDto("beer", "Beer to go", new BigDecimal("2.50"),
+                "Can of beer", "/beer.webp", Set.of(), true, new BigDecimal("21.00"))));
         when(products.findById("kebab")).thenReturn(Optional.of(new ProductDto("kebab", "Kebab", new BigDecimal("6.50"),
                 "Beef kebab", "/kebab.webp", Set.of("sauce", "toppings"), true)));
         when(products.findById("soldout")).thenReturn(Optional.of(new ProductDto("soldout", "Falafel", new BigDecimal("5.00"),
@@ -48,6 +53,21 @@ class OrderPricingServiceTest {
                 .map(id -> new ProductCustomizer(id, "Free gold", new BigDecimal("-100"), 1))
                 .toList();
         return new CartItem("line-1", productId, "Hacked", "<script>", "/evil.png", quantity, options, new BigDecimal("0.01"));
+    }
+
+    @Test
+    void eachLineIsChargedAtItsProductsVatRateOrTheRestaurantRate() {
+        List<CartItem> priced = pricing.price(List.of(line("kebab", 1), line("beer", 1)), OrderChannel.COUNTER);
+
+        assertThat(priced.get(0).vatRate()).isEqualByComparingTo("10");
+        assertThat(priced.get(1).vatRate()).isEqualByComparingTo("21");
+    }
+
+    @Test
+    void theVatRateSentWithARequestIsIgnored() {
+        var line = line("kebab", 1).withVatRate(BigDecimal.ZERO);
+
+        assertThat(pricing.price(List.of(line), OrderChannel.TABLE).getFirst().vatRate()).isEqualByComparingTo("10");
     }
 
     @Test

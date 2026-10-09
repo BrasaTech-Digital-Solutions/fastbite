@@ -29,6 +29,11 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(ThemeCatalog.Theme.class, MemberCategory.values());
         hints.resources().registerPattern("themes/**");
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SetupProgress.class, org.springframework.aot.hint.MemberCategory.values());
+        // Read by the business details page and the VAT lines of guest carts
+        hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.FiscalProfile.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.SpanishTaxId.Kind.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.VatBreakdown.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.VatBreakdown.Line.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.BackupPreview.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.DemoTemplateDescriptor.class, MemberCategory.values());

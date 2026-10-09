@@ -21,6 +21,7 @@ public class BackOfficeController {
     private final PlanEntitlementService planEntitlementService;
     private final RestaurantSettingsService settingsService;
     private final TenantLocationService tenantLocationService;
+    private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
 
     /**
      * Render the BackOffice page
@@ -38,6 +39,8 @@ public class BackOfficeController {
         model.addAttribute("tenantPlan", plan);
         model.addAttribute("enabledFeatures", enabledFeatures);
         model.addAttribute("settings", settingsService.get());
+        model.addAttribute("defaultVatRate", fiscalProfileService.defaultVatRate());
+        model.addAttribute("vatRates", es.brasatech.fastbite.domain.fiscal.VatRates.ALL);
         return "fastfood/backOffice";
     }
 

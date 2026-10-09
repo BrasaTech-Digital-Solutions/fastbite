@@ -14,5 +14,12 @@ public record ProductDto(
                 String description,
                 String image,
                 Set<String> customizations, // Set of customization IDs
-                boolean active) {
+                boolean active,
+                // Empty: the location's default VAT rate applies
+                BigDecimal vatRate) {
+
+        public ProductDto(String id, String name, BigDecimal price, String description, String image,
+                        Set<String> customizations, boolean active) {
+                this(id, name, price, description, image, customizations, active, null);
+        }
 }

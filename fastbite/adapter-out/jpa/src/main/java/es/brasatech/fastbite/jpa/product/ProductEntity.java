@@ -42,6 +42,10 @@ public class ProductEntity implements Translatable {
     @Column(nullable = false)
     private boolean active = true;
 
+    /** The product's own VAT rate; null means the location's default rate. */
+    @Column(name = "vat_rate", precision = 5, scale = 2)
+    private BigDecimal vatRate;
+
     /** Other languages of the text fields: language -> field -> text. */
     @Convert(converter = TranslationsConverter.class)
     @Column(name = "translations", columnDefinition = "text")
@@ -115,6 +119,14 @@ public class ProductEntity implements Translatable {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public BigDecimal getVatRate() {
+        return vatRate;
+    }
+
+    public void setVatRate(BigDecimal vatRate) {
+        this.vatRate = vatRate;
     }
 
     @Override

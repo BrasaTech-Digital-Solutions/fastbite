@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"><body>
+<section th:fragment="legal" class="legal-layout" th:if="${section=='legal'}"
+         th:with="missing=${fiscal.missingFields().size()},required=7,kind=${fiscal.taxIdKind()}">
+<form class="panel legal-form" id="legal-form" method="post" novalidate
+      th:action="@{/owner/workspace/{tenant}/legal(tenant=${selected.tenantId})}"
+      th:data-year="${ticketYear}" th:data-required="${required}"
+      th:data-msg-dni="#{owner.legal.taxId.dni}" th:data-msg-nie="#{owner.legal.taxId.nie}"
+      th:data-msg-company="#{owner.legal.taxId.company}" th:data-msg-other="#{owner.legal.taxId.other}"
+      th:data-msg-invalid="#{owner.legal.taxId.invalid}"
+      th:data-label-person="#{owner.legal.legalName.person}" th:data-label-company="#{owner.legal.legalName.company}"
+      th:data-label-unknown="#{owner.legal.legalName}"
+      th:data-progress="#{owner.legal.progress('{0}','{1}')}" th:data-progress-done="#{owner.legal.progress.done}">
+  <p class="eyebrow" th:text="#{owner.legal.eyebrow}">ON EVERY TICKET YOU ISSUE</p>
+  <h2 th:text="#{owner.legal.title}">Who issues your tickets?</h2>
+  <p th:text="#{owner.legal.intro}">These details are printed on every ticket and invoice from this location.</p>
+
+  <div class="legal-progress" th:classappend="${missing==0}?'complete'" aria-live="polite">
+    <progress id="legal-progress-bar" th:max="${required}" th:value="${required-missing}"></progress>
+    <span id="legal-progress-text"
+          th:text="${missing==0}?#{owner.legal.progress.done}:#{owner.legal.progress(${required-missing},${required})}">0 of 7</span>
+  </div>
+  <div class="alert error" role="alert" th:if="${fiscalErrors!=null && !fiscalErrors.isEmpty()}" th:text="#{owner.legal.errors}"></div>
+
+  <fieldset class="legal-group">
+    <legend><span class="legal-step">1</span><span th:text="#{owner.legal.business}">Your business</span></legend>
+    <label for="taxId" th:text="#{owner.legal.taxId}">Tax ID (NIF)</label>
+    <div class="taxid-row">
+      <input id="taxId" name="taxId" th:value="${fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false"
+             inputmode="text" autocapitalize="characters" aria-describedby="taxId-hint taxId-status" required
+             th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}?'invalid'">
+      <span id="taxId-status" class="field-status" role="status"
+            th:classappend="${kind!=null}?'valid'"
+            th:text="${kind==null}?'':(${kind.name()=='DNI'}?#{owner.legal.taxId.dni}:(${kind.name()=='NIE'}?#{owner.legal.taxId.nie}:(${kind.name()=='COMPANY'}?#{owner.legal.taxId.company}:#{owner.legal.taxId.other})))"></span>
+    </div>
+    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
+    <p class="fine" id="taxId-hint" th:text="#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
+
+    <label for="legalName" id="legalName-label"
+           th:text="${kind==null}?#{owner.legal.legalName}:(${kind.name()=='COMPANY'}?#{owner.legal.legalName.company}:#{owner.legal.legalName.person})">Legal name</label>
+    <input id="legalName" name="legalName" th:value="${fiscal.legalName}" maxlength="120" autocomplete="organization" required
+           th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('legalName')}?'invalid'">
+    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('legalName')}" th:text="#{${fiscalErrors.get('legalName')}}"></p>
+
+    <label for="tradeName"><span th:text="#{owner.legal.tradeName}">Name on the door</span> <small th:text="'· '+#{owner.legal.optional}">· optional</small></label>
+    <input id="tradeName" name="tradeName" th:value="${fiscal.tradeName}" maxlength="80" aria-describedby="tradeName-hint">
+    <p class="fine" id="tradeName-hint" th:text="#{owner.legal.tradeName.hint}">Printed in large letters at the top of the ticket.</p>
+  </fieldset>
+
+  <fieldset class="legal-group">
+    <legend><span class="legal-step">2</span><span th:text="#{owner.legal.address}">Where this location is</span></legend>
+    <label for="addressLine" th:text="#{owner.legal.addressLine}">Street and number</label>
+    <input id="addressLine" name="addressLine" th:value="${fiscal.addressLine}" maxlength="160" autocomplete="street-address" required
+           th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('addressLine')}?'invalid'">
+    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('addressLine')}" th:text="#{${fiscalErrors.get('addressLine')}}"></p>
+    <div class="form-grid postal-grid">
+      <div>
+        <label for="postalCode" th:text="#{owner.legal.postalCode}">Postal code</label>
+        <input id="postalCode" name="postalCode" th:value="${fiscal.postalCode}" maxlength="5" inputmode="numeric" pattern="[0-9]{5}"
+               autocomplete="postal-code" required th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('postalCode')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('postalCode')}" th:text="#{${fiscalErrors.get('postalCode')}}"></p>
+      </div>
+      <div>
+        <label for="city" th:text="#{owner.legal.city}">Town or city</label>
+        <input id="city" name="city" th:value="${fiscal.city}" maxlength="80" autocomplete="address-level2" required
+               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('city')}?'invalid'">
+      </div>
+    </div>
+    <label for="province" th:text="#{owner.legal.province}">Province</label>
+    <select id="province" name="province" required>
+      <option value="" th:text="#{owner.legal.province.choose}">Choose a province</option>
+      <option th:each="name,it:${provinces}" th:value="${name}" th:text="${name}"
+              th:data-prefix="${#numbers.formatInteger(it.count,2)}" th:selected="${name==fiscal.province}"></option>
+    </select>
+    <div class="form-grid">
+      <div>
+        <label for="phone"><span th:text="#{owner.legal.phone}">Phone</span> <small th:text="'· '+#{owner.legal.optional}"></small></label>
+        <input id="phone" name="phone" type="tel" th:value="${fiscal.phone}" maxlength="20" autocomplete="tel"
+               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('phone')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('phone')}" th:text="#{${fiscalErrors.get('phone')}}"></p>
+      </div>
+      <div>
+        <label for="email"><span th:text="#{owner.legal.email}">Email</span> <small th:text="'· '+#{owner.legal.optional}"></small></label>
+        <input id="email" name="email" type="email" th:value="${fiscal.email}" maxlength="254" autocomplete="email"
+               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('email')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('email')}" th:text="#{${fiscalErrors.get('email')}}"></p>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="legal-group">
+    <legend><span class="legal-step">3</span><span th:text="#{owner.legal.vat}">VAT on your menu</span></legend>
+    <p class="fine" th:text="#{owner.legal.vat.intro}">Menu prices always include VAT.</p>
+    <div class="vat-choices">
+      <label class="vat-choice" th:each="rate:${vatRates}">
+        <input type="radio" name="defaultVatRate" th:value="${rate}" th:checked="${rate.compareTo(fiscal.defaultVatRate)==0}">
+        <span class="vat-rate" th:text="${rate.intValue()+'%'}">10%</span>
+        <span class="vat-text">
+          <strong th:if="${rate.intValue()==10}" th:text="#{owner.legal.vat.recommended}">Most restaurants</strong>
+          <span th:text="#{${'owner.legal.vat.'+rate.intValue()}}">Restaurants, bars and cafés.</span>
+        </span>
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset class="legal-group">
+    <legend><span class="legal-step">4</span><span th:text="#{owner.legal.series}">Ticket numbering</span></legend>
+    <p class="fine" th:text="#{owner.legal.series.intro}">Every ticket gets the next number in its series.</p>
+    <div class="form-grid series-grid">
+      <div>
+        <label for="seriesPrefix" th:text="#{owner.legal.seriesPrefix}">Series code</label>
+        <input id="seriesPrefix" name="seriesPrefix" th:value="${fiscal.seriesPrefix!=null?fiscal.seriesPrefix:suggestedPrefix}"
+               maxlength="8" autocomplete="off" spellcheck="false" autocapitalize="characters" required
+               aria-describedby="seriesPrefix-hint" th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}" th:text="#{${fiscalErrors.get('seriesPrefix')}}"></p>
+      </div>
+      <div class="series-preview">
+        <span th:text="#{owner.legal.series.preview}">Your first ticket number</span>
+        <output id="series-preview" for="seriesPrefix" th:text="${(fiscal.seriesPrefix!=null?fiscal.seriesPrefix:suggestedPrefix)+'-T'+ticketYear+'-000001'}">KHC-T26-000001</output>
+      </div>
+    </div>
+    <p class="fine" id="seriesPrefix-hint" th:text="#{owner.legal.seriesPrefix.hint}">Up to 8 letters or numbers.</p>
+    <p class="fine" th:text="#{owner.legal.series.kinds}">Full invoices use F, corrections use R.</p>
+  </fieldset>
+
+  <div class="legal-actions">
+    <button class="button" th:text="#{owner.legal.save}">Save business details</button>
+    <span class="fine" th:text="#{owner.legal.save.hint}">You can save now and finish later.</span>
+  </div>
+</form>
+
+<aside class="ticket-preview-wrap" aria-labelledby="ticket-preview-title">
+  <p class="eyebrow" id="ticket-preview-title" th:text="#{owner.legal.preview}">Ticket preview</p>
+  <div class="ticket-paper" aria-hidden="true">
+    <strong class="ticket-trade" id="pv-trade" th:text="${fiscal.displayName()!=null?fiscal.displayName():selected.tenantId}">Kebab House</strong>
+    <span id="pv-legal" th:text="${fiscal.tradeName!=null?fiscal.legalName:''}"></span>
+    <span><span>NIF </span><span id="pv-taxid" th:text="${fiscal.taxId!=null?fiscal.taxId:'—'}">—</span></span>
+    <span id="pv-address" th:text="${fiscal.addressLine!=null?fiscal.addressLine:'—'}">—</span>
+    <span><span id="pv-postal" th:text="${fiscal.postalCode}"></span> <span id="pv-city" th:text="${fiscal.city}"></span></span>
+    <hr>
+    <span class="ticket-kind" th:text="#{owner.legal.preview.kind}">Simplified invoice</span>
+    <span class="ticket-number" id="pv-number" th:text="${(fiscal.seriesPrefix!=null?fiscal.seriesPrefix:suggestedPrefix)+'-T'+ticketYear+'-000001'}">T-000001</span>
+    <hr>
+    <span class="ticket-line"><span th:text="'1 × '+#{owner.legal.preview.sample}">1 × Sample dish</span><span>11,00</span></span>
+    <span class="ticket-total"><span>TOTAL</span><span>11,00 €</span></span>
+    <span class="ticket-vat"><span th:text="#{owner.legal.preview.vatIncluded}+' '">VAT included </span><span id="pv-rate" th:text="${fiscal.defaultVatRate.intValue()+'%'}">10%</span></span>
+  </div>
+  <p class="fine" th:text="#{owner.legal.preview.caption}">How the top of your tickets will look.</p>
+</aside>
+</section>
+</body></html>

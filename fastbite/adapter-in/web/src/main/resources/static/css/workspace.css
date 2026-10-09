@@ -191,3 +191,49 @@
 .archetype-card p{font-size:12px;color:#67776d;margin:0 0 10px;flex:1}
 .archetype-tag{display:inline-block;padding:2px 8px;border-radius:4px;background:#edeadd;font-size:10px;font-weight:600;color:#4f5e54}
 @media(max-width:768px){.archetype-picker,.motion-track-grid{grid-template-columns:1fr}}
+
+/* Business details: form beside a live ticket preview. */
+.legal-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.legal-form{margin:0}
+.legal-group{border:0;border-top:1px solid #e7e8df;margin:26px 0 0;padding:22px 0 0;min-width:0}
+.legal-group legend{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;letter-spacing:-.02em;padding:0 10px 0 0}
+.legal-step{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#1c3029;color:#fff;font-size:12px}
+.legal-group>.fine:first-of-type{margin-top:8px}
+.legal-progress{display:flex;align-items:center;gap:14px;background:#f5f4ed;border:1px solid #e4e4d6;border-radius:10px;padding:12px 16px;font-size:13px;font-weight:600;color:#53665a}
+.legal-progress progress{flex:0 0 140px;height:6px;accent-color:#c45132}
+.legal-progress.complete{background:#edf3e9;border-color:#d3e2cc;color:#2f5a3a}
+.legal-progress.complete progress{accent-color:#416647}
+.taxid-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.taxid-row input{flex:1 1 220px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase}
+.field-status{font-size:12px;font-weight:600;min-height:1em}
+.field-status.valid{color:#2f6b3d}
+.field-status.valid::before{content:"✓ "}
+.field-status.invalid{color:#ad3e2b}
+.workspace input.invalid,.workspace select.invalid{border-color:#c45132;background:#fff9f7}
+.field-error{color:#ad3e2b;font-size:12px;font-weight:600;margin:6px 0 0}
+.vat-choices{display:grid;gap:10px;margin-top:14px}
+.workspace .vat-choice{display:flex;gap:14px;align-items:center;margin:0;padding:14px 16px;border:1px solid #dedfd5;border-radius:10px;background:#fff;cursor:pointer;font-weight:400}
+.vat-choice:has(input:checked){border-color:#1c3029;box-shadow:0 0 0 1px #1c3029;background:#fafaf5}
+.workspace .vat-choice input[type=radio]{accent-color:#1c3029;width:17px;height:17px;min-height:0;padding:0;margin:0;flex:0 0 auto}
+.vat-rate{font-size:22px;font-weight:700;letter-spacing:-.03em;min-width:56px}
+.vat-text{font-size:13px;color:#53665a}
+.vat-text strong{display:block;color:#1c3029;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.series-grid{align-items:end}
+.series-preview{background:#f5f4ed;border-radius:9px;padding:10px 14px;font-size:12px;color:#65726b}
+.series-preview output{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:17px;font-weight:700;color:#1c3029;letter-spacing:.04em;margin-top:2px;overflow-wrap:anywhere}
+.workspace .series-grid label{margin-top:18px}
+.legal-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-top:1px solid #e7e8df;margin-top:28px;padding-top:22px}
+.legal-actions .fine{margin:0}
+.ticket-preview-wrap{position:sticky;top:24px}
+.ticket-paper{background:#fff;border:1px solid #e3e3da;border-radius:4px 4px 0 0;padding:22px 20px 26px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.55;color:#262626;display:flex;flex-direction:column;align-items:center;text-align:center;box-shadow:0 12px 30px #1c30291a;position:relative;margin-bottom:22px;overflow-wrap:anywhere}
+.ticket-paper::after{content:"";position:absolute;left:-1px;right:-1px;bottom:-10px;height:10px;background:linear-gradient(-45deg,transparent 7px,#fff 0) 0 0/14px 10px repeat-x,linear-gradient(45deg,transparent 7px,#fff 0) 0 0/14px 10px repeat-x}
+.ticket-paper hr{width:100%;border:0;border-top:1px dashed #b9b9b0;margin:12px 0}
+.ticket-trade{font-family:Georgia,serif;font-size:19px;letter-spacing:-.01em;margin-bottom:4px}
+.ticket-kind{text-transform:uppercase;letter-spacing:.1em;font-size:10px;color:#666}
+.ticket-number{font-weight:700;font-size:13px}
+.ticket-line,.ticket-total,.ticket-vat{display:flex;justify-content:space-between;width:100%;text-align:left}
+.ticket-total{font-weight:700;font-size:13px;margin-top:8px}
+.ticket-vat{color:#666;font-size:10.5px}
+@media(max-width:1150px){.legal-layout{grid-template-columns:1fr}
+.ticket-preview-wrap{position:static;max-width:340px}
+}

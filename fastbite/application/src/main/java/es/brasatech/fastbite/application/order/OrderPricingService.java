@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.application.order;
 
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.office.CustomizationService;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
@@ -9,6 +10,8 @@ import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.product.ProductCustomizer;
 import es.brasatech.fastbite.domain.product.ProductDto;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,7 +24,7 @@ import java.util.stream.Collectors;
 
 /**
  * Prices order lines from the catalog. A request only decides which product, how many and
- * which options; the names, images and prices sent along with it are ignored.
+ * which options; the names, images, prices and VAT rates sent along with it are ignored.
  */
 @Service
 public class OrderPricingService {
@@ -30,10 +33,13 @@ public class OrderPricingService {
 
     private final ProductService productService;
     private final CustomizationService customizationService;
+    private final FiscalProfileService fiscalProfileService;
 
-    public OrderPricingService(ProductService productService, CustomizationService customizationService) {
+    public OrderPricingService(ProductService productService, CustomizationService customizationService,
+            FiscalProfileService fiscalProfileService) {
         this.productService = productService;
         this.customizationService = customizationService;
+        this.fiscalProfileService = fiscalProfileService;
     }
 
     /**
@@ -48,14 +54,15 @@ public class OrderPricingService {
         }
         Map<String, Optional<ProductDto>> products = new HashMap<>();
         Map<String, Optional<CustomizationDto>> customizations = new HashMap<>();
+        BigDecimal defaultVatRate = requested.isEmpty() ? null : fiscalProfileService.defaultVatRate();
         // ArrayList: carts are kept in the session and read by templates, like the lists Jackson builds
         return requested.stream()
-                .map(line -> price(line, channel, products, customizations))
+                .map(line -> price(line, channel, products, customizations, defaultVatRate))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private CartItem price(CartItem line, OrderChannel channel, Map<String, Optional<ProductDto>> products,
-                           Map<String, Optional<CustomizationDto>> customizations) {
+                           Map<String, Optional<CustomizationDto>> customizations, BigDecimal defaultVatRate) {
         if (line.itemId() == null) {
             throw new IllegalArgumentException("An order line has no product");
         }
@@ -67,8 +74,10 @@ public class OrderPricingService {
         if (line.quantity() < 1 || line.quantity() > MAX_QUANTITY) {
             throw new IllegalArgumentException("Choose between 1 and " + MAX_QUANTITY + " of " + product.name());
         }
+        // Options are part of the dish, so they are charged at the dish's rate
         return new CartItem(line.id(), product.id(), product.name(), product.description(), product.image(),
-                line.quantity(), options(line, product, customizations), product.price());
+                line.quantity(), options(line, product, customizations), product.price(),
+                product.vatRate() != null ? product.vatRate() : defaultVatRate);
     }
 
     private List<ProductCustomizer> options(CartItem line, ProductDto product,

@@ -69,6 +69,9 @@ class CounterTakeawayEndpointTest {
     private MockMvc mockMvc;
 
     @MockitoBean
+    private es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
+
+    @MockitoBean
     private OrderService orderService;
     @MockitoBean
     private OrderNumberService orderNumberService;
@@ -91,6 +94,7 @@ class CounterTakeawayEndpointTest {
 
     @BeforeEach
     void setUp() {
+        when(fiscalProfileService.defaultVatRate()).thenReturn(new java.math.BigDecimal("10.00"));
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
         when(productService.findById("kebab")).thenReturn(Optional.of(new ProductDto("kebab", "Kebab",

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
+import es.brasatech.fastbite.jpa.fiscal.FiscalProfileEntity;
 import es.brasatech.fastbite.jpa.customization.*;
 import es.brasatech.fastbite.jpa.discount.DiscountRuleEntity;
 import es.brasatech.fastbite.jpa.discount.DiscountRuleJpaRepository;
@@ -98,7 +99,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             
             // 1. Gather all database entities
             TenantBackupData backupData = new TenantBackupData();
-            backupData.setFormatVersion(2);
+            backupData.setFormatVersion(3);
             backupData.setGroups(groupJpaRepository.findAll());
             backupData.setProducts(productJpaRepository.findAll());
             backupData.setCustomizations(customizationJpaRepository.findAll());
@@ -123,6 +124,8 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 }
             }
             backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
+            // Production bundles carry it too, as a draft the owner confirms during production onboarding
+            backupData.setFiscalProfile(entityManager.find(FiscalProfileEntity.class, 1));
 
 
             // 2. Write to ZIP
@@ -281,6 +284,9 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         replicateAll(backupData.getPaymentConfigs());
         if (backupData.getFormatVersion() >= 2) entityManager.createNativeQuery("DELETE FROM restaurant_settings").executeUpdate();
         if (backupData.getRestaurantSettings() != null) entityManager.merge(backupData.getRestaurantSettings());
+        // Archives from before fiscal profiles leave the destination's profile as it is
+        if (backupData.getFormatVersion() >= 3) entityManager.createNativeQuery("DELETE FROM fiscal_profile").executeUpdate();
+        if (backupData.getFiscalProfile() != null) entityManager.merge(backupData.getFiscalProfile());
         entityManager.flush();
         restoreOrderCounter(backupData.getOrderCounter());
 
@@ -416,7 +422,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 }
                 if (json != null) {
                     data = objectMapper.readValue(json.toByteArray(), TenantBackupData.class);
-                    if (data == null || data.getFormatVersion() < 1 || data.getFormatVersion() > 2) {
+                    if (data == null || data.getFormatVersion() < 1 || data.getFormatVersion() > 3) {
                         throw new IOException("Invalid or unsupported backup format");
                     }
                 }
@@ -462,6 +468,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         private List<UserEntity> users = new ArrayList<>();
         private List<PaymentConfigEntity> paymentConfigs = new ArrayList<>();
         private es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity restaurantSettings;
+        private FiscalProfileEntity fiscalProfile;
         private OrderCounterBackup orderCounter;
 
         // Legacy: translations as separate rows, only present in backups made before translations

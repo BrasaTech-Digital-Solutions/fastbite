@@ -36,7 +36,6 @@ import java.util.Set;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -45,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** The guest's cart and confirmation show what the order will really cost, whatever the browser sent. */
-@WebMvcTest(controllers = MenuController.class, properties = "fastbite.tax.percentage=10.0")
+@WebMvcTest(controllers = MenuController.class)
 @ContextConfiguration(classes = {TestConfig.class, MenuController.class, OrderPricingService.class,
         BadRequestAdvice.class, SecurityConfig.class})
 class GuestCartPricingTest {
@@ -56,6 +55,9 @@ class GuestCartPricingTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
 
     @MockitoBean
     private ProductService productService;
@@ -78,6 +80,7 @@ class GuestCartPricingTest {
 
     @BeforeEach
     void setUp() {
+        when(fiscalProfileService.defaultVatRate()).thenReturn(new java.math.BigDecimal("10.00"));
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
         when(orderCheckoutService.isAvailable()).thenReturn(true);
         when(orderCheckoutService.isAvailableForTenant(any())).thenReturn(true);
@@ -88,7 +91,7 @@ class GuestCartPricingTest {
                 "Toppings", "checkbox", List.of(new CustomizationOptionDto("toppings-opt-0", "Extra cheese",
                 new BigDecimal("0.50"), false, 0)), 0)));
         when(discountService.calculateDiscount(any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
-        when(discountService.calculateCartBreakdown(any(), any(), any(), anyDouble())).thenCallRealMethod();
+        when(discountService.calculateCartBreakdown(any(), any(), any())).thenCallRealMethod();
     }
 
     @Test

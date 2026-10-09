@@ -25,6 +25,10 @@ public class CartItemEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    /** The VAT rate the line was charged at; null on lines from before rates were kept. */
+    @Column(name = "vat_rate", precision = 5, scale = 2)
+    private BigDecimal vatRate;
+
     public String getId() {
         return id;
     }
@@ -83,6 +87,14 @@ public class CartItemEntity {
 
     public BigDecimal getPrice() {
         return price;
+    }
+
+    public BigDecimal getVatRate() {
+        return vatRate;
+    }
+
+    public void setVatRate(BigDecimal vatRate) {
+        this.vatRate = vatRate;
     }
 
     public void setPrice(BigDecimal price) {

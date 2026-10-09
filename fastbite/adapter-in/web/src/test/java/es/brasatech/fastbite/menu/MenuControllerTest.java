@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WithMockUser
-@WebMvcTest(controllers = MenuController.class, properties = {"fastbite.tax.percentage=15.0", "spring.messages.basename=i18n/messages"})
+@WebMvcTest(controllers = MenuController.class, properties = {"spring.messages.basename=i18n/messages"})
 @DisplayName("MenuController Tests")
 @ContextConfiguration(classes = {TestConfig.class, MenuController.class, es.brasatech.fastbite.security.SecurityConfig.class})
 class MenuControllerTest {
@@ -101,7 +101,7 @@ class MenuControllerTest {
                 org.mockito.Mockito.when(orderPricingService.price(any(), any())).thenAnswer(call -> call.getArgument(0));
                 org.mockito.Mockito.when(discountService.calculateDiscount(any(), any(), any())).thenReturn(BigDecimal.ZERO);
                 org.mockito.Mockito.when(discountService.calculateDiscount(any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
-                org.mockito.Mockito.when(discountService.calculateCartBreakdown(any(), any(), any(), org.mockito.Mockito.anyDouble()))
+                org.mockito.Mockito.when(discountService.calculateCartBreakdown(any(), any(), any()))
                                 .thenCallRealMethod();
 
                 // Create test cart items
@@ -191,7 +191,7 @@ class MenuControllerTest {
                                 .andExpect(model().attributeExists("total"))
                                 .andExpect(model().attribute("cart", hasSize(2)))
                                 .andExpect(model().attribute("subtotal", new BigDecimal("25.00")))
-                                .andExpect(model().attribute("tax", new BigDecimal("3.75")))
+                                .andExpect(model().attribute("tax", new BigDecimal("2.27")))
                                 .andExpect(model().attribute("total", new BigDecimal("25.00")));
         }
 
@@ -257,7 +257,7 @@ class MenuControllerTest {
                                 .andExpect(model().attributeExists("total"))
                                 .andExpect(model().attribute("cart", hasSize(2)))
                                 .andExpect(model().attribute("subtotal", new BigDecimal("25.00")))
-                                .andExpect(model().attribute("tax", new BigDecimal("3.75")))
+                                .andExpect(model().attribute("tax", new BigDecimal("2.27")))
                                 .andExpect(model().attribute("total", new BigDecimal("25.00")));
         }
 
@@ -284,7 +284,7 @@ class MenuControllerTest {
                                 .andExpect(view().name("fastfood/fragments/menu :: #confirmation"))
                                 .andExpect(model().attribute("cart", hasSize(1)))
                                 .andExpect(model().attribute("subtotal", new BigDecimal("15.00")))
-                                .andExpect(model().attribute("tax", new BigDecimal("2.25")))
+                                .andExpect(model().attribute("tax", new BigDecimal("1.36")))
                                 .andExpect(model().attribute("total", new BigDecimal("15.00")));
         }
 
@@ -330,7 +330,7 @@ class MenuControllerTest {
         }
 
         @Test
-        @DisplayName("POST /api/calculate-cart - Should calculate tax correctly at 15%")
+        @DisplayName("POST /api/calculate-cart - Shows the VAT included in the price, at the line's own rate")
         void testTaxCalculation() throws Exception {
                 List<CartItem> itemsForTaxTest = List.of(new CartItem(
                                 "1",
@@ -340,7 +340,8 @@ class MenuControllerTest {
                                 "image.jpg",
                                 1,
                                 new ArrayList<>(),
-                                new BigDecimal("100.00")));
+                                new BigDecimal("100.00"),
+                                new BigDecimal("21.00")));
                 String cartJson = objectMapper.writeValueAsString(itemsForTaxTest);
 
                 mockMvc.perform(post("/api/calculate-cart")
@@ -350,7 +351,7 @@ class MenuControllerTest {
                                 .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(model().attribute("subtotal", new BigDecimal("100.00")))
-                                .andExpect(model().attribute("tax", new BigDecimal("15.00")))
+                                .andExpect(model().attribute("tax", new BigDecimal("17.36")))
                                 .andExpect(model().attribute("total", new BigDecimal("100.00")));
         }
 
@@ -375,7 +376,7 @@ class MenuControllerTest {
                                 .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(model().attribute("subtotal", new BigDecimal("50.00")))
-                                .andExpect(model().attribute("tax", new BigDecimal("7.50")))
+                                .andExpect(model().attribute("tax", new BigDecimal("4.55")))
                                 .andExpect(model().attribute("total", new BigDecimal("50.00")));
         }
 }

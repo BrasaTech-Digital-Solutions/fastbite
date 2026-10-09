@@ -122,7 +122,8 @@ async function loadData() {
                 description: data.customFields.description,
                 image: data.customFields.image,
                 customizations: data.customFields.customizations || [],
-                active: data.customFields.active !== false
+                active: data.customFields.active !== false,
+                vatRate: data.customFields.vatRate
             }));
         }
 
@@ -589,6 +590,8 @@ function showProductForm(productId = null) {
         document.getElementById('product-id').value = product.id;
         document.getElementById('product-name').value = product.name;
         document.getElementById('product-price').value = product.price;
+        // Empty: the location's default rate
+        document.getElementById('product-vat').value = product.vatRate != null ? Number(product.vatRate).toFixed(2) : '';
         document.getElementById('product-description').value = product.description;
         document.getElementById('product-image').value = product.image || '';
         const preview = document.getElementById('product-image-preview');
@@ -604,6 +607,7 @@ function showProductForm(productId = null) {
     } else {
         title.textContent = 'Create New Product';
         document.getElementById('productFormElement').reset();
+        document.getElementById('product-vat').value = '';
         const preview = document.getElementById('product-image-preview');
         if (preview) preview.style.display = 'none';
         selectedCustomizationsForProduct = [];
@@ -623,7 +627,8 @@ async function handleProductSubmit(e) {
         description: document.getElementById('product-description').value,
         image: document.getElementById('product-image').value,
         customizations: selectedCustomizationsForProduct,
-        active: document.getElementById('product-active').checked
+        active: document.getElementById('product-active').checked,
+        vatRate: document.getElementById('product-vat').value ? Number(document.getElementById('product-vat').value) : null
     };
 
     try {

@@ -65,7 +65,7 @@
                 <div class="small text-muted">
                     <th:block th:each="opt, iter : ${custom['options']}">
                         <span th:text="${opt['name']}">Option</span>
-                        (<span th:text="'$' + ${#numbers.formatDecimal(opt['price'], 1, 2)}">price</span>)
+                        (<span th:text="${#numbers.formatDecimal(opt['price'], 1, 2)} + ' €'">price</span>)
                         <span th:if="${opt['isSelectedByDefault']}" class="badge bg-warning text-dark ms-1"
                             th:text="#{backoffice.customizations.option.default}">Default</span>
                         <span th:if="${!iter.last}">, </span>
@@ -109,7 +109,9 @@
                 </div>
                 <div class="mb-2">
                     <span class="badge bg-success"
-                        th:text="'$' + ${#numbers.formatDecimal(product['price'], 1, 2)}">$0.00</span>
+                        th:text="${#numbers.formatDecimal(product['price'], 1, 2)} + ' €'">0.00 €</span>
+                    <span th:if="${product['vatRate'] != null}" class="badge bg-light text-dark border"
+                        th:text="#{label.vat.rate(${#numbers.formatInteger(product['vatRate'], 1)})}">VAT 21%</span>
                     <span th:class="|badge ${product['active'] ? 'bg-primary' : 'bg-secondary'}|"
                         th:text="${product['active'] ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
                     <span class="badge bg-info">
@@ -223,7 +225,7 @@
             options
         </small>
         <small th:if="${type == 'products'}" class="text-muted">
-            <span th:text="'$' + ${#numbers.formatDecimal(item['price'], 1, 2)}">$0.00</span>
+            <span th:text="${#numbers.formatDecimal(item['price'], 1, 2)} + ' €'">0.00 €</span>
         </small>
     </div>
 </div>

@@ -287,6 +287,7 @@ public class OrderServiceJpaImpl implements OrderService {
                 itemEntity.setImage(item.image());
                 itemEntity.setQuantity(item.quantity());
                 itemEntity.setPrice(item.price());
+                itemEntity.setVatRate(item.vatRate());
 
                 // Convert customizations
                 if (item.customizations() != null) {
@@ -370,7 +371,8 @@ public class OrderServiceJpaImpl implements OrderService {
                         itemEntity.getImage(),
                         itemEntity.getQuantity(),
                         customizers,
-                        itemEntity.getPrice());
+                        itemEntity.getPrice(),
+                        itemEntity.getVatRate());
                 items.add(item);
             }
         }

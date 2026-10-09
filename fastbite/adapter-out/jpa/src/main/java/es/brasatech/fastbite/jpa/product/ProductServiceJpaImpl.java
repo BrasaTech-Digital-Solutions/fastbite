@@ -2,6 +2,7 @@ package es.brasatech.fastbite.jpa.product;
 
 import es.brasatech.fastbite.application.office.I18nConfig;
 import es.brasatech.fastbite.application.office.ProductService;
+import es.brasatech.fastbite.domain.fiscal.VatRates;
 import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.jpa.i18n.Translations;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class ProductServiceJpaImpl implements ProductService {
     public ProductDto create(ProductDto productDto) {
         ProductEntity entity = new ProductEntity(null, productDto.name(), productDto.price(), productDto.description(),
                 productDto.image(), customizationsOf(productDto.customizations()), productDto.active());
+        entity.setVatRate(vatRateOf(productDto.vatRate()));
         return toDto(repository.save(entity), i18nConfig.getDefaultLanguage());
     }
 
@@ -55,7 +57,16 @@ public class ProductServiceJpaImpl implements ProductService {
             entity.setImage(productDto.image());
             entity.setCustomizations(customizationsOf(productDto.customizations()));
             entity.setActive(productDto.active());
+            entity.setVatRate(vatRateOf(productDto.vatRate()));
             return toDto(repository.save(entity), i18nConfig.getDefaultLanguage());
+        });
+    }
+
+    @Override
+    public Optional<ProductDto> setActive(String id, boolean active) {
+        return repository.findById(id).map(entity -> {
+            entity.setActive(active);
+            return toDto(repository.save(entity), LocaleContextHolder.getLocale().getLanguage());
         });
     }
 
@@ -83,7 +94,12 @@ public class ProductServiceJpaImpl implements ProductService {
                 entity.getImage(),
                 // A copy: the entity's own collection cannot be read once the transaction is over
                 entity.getCustomizations() != null ? new HashSet<>(entity.getCustomizations()) : null,
-                entity.isActive());
+                entity.isActive(),
+                entity.getVatRate());
+    }
+
+    private static java.math.BigDecimal vatRateOf(java.math.BigDecimal rate) {
+        return rate == null ? null : VatRates.require(rate);
     }
 
     private static Set<String> customizationsOf(Set<String> customizations) {

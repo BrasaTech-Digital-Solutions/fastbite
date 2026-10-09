@@ -68,10 +68,6 @@
                 <span class="text-danger" th:text="#{label.discount}">Descuento</span>
                 <span id="discount" class="fw-bold text-danger" th:text="'-' + ${#numbers.formatDecimal(discount, 1, 2)}">-0.00</span>
             </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="text-muted" th:text="#{label.tax}">Impuestos</span>
-                <span id="tax" class="fw-bold text-info" th:text="${#numbers.formatDecimal(tax, 1, 2)}">7.19</span>
-            </div>
 
             <div class="border-top my-3 border-2"></div>
 
@@ -79,6 +75,12 @@
                 <h4 class="m-0 fw-bold" th:text="#{label.total}">Total</h4>
                 <h4 id="total" class="m-0 fw-bold text-success" th:text="${#numbers.formatDecimal(total, 1, 2)}">71.93
                 </h4>
+            </div>
+            <div class="vat-included small text-muted mt-n3 mb-3" th:if="${vat != null && !vat.lines().isEmpty()}">
+                <div class="d-flex justify-content-between" th:each="line : ${vat.lines()}">
+                    <span th:text="#{label.vat.included.rate(${line.rate().intValue()})}">VAT included (10%)</span>
+                    <span th:text="${#numbers.formatDecimal(line.vat(), 1, 2)}">1.00</span>
+                </div>
             </div>
 
             <!-- Coupon Input -->
@@ -208,17 +210,18 @@
                                  <span class="fw-bold text-danger" th:text="'-' + ${#numbers.formatDecimal(discount, 1, 2)}">-0.00</span>
                              </div>
 
-                             <div class="d-flex justify-content-between mb-3 text-info">
-                                 <span th:text="#{label.tax} + ' (10%):'">Impuestos:</span>
-                                 <span class="fw-bold" th:text="${#numbers.formatDecimal(tax, 1, 2)}">6.30</span>
-                             </div>
-
                             <div class="border-top border-2 my-3"></div>
 
                             <div class="d-flex justify-content-between align-items-center mb-0">
                                 <h4 class="m-0 fw-bold" th:text="#{label.total}">TOTAL</h4>
                                 <h4 class="m-0 fw-bold text-success" th:text="${#numbers.formatDecimal(total, 1, 2)}">
                                     62.96</h4>
+                            </div>
+                            <div class="vat-included small text-muted mt-2" th:if="${vat != null && !vat.lines().isEmpty()}">
+                                <div class="d-flex justify-content-between" th:each="line : ${vat.lines()}">
+                                    <span th:text="#{label.vat.included.rate(${line.rate().intValue()})}">VAT included (10%)</span>
+                                    <span th:text="${#numbers.formatDecimal(line.vat(), 1, 2)}">1.00</span>
+                                </div>
                             </div>
                         </div>
 

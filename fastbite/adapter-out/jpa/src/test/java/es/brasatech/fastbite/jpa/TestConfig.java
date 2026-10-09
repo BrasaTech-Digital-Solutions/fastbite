@@ -11,6 +11,7 @@ import org.springframework.context.annotation.ComponentScan;
 @ComponentScan(excludeFilters = @ComponentScan.Filter(type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE, classes = es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.class), basePackages = {
     "es.brasatech.fastbite.jpa.tenant",
     "es.brasatech.fastbite.jpa.user",
+    "es.brasatech.fastbite.jpa.fiscal",
     "es.brasatech.fastbite.application.tenant"
 })
 public class TestConfig {

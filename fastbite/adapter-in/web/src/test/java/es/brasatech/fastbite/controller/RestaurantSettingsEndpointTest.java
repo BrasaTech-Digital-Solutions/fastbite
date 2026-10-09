@@ -46,6 +46,9 @@ class RestaurantSettingsEndpointTest {
     private MockMvc mockMvc;
 
     @MockitoBean
+    private es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
+
+    @MockitoBean
     private RestaurantSettingsService settingsService;
     @MockitoBean
     private PlanEntitlementService planEntitlementService;
@@ -54,6 +57,7 @@ class RestaurantSettingsEndpointTest {
 
     @BeforeEach
     void setUp() {
+        when(fiscalProfileService.defaultVatRate()).thenReturn(new java.math.BigDecimal("10.00"));
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
         when(settingsService.save(any())).thenAnswer(call -> call.getArgument(0));

@@ -14,7 +14,6 @@ import es.brasatech.fastbite.service.OrderCheckoutService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -37,8 +36,6 @@ public class MenuController {
     private final RestaurantSettingsService settingsService;
     private final OrderCheckoutService orderCheckoutService;
 
-    @Value("${fastbite.tax.percentage:0.0}")
-    private double taxPercentage;
 
 
 
@@ -131,12 +128,13 @@ public class MenuController {
 
     private void calculate(List<CartItem> requested, String couponCode, String tableId, Model model) {
         List<CartItem> cartItems = orderPricingService.price(requested, OrderChannel.TABLE);
-        var breakdown = discountService.calculateCartBreakdown(cartItems, couponCode, tableId, taxPercentage);
+        var breakdown = discountService.calculateCartBreakdown(cartItems, couponCode, tableId);
 
         model.addAttribute("cart", cartItems);
         model.addAttribute("subtotal", breakdown.subtotal());
         model.addAttribute("discount", breakdown.discount());
         model.addAttribute("tax", breakdown.tax());
+        model.addAttribute("vat", breakdown.vat());
         model.addAttribute("total", breakdown.total());
     }
 }

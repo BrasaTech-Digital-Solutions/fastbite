@@ -111,7 +111,7 @@ class DemoTemplatesValidationTest {
             try (InputStream is = zip.getInputStream(dataEntry)) {
                 JsonNode dataJson = objectMapper.readTree(is);
                 int version = dataJson.has("formatVersion") ? dataJson.get("formatVersion").asInt() : 1;
-                assertTrue(version == 1 || version == 2, "Format version should be 1 or 2");
+                assertTrue(version >= 1 && version <= 3, "Format version should be between 1 and 3");
 
                 if (dataJson.has("products") && dataJson.get("products").isArray()) {
                     for (JsonNode product : dataJson.get("products")) {
