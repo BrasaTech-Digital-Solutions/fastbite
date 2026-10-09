@@ -116,6 +116,11 @@ class DemoTemplatesValidationTest {
                 if (dataJson.has("products") && dataJson.get("products").isArray()) {
                     for (JsonNode product : dataJson.get("products")) {
                         assertTrue(product.has("name"), "Product must have a name");
+                        assertTrue(product.has("allergens") && product.get("allergens").isArray(),
+                                "Demo dish " + product.path("id").asText() + " must declare its allergens");
+                        for (JsonNode allergen : product.get("allergens")) {
+                            es.brasatech.fastbite.domain.allergen.Allergen.valueOf(allergen.asText());
+                        }
                         if (product.hasNonNull("image")) {
                             String image = product.get("image").asText().trim();
                             if (!image.isEmpty()) {

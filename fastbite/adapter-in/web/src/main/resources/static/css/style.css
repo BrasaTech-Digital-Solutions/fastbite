@@ -1404,3 +1404,201 @@ h6 {
 .order-for-takeaway .label-for-takeaway {
     display: inline;
 }
+
+/* Allergens: chips on dishes, the guest filter and option markers */
+.allergen-toolbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.allergen-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  min-height: 44px;
+  border-radius: 25px;
+  border: 1px dashed var(--primary-color);
+  background: transparent;
+  color: var(--text-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.allergen-filter-btn:hover,
+.allergen-filter-btn:focus-visible {
+  background: var(--card-bg);
+}
+
+.allergen-filter-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 12px;
+}
+
+.allergen-chart-link {
+  font-size: 14px;
+  color: var(--text-color);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.allergen-filter-status {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.allergen-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.allergen-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #fff4ec;
+  border: 1px solid #f4dccb;
+  color: #7a3b1d;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.allergen-none {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f6b3d;
+}
+
+.allergen-unknown {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.allergen-hidden {
+  display: none !important;
+}
+
+.allergen-uncertain .allergen-unknown {
+  color: #9a5b00;
+  font-weight: 700;
+}
+
+.option-allergens {
+  margin-left: 4px;
+  font-size: 13px;
+  cursor: help;
+}
+
+.allergen-notice {
+  margin: 8px auto 32px;
+  max-width: 720px;
+  text-align: center;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.allergen-notice a {
+  color: inherit;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.allergen-modal {
+  border-radius: var(--border-radius);
+}
+
+.allergen-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.allergen-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.allergen-toggle-icon {
+  font-size: 20px;
+}
+
+.allergen-toggle.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: #fff;
+}
+
+.allergen-toggle:focus-visible,
+.allergen-filter-btn:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+@media (min-width: 576px) {
+  .allergen-toggle-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Counter tiles: allergens at a glance for staff */
+.counter-allergens {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  line-height: 1.2;
+}
+
+.counter-allergens.undeclared {
+  font-size: 11px;
+  letter-spacing: 0;
+  color: #9a5b00;
+}
+
+/* Back office allergen pickers */
+.allergen-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.option-allergen-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.option-allergen-picker .btn {
+  padding: 2px 7px;
+  font-size: 14px;
+  line-height: 1.4;
+}

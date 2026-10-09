@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="#{allergens.chart.title} + ' · ' + ${restaurantName}">Allergen chart</title>
+    <link rel="stylesheet" th:href="@{/css/allergens.css}">
+</head>
+<body class="allergen-chart">
+<main>
+    <header class="chart-header">
+        <div>
+            <p class="chart-eyebrow" th:text="${restaurantName}">Kebab House</p>
+            <h1 th:text="#{allergens.chart.title}">Allergen chart</h1>
+            <p class="chart-intro" th:text="#{allergens.chart.intro}">Allergens in our dishes.</p>
+        </div>
+        <div class="chart-actions">
+            <button type="button" class="chart-print" onclick="window.print()" th:text="#{allergens.chart.print}">Print</button>
+            <span class="chart-date" th:text="#{allergens.chart.updated(${#temporals.format(today, 'dd/MM/yyyy')})}">Updated 09/10/2026</span>
+        </div>
+    </header>
+
+    <p class="chart-warning" th:if="${undeclared > 0}" role="note"
+       th:text="#{allergens.chart.undeclared.note(${undeclared})}">Some dishes have no allergen information yet.</p>
+
+    <div class="chart-scroll" tabindex="0" role="region" th:aria-label="#{allergens.chart.title}">
+        <table>
+            <thead>
+            <tr>
+                <th scope="col" class="dish-col" th:text="#{allergens.chart.dish}">Dish</th>
+                <th scope="col" class="allergen-col" th:each="allergen : ${allergens}">
+                    <span class="allergen-icon" aria-hidden="true" th:text="${allergen.icon()}">🌾</span>
+                    <span class="allergen-name" th:text="#{${allergen.messageKey()}}">Gluten</span>
+                </th>
+            </tr>
+            </thead>
+            <tbody th:each="section : ${sections}">
+            <tr class="section-row" th:if="${section.name() != null}">
+                <th scope="colgroup" th:colspan="${allergens.length + 1}" th:text="${section.name()}">Combos</th>
+            </tr>
+            <tr th:each="product : ${section.products()}">
+                <th scope="row" class="dish-col" th:text="${product.name()}">Kebab</th>
+                <td th:if="${!product.allergensDeclared()}" th:colspan="${allergens.length}" class="undeclared"
+                    th:text="#{allergens.chart.undeclared}">Ask our staff</td>
+                <th:block th:if="${product.allergensDeclared()}">
+                    <td th:each="allergen : ${allergens}" th:classappend="${product.allergens().contains(allergen)}?'contains'">
+                        <span th:if="${product.allergens().contains(allergen)}" class="dot"
+                              th:aria-label="#{${allergen.messageKey()}}" role="img">●</span>
+                    </td>
+                </th:block>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <section class="chart-options" th:if="${!options.isEmpty()}">
+        <h2 th:text="#{allergens.chart.options}">Options that add allergens</h2>
+        <ul>
+            <li th:each="row : ${options}">
+                <strong th:text="${row.option().name()}">Extra cheese</strong>
+                <span class="option-group" th:text="'(' + ${row.customization()} + ')'">(Toppings)</span>
+                <span class="option-allergens">
+                    <span th:each="allergen, it : ${row.option().allergens()}"
+                          th:text="${allergen.icon()} + ' ' + #{${allergen.messageKey()}} + (${it.last} ? '' : ', ')">🥛 Milk</span>
+                </span>
+            </li>
+        </ul>
+    </section>
+
+    <footer class="chart-footer">
+        <p th:text="#{allergens.chart.footer}">Tell our staff about any allergy before you order.</p>
+    </footer>
+</main>
+</body>
+</html>

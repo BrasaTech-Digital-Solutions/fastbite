@@ -2,6 +2,7 @@ package es.brasatech.fastbite.jpa.product;
 
 import es.brasatech.fastbite.application.office.I18nConfig;
 import es.brasatech.fastbite.application.office.ProductService;
+import es.brasatech.fastbite.domain.allergen.Allergen;
 import es.brasatech.fastbite.domain.fiscal.VatRates;
 import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.jpa.i18n.Translations;
@@ -45,6 +46,7 @@ public class ProductServiceJpaImpl implements ProductService {
         ProductEntity entity = new ProductEntity(null, productDto.name(), productDto.price(), productDto.description(),
                 productDto.image(), customizationsOf(productDto.customizations()), productDto.active());
         entity.setVatRate(vatRateOf(productDto.vatRate()));
+        entity.setAllergens(productDto.allergens());
         return toDto(repository.save(entity), i18nConfig.getDefaultLanguage());
     }
 
@@ -58,6 +60,7 @@ public class ProductServiceJpaImpl implements ProductService {
             entity.setCustomizations(customizationsOf(productDto.customizations()));
             entity.setActive(productDto.active());
             entity.setVatRate(vatRateOf(productDto.vatRate()));
+            entity.setAllergens(productDto.allergens());
             return toDto(repository.save(entity), i18nConfig.getDefaultLanguage());
         });
     }
@@ -95,7 +98,8 @@ public class ProductServiceJpaImpl implements ProductService {
                 // A copy: the entity's own collection cannot be read once the transaction is over
                 entity.getCustomizations() != null ? new HashSet<>(entity.getCustomizations()) : null,
                 entity.isActive(),
-                entity.getVatRate());
+                entity.getVatRate(),
+                Allergen.copyOf(entity.getAllergens()));
     }
 
     private static java.math.BigDecimal vatRateOf(java.math.BigDecimal rate) {

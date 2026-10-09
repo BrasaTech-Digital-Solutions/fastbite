@@ -2,6 +2,9 @@ package es.brasatech.fastbite.jpa.product;
 
 import jakarta.persistence.*;
 
+import es.brasatech.fastbite.domain.allergen.Allergen;
+import es.brasatech.fastbite.jpa.allergen.AllergensConverter;
+
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
@@ -50,6 +53,11 @@ public class ProductEntity implements Translatable {
     @Convert(converter = TranslationsConverter.class)
     @Column(name = "translations", columnDefinition = "text")
     private Map<String, Map<String, String>> translations = new HashMap<>();
+
+    /** Null: allergens not declared yet; empty: none of the 14. */
+    @Convert(converter = AllergensConverter.class)
+    @Column(name = "allergens", length = 200)
+    private Set<Allergen> allergens;
 
     public ProductEntity() {
     }
@@ -137,5 +145,13 @@ public class ProductEntity implements Translatable {
     @Override
     public void setTranslations(Map<String, Map<String, String>> translations) {
         this.translations = translations != null ? translations : new HashMap<>();
+    }
+
+    public Set<Allergen> getAllergens() {
+        return allergens;
+    }
+
+    public void setAllergens(Set<Allergen> allergens) {
+        this.allergens = Allergen.copyOf(allergens);
     }
 }

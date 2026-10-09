@@ -2,6 +2,7 @@ package es.brasatech.fastbite.jpa.customization;
 
 import es.brasatech.fastbite.application.office.CustomizationService;
 import es.brasatech.fastbite.application.office.I18nConfig;
+import es.brasatech.fastbite.domain.allergen.Allergen;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.domain.customization.CustomizationOptionDto;
 import es.brasatech.fastbite.jpa.i18n.Translations;
@@ -89,6 +90,7 @@ public class CustomizationServiceJpaImpl implements CustomizationService {
             CustomizationOptionEntity entity = new CustomizationOptionEntity(
                     optionId, option.name(), option.price(), option.isSelectedByDefault(), option.defaultValue(), i);
             entity.setTranslations(new HashMap<>(previousTranslations.getOrDefault(optionId, Map.of())));
+            entity.setAllergens(option.allergens() == null || option.allergens().isEmpty() ? null : option.allergens());
             customization.addOption(entity);
         }
     }
@@ -100,7 +102,8 @@ public class CustomizationServiceJpaImpl implements CustomizationService {
                         Translations.get(option.getTranslations(), language, "name", option.getName()),
                         option.getPrice(),
                         option.isSelectedByDefault(),
-                        option.getDefaultValue()))
+                        option.getDefaultValue(),
+                        Allergen.copyOf(option.getAllergens())))
                 .toList();
         return new CustomizationDto(
                 entity.getId(),

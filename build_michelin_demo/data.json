@@ -64,7 +64,10 @@
       "customizations": [
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "FISH"
+      ]
     },
     {
       "id": "prod-michelin-carpaccio-wagyu",
@@ -75,7 +78,10 @@
       "customizations": [
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-michelin-vieira-braseada",
@@ -86,7 +92,11 @@
       "customizations": [
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK",
+        "MOLLUSCS"
+      ]
     },
     {
       "id": "prod-michelin-lubina-salvaje",
@@ -97,7 +107,10 @@
       "customizations": [
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "FISH"
+      ]
     },
     {
       "id": "prod-michelin-bogavante-azul",
@@ -108,7 +121,11 @@
       "customizations": [
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "CRUSTACEANS",
+        "MILK"
+      ]
     },
     {
       "id": "prod-michelin-solomillo-rubia",
@@ -120,7 +137,10 @@
         "cust-michelin-doneness",
         "cust-michelin-luxury-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-michelin-pichon-bresse",
@@ -131,7 +151,10 @@
       "customizations": [
         "cust-michelin-doneness"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "SULPHITES"
+      ]
     },
     {
       "id": "prod-michelin-menu-degustacion",
@@ -142,7 +165,17 @@
       "customizations": [
         "cust-michelin-pairing"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "CRUSTACEANS",
+        "EGGS",
+        "FISH",
+        "MILK",
+        "NUTS",
+        "SULPHITES",
+        "MOLLUSCS"
+      ]
     },
     {
       "id": "prod-michelin-esfera-chocolate",
@@ -151,7 +184,12 @@
       "description": "Guanaja 70% chocolate dome, molten passion fruit and mango core, hazelnut praline and warm chocolate ganache.",
       "image": "/user-images/kebab/michelin/esfera-chocolate.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": [
+        "SOYBEANS",
+        "MILK",
+        "NUTS"
+      ]
     },
     {
       "id": "prod-michelin-texturas-citricas",
@@ -160,7 +198,8 @@
       "description": "Yuzu cloud, candied blood orange, calamansi gelée, and garden basil sorbet.",
       "image": "/user-images/kebab/michelin/texturas-citricas.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-michelin-coctel-ahumado",
@@ -169,7 +208,8 @@
       "description": "Aged Japanese whisky, black winter truffle essence, Angostura bitters and charred orange peel smoke.",
       "image": "/user-images/kebab/michelin/coctel-ahumado.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-michelin-champagne-cup",
@@ -178,7 +218,10 @@
       "description": "Iconic vintage champagne served in crystal flute. Fine bubbles, toasted brioche and white peach notes.",
       "image": "/user-images/kebab/michelin/champagne-domperignon.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": [
+        "SULPHITES"
+      ]
     }
   ],
   "customizations": [
@@ -194,7 +237,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 0,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "opt-done-medium-rare",
@@ -202,7 +246,8 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 1,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": null
         },
         {
           "id": "opt-done-medium-well",
@@ -210,7 +255,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -226,7 +272,10 @@
           "price": 18.0,
           "defaultValue": 0,
           "optionIndex": 0,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "FISH"
+          ]
         },
         {
           "id": "opt-extra-truffle",
@@ -234,7 +283,8 @@
           "price": 14.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "opt-extra-foie",
@@ -242,7 +292,8 @@
           "price": 12.0,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -258,7 +309,8 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": null
         },
         {
           "id": "opt-pairing-national",
@@ -266,7 +318,10 @@
           "price": 65.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "SULPHITES"
+          ]
         },
         {
           "id": "opt-pairing-prestige",
@@ -274,7 +329,10 @@
           "price": 115.0,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "SULPHITES"
+          ]
         }
       ]
     }
@@ -292,7 +350,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 0,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "opt-done-medium-rare",
@@ -306,7 +365,8 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 1,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": null
     },
     {
       "id": "opt-done-medium-well",
@@ -320,7 +380,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "opt-extra-caviar",
@@ -334,7 +395,10 @@
       "price": 18.0,
       "defaultValue": 0,
       "optionIndex": 0,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "FISH"
+      ]
     },
     {
       "id": "opt-extra-truffle",
@@ -348,7 +412,8 @@
       "price": 14.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "opt-extra-foie",
@@ -362,7 +427,8 @@
       "price": 12.0,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "opt-pairing-none",
@@ -376,7 +442,8 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": null
     },
     {
       "id": "opt-pairing-national",
@@ -390,7 +457,10 @@
       "price": 65.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "SULPHITES"
+      ]
     },
     {
       "id": "opt-pairing-prestige",
@@ -404,7 +474,10 @@
       "price": 115.0,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "SULPHITES"
+      ]
     }
   ],
   "tables": [

@@ -22,6 +22,7 @@ public class BackOfficeController {
     private final RestaurantSettingsService settingsService;
     private final TenantLocationService tenantLocationService;
     private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
+    private final org.springframework.context.MessageSource messageSource;
 
     /**
      * Render the BackOffice page
@@ -41,6 +42,7 @@ public class BackOfficeController {
         model.addAttribute("settings", settingsService.get());
         model.addAttribute("defaultVatRate", fiscalProfileService.defaultVatRate());
         model.addAttribute("vatRates", es.brasatech.fastbite.domain.fiscal.VatRates.ALL);
+        model.addAttribute("allergenList", List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
         return "fastfood/backOffice";
     }
 
@@ -69,8 +71,23 @@ public class BackOfficeController {
     }
 
     @PostMapping("/api/backoffice/fragments/products-list")
-    public String getProductsList(@RequestBody List<Map<String, Object>> products, Model model) {
-        model.addAttribute("products", new java.util.ArrayList<>(products));
+    public String getProductsList(@RequestBody List<Map<String, Object>> products, Model model, java.util.Locale locale) {
+        // Templates cannot reach the allergen enum, so each product gets its icons and names here
+        List<Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (Map<String, Object> product : products) {
+            Map<String, Object> row = new java.util.HashMap<>(product);
+            if (product.get("allergens") instanceof java.util.Collection<?> codes) {
+                var allergens = es.brasatech.fastbite.domain.allergen.Allergen.parse(
+                        codes.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+                row.put("allergenIcons", allergens.stream().map(es.brasatech.fastbite.domain.allergen.Allergen::icon)
+                        .collect(java.util.stream.Collectors.joining()));
+                row.put("allergenNames", allergens.stream()
+                        .map(allergen -> messageSource.getMessage(allergen.messageKey(), null, locale))
+                        .collect(java.util.stream.Collectors.joining(", ")));
+            }
+            rows.add(row);
+        }
+        model.addAttribute("products", rows);
         return "fastfood/fragments/backOffice :: products-list";
     }
 
@@ -78,6 +95,7 @@ public class BackOfficeController {
     public String getCustomizationOption(@RequestBody Map<String, Object> payload, Model model) {
         model.addAttribute("opt", payload.get("opt"));
         model.addAttribute("index", payload.get("index"));
+        model.addAttribute("allergenList", List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
         return "fastfood/fragments/backOffice :: customization-option";
     }
 

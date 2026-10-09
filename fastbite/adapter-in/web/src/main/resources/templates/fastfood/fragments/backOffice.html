@@ -112,6 +112,13 @@
                         th:text="${#numbers.formatDecimal(product['price'], 1, 2)} + ' €'">0.00 €</span>
                     <span th:if="${product['vatRate'] != null}" class="badge bg-light text-dark border"
                         th:text="#{label.vat.rate(${#numbers.formatInteger(product['vatRate'], 1)})}">VAT 21%</span>
+                    <span th:if="${product['allergens'] == null}" class="badge bg-warning text-dark"
+                        th:text="#{backoffice.products.allergens.missing}">Allergens not declared</span>
+                    <span th:if="${product['allergens'] != null && #lists.isEmpty(product['allergens'])}"
+                        class="badge bg-light text-success border" th:text="#{menu.allergens.none}">No allergens</span>
+                    <span th:if="${product['allergens'] != null && !#lists.isEmpty(product['allergens'])}"
+                        class="badge bg-light text-dark border" th:title="${product['allergenNames']}"
+                        th:text="${product['allergenIcons']}">🌾🥛</span>
                     <span th:class="|badge ${product['active'] ? 'bg-primary' : 'bg-secondary'}|"
                         th:text="${product['active'] ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
                     <span class="badge bg-info">
@@ -160,7 +167,7 @@
             <label class="form-label small" th:text="#{backoffice.customizations.option.label.default.value}">Default
                 Value</label>
             <input type="number" class="form-control form-control-sm" placeholder="1"
-                th:value="${opt != null ? opt['defaultValue'] ?: 1 : 1}" th:id="|opt-defaultValue-${index}|" min="1">
+                th:value="${opt != null ? opt['defaultValue'] ?: 0 : 1}" th:id="|opt-defaultValue-${index}|" min="0">
         </div>
         <div class="col-md-2">
             <label class="form-label small"
@@ -176,6 +183,16 @@
                 <i class="fas fa-trash"></i>
             </button>
         </div>
+    </div>
+    <div class="option-allergen-picker">
+        <span class="form-label small mb-0 me-1" th:text="#{backoffice.customizations.option.allergens}">Adds allergens</span>
+        <th:block th:each="allergen : ${allergenList}">
+            <input type="checkbox" class="btn-check" autocomplete="off" data-option-allergen
+                th:id="|opt-allergen-${index}-${allergen.name()}|" th:value="${allergen.name()}"
+                th:checked="${opt != null && opt['allergens'] != null && #lists.contains(opt['allergens'], allergen.name())}">
+            <label class="btn btn-sm btn-outline-secondary" th:for="|opt-allergen-${index}-${allergen.name()}|"
+                th:title="#{${allergen.messageKey()}}" th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</label>
+        </th:block>
     </div>
 </div>
 

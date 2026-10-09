@@ -127,7 +127,8 @@ public class MenuDataService {
                     optionDto.name(),
                     optionDto.price(),
                     optionDto.isSelectedByDefault(),
-                    optionDto.defaultValue()
+                    optionDto.defaultValue(),
+                    optionDto.allergens() != null ? optionDto.allergens() : java.util.Set.of()
             ));
         }
 
@@ -154,7 +155,8 @@ public class MenuDataService {
                                     productDto.description(),
                                     productDto.image(),
                                     customizations,
-                                    productDto.active()
+                                    productDto.active(),
+                                    productDto.allergens()
                             );
                         }
                 ));

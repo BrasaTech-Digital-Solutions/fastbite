@@ -1,0 +1,43 @@
+/* Allergen chart: readable on a phone, one landscape page when printed. */
+:root{--ink:#1d2a24;--muted:#5f6b64;--line:#dcdcd2;--paper:#fffefa;--accent:#c45132;--soft:#f5f3ec}
+*{box-sizing:border-box}
+body.allergen-chart{margin:0;background:var(--soft);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.allergen-chart main{max-width:1180px;margin:0 auto;padding:32px 20px 48px}
+.chart-header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.chart-eyebrow{margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.chart-header h1{margin:0;font-family:Georgia,serif;font-size:clamp(28px,4vw,40px);letter-spacing:-.02em}
+.chart-intro{margin:6px 0 0;color:var(--muted);max-width:640px}
+.chart-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.chart-print{background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 20px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+.chart-print:focus-visible,.chart-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.chart-date{font-size:12px;color:var(--muted)}
+.chart-warning{background:#fff4e5;border:1px solid #f1d3a8;border-radius:10px;padding:10px 14px;font-size:14px}
+.chart-scroll{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:14px}
+.allergen-chart table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+.allergen-chart th,.allergen-chart td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:center}
+.allergen-chart thead th{position:sticky;top:0;background:var(--paper);vertical-align:bottom;font-weight:600}
+.allergen-col{width:62px}
+.allergen-icon{display:block;font-size:20px;line-height:1.2}
+.allergen-name{display:block;font-size:10px;line-height:1.2;color:var(--muted);hyphens:auto;-webkit-hyphens:auto;overflow-wrap:normal}
+.dish-col{text-align:left!important;min-width:180px;position:sticky;left:0;background:var(--paper);font-weight:600;z-index:1}
+.section-row th{text-align:left;background:var(--soft);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:10px 12px}
+.contains{background:#fbefe9}
+.dot{color:var(--accent);font-size:15px}
+.undeclared{color:var(--muted);font-style:italic;text-align:left!important}
+.chart-options{margin-top:26px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 22px}
+.chart-options h2{margin:0 0 10px;font-size:17px}
+.chart-options ul{margin:0;padding-left:18px}
+.chart-options li{margin:4px 0}
+.option-group{color:var(--muted)}
+.chart-footer{margin-top:20px;font-size:13px;color:var(--muted)}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body.allergen-chart{background:#fff;font-size:11px}
+  .allergen-chart main{padding:0;max-width:none}
+  .chart-print{display:none}
+  .chart-scroll{overflow:visible;border:0}
+  .allergen-chart table{min-width:0}
+  .contains{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dot{color:#000}
+  .dish-col,.allergen-chart thead th{position:static}
+}

@@ -123,7 +123,9 @@ async function loadData() {
                 image: data.customFields.image,
                 customizations: data.customFields.customizations || [],
                 active: data.customFields.active !== false,
-                vatRate: data.customFields.vatRate
+                vatRate: data.customFields.vatRate,
+                // null: not declared yet; []: none of the 14
+                allergens: data.customFields.allergens ?? null
             }));
         }
 
@@ -251,11 +253,53 @@ function updateCounts() {
     document.getElementById('groups-count').textContent = groups.length;
     document.getElementById('customizations-count').textContent = customizations.length;
     document.getElementById('products-count').textContent = products.length;
+    updateAllergensBanner();
     const tablesCount = document.getElementById('tables-count');
     if (tablesCount) tablesCount.textContent = tables.length;
     const discountsCount = document.getElementById('discounts-count');
     if (discountsCount) discountsCount.textContent = discounts.length;
 }
+
+// Dishes on sale without allergen information: guests are told to ask the staff
+function updateAllergensBanner() {
+    const banner = document.getElementById('allergens-missing-banner');
+    if (!banner) return;
+    const missing = products.filter(p => p.active && (p.allergens === null || p.allergens === undefined)).length;
+    banner.hidden = missing === 0;
+    document.getElementById('allergens-missing-text').textContent = banner.dataset.template.replace('{0}', missing);
+}
+
+function setProductAllergens(allergens) {
+    const declared = Array.isArray(allergens);
+    document.querySelectorAll('input[name="product-allergen"]').forEach(box => {
+        box.checked = declared && allergens.includes(box.value);
+    });
+    document.getElementById('product-allergens-none').checked = declared && allergens.length === 0;
+    updateProductAllergensState();
+}
+
+function productAllergens() {
+    if (document.getElementById('product-allergens-none').checked) return [];
+    const chosen = [...document.querySelectorAll('input[name="product-allergen"]:checked')].map(box => box.value);
+    return chosen.length ? chosen : null;
+}
+
+function updateProductAllergensState() {
+    const state = document.getElementById('product-allergens-state');
+    if (state) state.hidden = productAllergens() !== null;
+}
+
+document.addEventListener('change', event => {
+    if (event.target.name === 'product-allergen' && event.target.checked) {
+        document.getElementById('product-allergens-none').checked = false;
+    }
+    if (event.target.id === 'product-allergens-none' && event.target.checked) {
+        document.querySelectorAll('input[name="product-allergen"]').forEach(box => box.checked = false);
+    }
+    if (event.target.name === 'product-allergen' || event.target.id === 'product-allergens-none') {
+        updateProductAllergensState();
+    }
+});
 
 // Cancel form
 function cancelForm() {
@@ -492,12 +536,14 @@ async function handleCustomizationSubmit(e) {
         const price = document.getElementById(`opt-price-${index}`)?.value || '0';
         const defaultValue = document.getElementById(`opt-defaultValue-${index}`)?.value || '1';
         const isSelectedByDefault = document.getElementById(`opt-isSelectedByDefault-${index}`)?.checked || false;
+        const allergens = [...el.querySelectorAll('input[data-option-allergen]:checked')].map(box => box.value);
 
         return {
             name,
             price: parseFloat(price),
             defaultValue: parseInt(defaultValue),
-            isSelectedByDefault
+            isSelectedByDefault,
+            allergens
         };
     }).filter(opt => opt.name.trim() !== '');
 
@@ -592,6 +638,7 @@ function showProductForm(productId = null) {
         document.getElementById('product-price').value = product.price;
         // Empty: the location's default rate
         document.getElementById('product-vat').value = product.vatRate != null ? Number(product.vatRate).toFixed(2) : '';
+        setProductAllergens(product.allergens);
         document.getElementById('product-description').value = product.description;
         document.getElementById('product-image').value = product.image || '';
         const preview = document.getElementById('product-image-preview');
@@ -608,6 +655,7 @@ function showProductForm(productId = null) {
         title.textContent = 'Create New Product';
         document.getElementById('productFormElement').reset();
         document.getElementById('product-vat').value = '';
+        setProductAllergens(null);
         const preview = document.getElementById('product-image-preview');
         if (preview) preview.style.display = 'none';
         selectedCustomizationsForProduct = [];
@@ -628,7 +676,8 @@ async function handleProductSubmit(e) {
         image: document.getElementById('product-image').value,
         customizations: selectedCustomizationsForProduct,
         active: document.getElementById('product-active').checked,
-        vatRate: document.getElementById('product-vat').value ? Number(document.getElementById('product-vat').value) : null
+        vatRate: document.getElementById('product-vat').value ? Number(document.getElementById('product-vat').value) : null,
+        allergens: productAllergens()
     };
 
     try {

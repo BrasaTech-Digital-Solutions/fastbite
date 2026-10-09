@@ -52,6 +52,21 @@
                         </button>
                     </li>
                 </ul>
+                <div class="allergen-toolbar">
+                    <button type="button" class="allergen-filter-btn" data-bs-toggle="modal" data-bs-target="#allergenModal"
+                        aria-haspopup="dialog">
+                        <span aria-hidden="true">🛡️</span> <span th:text="#{menu.allergens.button}">Allergies?</span>
+                        <span class="allergen-filter-count" id="allergenFilterCount" hidden>0</span>
+                    </button>
+                    <a class="allergen-chart-link" th:href="${allergenChartUrl}" target="_blank" rel="noopener"
+                        th:text="#{menu.allergens.chart}">Allergen chart</a>
+                </div>
+                <div class="allergen-filter-status" id="allergenFilterStatus" role="status" hidden
+                    th:data-active="#{menu.allergens.active('{0}')}" th:data-hidden="#{menu.allergens.hidden('{0}')}">
+                    <span id="allergenFilterText"></span>
+                    <button type="button" class="btn btn-link btn-sm p-0 align-baseline" data-allergen-clear
+                        th:text="#{menu.allergens.clear}">Show everything</button>
+                </div>
             </div>
 
             <!-- Tab Content -->
@@ -64,7 +79,8 @@
                         <div class="col-lg-4 col-md-6 mb-4" th:each="product : ${menuData.menuDataMap[tab.id]}"
                             th:id="${product.id}" th:data-customizations="${product.customizationsAsString}"
                             th:data-name="${product.name}" th:data-description="${product.description}"
-                            th:data-image="${product.image}" th:data-price="${product.price}">
+                            th:data-image="${product.image}" th:data-price="${product.price}"
+                            th:data-allergens="${product.allergenCodes()}" th:data-allergens-declared="${product.allergensDeclared()}">
                             <div class="card product-card h-100 border-0 shadow-sm overflow-hidden animate-up" th:classappend="${!product.active}? ' opacity-50' : ''">
                                 <span class="me-2 fw-bold text-primary price-tag"
                                     th:text="${#numbers.formatDecimal(product.price, 1, 2)}">24.99</span>
@@ -86,14 +102,26 @@
                                                 id="qty-product-one-plus"><i class="fas fa-plus"></i></button>
                                         </div>
                                     </div>
-                                    <p class="card-text text-muted mb-4" th:text="${product.description}">4 burgers, 2
+                                    <p class="card-text text-muted mb-3" th:text="${product.description}">4 burgers, 2
                                         large fries, 4 drinks</p>
+                                    <div class="allergen-chips mb-3" th:if="${product.allergensDeclared()}">
+                                        <span th:if="${product.allergens().isEmpty()}" class="allergen-none"
+                                            th:text="#{menu.allergens.none}">No allergens</span>
+                                        <span th:each="allergen : ${product.allergens()}" class="allergen-chip">
+                                            <span aria-hidden="true" th:text="${allergen.icon()}">🌾</span>
+                                            <span th:text="#{${allergen.messageKey()}}">Gluten</span>
+                                        </span>
+                                    </div>
+                                    <p class="allergen-unknown mb-3" th:unless="${product.allergensDeclared()}">
+                                        <i class="fas fa-circle-info me-1" aria-hidden="true"></i><span
+                                            th:text="#{menu.allergens.unknown}">Ask our staff about allergens</span>
+                                    </p>
                                     <div class="mt-auto">
                                         <button th:disabled="${!product.active}"
                                             th:class="${product.active}? 'btn btn-pos-primary w-100 rounded-pill py-3 shadow-sm text-uppercase fw-bold' : 'btn btn-secondary w-100 rounded-pill py-3 shadow-sm text-uppercase fw-bold disabled'"
                                             th:id="${'add-' + product.id + '-to-cart'}">
                                             <i th:class="${product.active}? 'fas fa-shopping-basket me-2' : 'fas fa-ban me-2'"></i> <span
-                                                th:text="${product.active}? #{label.add.to.cart} : 'Sold Out'">Add to Cart</span>
+                                                th:text="${product.active}? #{label.add.to.cart} : #{label.sold.out}">Add to Cart</span>
                                         </button>
                                     </div>
                                 </div>
@@ -104,6 +132,12 @@
                 </div>
             </div>
         </div>
+
+        <p class="allergen-notice" id="allergenNotice">
+            <i class="fas fa-shield-heart me-1" aria-hidden="true"></i>
+            <span th:text="#{menu.allergens.notice}">Allergen information is available from our staff.</span>
+            <a th:href="${allergenChartUrl}" target="_blank" rel="noopener" th:text="#{menu.allergens.chart}">Allergen chart</a>
+        </p>
 
         <!-- Cart Section -->
         <div id="cartSection" style="display: none;"></div>
@@ -153,12 +187,18 @@
                                             <span th:text="${customizationOption.name}"></span> <span
                                                 th:if="${customizationOption.price > 0}"
                                                 th:text="${'(+' + #numbers.formatDecimal(customizationOption.price, 1, 2) + ')'}"></span>
+                                            <span class="option-allergens" th:each="allergen : ${customizationOption.allergens()}"
+                                                th:title="#{${allergen.messageKey()}}" role="img"
+                                                th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</span>
                                         </label>
                                     </div>
                                     <div class="ingredient-control" th:if="${customization.inputType.value == 'hidden'}"
                                         th:each="customizationOption : ${customization.options}">
                                         <div class="ingredient-info">
-                                            <div class="ingredient-name" th:text="${customizationOption.name}">Onions
+                                            <div class="ingredient-name"><span th:text="${customizationOption.name}">Onions</span>
+                                                <span class="option-allergens" th:each="allergen : ${customizationOption.allergens()}"
+                                                    th:title="#{${allergen.messageKey()}}" role="img"
+                                                    th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</span>
                                             </div>
                                             <div class="ingredient-price" th:if="${customizationOption.price > 0}"
                                                 th:text="${'(+' + #numbers.formatDecimal(customizationOption.price, 1, 2) + ')'}">
@@ -212,6 +252,33 @@
         th:data-button-update-item="#{button.update.item}" th:data-button-add-to-cart="#{button.add.to.cart}">
     </div>
 
+    <!-- Allergy filter -->
+    <div class="modal fade" id="allergenModal" tabindex="-1" aria-labelledby="allergenModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content allergen-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="allergenModalTitle" th:text="#{menu.allergens.title}">Hide dishes that contain</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" th:aria-label="#{button.cancel}"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small" th:text="#{menu.allergens.intro}">Tell us what you cannot eat.</p>
+                    <div class="allergen-toggle-grid">
+                        <button type="button" class="allergen-toggle" th:each="allergen : ${allergenList}"
+                            th:data-allergen="${allergen.name()}" aria-pressed="false">
+                            <span class="allergen-toggle-icon" aria-hidden="true" th:text="${allergen.icon()}">🌾</span>
+                            <span th:text="#{${allergen.messageKey()}}">Gluten</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-link" data-allergen-clear th:text="#{menu.allergens.clear}">Show everything</button>
+                    <button type="button" class="btn btn-pos-primary rounded-pill px-4" data-bs-dismiss="modal"
+                        th:text="#{menu.allergens.done}">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Cart Button for Mobile -->
     <button id="floatingCartBtn" class="floating-cart-btn d-lg-none">
         <i class="fas fa-shopping-basket"></i>
@@ -220,6 +287,7 @@
 
     <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../../static/js/menu.js" th:src="@{/js/menu.js}" defer></script>
+    <script th:src="@{/js/allergen-filter.js}" defer></script>
 
 </body>
 

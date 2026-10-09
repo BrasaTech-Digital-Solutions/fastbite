@@ -238,10 +238,22 @@
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h3><i class="fas fa-burger"></i> <span th:text="#{backoffice.products.title}">Products
                                     Management</span></h3>
-                            <button class="btn btn-primary" onclick="showProductForm()">
-                                <i class="fas fa-plus"></i> <span th:text="#{backoffice.products.new}">New
-                                    Product</span>
-                            </button>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a class="btn btn-outline-secondary" th:href="@{/{tenant}/allergens(tenant=${activeTenant})}"
+                                    target="_blank" rel="noopener">
+                                    <i class="fas fa-print"></i> <span th:text="#{backoffice.products.allergens.chart}">Print allergen chart</span>
+                                </a>
+                                <button class="btn btn-primary" onclick="showProductForm()">
+                                    <i class="fas fa-plus"></i> <span th:text="#{backoffice.products.new}">New
+                                        Product</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning d-flex align-items-center gap-2" id="allergens-missing-banner"
+                            role="status" hidden th:data-template="#{backoffice.products.allergens.missing.banner('{0}')}">
+                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                            <span id="allergens-missing-text"></span>
                         </div>
 
                         <!-- Products List -->
@@ -310,6 +322,28 @@
                                                 style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #ddd;">
                                         </div>
                                     </div>
+
+                                    <fieldset class="mb-3" id="product-allergens">
+                                        <legend class="form-label fs-6 mb-1" th:text="#{backoffice.products.allergens}">Allergens</legend>
+                                        <div class="form-text mt-0 mb-2" th:text="#{backoffice.products.allergens.hint}">Mark every allergen the dish contains.</div>
+                                        <div class="allergen-picker">
+                                            <th:block th:each="allergen : ${allergenList}">
+                                                <input type="checkbox" class="btn-check" autocomplete="off" name="product-allergen"
+                                                    th:id="'product-allergen-' + ${allergen.name()}" th:value="${allergen.name()}">
+                                                <label class="btn btn-sm btn-outline-secondary" th:for="'product-allergen-' + ${allergen.name()}">
+                                                    <span aria-hidden="true" th:text="${allergen.icon()}">🌾</span>
+                                                    <span th:text="#{${allergen.messageKey()}}">Gluten</span>
+                                                </label>
+                                            </th:block>
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="product-allergens-none">
+                                            <label class="form-check-label" for="product-allergens-none"
+                                                th:text="#{backoffice.products.allergens.none}">This dish contains none of the 14 allergens</label>
+                                        </div>
+                                        <div class="small mt-1 text-warning-emphasis" id="product-allergens-state"
+                                            th:text="#{backoffice.products.allergens.undeclared.hint}">Not declared yet.</div>
+                                    </fieldset>
 
                                     <div class="mb-3">
                                         <label class="form-label"

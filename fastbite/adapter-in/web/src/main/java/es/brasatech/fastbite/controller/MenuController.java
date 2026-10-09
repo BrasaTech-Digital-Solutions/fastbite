@@ -45,9 +45,13 @@ public class MenuController {
             @RequestParam(value = "table", required = false) String tableParam,
             @RequestParam(value = "token", required = false) String tokenParam,
             HttpSession session,
+            HttpServletRequest request,
             Locale locale,
             Model model) {
         model.addAttribute("menuData", menuDataService.buildMenuData(locale));
+        Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
+        model.addAttribute("allergenChartUrl", (prefix != null ? prefix : "") + "/allergens");
+        model.addAttribute("allergenList", java.util.List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
         try {
             String existingTableNumber = (String) session.getAttribute("tableNumber");
             List<CartItem> cartItems = (List<CartItem>) session.getAttribute("cart");

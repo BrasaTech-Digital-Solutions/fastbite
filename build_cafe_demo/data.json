@@ -69,7 +69,8 @@
       "customizations": [
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-cafe-latte",
@@ -82,7 +83,10 @@
         "cust-coffee-extras",
         "cust-temperature"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-cappuccino",
@@ -94,7 +98,10 @@
         "cust-milk",
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-caramel-macchiato",
@@ -106,7 +113,10 @@
         "cust-milk",
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-iced-latte",
@@ -118,7 +128,10 @@
         "cust-milk",
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-cold-brew",
@@ -129,7 +142,8 @@
       "customizations": [
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-caramel-frappe",
@@ -141,7 +155,10 @@
         "cust-milk",
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-matcha-latte",
@@ -152,7 +169,10 @@
       "customizations": [
         "cust-milk"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-croissant",
@@ -163,7 +183,12 @@
       "customizations": [
         "cust-bakery-prep"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "EGGS",
+        "MILK"
+      ]
     },
     {
       "id": "prod-chocolate-cookie",
@@ -174,7 +199,13 @@
       "customizations": [
         "cust-bakery-prep"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "EGGS",
+        "SOYBEANS",
+        "MILK"
+      ]
     },
     {
       "id": "prod-blueberry-muffin",
@@ -185,7 +216,12 @@
       "customizations": [
         "cust-bakery-prep"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "EGGS",
+        "MILK"
+      ]
     },
     {
       "id": "prod-cheesecake",
@@ -194,7 +230,12 @@
       "description": "Velvety cream cheesecake on a buttery biscuit base, finished with strawberry coulis.",
       "image": "/user-images/kebab/cafe/cheesecake.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "EGGS",
+        "MILK"
+      ]
     },
     {
       "id": "prod-mineral-water",
@@ -203,7 +244,8 @@
       "description": "Natural mineral spring water, chilled.",
       "image": "/user-images/kebab/cafe/water.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-coca-cola",
@@ -212,7 +254,8 @@
       "description": "Refreshing cold Coca-Cola Zero in a glass bottle.",
       "image": "/user-images/kebab/cafe/coca-cola.webp",
       "customizations": [],
-      "active": true
+      "active": true,
+      "allergens": []
     },
     {
       "id": "prod-cafe-bombon",
@@ -223,7 +266,10 @@
       "customizations": [
         "cust-coffee-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "prod-tostada-jamon",
@@ -235,7 +281,10 @@
         "cust-bread-type",
         "cust-tostada-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
     },
     {
       "id": "prod-tostada-salmon",
@@ -247,7 +296,12 @@
         "cust-bread-type",
         "cust-tostada-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "FISH",
+        "MILK"
+      ]
     },
     {
       "id": "prod-tostada-mixta",
@@ -259,7 +313,11 @@
         "cust-bread-type",
         "cust-tostada-extras"
       ],
-      "active": true
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "MILK"
+      ]
     }
   ],
   "customizations": [
@@ -275,7 +333,10 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": [
+            "MILK"
+          ]
         },
         {
           "id": "cust-milk-skimmed",
@@ -283,7 +344,10 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "MILK"
+          ]
         },
         {
           "id": "cust-milk-oat",
@@ -291,7 +355,10 @@
           "price": 0.45,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "GLUTEN"
+          ]
         },
         {
           "id": "cust-milk-almond",
@@ -299,7 +366,10 @@
           "price": 0.45,
           "defaultValue": 0,
           "optionIndex": 3,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "NUTS"
+          ]
         },
         {
           "id": "cust-milk-soy",
@@ -307,7 +377,10 @@
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 4,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "SOYBEANS"
+          ]
         }
       ]
     },
@@ -323,7 +396,8 @@
           "price": 0.6,
           "defaultValue": 0,
           "optionIndex": 0,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-opt-whipped-cream",
@@ -331,7 +405,10 @@
           "price": 0.5,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "MILK"
+          ]
         },
         {
           "id": "cust-opt-vanilla-syrup",
@@ -339,7 +416,8 @@
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-opt-caramel-syrup",
@@ -347,7 +425,8 @@
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 3,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -363,7 +442,8 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": null
         },
         {
           "id": "cust-temp-extra-hot",
@@ -371,7 +451,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-temp-iced",
@@ -379,7 +460,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -395,7 +477,8 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": null
         },
         {
           "id": "cust-prep-warm",
@@ -403,7 +486,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -419,7 +503,8 @@
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
-          "selectedByDefault": true
+          "selectedByDefault": true,
+          "allergens": null
         },
         {
           "id": "cust-bread-mollete",
@@ -427,7 +512,8 @@
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-bread-multigrain",
@@ -435,7 +521,11 @@
           "price": 0.3,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "GLUTEN",
+            "SESAME"
+          ]
         },
         {
           "id": "cust-bread-glutenfree",
@@ -443,7 +533,8 @@
           "price": 0.5,
           "defaultValue": 0,
           "optionIndex": 3,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     },
@@ -459,7 +550,8 @@
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 0,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-top-queso-fresco",
@@ -467,7 +559,10 @@
           "price": 0.8,
           "defaultValue": 0,
           "optionIndex": 1,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": [
+            "MILK"
+          ]
         },
         {
           "id": "cust-top-aguacate",
@@ -475,7 +570,8 @@
           "price": 1.0,
           "defaultValue": 0,
           "optionIndex": 2,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-top-jamon-serrano",
@@ -483,7 +579,8 @@
           "price": 1.5,
           "defaultValue": 0,
           "optionIndex": 3,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         },
         {
           "id": "cust-top-jamon-york",
@@ -491,7 +588,8 @@
           "price": 1.0,
           "defaultValue": 0,
           "optionIndex": 4,
-          "selectedByDefault": false
+          "selectedByDefault": false,
+          "allergens": null
         }
       ]
     }
@@ -509,7 +607,10 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "cust-milk-skimmed",
@@ -523,7 +624,10 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "cust-milk-oat",
@@ -537,7 +641,10 @@
       "price": 0.45,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "GLUTEN"
+      ]
     },
     {
       "id": "cust-milk-almond",
@@ -551,7 +658,10 @@
       "price": 0.45,
       "defaultValue": 0,
       "optionIndex": 3,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "NUTS"
+      ]
     },
     {
       "id": "cust-milk-soy",
@@ -565,7 +675,10 @@
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 4,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "SOYBEANS"
+      ]
     },
     {
       "id": "cust-opt-extra-shot",
@@ -579,7 +692,8 @@
       "price": 0.6,
       "defaultValue": 0,
       "optionIndex": 0,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-opt-whipped-cream",
@@ -593,7 +707,10 @@
       "price": 0.5,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "cust-opt-vanilla-syrup",
@@ -607,7 +724,8 @@
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-opt-caramel-syrup",
@@ -621,7 +739,8 @@
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 3,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-temp-regular",
@@ -635,7 +754,8 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": null
     },
     {
       "id": "cust-temp-extra-hot",
@@ -649,7 +769,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-temp-iced",
@@ -663,7 +784,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-prep-room",
@@ -677,7 +799,8 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": null
     },
     {
       "id": "cust-prep-warm",
@@ -691,7 +814,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-bread-hogaza",
@@ -705,7 +829,8 @@
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
-      "selectedByDefault": true
+      "selectedByDefault": true,
+      "allergens": null
     },
     {
       "id": "cust-bread-mollete",
@@ -719,7 +844,8 @@
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-bread-multigrain",
@@ -733,7 +859,11 @@
       "price": 0.3,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "GLUTEN",
+        "SESAME"
+      ]
     },
     {
       "id": "cust-bread-glutenfree",
@@ -747,7 +877,8 @@
       "price": 0.5,
       "defaultValue": 0,
       "optionIndex": 3,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-top-tomate",
@@ -761,7 +892,8 @@
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 0,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-top-queso-fresco",
@@ -775,7 +907,10 @@
       "price": 0.8,
       "defaultValue": 0,
       "optionIndex": 1,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": [
+        "MILK"
+      ]
     },
     {
       "id": "cust-top-aguacate",
@@ -789,7 +924,8 @@
       "price": 1.0,
       "defaultValue": 0,
       "optionIndex": 2,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-top-jamon-serrano",
@@ -803,7 +939,8 @@
       "price": 1.5,
       "defaultValue": 0,
       "optionIndex": 3,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     },
     {
       "id": "cust-top-jamon-york",
@@ -817,7 +954,8 @@
       "price": 1.0,
       "defaultValue": 0,
       "optionIndex": 4,
-      "selectedByDefault": false
+      "selectedByDefault": false,
+      "allergens": null
     }
   ],
   "tables": [
