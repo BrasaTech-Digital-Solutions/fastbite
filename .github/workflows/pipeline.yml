@@ -13,7 +13,7 @@ env:
   SERVICE_NAME: 'fastbite'
   DOCKERHUB_USERNAME: 'ricardomaximino'
   DOCKERHUB_PROJECT_NAME: 'fastbite-native'
-  DOCKERHUB_PROJECT_VERSION: 'latest'
+  DOCKERHUB_TAG: 'latest'
 
 jobs:
   test:
@@ -46,7 +46,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Pull image from Docker Hub
-        run: docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_PROJECT_VERSION }}
+        run: docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }}
 
       - uses: actions/checkout@v4
 
@@ -65,7 +65,7 @@ jobs:
       - name: Tag & Push Native Image
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          docker tag ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_PROJECT_VERSION }} "$IMAGE"
+          docker tag ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }} "$IMAGE"
           docker push "$IMAGE"
 
       - name: Deploy to Cloud Run (Madrid)
