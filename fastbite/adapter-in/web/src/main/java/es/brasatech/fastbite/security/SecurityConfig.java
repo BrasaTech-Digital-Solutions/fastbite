@@ -36,7 +36,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
-                        .requestMatchers("/", "/menu/**", "/allergens", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
+                        .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
                                 "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/api/webhooks/stripe", "/api/stripe/**").permitAll()
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
                                 "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()

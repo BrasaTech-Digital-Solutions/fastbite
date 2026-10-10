@@ -32,7 +32,7 @@ public class TenantRoutingResolver {
     /** Top-level paths that belong to the platform, never to a tenant. */
     private static final Set<String> RESERVED = Set.of(
             "signup", "login", "logout", "owner", "menu", "dashboard", "counter", "backoffice",
-            "api", "css", "js", "images", "webjars", "stripe", "error", "actuator", "appspecific", "allergens");
+            "api", "css", "js", "images", "webjars", "stripe", "error", "actuator", "appspecific", "allergens", "verifactu");
 
     private static final int CUSTOM_DOMAIN_CACHE_SIZE = 1024;
 

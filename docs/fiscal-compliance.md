@@ -89,6 +89,10 @@ same transaction that issues it, so a ticket never exists without its record.
   record as JSON, from which anyone can recompute the chain.
 - **System**: the software is identified as `fastbite.verifactu.*` (producer name and NIF, system name, id and
   version). The producer must publish the declaración responsable for each version.
+- **Declaración responsable**: a draft is in [legal/declaracion-responsable.md](legal/declaracion-responsable.md)
+  with a review checklist. The app shows it at `/verifactu/declaracion-responsable` (linked from the owner
+  console and the Tickets page) with a "Borrador" banner until `VERIFACTU_DECLARATION_SIGNED=true` and every
+  detail is configured.
 
 Records are generated for tickets issued after this was deployed; earlier tickets have none.
 

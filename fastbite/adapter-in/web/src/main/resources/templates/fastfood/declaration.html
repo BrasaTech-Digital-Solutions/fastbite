@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="'Declaración responsable · ' + ${system.systemName()} + ' ' + ${system.version()}">Declaración responsable</title>
+    <link rel="stylesheet" th:href="@{/css/legal.css}">
+</head>
+<body class="legal">
+<main>
+    <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+
+    <div class="draft" role="note" th:unless="${declaration.signed()}">
+        <strong>Borrador</strong>
+        Este texto está pendiente de revisión por un asesor y de firma por el productor. No tiene validez
+        hasta que se firme y publique.
+        <ul th:if="${!declaration.missing().isEmpty()}">
+            <li th:each="key : ${declaration.missing()}">Falta configurar <code th:text="${key}">fastbite.verifactu.producer-nif</code></li>
+        </ul>
+    </div>
+
+    <p class="eyebrow">VERI*FACTU · Real Decreto 1007/2023</p>
+    <h1>Declaración responsable del sistema informático de facturación</h1>
+    <p class="lead" th:text="${system.systemName()} + ', versión ' + ${system.version()}">FastBite, versión 1.0</p>
+
+    <p>
+        <strong th:text="${system.producerName()}">Brasatech</strong>,
+        con NIF <span th:text="${#strings.isEmpty(system.producerNif()) ? '[NIF del productor]' : system.producerNif()}"
+                      th:classappend="${#strings.isEmpty(system.producerNif())} ? 'missing'">B00000000</span>
+        y domicilio en <span th:text="${#strings.isEmpty(declaration.producerAddress()) ? '[dirección postal completa]' : declaration.producerAddress()}"
+                             th:classappend="${#strings.isEmpty(declaration.producerAddress())} ? 'missing'">Calle …</span>,
+        en su condición de productora del sistema informático de facturación que se identifica a continuación,
+        <strong>DECLARA BAJO SU RESPONSABILIDAD:</strong>
+    </p>
+
+    <h2>1. Identificación del sistema informático</h2>
+    <dl class="facts">
+        <dt>Nombre del sistema informático</dt><dd th:text="${system.systemName()}">FastBite</dd>
+        <dt>Código identificador del sistema</dt><dd th:text="${system.systemId()}">FB</dd>
+        <dt>Identificador completo de la versión</dt><dd th:text="${system.version()}">1.0</dd>
+        <dt>Productor</dt><dd th:text="${system.producerName()}">Brasatech</dd>
+        <dt>NIF del productor</dt>
+        <dd th:text="${#strings.isEmpty(system.producerNif()) ? '[pendiente]' : system.producerNif()}"
+            th:classappend="${#strings.isEmpty(system.producerNif())} ? 'missing'">B00000000</dd>
+        <dt>Dirección de contacto del productor</dt>
+        <dd th:text="${#strings.isEmpty(declaration.producerAddress()) ? '[pendiente]' : declaration.producerAddress()}"
+            th:classappend="${#strings.isEmpty(declaration.producerAddress())} ? 'missing'">Calle …</dd>
+        <dt>Funciona exclusivamente como VERI*FACTU</dt><dd th:text="${declaration.onlyVerifactu()} ? 'Sí' : 'No'">Sí</dd>
+        <dt>Permite su uso por varios obligados tributarios</dt><dd th:text="${declaration.multipleTaxpayers()} ? 'Sí' : 'No'">Sí</dd>
+        <dt>Tipo de firma de los registros</dt><dd>No aplica: los registros se remiten a la Agencia Tributaria (modalidad VERI*FACTU)</dd>
+    </dl>
+
+    <h2>2. Componentes y funcionalidades</h2>
+    <p>
+        <span th:text="${system.systemName()}">FastBite</span> es una aplicación web que el productor presta como servicio
+        desde sus servidores en la nube, con una base de datos relacional. Se utiliza a través de un navegador web en
+        ordenadores, tabletas o teléfonos, y los tickets se imprimen en las impresoras conectadas a esos dispositivos.
+        No requiere instalar software en los equipos del usuario.
+    </p>
+    <p>Sus funcionalidades de facturación son:</p>
+    <ul>
+        <li>Emisión de facturas simplificadas, facturas completas, facturas emitidas en sustitución de facturas
+            simplificadas y facturas rectificativas, cada tipo en su propia serie y con numeración correlativa sin saltos.</li>
+        <li>Generación, en el mismo momento de la expedición de cada factura, de su registro de facturación de alta,
+            encadenado al registro anterior mediante la huella calculada con el algoritmo SHA-256.</li>
+        <li>Impresión del código QR tributario y de la leyenda «VERI*FACTU» en cada factura.</li>
+        <li>Remisión de los registros de facturación a la sede electrónica de la Agencia Estatal de Administración Tributaria.</li>
+        <li>Conservación de las facturas y registros, que no pueden modificarse ni eliminarse: las correcciones se
+            realizan siempre mediante facturas rectificativas.</li>
+        <li>Consulta y descarga de todos los registros de facturación por el obligado tributario.</li>
+        <li>Separación completa de los datos de cada obligado tributario: cada local tiene su propia base de datos,
+            sus propias series y su propia cadena de registros.</li>
+    </ul>
+
+    <h2>3. Declaración de cumplimiento</h2>
+    <p>
+        Que el sistema informático de facturación identificado en esta declaración, en la versión indicada, cumple
+        lo dispuesto en el artículo 29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria; en el Reglamento
+        que establece los requisitos que deben adoptar los sistemas y programas informáticos o electrónicos que soporten
+        los procesos de facturación de empresarios y profesionales, y la estandarización de formatos de los registros de
+        facturación, aprobado por el Real Decreto 1007/2023, de 5 de diciembre; en la Orden HAC/1177/2024, de 17 de
+        octubre; y en la demás normativa que los desarrolla.
+    </p>
+    <p>
+        Que, en particular, garantiza la integridad, conservación, accesibilidad, legibilidad, trazabilidad e
+        inalterabilidad de los registros de facturación.
+    </p>
+
+    <div class="signature">
+        <p>
+            En <span th:text="${#strings.isEmpty(declaration.place()) ? '[lugar]' : declaration.place()}"
+                     th:classappend="${#strings.isEmpty(declaration.place())} ? 'missing'">Madrid</span>,
+            a <span th:text="${#strings.isEmpty(declaration.date()) ? '[fecha de firma]' : declaration.date()}"
+                    th:classappend="${#strings.isEmpty(declaration.date())} ? 'missing'">1 de enero de 2027</span>.
+        </p>
+        <span class="line" th:text="'Firmado: ' + ${system.producerName()}">Firmado: Brasatech</span>
+    </div>
+</main>
+</body>
+</html>

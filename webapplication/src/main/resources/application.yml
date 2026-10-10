@@ -130,6 +130,12 @@ fastbite:
     system-id: FB
     version: ${VERIFACTU_SYSTEM_VERSION:1.0}
     operation-description: Servicios de restauración
+    # The declaración responsable shown at /verifactu/declaracion-responsable. It reads as a draft
+    # until it is marked signed and every detail is filled in.
+    producer-address: ${VERIFACTU_PRODUCER_ADDRESS:}
+    declaration-place: ${VERIFACTU_DECLARATION_PLACE:}
+    declaration-date: ${VERIFACTU_DECLARATION_DATE:}
+    declaration-signed: ${VERIFACTU_DECLARATION_SIGNED:false}
     # How often pending billing records are sent once a submitter is configured
     submit-delay: PT1M
   table:
