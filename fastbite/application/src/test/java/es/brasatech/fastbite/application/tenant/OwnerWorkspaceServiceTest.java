@@ -15,7 +15,8 @@ class OwnerWorkspaceServiceTest {
     ProductService products=mock(ProductService.class);
     RestaurantSettingsService settings=mock(RestaurantSettingsService.class);
     FiscalProfileService fiscal=mock(FiscalProfileService.class);
-    OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal);
+    es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets=mock(es.brasatech.fastbite.application.fiscal.FiscalTicketRepository.class);
+    OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets);
     static final FiscalProfile COMPLETE=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Mayor 1","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
     @AfterEach void clear(){TenantContext.clear();}
     @Test void deniesForeignLocationBeforeReadingOrWriting(){
@@ -58,5 +59,20 @@ class OwnerWorkspaceServiceTest {
         assertEquals("fiscal.error.taxId",service.saveFiscalProfile("owner","cafe",wrong).get("taxId"));
         verify(fiscal,never()).save(wrong);
         assertNull(TenantContext.getCurrentTenant());
+    }
+    @Test void afterTheFirstTicketTheNifAndSeriesStayAndTheDetailsStayComplete(){
+        when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
+        when(tickets.anyRealTicket()).thenReturn(true);
+        when(fiscal.get()).thenReturn(COMPLETE);
+        var otherNif=new FiscalProfile("Ana García","Kebab Ana","B12345674","Calle Mayor 1","28013","Madrid","Madrid",null,null,"XX",new BigDecimal("10"));
+        var problems=service.saveFiscalProfile("owner","cafe",otherNif);
+        assertEquals("fiscal.error.taxId.locked",problems.get("taxId"));
+        assertEquals("fiscal.error.seriesPrefix.locked",problems.get("seriesPrefix"));
+        var halfDone=new FiscalProfile("Ana García",null,"12345678Z",null,"28013",null,null,null,null,"KA",null);
+        assertEquals("fiscal.error.required",service.saveFiscalProfile("owner","cafe",halfDone).get("addressLine"));
+        var moved=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Nueva 5","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
+        assertTrue(service.saveFiscalProfile("owner","cafe",moved).isEmpty());
+        verify(fiscal).save(moved);
+        verify(fiscal,never()).save(otherNif);
     }
 }

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.language}">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="#{tickets.title} + ' · FastBite'">Tickets</title>
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <link rel="stylesheet" href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/webjars/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}">
+</head>
+<body class="tickets-page">
+<div th:replace="~{fastfood/fragments/navbar :: navbar(activeTab='tickets')}"></div>
+
+<main class="container py-4" id="tickets"
+      th:data-prefix="${tenantPrefix}"
+      th:data-done-invoice="#{tickets.done.invoice('{0}')}" th:data-done-refund="#{tickets.done.refund('{0}')}">
+
+    <div class="alert alert-warning d-flex align-items-center gap-2" th:if="${training}" role="note">
+        <i class="fas fa-flask" aria-hidden="true"></i><span th:text="#{tickets.training.banner}">Sandbox: practice tickets.</span>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1" th:text="#{tickets.title}">Tickets</h1>
+            <p class="text-muted mb-0" th:text="#{tickets.subtitle}">Every ticket issued at this location.</p>
+        </div>
+        <form class="d-flex align-items-end gap-2" method="get">
+            <div>
+                <label for="ticket-day" class="form-label small mb-1" th:text="#{tickets.day}">Day</label>
+                <input type="date" id="ticket-day" name="date" class="form-control" th:value="${day}" th:max="${today}"
+                       onchange="this.form.submit()">
+            </div>
+            <a class="btn btn-outline-secondary" th:if="${day != today}" th:href="${tenantPrefix + '/counter/tickets'}"
+               th:text="#{tickets.today}">Today</a>
+            <a class="btn btn-outline-secondary" th:href="${tenantPrefix + '/counter'}">
+                <i class="fas fa-cash-register me-1" aria-hidden="true"></i><span th:text="#{tickets.back}">Back to counter</span>
+            </a>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="ticket-stat"><span th:text="#{tickets.count.label}">Tickets</span><strong th:text="${tickets.size()}">0</strong></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="ticket-stat"><span th:text="#{tickets.net}">Net sales</span>
+                <strong th:text="${#numbers.formatDecimal(net, 1, 'POINT', 2, 'COMMA')} + ' €'">0,00 €</strong></div>
+        </div>
+        <div class="col-6 col-md-3" th:each="entry : ${byMethod}">
+            <div class="ticket-stat"><span th:text="#{${entry.key.messageKey()}}">Cash</span>
+                <strong th:text="${#numbers.formatDecimal(entry.value, 1, 'POINT', 2, 'COMMA')} + ' €'">0,00 €</strong></div>
+        </div>
+        <div class="col-6 col-md-3" th:if="${tips.signum() != 0}">
+            <div class="ticket-stat"><span th:text="#{tickets.tips}">Tips</span>
+                <strong th:text="${#numbers.formatDecimal(tips, 1, 'POINT', 2, 'COMMA')} + ' €'">0,00 €</strong></div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 tickets-table">
+                <thead>
+                <tr>
+                    <th scope="col" th:text="#{tickets.col.number}">Number</th>
+                    <th scope="col" th:text="#{tickets.col.time}">Time</th>
+                    <th scope="col" th:text="#{tickets.col.kind}">Type</th>
+                    <th scope="col" th:text="#{tickets.col.detail}">Table / orders</th>
+                    <th scope="col" th:text="#{tickets.col.payment}">Payment</th>
+                    <th scope="col" class="text-end" th:text="#{tickets.col.total}">Total</th>
+                    <th scope="col"><span class="visually-hidden" th:text="#{tickets.col.actions}">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${tickets.isEmpty()}">
+                    <td colspan="7" class="text-center text-muted py-5" th:text="#{tickets.empty}">No tickets on this day.</td>
+                </tr>
+                <tr th:each="ticket : ${tickets}" th:classappend="${ticket.refund()} ? 'ticket-refund'">
+                    <td class="fw-semibold font-monospace" th:text="${ticket.fullNumber()}">KHC-T26-000001</td>
+                    <td th:text="${#temporals.format(ticket.issuedAt(), 'HH:mm')}">13:45</td>
+                    <td>
+                        <span class="badge" th:classappend="${ticket.refund()} ? 'text-bg-danger' : (${ticket.kind().namesRecipient()} ? 'text-bg-primary' : 'text-bg-light border')"
+                              th:text="#{${ticket.kind().messageKey()}}">Simplified invoice</span>
+                        <div class="small text-muted mt-1" th:if="${correctedBy.containsKey(ticket.id())}"
+                             th:text="#{tickets.corrected(${correctedBy.get(ticket.id())})}">Corrected by KHC-R26-000001</div>
+                        <div class="small text-muted mt-1" th:if="${ticket.corrects() != null}"
+                             th:text="${ticket.corrects().fullNumber()}">KHC-T26-000001</div>
+                    </td>
+                    <td>
+                        <span th:if="${ticket.tableName() != null}" th:text="${ticket.tableName()}">Terrace 4</span>
+                        <span class="text-muted small d-block" th:if="${ticket.orderNumbers() != null}" th:text="'#' + ${ticket.orderNumbers()}">#12</span>
+                        <span class="small d-block" th:if="${ticket.recipient() != null}" th:text="${ticket.recipient().name()}">Acme SL</span>
+                    </td>
+                    <td th:text="#{${ticket.paymentMethod().messageKey()}}">Cash</td>
+                    <td class="text-end fw-semibold" th:text="${#numbers.formatDecimal(ticket.charged(), 1, 'POINT', 2, 'COMMA')} + ' €'">11,00 €</td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" th:data-ticket="${ticket.id()}" data-action="print"
+                                th:title="#{tickets.action.print}" th:aria-label="#{tickets.action.print} + ' ' + ${ticket.fullNumber()}">
+                            <i class="fas fa-print" aria-hidden="true"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                th:if="${ticket.kind().name() == 'SIMPLIFIED' && !correctedBy.containsKey(ticket.id())}"
+                                th:data-ticket="${ticket.id()}" th:data-number="${ticket.fullNumber()}" data-action="invoice"
+                                th:text="#{tickets.action.invoice}">Full invoice</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                th:if="${mayRefund && !ticket.refund() && !correctedBy.containsKey(ticket.id())}"
+                                th:data-ticket="${ticket.id()}" th:data-number="${ticket.fullNumber()}" data-action="refund"
+                                th:text="#{tickets.action.refund}">Refund</button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- Full invoice for a ticket already issued -->
+<div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="invoiceForm" novalidate>
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="invoiceTitle" th:text="#{tickets.invoice.title}">Issue a full invoice</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" th:aria-label="#{tickets.close}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small" id="invoiceIntro" th:data-template="#{tickets.invoice.intro('{0}')}"></p>
+                <div th:replace="~{fastfood/fragments/invoice-fields :: fields('inv')}"></div>
+                <div class="alert alert-danger mt-3 mb-0 small" role="alert" id="invoiceError" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link" data-bs-dismiss="modal" th:text="#{button.cancel}">Cancel</button>
+                <button type="submit" class="btn btn-primary" th:text="#{tickets.invoice.confirm}">Issue invoice</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Refund -->
+<div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="refundForm" novalidate>
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="refundTitle" th:data-template="#{tickets.refund.title('{0}')}">Refund</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" th:aria-label="#{tickets.close}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small" th:text="#{tickets.refund.intro}">A corrective invoice reverses the whole ticket.</p>
+                <label for="refundReason" class="form-label" th:text="#{tickets.refund.reason}">Reason</label>
+                <input id="refundReason" class="form-control" maxlength="200" required
+                       th:placeholder="#{tickets.refund.reason.placeholder}">
+                <div class="alert alert-danger mt-3 mb-0 small" role="alert" id="refundError" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link" data-bs-dismiss="modal" th:text="#{button.cancel}">Cancel</button>
+                <button type="submit" class="btn btn-danger" th:text="#{tickets.refund.confirm}">Issue refund</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 2000;"></div>
+<iframe id="print-frame" title="Print" style="position:absolute;width:0;height:0;border:0;" aria-hidden="true"></iframe>
+<script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/tickets.js}" defer></script>
+</body>
+</html>

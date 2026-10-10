@@ -43,23 +43,12 @@ function selectPaymentMethod(method) {
     }
 }
 
-function printOrder(orderIds) {
+// The ticket issued for a payment, exactly as stored; printing is optional, the ticket is issued anyway
+function printTicket(ticketId) {
     const doPrint = document.getElementById('print-receipt-toggle').checked;
-    if (!doPrint) return;
+    if (!doPrint || !ticketId) return;
 
-    if (!Array.isArray(orderIds)) orderIds = [orderIds];
-    if (orderIds.length === 0) return;
-
-    const isInvoice = document.getElementById('type-invoice').checked;
-    let url = `/counter/receipt?ids=${orderIds.join(',')}&isInvoice=${isInvoice}&t=${Date.now()}`;
-
-    if (isInvoice) {
-        const taxId = document.getElementById('customer-tax-id').value;
-        const name = document.getElementById('customer-name').value;
-        const address = document.getElementById('customer-address').value;
-        url += `&taxId=${encodeURIComponent(taxId)}&customerName=${encodeURIComponent(name)}&address=${encodeURIComponent(address)}`;
-    }
-
+    const url = `/counter/tickets/${encodeURIComponent(ticketId)}?t=${Date.now()}`;
     const printFrame = document.getElementById('print-frame');
     if (printFrame) {
         printFrame.onload = function() {
@@ -70,8 +59,28 @@ function printOrder(orderIds) {
     }
 }
 
+// The customer named on a full invoice, when the cashier chose one
+function invoiceDetails() {
+    if (!document.getElementById('type-invoice').checked) return null;
+    const value = id => document.getElementById(`pay-${id}`).value.trim();
+    return { taxId: value('taxId'), country: value('country'), name: value('name'), address: value('address') };
+}
+
+// Cash handed over, so the ticket can show the change
+function cashReceived(method) {
+    if (method !== 'CASH') return null;
+    const received = parseFloat(document.getElementById('received-amount').value);
+    return Number.isFinite(received) ? received : null;
+}
+
+// The server explains a refused payment in the cashier's language
+async function errorMessage(response, fallback) {
+    const text = (await response.text()).trim();
+    return text && text.length < 300 && !text.startsWith('<') && !text.startsWith('{') ? text : fallback;
+}
+
 function printProforma(orderId) {
-    const url = `/counter/receipt?ids=${orderId}&isProforma=true&t=${Date.now()}`;
+    const url = `/counter/receipt?ids=${orderId}&t=${Date.now()}`;
     const printFrame = document.getElementById('print-frame');
     if (printFrame) {
         printFrame.onload = function() {
@@ -593,15 +602,20 @@ async function submitTableBulkPayment() {
             ? [tableOrders.find(o => o.id === payingSingleOrderId)]
             : tableOrders.filter(o => o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED');
 
-        const promises = ordersToPay.map(order =>
-            fetch(`/counter/api/orders/${order.id}/pay`, {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken }
+        // One payment for all of them, and one ticket
+        const method = document.querySelector('.payment-method-btn.active').dataset.method;
+        const response = await fetch('/counter/api/settle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: JSON.stringify({
+                orderIds: ordersToPay.map(o => o.id),
+                paymentMethod: method,
+                cashReceived: cashReceived(method),
+                invoice: invoiceDetails()
             })
-        );
-
-        const results = await Promise.all(promises);
-        if (results.every(r => r.ok)) {
+        });
+        if (response.ok) {
+            const ticket = await response.json();
             // Only clear table if bulk payment or all orders now paid
             if (!payingSingleOrderId) {
                 await fetch(`/counter/api/tables/${selectedTable.id}/status?status=AVAILABLE`, {
@@ -613,17 +627,16 @@ async function submitTableBulkPayment() {
             showToast(t('labelPaid'));
             hideModal('paymentModal');
 
+            printTicket(ticket.ticketId);
             if (payingSingleOrderId) {
-                printOrder([payingSingleOrderId]);
                 payingSingleOrderId = null;
                 refreshTableMode();
                 refreshTables();
             } else {
-                printOrder(ordersToPay.map(o => o.id));
                 resetPOS();
             }
         } else {
-            showToast('Error processing status update');
+            showToast(await errorMessage(response, t('messageOrderSubmitError')));
         }
     } catch (e) {
         console.error(e);
@@ -646,7 +659,9 @@ async function submitOrder(paid = true) {
         tableId: selectedTable ? selectedTable.id : null,
         paymentMethod: method,
         paid: paid,
-        customerName: isTakeaway() ? document.getElementById('takeaway-customer-name').value.trim() : null
+        customerName: isTakeaway() ? document.getElementById('takeaway-customer-name').value.trim() : null,
+        cashReceived: paid ? cashReceived(method) : null,
+        invoice: paid ? invoiceDetails() : null
     };
 
     const btn = paid ? document.getElementById('btn-complete-order') : document.getElementById('btn-assign-table');
@@ -673,7 +688,7 @@ async function submitOrder(paid = true) {
             const orderId = editingOrderId || data.orderId;
             
             if (paid) {
-                printOrder([orderId]);
+                printTicket(data.ticketId);
             }
 
             if (request.tableId) {
@@ -687,7 +702,7 @@ async function submitOrder(paid = true) {
             if (paid) hideModal('paymentModal');
             resetPOS();
         } else {
-            showToast(t('messageOrderCreateError'));
+            showToast(await errorMessage(res, t('messageOrderCreateError')));
         }
     } catch (error) {
         console.error('Error submitting order:', error);
@@ -1049,10 +1064,12 @@ function resetPaymentModal() {
     }
     
     // Clear customer fields
-    ['customer-tax-id', 'customer-name', 'customer-address'].forEach(id => {
+    ['pay-taxId', 'pay-name', 'pay-address'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    const country = document.getElementById('pay-country');
+    if (country) country.value = 'ES';
     
     // Hide details section just in case
     const details = document.getElementById('invoice-details');

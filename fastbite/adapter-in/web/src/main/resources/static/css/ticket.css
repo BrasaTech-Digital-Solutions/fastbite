@@ -1,0 +1,36 @@
+/* Tickets and bills, sized for an 80 mm receipt printer and readable on screen. */
+@page { margin: 0; }
+* { box-sizing: border-box; }
+body.paper {
+    margin: 0 auto;
+    padding: 12px 10px 24px;
+    width: 72mm;
+    color: #000;
+    background: #fff;
+    font: 12px/1.4 "Courier New", Courier, monospace;
+}
+.paper .center { text-align: center; }
+.paper .trade { font: bold 17px/1.2 Georgia, "Times New Roman", serif; margin: 0 0 4px; text-transform: uppercase; }
+.paper .muted { color: #333; }
+.paper p { margin: 1px 0; }
+.paper .rule { border: 0; border-top: 1px dashed #000; margin: 8px 0; }
+.paper .kind { display: inline-block; margin: 2px 0 4px; padding: 2px 8px; background: #000; color: #fff; font-weight: bold; text-transform: uppercase; letter-spacing: .04em; }
+.paper .row { display: flex; justify-content: space-between; gap: 8px; }
+.paper .row > span:last-child { text-align: right; white-space: nowrap; }
+.paper .big { font-size: 15px; font-weight: bold; }
+.paper .box { border: 1px solid #000; padding: 4px 6px; margin: 6px 0; }
+.paper .box h2 { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; }
+.paper table { width: 100%; border-collapse: collapse; }
+.paper th { text-align: left; border-bottom: 1px solid #000; font-size: 11px; padding: 0 0 3px; }
+.paper td { padding: 3px 0 0; vertical-align: top; }
+.paper .num { text-align: right; white-space: nowrap; }
+.paper .option { font-size: 10.5px; padding-left: 8px; }
+.paper .vat td, .paper .vat th { font-size: 10.5px; }
+.paper .training { margin: 8px 0; padding: 6px; border: 2px solid #000; font-weight: bold; text-align: center; }
+.paper .footer { margin-top: 10px; text-align: center; font-size: 10.5px; }
+.paper .print-bar { display: flex; justify-content: center; margin-top: 16px; }
+.paper .print-bar button { font: inherit; padding: 8px 18px; border: 1px solid #000; background: #fff; cursor: pointer; }
+@media print {
+    body.paper { padding: 4mm 3mm; }
+    .paper .print-bar { display: none; }
+}

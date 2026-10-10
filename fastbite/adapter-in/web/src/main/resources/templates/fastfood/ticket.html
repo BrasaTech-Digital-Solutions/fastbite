@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="${ticket.fullNumber()}">KHC-T26-000001</title>
+    <link rel="stylesheet" th:href="@{/css/ticket.css}">
+</head>
+<body class="paper" th:with="issuer=${ticket.issuer()}">
+
+<div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
+
+<header class="center">
+    <p class="trade" th:text="${issuer.displayName() ?: #messages.msg('ticket.missing')}">Kebab House</p>
+    <p th:if="${issuer.tradeName() != null}" th:text="${issuer.legalName()}">Ana García López</p>
+    <p th:text="#{ticket.taxId} + ' ' + ${issuer.taxId() ?: '—'}">NIF 12345678Z</p>
+    <p th:text="${issuer.addressLine()}">Calle Mayor 12</p>
+    <p th:text="${(issuer.postalCode() ?: '') + ' ' + (issuer.city() ?: '')}">28013 Madrid</p>
+    <p th:if="${issuer.phone() != null}" th:text="${issuer.phone()}">+34 600 000 000</p>
+</header>
+
+<hr class="rule">
+
+<div class="center">
+    <span class="kind" th:text="#{${ticket.kind().messageKey()}}">Simplified invoice</span>
+    <p class="big" th:text="${ticket.fullNumber()}">KHC-T26-000001</p>
+    <p th:text="${#temporals.format(ticket.issuedAt(), 'dd/MM/yyyy HH:mm')}">09/10/2026 13:45</p>
+</div>
+
+<div class="box" th:if="${ticket.recipient() != null}">
+    <h2 th:text="#{ticket.customer}">Customer</h2>
+    <p th:text="${ticket.recipient().name()}">Acme SL</p>
+    <p th:text="#{ticket.taxId} + ' ' + ${ticket.recipient().country() == 'ES' ? '' : ticket.recipient().country() + ' '} + ${ticket.recipient().taxId()}">NIF B12345674</p>
+    <p th:if="${ticket.recipient().address() != null && !ticket.recipient().address().isBlank()}" th:text="${ticket.recipient().address()}">Calle Real 1</p>
+</div>
+
+<div class="box" th:if="${ticket.corrects() != null}">
+    <p th:if="${ticket.refund()}"
+       th:text="#{ticket.corrects(${ticket.corrects().fullNumber()}, ${#temporals.format(ticket.corrects().issuedOn(), 'dd/MM/yyyy')})}">Corrects invoice KHC-T26-000001 of 09/10/2026</p>
+    <p th:unless="${ticket.refund()}"
+       th:text="#{ticket.replaces(${ticket.corrects().fullNumber()}, ${#temporals.format(ticket.corrects().issuedOn(), 'dd/MM/yyyy')})}">Replaces simplified invoice KHC-T26-000001</p>
+    <p th:if="${ticket.corrects().reason() != null}" th:text="#{ticket.reason} + ': ' + ${ticket.corrects().reason()}">Reason: wrong dish</p>
+</div>
+
+<p th:if="${ticket.tableName() != null}" th:text="#{ticket.table} + ': ' + ${ticket.tableName()}">Table: Terrace 4</p>
+<p th:if="${ticket.orderNumbers() != null}" th:text="#{ticket.orders} + ': #' + ${ticket.orderNumbers()}">Orders: #12</p>
+
+<hr class="rule">
+
+<table>
+    <thead>
+    <tr>
+        <th th:text="#{label.qty}">Qty</th>
+        <th th:text="#{label.item}">Item</th>
+        <th class="num" th:text="#{ticket.vat.short}">VAT</th>
+        <th class="num" th:text="#{label.total}">Total</th>
+    </tr>
+    </thead>
+    <tbody>
+    <th:block th:each="line : ${ticket.lines()}">
+        <tr>
+            <td th:text="${line.quantity()}">1</td>
+            <td th:text="${line.name()}">Kebab</td>
+            <td class="num" th:text="${line.vatRate().intValue()} + '%'">10%</td>
+            <td class="num" th:text="${#numbers.formatDecimal(line.total(), 1, 'POINT', 2, 'COMMA')}">7,50</td>
+        </tr>
+        <tr th:each="option : ${line.options()}">
+            <td></td>
+            <td class="option" colspan="3"
+                th:text="'+ ' + ${option.name()} + (${option.quantity() > 1} ? ' x' + ${option.quantity()} : '')">+ Garlic sauce</td>
+        </tr>
+    </th:block>
+    </tbody>
+</table>
+
+<hr class="rule">
+
+<div class="row" th:if="${ticket.discount().signum() != 0}">
+    <span th:text="#{label.discount}">Discount</span>
+    <span th:text="${#numbers.formatDecimal(ticket.discount().negate(), 1, 'POINT', 2, 'COMMA')}">-1,00</span>
+</div>
+<div class="row big">
+    <span th:text="#{label.total}">TOTAL</span>
+    <span th:text="${#numbers.formatDecimal(ticket.total(), 1, 'POINT', 2, 'COMMA')} + ' €'">11,00 €</span>
+</div>
+
+<table class="vat">
+    <thead>
+    <tr>
+        <th th:text="#{ticket.vat.rate}">VAT rate</th>
+        <th class="num" th:text="#{ticket.vat.base}">Base</th>
+        <th class="num" th:text="#{ticket.vat.amount}">VAT</th>
+        <th class="num" th:text="#{label.total}">Total</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="vatLine : ${ticket.vat().lines()}">
+        <td th:text="${vatLine.rate().intValue()} + '%'">10%</td>
+        <td class="num" th:text="${#numbers.formatDecimal(vatLine.base(), 1, 'POINT', 2, 'COMMA')}">10,00</td>
+        <td class="num" th:text="${#numbers.formatDecimal(vatLine.vat(), 1, 'POINT', 2, 'COMMA')}">1,00</td>
+        <td class="num" th:text="${#numbers.formatDecimal(vatLine.gross(), 1, 'POINT', 2, 'COMMA')}">11,00</td>
+    </tr>
+    </tbody>
+</table>
+<p class="muted" th:text="#{ticket.vat.included}">VAT included</p>
+
+<hr class="rule">
+
+<div class="row" th:if="${ticket.tip().signum() != 0}">
+    <span th:text="#{ticket.tip}">Tip (not subject to VAT)</span>
+    <span th:text="${#numbers.formatDecimal(ticket.tip(), 1, 'POINT', 2, 'COMMA')}">1,10</span>
+</div>
+<div class="row" th:if="${ticket.tip().signum() != 0}">
+    <span th:text="#{ticket.charged}">Total charged</span>
+    <span th:text="${#numbers.formatDecimal(ticket.charged(), 1, 'POINT', 2, 'COMMA')} + ' €'">12,10 €</span>
+</div>
+<div class="row">
+    <span th:text="#{ticket.payment}">Payment</span>
+    <span th:text="#{${ticket.paymentMethod().messageKey()}}">Cash</span>
+</div>
+<div class="row" th:if="${ticket.cashReceived() != null}">
+    <span th:text="#{ticket.cash.received}">Cash received</span>
+    <span th:text="${#numbers.formatDecimal(ticket.cashReceived(), 1, 'POINT', 2, 'COMMA')}">20,00</span>
+</div>
+<div class="row" th:if="${ticket.change() != null}">
+    <span th:text="#{ticket.change}">Change</span>
+    <span th:text="${#numbers.formatDecimal(ticket.change(), 1, 'POINT', 2, 'COMMA')}">9,00</span>
+</div>
+
+<div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
+
+<footer class="footer">
+    <p th:if="${ticket.issuedBy() != null && ticket.issuedBy() != 'online'}" th:text="#{ticket.served.by(${ticket.issuedBy()})}">Served by ana</p>
+    <p th:text="#{ticket.thanks}">Thank you for your visit!</p>
+</footer>
+
+<div class="print-bar"><button type="button" onclick="window.print()" th:text="#{ticket.print}">Print</button></div>
+</body>
+</html>

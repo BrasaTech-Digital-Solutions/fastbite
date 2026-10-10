@@ -39,8 +39,45 @@ shared over the rates in proportion to their amounts. See `VatBreakdown` in the 
 
 Voluntary tips are not part of the VAT base.
 
+## Tickets
+
+Every payment issues exactly one ticket, in the same transaction that marks the orders paid. Tickets are
+never changed or deleted.
+
+| Kind | Series | When |
+|---|---|---|
+| Simplified invoice | `PREFIX-T26` | Every payment, unless the customer asks for an invoice at the till |
+| Invoice | `PREFIX-F26` | The cashier chose *Invoice* and entered the customer's tax ID, name and address |
+| Invoice (replacement) | `PREFIX-F26` | *Tickets → Full invoice*: a customer asks for an invoice after paying; it replaces the simplified one |
+| Corrective invoice | `PREFIX-R26` | *Tickets → Refund* (managers only): reverses a whole ticket, with a reason |
+
+- Each location, kind and year has its own series, numbered from 1 without gaps. Numbers are taken inside
+  the payment's transaction, so a failed payment never burns a number.
+- The ticket stores a snapshot of the business details, the lines with their VAT rate and options, the VAT
+  breakdown, the payment method, the cash received and change, the tip, the table and order numbers, and
+  for online payments the Stripe payment reference.
+- Paths: the counter pays through `POST /counter/api/settle`; tickets print from `/counter/tickets/{id}`;
+  the day's tickets are at `/counter/tickets`.
+- Online payments issue their ticket when Stripe confirms the payment; the tip is whatever was paid above
+  the order total. Guests can only pay online when the location can issue tickets.
+- A paid order can no longer be edited or cancelled: refund its ticket instead.
+- The bill printed before paying is a pro forma marked "not an invoice".
+- Once a location has issued a real ticket, its NIF and series code are locked and its business details
+  must stay complete.
+- Refunding a card or online payment gives the ticket back; the money itself is returned on the terminal or
+  in Stripe.
+
+## Sandbox and production
+
+`fastbite.environment` (`FASTBITE_ENVIRONMENT`) is `sandbox` unless set to `production`. The sandbox issues
+training tickets in `TEST-` series, printed "training ticket — not valid as an invoice", even when business
+details are missing. Production refuses payments until the location's business details are complete.
+Defaulting to the sandbox means a misconfigured deployment produces visibly invalid tickets rather than
+real invoices from test data.
+
 ## Backups and promotion
 
 Backups (format 3) carry the fiscal profile. Restoring an older archive leaves the destination's profile as
 it is. Production promotion bundles carry it as a draft for the owner to confirm. Resetting a location's
-data keeps its business details.
+data keeps its business details and never deletes tickets. Tickets are not part of backups: they stay with
+the location that issued them.

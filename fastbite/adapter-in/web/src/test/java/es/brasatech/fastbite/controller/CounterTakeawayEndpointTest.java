@@ -45,6 +45,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -90,6 +91,8 @@ class CounterTakeawayEndpointTest {
     @MockitoBean
     private DiscountService discountService;
     @MockitoBean
+    private es.brasatech.fastbite.application.fiscal.FiscalTicketService fiscalTicketService;
+    @MockitoBean
     private TenantLocationService tenantLocationService;
 
     @BeforeEach
@@ -100,10 +103,21 @@ class CounterTakeawayEndpointTest {
         when(productService.findById("kebab")).thenReturn(Optional.of(new ProductDto("kebab", "Kebab",
                 new BigDecimal("6.50"), "Beef kebab", "/kebab.webp", Set.of(), true)));
         when(orderNumberService.next()).thenReturn(12);
+        when(fiscalTicketService.ready()).thenReturn(true);
+        when(fiscalTicketService.settle(any(), any(), any(), any())).thenReturn(TICKET);
         when(orderService.createOrder(any(), anyInt(), any(), any(), any(), any(), any(), any())).thenAnswer(call ->
                 new Order(call.getArgument(0), call.getArgument(1), call.getArgument(2), call.getArgument(3),
                         call.getArgument(4), call.getArgument(5), call.getArgument(6), call.getArgument(7)));
     }
+
+    private static final es.brasatech.fastbite.domain.fiscal.FiscalTicket TICKET = new es.brasatech.fastbite.domain.fiscal.FiscalTicket(
+            "ticket-1", es.brasatech.fastbite.domain.fiscal.TicketKind.SIMPLIFIED, "KH-T26", 1, "KH-T26-000001", false,
+            java.time.OffsetDateTime.parse("2026-10-09T13:00:00+02:00"), "carla",
+            new es.brasatech.fastbite.domain.fiscal.FiscalTicket.Issuer("Ana", null, "12345678Z", "Calle Mayor 1", "28013",
+                    "Madrid", "Madrid", null),
+            null, List.of(), BigDecimal.ZERO, new BigDecimal("13.00"), es.brasatech.fastbite.domain.fiscal.VatBreakdown.EMPTY,
+            BigDecimal.ZERO, es.brasatech.fastbite.domain.fiscal.PaymentMethod.CASH, new BigDecimal("20.00"),
+            new BigDecimal("7.00"), null, List.of("o1"), "12", null, null);
 
     /** A cashier of the kebab restaurant, working on its counter page. */
     private static MockHttpServletRequestBuilder asCashier(MockHttpServletRequestBuilder request) {
@@ -159,24 +173,68 @@ class CounterTakeawayEndpointTest {
     }
 
     @Test
-    void aSalePaidOnTheSpotAlwaysWorks() throws Exception {
+    void aSalePaidOnTheSpotAlwaysWorksAndIssuesItsTicket() throws Exception {
         when(settingsService.get()).thenReturn(new RestaurantSettings(false, false, 0, 0));
 
         mockMvc.perform(asCashier(post("/counter/api/order")).content(order(null, true, null)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticketId").value("ticket-1"))
+                .andExpect(jsonPath("$.fullNumber").value("KH-T26-000001"))
+                .andExpect(jsonPath("$.change").value(7.00));
 
-        verify(orderService).createOrder(any(), eq(12), eq(OrderPaymentStatus.PAID), eq(OrderChannel.COUNTER), any(),
+        // Created unpaid: taking the payment marks it paid together with its ticket
+        verify(orderService).createOrder(any(), eq(12), eq(OrderPaymentStatus.UNPAID), eq(OrderChannel.COUNTER), any(),
                 eq("carla"), any(), eq(ServiceType.TAKEAWAY));
+        verify(fiscalTicketService).settle(any(), argThat(payment ->
+                payment.method() == es.brasatech.fastbite.domain.fiscal.PaymentMethod.CASH), eq(null), eq("carla"));
     }
 
     @Test
-    void payingAnOrderLeavesItsLinesAndPricesAlone() throws Exception {
-        mockMvc.perform(asCashier(post("/counter/api/orders/o1/pay")))
-                .andExpect(status().isOk());
+    void noSaleIsTakenWhileTheLocationCannotIssueTickets() throws Exception {
+        when(fiscalTicketService.ready()).thenReturn(false);
 
-        verify(orderService).markOrderPaid("o1");
+        mockMvc.perform(asCashier(post("/counter/api/order")).content(order(null, true, null)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderNumberService, never()).next();
+        verify(orderService, never()).createOrder(any(), anyInt(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aPaymentThatFailsCancelsTheOrderInsteadOfSendingItToTheKitchenUnpaid() throws Exception {
+        when(fiscalTicketService.settle(any(), any(), any(), any())).thenThrow(
+                new es.brasatech.fastbite.domain.exception.LocalizedRejection("ticket.error.cashShort", "short"));
+
+        mockMvc.perform(asCashier(post("/counter/api/order")).content(order(null, true, null)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService).cancelOrder(any(), eq("Payment not completed at the counter"));
+    }
+
+    @Test
+    void payingAnOrderLeavesItsLinesAndPricesAloneAndIssuesItsTicket() throws Exception {
+        mockMvc.perform(asCashier(post("/counter/api/orders/o1/pay")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticketId").value("ticket-1"));
+
+        verify(fiscalTicketService).settle(eq(List.of("o1")), any(), eq(null), eq("carla"));
         verify(orderService, never()).update(any(), any());
         verify(productService, never()).findById(any());
+    }
+
+    @Test
+    void aPaidOrderCannotBeChangedOrCancelledOnlyRefunded() throws Exception {
+        Order paid = new Order(List.of(), 9, OrderPaymentStatus.PAID, OrderChannel.COUNTER, "en", "carla",
+                "Marta", ServiceType.TAKEAWAY);
+        when(orderService.findById("o1")).thenReturn(Optional.of(paid));
+
+        mockMvc.perform(asCashier(put("/counter/api/orders/o1")).content(order(null, false, null)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(asCashier(post("/counter/api/orders/o1/cancel")))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).update(any(), any());
+        verify(orderService, never()).cancelOrder(any(), any());
     }
 
     @Test

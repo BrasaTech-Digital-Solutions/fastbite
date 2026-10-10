@@ -3,6 +3,7 @@ package es.brasatech.fastbite.service;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
+import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.order.CartItem;
@@ -37,7 +38,8 @@ class OrderCheckoutServiceTest {
     private final StripeService stripe = mock(StripeService.class);
     private final OrderService orders = mock(OrderService.class);
     private final TenantLocationService locations = mock(TenantLocationService.class);
-    private final OrderCheckoutService checkout = new OrderCheckoutService(stripe, orders, locations, DEFAULT_ACCOUNT);
+    private final FiscalTicketService fiscal = mock(FiscalTicketService.class);
+    private final OrderCheckoutService checkout = new OrderCheckoutService(stripe, orders, locations, fiscal, DEFAULT_ACCOUNT);
 
     private Order order;
 
@@ -47,6 +49,10 @@ class OrderCheckoutServiceTest {
                 12, OrderPaymentStatus.UNPAID, OrderChannel.TABLE, "en"); // total 13.50
         when(orders.findById(order.id())).thenReturn(Optional.of(order));
         when(locations.getLocation("kebab")).thenReturn(Optional.empty());
+        when(fiscal.ready()).thenReturn(true);
+        when(fiscal.findForOrder(any())).thenReturn(Optional.empty());
+        when(fiscal.settleOnline(any(), any(), any())).thenReturn(org.mockito.Mockito.mock(
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.class));
     }
 
     @AfterEach
@@ -123,11 +129,22 @@ class OrderCheckoutServiceTest {
     }
 
     @Test
-    void aCheckoutPaidInFullMarksTheOrderPaid() {
+    void aCheckoutPaidInFullIssuesTheTicketWithTheTipThatWasPaidOnTop() {
         assertThat(checkout.confirm(session("paid", 1350, StripeService.RESTAURANT_ORDER))).isTrue();
         assertThat(checkout.confirm(session("paid", 1553, StripeService.RESTAURANT_ORDER))).as("with a tip").isTrue();
 
-        verify(orders, org.mockito.Mockito.times(2)).markOrderPaid(order.id());
+        verify(fiscal).settleOnline(eq(order.id()), eq(new BigDecimal("0.00")), any());
+        verify(fiscal).settleOnline(eq(order.id()), eq(new BigDecimal("2.03")), any());
+    }
+
+    @Test
+    void guestsCannotPayOnlineWhileTheLocationCannotIssueTickets() {
+        when(stripe.isConfigured()).thenReturn(true);
+        when(fiscal.ready()).thenReturn(false);
+
+        assertThat(checkout.isAvailableForTenant("kebab")).isFalse();
+        assertThatThrownBy(() -> checkout.start("kebab", order, 0, "https://ok", "https://back"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -136,18 +153,20 @@ class OrderCheckoutServiceTest {
         assertThat(checkout.confirm(session("paid", 1349, StripeService.RESTAURANT_ORDER))).isFalse();
         assertThat(checkout.confirm(session("paid", 1350, "PLATFORM_SUBSCRIPTION"))).isFalse();
 
-        verify(orders, never()).markOrderPaid(any());
+        verify(fiscal, never()).settleOnline(any(), any(), any());
     }
 
     @Test
     void confirmingTwiceOrAMissingOrderDoesNothingMore() {
         when(orders.findById(order.id())).thenReturn(Optional.of(order.setPaymentStatus(OrderPaymentStatus.PAID)));
+        when(fiscal.findForOrder(order.id())).thenReturn(Optional.of(org.mockito.Mockito.mock(
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.class)));
         assertThat(checkout.confirm(session("paid", 1350, StripeService.RESTAURANT_ORDER))).isTrue();
 
         when(orders.findById(order.id())).thenReturn(Optional.empty());
         assertThat(checkout.confirm(session("paid", 1350, StripeService.RESTAURANT_ORDER))).isFalse();
 
-        verify(orders, never()).markOrderPaid(any());
+        verify(fiscal, never()).settleOnline(any(), any(), any());
     }
 
     @Test
@@ -169,11 +188,11 @@ class OrderCheckoutServiceTest {
 
         TenantContext.setCurrentTenant("pizza");
         assertThat(checkout.confirmReturn("cs_test_1")).isFalse();
-        verify(orders, never()).markOrderPaid(any());
+        verify(fiscal, never()).settleOnline(any(), any(), any());
 
         TenantContext.setCurrentTenant("kebab");
         assertThat(checkout.confirmReturn("cs_test_1")).isTrue();
-        verify(orders).markOrderPaid(order.id());
+        verify(fiscal).settleOnline(eq(order.id()), any(), any());
     }
 
     // ---- webhook signatures
@@ -212,7 +231,7 @@ class OrderCheckoutServiceTest {
         assertThat(checkout.isAvailableForTenant("kebab")).isTrue();
 
         // When neither location account nor default account is set
-        OrderCheckoutService unconfiguredDefault = new OrderCheckoutService(stripe, orders, locations, "");
+        OrderCheckoutService unconfiguredDefault = new OrderCheckoutService(stripe, orders, locations, fiscal, "");
         assertThat(unconfiguredDefault.isAvailableForTenant("kebab")).isFalse();
 
         when(locations.getLocation("kebab")).thenReturn(Optional.of(

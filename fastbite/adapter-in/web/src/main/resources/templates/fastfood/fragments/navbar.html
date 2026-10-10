@@ -38,6 +38,14 @@
                             <i class="fas fa-cash-register me-1"></i> <span th:text="#{page.title.counter}">Counter</span>
                         </a>
                     </li>
+
+                    <!-- Tickets issued (Staff who take payments) -->
+                    <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')">
+                        <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}"
+                           th:classappend="${activeTab == 'tickets' ? 'active glass-bg' : ''}">
+                            <i class="fas fa-receipt me-1"></i> <span th:text="#{tickets.title}">Tickets</span>
+                        </a>
+                    </li>
                     
                     <!-- BackOffice Link (Admin/Manager) -->
                     <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER')">

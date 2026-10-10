@@ -97,6 +97,9 @@ public interface OrderService {
         publishEvent(new OrderStatusChangedEvent(paidOrder));
     }
 
+    /** Marks an order's payment as given back after its ticket was refunded. */
+    void markOrderRefunded(String id);
+
     /** The orders staff work with: everything except online orders still waiting to be paid. */
     default List<Order> getAllOrder() {
         return findAll().stream()

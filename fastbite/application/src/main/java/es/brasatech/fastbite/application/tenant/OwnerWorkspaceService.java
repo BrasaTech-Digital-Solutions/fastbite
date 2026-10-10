@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.application.tenant;
 import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
+import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
@@ -16,9 +17,11 @@ public class OwnerWorkspaceService {
     private final ProductService products;
     private final RestaurantSettingsService settings;
     private final FiscalProfileService fiscalProfiles;
+    private final FiscalTicketRepository tickets;
     public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
-            FiscalProfileService fiscalProfiles) {
+            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets) {
         this.locations=locations; this.progress=progress; this.products=products; this.settings=settings; this.fiscalProfiles=fiscalProfiles;
+        this.tickets=tickets;
     }
     public void requireOwner(String owner, String tenant) {
         if (owner == null || !locations.isOwnerOf(owner,tenant)) throw new IllegalArgumentException("You do not own this location.");
@@ -57,12 +60,27 @@ public class OwnerWorkspaceService {
      */
     public Map<String, String> saveFiscalProfile(String owner, String tenant, FiscalProfile profile) {
         requireOwner(owner, tenant);
-        Map<String, String> wrong = new LinkedHashMap<>(profile.problems());
-        wrong.values().removeIf("fiscal.error.required"::equals);
-        if (wrong.isEmpty()) {
-            inTenant(tenant, () -> fiscalProfiles.save(profile));
-        }
-        return wrong;
+        return inTenant(tenant, () -> {
+            Map<String, String> wrong = new LinkedHashMap<>(profile.problems());
+            if (tickets.anyRealTicket()) {
+                // Issued tickets carry this NIF and series: they stay, and the details stay complete
+                FiscalProfile saved = fiscalProfiles.get();
+                if (!java.util.Objects.equals(saved.taxId(), profile.taxId())) wrong.put("taxId", "fiscal.error.taxId.locked");
+                if (!java.util.Objects.equals(saved.seriesPrefix(), profile.seriesPrefix())) wrong.put("seriesPrefix", "fiscal.error.seriesPrefix.locked");
+            } else {
+                wrong.values().removeIf("fiscal.error.required"::equals);
+            }
+            if (wrong.isEmpty()) {
+                fiscalProfiles.save(profile);
+            }
+            return wrong;
+        });
+    }
+
+    /** True once the location has issued a real ticket, which fixes its NIF and series code. */
+    public boolean fiscalLocked(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, tickets::anyRealTicket);
     }
 
     private <T> T inTenant(String tenant,Supplier<T> work) {

@@ -2,6 +2,7 @@ package es.brasatech.fastbite.service;
 
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
+import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.order.Order;
@@ -33,14 +34,16 @@ public class OrderCheckoutService {
     private final StripeService stripeService;
     private final OrderService orderService;
     private final TenantLocationService tenantLocationService;
+    private final FiscalTicketService fiscalTicketService;
     private final String defaultConnectedAccount;
 
     public OrderCheckoutService(StripeService stripeService, OrderService orderService,
-            TenantLocationService tenantLocationService,
+            TenantLocationService tenantLocationService, FiscalTicketService fiscalTicketService,
             @Value("${stripe.connected-account:}") String defaultConnectedAccount) {
         this.stripeService = stripeService;
         this.orderService = orderService;
         this.tenantLocationService = tenantLocationService;
+        this.fiscalTicketService = fiscalTicketService;
         this.defaultConnectedAccount = defaultConnectedAccount;
     }
 
@@ -49,9 +52,12 @@ public class OrderCheckoutService {
         return stripeService.isConfigured();
     }
 
-    /** Whether guests of a specific tenant location can pay online. */
+    /**
+     * Whether guests of a specific tenant location can pay online: payments must be set up, and the
+     * location must be able to issue the ticket for the payment.
+     */
     public boolean isAvailableForTenant(String tenantId) {
-        if (!isAvailable()) {
+        if (!isAvailable() || !fiscalTicketService.ready()) {
             return false;
         }
         if (tenantId == null || tenantId.isBlank()) {
@@ -81,6 +87,9 @@ public class OrderCheckoutService {
         }
         if (!TIP_PERCENTS.contains(tipPercent)) {
             throw new IllegalArgumentException("Choose one of the tips on offer");
+        }
+        if (!fiscalTicketService.ready()) {
+            throw new IllegalArgumentException("This restaurant cannot take online payments yet");
         }
         BigDecimal tip = order.total().multiply(BigDecimal.valueOf(tipPercent))
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
@@ -158,7 +167,7 @@ public class OrderCheckoutService {
             return false;
         }
         Order order = found.get();
-        if (order.paymentStatus() == OrderPaymentStatus.PAID) {
+        if (order.paymentStatus() == OrderPaymentStatus.PAID && fiscalTicketService.findForOrder(orderId).isPresent()) {
             return true;
         }
         long paid = session.getAmountTotal() != null ? session.getAmountTotal() : 0;
@@ -168,8 +177,10 @@ public class OrderCheckoutService {
             log.error("Checkout {} paid {} cents of the {} due for order {}", session.getId(), paid, due, orderId);
             return false;
         }
-        orderService.markOrderPaid(orderId);
-        log.info("Order {} paid online through checkout {}", orderId, session.getId());
+        // Whatever was paid above the order is the tip the guest chose
+        BigDecimal tip = BigDecimal.valueOf(paid - due).movePointLeft(2);
+        var ticket = fiscalTicketService.settleOnline(orderId, tip, session.getPaymentIntent());
+        log.info("Order {} paid online through checkout {}, ticket {}", orderId, session.getId(), ticket.fullNumber());
         return true;
     }
 }

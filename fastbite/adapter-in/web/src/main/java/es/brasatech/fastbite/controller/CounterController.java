@@ -15,7 +15,6 @@ import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.order.ServiceType;
 import es.brasatech.fastbite.domain.table.TableStatus;
-import es.brasatech.fastbite.domain.user.Customer;
 import es.brasatech.fastbite.dto.counter.CounterOrderRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -42,11 +41,15 @@ public class CounterController {
     private final CustomizationService customizationService;
     private final es.brasatech.fastbite.application.discount.DiscountService discountService;
     private final RestaurantSettingsService settingsService;
+    private final es.brasatech.fastbite.application.fiscal.FiscalTicketService fiscalTicketService;
+    private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
 
     @GetMapping({"/{tenantId}/counter", "/counter"})
     public String counter(Model model) {
         model.addAttribute("tables", tableService.findAll());
         model.addAttribute("settings", settingsService.get());
+        model.addAttribute("ticketsReady", fiscalTicketService.ready());
+        model.addAttribute("trainingTickets", fiscalTicketService.training());
         var config = paymentService.getActiveConfig();
         model.addAttribute("paymentConfig", Map.of(
             "activeModes", new java.util.ArrayList<>(config.activeModes()),
@@ -72,13 +75,25 @@ public class CounterController {
                     : "Takeaway orders are switched off for this restaurant");
         }
         List<CartItem> items = orderPricingService.price(request.items(), OrderChannel.COUNTER);
+        es.brasatech.fastbite.domain.fiscal.PaymentMethod method = null;
+        if (request.paid()) {
+            // Refuse before an order number is taken: a sale paid on the spot needs its ticket
+            method = es.brasatech.fastbite.domain.fiscal.PaymentMethod.of(request.paymentMethod());
+            if (!fiscalTicketService.ready()) {
+                throw new es.brasatech.fastbite.domain.exception.LocalizedRejection("ticket.error.notReady",
+                        es.brasatech.fastbite.application.fiscal.FiscalTicketService.NOT_READY);
+            }
+            if (request.invoice() != null) {
+                request.invoice().toRecipient().validated();
+            }
+        }
         var orderNumber = orderNumberService.next();
-        var paymentStatus = request.paid() ? OrderPaymentStatus.PAID : OrderPaymentStatus.UNPAID;
 
+        // Created unpaid; taking the payment below marks it paid and issues its ticket together
         Order order = orderService.createOrder(
                 items,
                 orderNumber,
-                paymentStatus,
+                OrderPaymentStatus.UNPAID,
                 OrderChannel.COUNTER,
                 locale.getLanguage(),
                 userDetails.getUsername(),
@@ -91,7 +106,23 @@ public class CounterController {
             order = orderService.update(order.id(), order).orElse(order);
         }
 
-        return Map.of("status", "success", "orderNumber", orderNumber, "orderId", order.id());
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("status", "success");
+        result.put("orderNumber", orderNumber);
+        result.put("orderId", order.id());
+        if (request.paid()) {
+            try {
+                var ticket = fiscalTicketService.settle(List.of(order.id()),
+                        es.brasatech.fastbite.application.fiscal.FiscalTicketService.Payment.of(method, request.cashReceived()),
+                        request.invoice() == null ? null : request.invoice().toRecipient(), userDetails.getUsername());
+                result.putAll(TicketController.summary(ticket));
+            } catch (RuntimeException e) {
+                // Nothing was charged: the order must not reach the kitchen as if it were paid for
+                orderService.cancelOrder(order.id(), "Payment not completed at the counter");
+                throw e;
+            }
+        }
+        return result;
     }
 
     @ResponseBody
@@ -121,26 +152,47 @@ public class CounterController {
 
         var existingOrder = orderService.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+        requireUnpaid(existingOrder);
 
         List<CartItem> items = orderPricingService.price(request.items(), OrderChannel.COUNTER);
         orderService.update(orderId, existingOrder.withItems(items));
         return Map.of("status", "success", "orderId", orderId);
     }
 
-    /** Takes payment for an order as it was placed; its lines and prices stay untouched. */
+    /**
+     * Takes payment for an order as it was placed and issues its ticket; its lines and prices stay
+     * untouched. The counter now pays through /counter/api/settle; this stays for older screens.
+     */
     @ResponseBody
     @PostMapping("/counter/api/orders/{orderId}/pay")
-    public Map<String, Object> payOrder(@PathVariable String orderId) {
-        orderService.markOrderPaid(orderId);
-        return Map.of("status", "success", "orderId", orderId);
+    public Map<String, Object> payOrder(@PathVariable String orderId,
+            @RequestParam(defaultValue = "CASH") String method,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        var ticket = fiscalTicketService.settle(List.of(orderId),
+                es.brasatech.fastbite.application.fiscal.FiscalTicketService.Payment.of(
+                        es.brasatech.fastbite.domain.fiscal.PaymentMethod.of(method), null),
+                null, userDetails.getUsername());
+        Map<String, Object> result = new java.util.LinkedHashMap<>(TicketController.summary(ticket));
+        result.put("status", "success");
+        result.put("orderId", orderId);
+        return result;
     }
 
     @ResponseBody
     @PostMapping("/counter/api/orders/{orderId}/cancel")
     public Map<String, Object> cancelOrder(@PathVariable String orderId,
             @RequestParam(required = false) String reason) {
+        orderService.findById(orderId).ifPresent(this::requireUnpaid);
         orderService.cancelOrder(orderId, reason != null ? reason : "Canceled at Counter");
         return Map.of("status", "success");
+    }
+
+    /** A paid order has a ticket: changing it would make the ticket wrong, so it is refunded instead. */
+    private void requireUnpaid(Order order) {
+        if (order.paymentStatus() != OrderPaymentStatus.UNPAID) {
+            throw new es.brasatech.fastbite.domain.exception.LocalizedRejection("ticket.error.paidOrderLocked",
+                    "This order is paid. To change it, refund its ticket first.");
+        }
     }
 
     @ResponseBody
@@ -335,14 +387,13 @@ public class CounterController {
         return "fastfood/fragments/counter :: customization-options";
     }
 
+    /**
+     * The bill shown to guests before they pay (pro forma). It is not an invoice: the ticket is
+     * issued when the payment is taken.
+     */
     @GetMapping("/counter/receipt")
     public String getReceipt(
             @RequestParam("ids") List<String> orderIds,
-            @RequestParam(required = false, defaultValue = "false") boolean isInvoice,
-            @RequestParam(required = false, defaultValue = "false") boolean isProforma,
-            @RequestParam(required = false) String taxId,
-            @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String address,
             Model model) {
 
         var orders = orderIds.stream()
@@ -363,16 +414,17 @@ public class CounterController {
             discount = java.math.BigDecimal.ZERO;
         }
 
+        var vat = es.brasatech.fastbite.domain.fiscal.VatBreakdown.of(orders.stream()
+                .flatMap(o -> o.items().stream())
+                .map(item -> new es.brasatech.fastbite.domain.fiscal.VatBreakdown.Amount(item.totalPrice(), item.vatRate()))
+                .toList(), discount);
+
         model.addAttribute("orders", orders);
         model.addAttribute("rawSubtotal", rawSubtotal);
         model.addAttribute("discount", discount);
         model.addAttribute("grandTotal", grandTotal);
-        model.addAttribute("isInvoice", isInvoice);
-        model.addAttribute("isProforma", isProforma);
-
-        if (isInvoice) {
-            model.addAttribute("customer", new Customer(taxId, customerName, address));
-        }
+        model.addAttribute("vat", vat);
+        model.addAttribute("profile", fiscalProfileService.get());
 
         return "fastfood/receipt";
     }

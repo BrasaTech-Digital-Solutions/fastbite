@@ -118,6 +118,9 @@ fastbite:
       public-url: ${GCS_PUBLIC_URL:https://storage.googleapis.com}
   # Trusted origin for emailed setup links; HTTPS in production. Never derived from request headers.
   public-url: ${FASTBITE_PUBLIC_URL:http://localhost:8080}
+  # sandbox or production. The sandbox issues training tickets with no fiscal value; set
+  # FASTBITE_ENVIRONMENT=production only on the deployment where restaurants trade for real.
+  environment: ${FASTBITE_ENVIRONMENT:sandbox}
   table:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.

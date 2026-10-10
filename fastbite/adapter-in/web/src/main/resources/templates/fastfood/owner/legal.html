@@ -26,7 +26,7 @@
     <legend><span class="legal-step">1</span><span th:text="#{owner.legal.business}">Your business</span></legend>
     <label for="taxId" th:text="#{owner.legal.taxId}">Tax ID (NIF)</label>
     <div class="taxid-row">
-      <input id="taxId" name="taxId" th:value="${fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false"
+      <input id="taxId" name="taxId" th:value="${fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false" th:readonly="${fiscalLocked}"
              inputmode="text" autocapitalize="characters" aria-describedby="taxId-hint taxId-status" required
              th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}?'invalid'">
       <span id="taxId-status" class="field-status" role="status"
@@ -34,7 +34,7 @@
             th:text="${kind==null}?'':(${kind.name()=='DNI'}?#{owner.legal.taxId.dni}:(${kind.name()=='NIE'}?#{owner.legal.taxId.nie}:(${kind.name()=='COMPANY'}?#{owner.legal.taxId.company}:#{owner.legal.taxId.other})))"></span>
     </div>
     <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
-    <p class="fine" id="taxId-hint" th:text="#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
+    <p class="fine" id="taxId-hint" th:text="${fiscalLocked}?#{owner.legal.locked}:#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
 
     <label for="legalName" id="legalName-label"
            th:text="${kind==null}?#{owner.legal.legalName}:(${kind.name()=='COMPANY'}?#{owner.legal.legalName.company}:#{owner.legal.legalName.person})">Legal name</label>
@@ -110,7 +110,7 @@
       <div>
         <label for="seriesPrefix" th:text="#{owner.legal.seriesPrefix}">Series code</label>
         <input id="seriesPrefix" name="seriesPrefix" th:value="${fiscal.seriesPrefix!=null?fiscal.seriesPrefix:suggestedPrefix}"
-               maxlength="8" autocomplete="off" spellcheck="false" autocapitalize="characters" required
+               maxlength="8" autocomplete="off" spellcheck="false" autocapitalize="characters" required th:readonly="${fiscalLocked}"
                aria-describedby="seriesPrefix-hint" th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}?'invalid'">
         <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}" th:text="#{${fiscalErrors.get('seriesPrefix')}}"></p>
       </div>

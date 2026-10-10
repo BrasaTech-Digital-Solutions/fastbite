@@ -50,7 +50,10 @@ public class OwnerWorkspaceController {
             model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
             var setup=workspace.summary(owner.getName(),selected.tenantId());
             model.addAttribute("setup",setup);
-            if(section.equals("legal")) addLegal(model,setup.fiscal(),selected.tenantId());
+            if(section.equals("legal")) {
+                addLegal(model,setup.fiscal(),selected.tenantId());
+                model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
+            }
             model.addAttribute("billing",subscriptions.account(selected.tenantId(),owner.getName()));
             if(view.equals("team")) {
                 model.addAttribute("users",staff.listStaff(owner.getName(),selected.tenantId()).stream().filter(u->!u.isOwner()).toList());

@@ -34,6 +34,23 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.SpanishTaxId.Kind.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.VatBreakdown.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.fiscal.VatBreakdown.Line.class, MemberCategory.values());
+        // Tickets: read by the ticket templates, and stored as JSON lines by the JPA adapter
+        for (Class<?> type : new Class<?>[]{es.brasatech.fastbite.domain.fiscal.FiscalTicket.class,
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.Issuer.class,
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.Correction.class,
+                es.brasatech.fastbite.domain.fiscal.TicketLine.class,
+                es.brasatech.fastbite.domain.fiscal.TicketLine.Option.class,
+                es.brasatech.fastbite.domain.fiscal.TicketRecipient.class,
+                es.brasatech.fastbite.domain.fiscal.TicketKind.class,
+                es.brasatech.fastbite.domain.fiscal.PaymentMethod.class,
+                es.brasatech.fastbite.domain.allergen.Allergen.class,
+                es.brasatech.fastbite.controller.AllergenChartController.Section.class,
+                es.brasatech.fastbite.controller.AllergenChartController.OptionRow.class,
+                es.brasatech.fastbite.controller.TicketController.SettleRequest.class,
+                es.brasatech.fastbite.controller.TicketController.RefundRequest.class,
+                es.brasatech.fastbite.dto.counter.InvoiceDetails.class}) {
+            hints.reflection().registerType(type, MemberCategory.values());
+        }
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.BackupPreview.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.DemoTemplateDescriptor.class, MemberCategory.values());
