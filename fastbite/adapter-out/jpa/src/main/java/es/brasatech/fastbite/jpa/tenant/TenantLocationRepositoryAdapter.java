@@ -23,6 +23,11 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     @Override
+    public List<TenantLocation> findAll() {
+        return repository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public Optional<TenantLocation> findByTenantId(String tenantId) {
         return repository.findByTenantId(tenantId)
                 .map(this::toDomain);

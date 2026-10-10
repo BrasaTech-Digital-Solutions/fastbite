@@ -121,6 +121,17 @@ fastbite:
   # sandbox or production. The sandbox issues training tickets with no fiscal value; set
   # FASTBITE_ENVIRONMENT=production only on the deployment where restaurants trade for real.
   environment: ${FASTBITE_ENVIRONMENT:sandbox}
+  # The billing software as VERI*FACTU records name it (SistemaInformatico). The producer signs the
+  # declaración responsable of each version.
+  verifactu:
+    producer-name: ${VERIFACTU_PRODUCER_NAME:Brasatech}
+    producer-nif: ${VERIFACTU_PRODUCER_NIF:}
+    system-name: FastBite
+    system-id: FB
+    version: ${VERIFACTU_SYSTEM_VERSION:1.0}
+    operation-description: Servicios de restauración
+    # How often pending billing records are sent once a submitter is configured
+    submit-delay: PT1M
   table:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.

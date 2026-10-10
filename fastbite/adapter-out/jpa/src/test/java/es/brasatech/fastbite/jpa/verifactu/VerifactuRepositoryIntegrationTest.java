@@ -1,0 +1,144 @@
+package es.brasatech.fastbite.jpa.verifactu;
+
+import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
+import es.brasatech.fastbite.application.verifactu.VerifactuRepository;
+import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
+import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
+import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.fiscal.VatBreakdown;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
+import es.brasatech.fastbite.domain.verifactu.Verifactu;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
+import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
+import es.brasatech.fastbite.jpa.TestConfig;
+import es.brasatech.fastbite.jpa.tenant.TenantProvisionerAdapter;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@SpringBootTest(classes = TestConfig.class)
+@ActiveProfiles("jpa")
+class VerifactuRepositoryIntegrationTest {
+
+    @Autowired VerifactuRepository records;
+    @Autowired FiscalTicketRepository tickets;
+    @Autowired TenantProvisionerAdapter provisioner;
+    @Autowired TransactionTemplate transactions;
+
+    @AfterEach void clear() { TenantContext.clear(); }
+
+    private String tenant() {
+        String tenant = "records" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        provisioner.provisionTenant(tenant);
+        return tenant;
+    }
+
+    private <T> T in(String tenant, Supplier<T> work) {
+        TenantContext.setCurrentTenant(tenant);
+        try { return transactions.execute(status -> work.get()); } finally { TenantContext.clear(); }
+    }
+
+    /** Issues a ticket and appends its record, as issuing a ticket does. */
+    private VerifactuRecord issue(String chain) {
+        String id = UUID.randomUUID().toString();
+        String number = "KH-T26-" + id.substring(0, 6);
+        tickets.add(new FiscalTicket(id, TicketKind.SIMPLIFIED, "KH-T26", 1, number, false,
+                OffsetDateTime.parse("2026-10-09T13:00:00+02:00"), "carla",
+                new FiscalTicket.Issuer("Ana", null, "12345678Z", null, null, null, null, null), null, List.of(),
+                BigDecimal.ZERO, new BigDecimal("11.00"), VatBreakdown.EMPTY, BigDecimal.ZERO, PaymentMethod.CARD, null,
+                null, null, List.of(id), null, null, null));
+        var last = records.lockChain(chain);
+        var previous = last.map(r -> new VerifactuRecord.Link(r.issuerNif(), r.invoiceNumber(), r.issueDate(), r.fingerprint()))
+                .orElse(null);
+        var generated = OffsetDateTime.parse("2026-10-09T13:00:01+02:00");
+        String fingerprint = Verifactu.fingerprint("12345678Z", number, generated.toLocalDate(), "F2",
+                new BigDecimal("1.00"), new BigDecimal("11.00"), previous == null ? null : previous.fingerprint(), generated);
+        return records.append(new VerifactuRecord(UUID.randomUUID().toString(), id, chain,
+                last.map(r -> r.sequence() + 1).orElse(1), "F2", "12345678Z", "Ana", number, generated.toLocalDate(),
+                generated, new BigDecimal("1.00"), new BigDecimal("11.00"), previous, fingerprint, "https://qr", null,
+                false, VerifactuRecord.Submission.PENDING));
+    }
+
+    @Test
+    void recordsAreChainedInOrderAndReadBackAsWritten() {
+        String tenant = tenant();
+        var first = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        var second = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+
+        assertThat(second.sequence()).isEqualTo(2);
+        assertThat(second.previous().fingerprint()).isEqualTo(first.fingerprint());
+        assertThat(in(tenant, () -> records.findByTicketId(second.ticketId()))).hasValue(second);
+        assertThat(in(tenant, () -> records.findLast(VerifactuRecord.REAL_CHAIN))).hasValue(second);
+        assertThat(in(tenant, () -> records.findAll(VerifactuRecord.TRAINING_CHAIN))).isEmpty();
+    }
+
+    @Test
+    void aRecordThatDoesNotFollowTheEndOfTheChainIsRefused() {
+        String tenant = tenant();
+        var first = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+
+        assertThatThrownBy(() -> in(tenant, () -> {
+            records.lockChain(VerifactuRecord.REAL_CHAIN);
+            return records.append(new VerifactuRecord(UUID.randomUUID().toString(), first.ticketId(), first.chain(), 1,
+                    "F2", "12345678Z", "Ana", "KH-T26-X", first.issueDate(), first.generatedAt(), BigDecimal.ONE,
+                    BigDecimal.TEN, null, "F", "https://qr", null, false, VerifactuRecord.Submission.PENDING));
+        })).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void concurrentTicketsStillFormOneUnbrokenChain() throws Exception {
+        String tenant = tenant();
+        Callable<VerifactuRecord> issueOne = () -> in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        try (var pool = Executors.newFixedThreadPool(4)) {
+            for (var future : pool.invokeAll(Collections.nCopies(10, issueOne))) future.get();
+        }
+
+        List<VerifactuRecord> chain = in(tenant, () -> records.findAll(VerifactuRecord.REAL_CHAIN));
+        assertThat(chain).extracting(VerifactuRecord::sequence).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        for (int i = 1; i < chain.size(); i++) {
+            assertThat(chain.get(i).previous().fingerprint()).isEqualTo(chain.get(i - 1).fingerprint());
+        }
+    }
+
+    @Test
+    void submissionAnswersAreKeptAndPendingRecordsComeOldestFirst() {
+        String tenant = tenant();
+        var first = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        var second = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+
+        in(tenant, () -> {
+            records.updateSubmission(first.id(), new VerifactuRecord.Submission(VerifactuStatus.ACCEPTED, 1, null, "CSV1",
+                    OffsetDateTime.parse("2026-10-09T13:05:00+02:00")));
+            records.updateSubmission(second.id(), new VerifactuRecord.Submission(VerifactuStatus.REJECTED, 1,
+                    "NIF not identified", null, OffsetDateTime.parse("2026-10-09T13:05:00+02:00")));
+            return null;
+        });
+
+        assertThat(in(tenant, () -> records.findPending(VerifactuRecord.REAL_CHAIN, 10))).extracting(VerifactuRecord::sequence)
+                .containsExactly(3);
+        assertThat(in(tenant, () -> records.findRejected(VerifactuRecord.REAL_CHAIN, 10))).singleElement()
+                .satisfies(r -> assertThat(r.submission().error()).isEqualTo("NIF not identified"));
+        assertThat(in(tenant, () -> records.countByStatus(VerifactuRecord.REAL_CHAIN)))
+                .containsEntry(VerifactuStatus.ACCEPTED, 1L).containsEntry(VerifactuStatus.REJECTED, 1L)
+                .containsEntry(VerifactuStatus.PENDING, 1L);
+        var accepted = in(tenant, () -> records.findByTicketId(first.ticketId())).orElseThrow();
+        assertThat(accepted.submission().csv()).isEqualTo("CSV1");
+        assertThat(accepted.fingerprint()).as("the fiscal content never changes").isEqualTo(first.fingerprint());
+    }
+}

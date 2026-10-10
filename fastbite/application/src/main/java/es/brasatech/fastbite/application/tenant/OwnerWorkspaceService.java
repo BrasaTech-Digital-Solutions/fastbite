@@ -1,6 +1,8 @@
 package es.brasatech.fastbite.application.tenant;
 import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
+import es.brasatech.fastbite.application.verifactu.VerifactuService;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
@@ -18,10 +20,11 @@ public class OwnerWorkspaceService {
     private final RestaurantSettingsService settings;
     private final FiscalProfileService fiscalProfiles;
     private final FiscalTicketRepository tickets;
+    private final VerifactuService verifactu;
     public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
-            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets) {
+            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu) {
         this.locations=locations; this.progress=progress; this.products=products; this.settings=settings; this.fiscalProfiles=fiscalProfiles;
-        this.tickets=tickets;
+        this.tickets=tickets; this.verifactu=verifactu;
     }
     public void requireOwner(String owner, String tenant) {
         if (owner == null || !locations.isOwnerOf(owner,tenant)) throw new IllegalArgumentException("You do not own this location.");
@@ -75,6 +78,18 @@ public class OwnerWorkspaceService {
             }
             return wrong;
         });
+    }
+
+    /** Where the location's billing records stand with the tax agency. */
+    public VerifactuService.Summary verifactuSummary(String owner, String tenant, boolean training) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> verifactu.summary(training));
+    }
+
+    /** Every billing record of the location, in chain order, for the owner to keep. */
+    public java.util.List<VerifactuRecord> verifactuRecords(String owner, String tenant, boolean training) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> verifactu.chain(training));
     }
 
     /** True once the location has issued a real ticket, which fixes its NIF and series code. */

@@ -147,5 +147,46 @@
   </div>
   <p class="fine" th:text="#{owner.legal.preview.caption}">How the top of your tickets will look.</p>
 </aside>
+
+<section class="panel verifactu-panel" th:if="${verifactu != null}" aria-labelledby="verifactu-title">
+  <div class="panel-heading">
+    <div>
+      <p class="eyebrow" th:text="#{owner.verifactu.eyebrow}">REPORTED TO THE TAX AGENCY</p>
+      <h2 id="verifactu-title">VERI*FACTU</h2>
+    </div>
+    <span class="status-pill" th:classappend="${verifactu.configured()} ? 'done' : 'waiting'"
+          th:text="${verifactu.configured()} ? #{owner.verifactu.connected(${verifactu.submitter()})} : #{owner.verifactu.notConnected}">Not connected yet</span>
+  </div>
+  <p th:text="#{owner.verifactu.intro}">Every ticket creates a billing record chained to the one before it.</p>
+  <div class="inline-note" th:unless="${verifactu.configured()}">
+    <p th:text="#{owner.verifactu.waiting}">Records are kept safely and will be sent in order as soon as the connection is set up.</p>
+  </div>
+  <p class="fine" th:if="${verifactu.training()}" th:text="#{owner.verifactu.training}">Sandbox: training records.</p>
+  <dl class="verifactu-stats">
+    <div><dt th:text="#{owner.verifactu.records}">Records</dt><dd th:text="${verifactu.total()}">0</dd></div>
+    <div><dt th:text="#{owner.verifactu.pending}">Waiting to be sent</dt><dd th:text="${verifactu.pending()}">0</dd></div>
+    <div><dt th:text="#{owner.verifactu.accepted}">Accepted</dt><dd th:text="${verifactu.accepted()}">0</dd></div>
+    <div th:classappend="${verifactu.refused() > 0} ? 'alert-stat'">
+      <dt th:text="#{owner.verifactu.rejected}">Rejected</dt><dd th:text="${verifactu.refused()}">0</dd></div>
+  </dl>
+  <div class="verifactu-last" th:if="${verifactu.last() != null}">
+    <p class="fine" th:text="#{owner.verifactu.last}">Last record</p>
+    <p><strong th:text="${verifactu.last().invoiceNumber()}">KH-T26-000001</strong>
+       · <span th:text="${#temporals.format(verifactu.last().generatedAt(), 'dd/MM/yyyy HH:mm:ss')}">09/10/2026 13:45:05</span>
+       · <span th:text="${verifactu.last().invoiceType()}">F2</span></p>
+    <p class="fingerprint" th:title="${verifactu.last().fingerprint()}"
+       th:text="#{owner.verifactu.fingerprint} + ' ' + ${#strings.substring(verifactu.last().fingerprint(), 0, 16)} + '…'">Fingerprint 3C464DAF61ACB827…</p>
+  </div>
+  <div th:if="${!verifactu.rejected().isEmpty()}">
+    <h3 th:text="#{owner.verifactu.rejected.title}">Records the tax agency refused</h3>
+    <ul class="verifactu-rejected">
+      <li th:each="record : ${verifactu.rejected()}"><strong th:text="${record.invoiceNumber()}">KH-T26-000002</strong>:
+        <span th:text="${record.submission().error()}">NIF not identified</span></li>
+    </ul>
+  </div>
+  <a class="text-link" th:if="${verifactu.total() > 0}"
+     th:href="@{/owner/workspace/{tenant}/verifactu/records.json(tenant=${selected.tenantId})}"
+     th:text="#{owner.verifactu.download}">Download records (JSON) →</a>
+</section>
 </section>
 </body></html>

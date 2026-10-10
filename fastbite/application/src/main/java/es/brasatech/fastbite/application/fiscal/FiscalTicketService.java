@@ -3,6 +3,7 @@ package es.brasatech.fastbite.application.fiscal;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
@@ -68,22 +69,24 @@ public class FiscalTicketService {
     private final FiscalProfileService profiles;
     private final PlatformEnvironment environment;
     private final TableService tables;
+    private final VerifactuService verifactu;
     private final Clock clock;
 
     @Autowired
     public FiscalTicketService(OrderService orders, FiscalTicketRepository tickets, FiscalProfileService profiles,
-            PlatformEnvironment environment, TableService tables,
+            PlatformEnvironment environment, TableService tables, VerifactuService verifactu,
             @Value("${fastbite.orders.time-zone:Europe/Madrid}") ZoneId timeZone) {
-        this(orders, tickets, profiles, environment, tables, Clock.system(timeZone));
+        this(orders, tickets, profiles, environment, tables, verifactu, Clock.system(timeZone));
     }
 
     public FiscalTicketService(OrderService orders, FiscalTicketRepository tickets, FiscalProfileService profiles,
-            PlatformEnvironment environment, TableService tables, Clock clock) {
+            PlatformEnvironment environment, TableService tables, VerifactuService verifactu, Clock clock) {
         this.orders = orders;
         this.tickets = tickets;
         this.profiles = profiles;
         this.environment = environment;
         this.tables = tables;
+        this.verifactu = verifactu;
         this.clock = clock;
     }
 
@@ -288,10 +291,13 @@ public class FiscalTicketService {
             }
         }
         int number = tickets.nextNumber(series);
-        return tickets.add(new FiscalTicket(UUID.randomUUID().toString(), kind, series, number,
+        FiscalTicket ticket = tickets.add(new FiscalTicket(UUID.randomUUID().toString(), kind, series, number,
                 TicketSeries.fullNumber(series, number), training, now, issuedBy, FiscalTicket.Issuer.of(profile),
                 recipient, List.copyOf(lines), discount, total, vat, payment.tip(), payment.method(),
                 payment.cashReceived(), change, corrects, List.copyOf(orderIds), orderNumbers, tableName,
                 payment.reference()));
+        // Same transaction: a ticket never exists without its billing record, nor a record without its ticket
+        verifactu.record(ticket);
+        return ticket;
     }
 }

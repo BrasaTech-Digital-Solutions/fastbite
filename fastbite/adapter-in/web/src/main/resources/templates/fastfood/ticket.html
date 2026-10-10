@@ -128,6 +128,14 @@
     <span th:text="${#numbers.formatDecimal(ticket.change(), 1, 'POINT', 2, 'COMMA')}">9,00</span>
 </div>
 
+<div class="tax-qr" th:if="${verifactu != null}">
+    <p th:text="#{ticket.qr.label}">QR tributario:</p>
+    <div class="tax-qr-code" th:utext="${qrSvg}"></div>
+    <p class="verifactu-mark">VERI*FACTU</p>
+    <p class="muted" th:text="#{ticket.qr.legend}">Invoice verifiable at the AEAT website</p>
+    <p class="muted" th:if="${verifactu.training()}" th:text="#{ticket.qr.test}">AEAT test environment</p>
+</div>
+
 <div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
 
 <footer class="footer">

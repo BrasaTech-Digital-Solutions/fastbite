@@ -41,6 +41,7 @@ public class TicketController {
     private static final Set<String> REFUNDERS = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_OWNER");
 
     private final FiscalTicketService tickets;
+    private final es.brasatech.fastbite.application.verifactu.VerifactuService verifactu;
 
     /** Payment of one or more orders at the counter. */
     public record SettleRequest(List<String> orderIds, String paymentMethod, BigDecimal cashReceived,
@@ -82,6 +83,11 @@ public class TicketController {
         FiscalTicket ticket = tickets.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("ticket", ticket);
+        // Drawn here, not in the browser: the printed QR must not depend on a script or a network
+        verifactu.findForTicket(ticket.id()).ifPresent(record -> {
+            model.addAttribute("verifactu", record);
+            model.addAttribute("qrSvg", es.brasatech.fastbite.service.QrSvg.of(record.qrUrl(), "QR tributario"));
+        });
         return "fastfood/ticket";
     }
 

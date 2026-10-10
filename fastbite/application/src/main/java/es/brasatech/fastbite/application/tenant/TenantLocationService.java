@@ -19,6 +19,10 @@ public class TenantLocationService {
         return tenantLocationPort.findByOwner(ownerUsername);
     }
 
+    public List<TenantLocation> getAllLocations() {
+        return tenantLocationPort.findAll();
+    }
+
     public Optional<TenantLocation> getLocation(String tenantId) {
         return tenantLocationPort.findByTenantId(tenantId);
     }

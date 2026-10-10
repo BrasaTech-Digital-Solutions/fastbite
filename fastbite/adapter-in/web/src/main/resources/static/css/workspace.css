@@ -237,3 +237,16 @@
 @media(max-width:1150px){.legal-layout{grid-template-columns:1fr}
 .ticket-preview-wrap{position:static;max-width:340px}
 }
+
+/* VERI*FACTU status of a location */
+.verifactu-panel{grid-column:1/-1;margin:0}
+.verifactu-panel .status-pill.waiting{background:#fdf3e1;border-color:#f0d9ad;color:#8a5a00}
+.verifactu-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}
+.verifactu-stats div{background:#f5f4ed;border-radius:10px;padding:12px 14px}
+.verifactu-stats dt{font-size:11px;font-weight:600;color:#65726b;text-transform:uppercase;letter-spacing:.06em}
+.verifactu-stats dd{margin:2px 0 0;font-size:22px;font-weight:700}
+.verifactu-stats .alert-stat{background:#fff3ef;color:#ad3e2b}
+.verifactu-last p{margin:0 0 4px;font-size:13px}
+.verifactu-last .fingerprint{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#53665a}
+.verifactu-rejected{font-size:13px;padding-left:18px}
+@media(max-width:700px){.verifactu-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

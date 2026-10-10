@@ -16,7 +16,8 @@ class OwnerWorkspaceServiceTest {
     RestaurantSettingsService settings=mock(RestaurantSettingsService.class);
     FiscalProfileService fiscal=mock(FiscalProfileService.class);
     es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets=mock(es.brasatech.fastbite.application.fiscal.FiscalTicketRepository.class);
-    OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets);
+    OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
+            mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class));
     static final FiscalProfile COMPLETE=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Mayor 1","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
     @AfterEach void clear(){TenantContext.clear();}
     @Test void deniesForeignLocationBeforeReadingOrWriting(){

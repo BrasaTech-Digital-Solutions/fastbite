@@ -26,10 +26,11 @@ public class OwnerWorkspaceController {
     private final AppearancePort appearance;
     private final es.brasatech.fastbite.config.ThemeCatalog themes;
     private final MessageSource messages;
+    private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
-            MessageSource messages) {
+            MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
-        this.appearance=appearance;this.themes=themes;this.messages=messages;
+        this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -53,6 +54,7 @@ public class OwnerWorkspaceController {
             if(section.equals("legal")) {
                 addLegal(model,setup.fiscal(),selected.tenantId());
                 model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
+                model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
             }
             model.addAttribute("billing",subscriptions.account(selected.tenantId(),owner.getName()));
             if(view.equals("team")) {
@@ -122,6 +124,20 @@ public class OwnerWorkspaceController {
                     profile.complete() ? "owner.legal.saved" : "owner.legal.saved.incomplete", null, locale));
         }
         return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
+    }
+
+    /**
+     * Every billing record of the location as JSON, in chain order: the restaurant can keep it and
+     * show it to an inspector, and anyone can recompute the fingerprints to check the chain.
+     */
+    @GetMapping("/owner/workspace/{tenant}/verifactu/records.json")
+    public org.springframework.http.ResponseEntity<List<es.brasatech.fastbite.domain.verifactu.VerifactuRecord>> verifactuRecords(
+            @PathVariable String tenant, Principal owner) {
+        check(owner, tenant);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"verifactu-" + tenant + ".json\"")
+                .body(workspace.verifactuRecords(owner.getName(), tenant, environment.sandbox()));
     }
 
     @PostMapping("/owner/workspace/{tenant}/backup-preview") @ResponseBody

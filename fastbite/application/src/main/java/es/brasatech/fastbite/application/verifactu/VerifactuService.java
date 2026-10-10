@@ -1,0 +1,175 @@
+package es.brasatech.fastbite.application.verifactu;
+
+import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
+import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
+import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.verifactu.Verifactu;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
+import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Generates the VERI*FACTU billing record of every ticket, chained to the one before, and sends
+ * pending records when a submitter is configured.
+ */
+@Service
+@Transactional
+public class VerifactuService {
+
+    /** The tax agency takes at most this many records per submission. */
+    static final int BATCH = 1000;
+
+    /** Where a location's records stand, for the owner console. */
+    public record Summary(boolean configured, String submitter, boolean training, Map<VerifactuStatus, Long> counts,
+            VerifactuRecord last, List<VerifactuRecord> rejected) {
+
+        public long total() {
+            return counts.values().stream().mapToLong(Long::longValue).sum();
+        }
+
+        public long count(VerifactuStatus status) {
+            return counts.getOrDefault(status, 0L);
+        }
+
+        public long pending() {
+            return count(VerifactuStatus.PENDING);
+        }
+
+        public long accepted() {
+            return count(VerifactuStatus.ACCEPTED) + count(VerifactuStatus.ACCEPTED_WITH_ERRORS);
+        }
+
+        public long refused() {
+            return count(VerifactuStatus.REJECTED);
+        }
+    }
+
+    private final VerifactuRepository records;
+    private final FiscalTicketRepository tickets;
+    private final VerifactuSubmitter submitter;
+    private final VerifactuSystem system;
+    private final Clock clock;
+
+    @Autowired
+    public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
+            VerifactuSystem system) {
+        this(records, tickets, submitter, system, Clock.systemDefaultZone());
+    }
+
+    public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
+            VerifactuSystem system, Clock clock) {
+        this.records = records;
+        this.tickets = tickets;
+        this.submitter = submitter;
+        this.system = system;
+        this.clock = clock;
+    }
+
+    /**
+     * Generates the record of a ticket just issued, in the transaction that issues it. The record
+     * is generated at the moment of issue, in the ticket's time zone.
+     */
+    public VerifactuRecord record(FiscalTicket ticket) {
+        String chain = ticket.training() ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
+        Optional<VerifactuRecord> last = records.lockChain(chain);
+        String nif = Objects.toString(ticket.issuer().taxId(), "");
+        TicketKind correctedKind = null;
+        VerifactuRecord.Link corrected = null;
+        if (ticket.corrects() != null) {
+            FiscalTicket original = tickets.findById(ticket.corrects().ticketId())
+                    .orElseThrow(() -> new IllegalStateException("Corrected ticket " + ticket.corrects().fullNumber() + " not found"));
+            correctedKind = original.kind();
+            corrected = new VerifactuRecord.Link(Objects.toString(original.issuer().taxId(), ""), original.fullNumber(),
+                    original.issuedOn(), null);
+        }
+        String type = Verifactu.invoiceType(ticket.kind(), correctedKind);
+        // Generated now, to the second as it is hashed and sent, and never before the record it is chained to
+        OffsetDateTime generatedAt = OffsetDateTime.now(clock.withZone(ticket.issuedAt().getOffset()))
+                .truncatedTo(ChronoUnit.SECONDS);
+        if (generatedAt.isBefore(ticket.issuedAt().truncatedTo(ChronoUnit.SECONDS))) {
+            generatedAt = ticket.issuedAt().truncatedTo(ChronoUnit.SECONDS);
+        }
+        if (last.isPresent() && generatedAt.isBefore(last.get().generatedAt())) {
+            generatedAt = last.get().generatedAt();
+        }
+        VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
+                record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
+        String fingerprint = Verifactu.fingerprint(nif, ticket.fullNumber(), ticket.issuedOn(), type,
+                ticket.vat().vat(), ticket.total(), previous == null ? null : previous.fingerprint(), generatedAt);
+        String qr = Verifactu.qrUrl(!ticket.training(), nif, ticket.fullNumber(), ticket.issuedOn(), ticket.total());
+        return records.append(new VerifactuRecord(UUID.randomUUID().toString(), ticket.id(), chain,
+                last.map(record -> record.sequence() + 1).orElse(1), type, nif, ticket.issuer().legalName(),
+                ticket.fullNumber(), ticket.issuedOn(), generatedAt, ticket.vat().vat(), ticket.total(), previous,
+                fingerprint, qr, corrected, ticket.training(), VerifactuRecord.Submission.PENDING));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<VerifactuRecord> findForTicket(String ticketId) {
+        return records.findByTicketId(ticketId);
+    }
+
+    @Transactional(readOnly = true)
+    public Summary summary(boolean training) {
+        String chain = training ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
+        Map<VerifactuStatus, Long> counts = new EnumMap<>(VerifactuStatus.class);
+        counts.putAll(records.countByStatus(chain));
+        return new Summary(submitter.configured(), submitter.name(), training, counts,
+                records.findLast(chain).orElse(null), records.findRejected(chain, 20));
+    }
+
+    @Transactional(readOnly = true)
+    public List<VerifactuRecord> chain(boolean training) {
+        return records.findAll(training ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN);
+    }
+
+    /**
+     * Sends the current location's pending records, oldest first, and stores the answers.
+     *
+     * @return how many records got an answer
+     */
+    public int submitPending(boolean training) {
+        if (!submitter.configured()) {
+            return 0;
+        }
+        String chain = training ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
+        List<VerifactuRecord> pending = records.findPending(chain, BATCH);
+        if (pending.isEmpty()) {
+            return 0;
+        }
+        List<VerifactuSubmitter.Submission> batch = new ArrayList<>();
+        for (VerifactuRecord record : pending) {
+            tickets.findById(record.ticketId())
+                    .ifPresent(ticket -> batch.add(new VerifactuSubmitter.Submission(record, ticket)));
+        }
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        int answered = 0;
+        for (VerifactuSubmitter.Result result : submitter.submit(system, batch, !training)) {
+            VerifactuRecord sent = pending.stream().filter(record -> record.id().equals(result.recordId())).findFirst()
+                    .orElse(null);
+            if (sent == null) {
+                continue;
+            }
+            records.updateSubmission(sent.id(), new VerifactuRecord.Submission(result.status(),
+                    sent.submission().attempts() + 1, result.error(), result.csv(), now));
+            answered++;
+        }
+        return answered;
+    }
+
+    public boolean configured() {
+        return submitter.configured();
+    }
+}

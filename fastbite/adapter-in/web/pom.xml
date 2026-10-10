@@ -17,6 +17,12 @@
             <artifactId>application</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- The tax QR code printed on invoices (pure Java, MIT licence) -->
+        <dependency>
+            <groupId>io.nayuki</groupId>
+            <artifactId>qrcodegen</artifactId>
+            <version>1.8.0</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

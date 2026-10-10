@@ -67,6 +67,31 @@ never changed or deleted.
 - Refunding a card or online payment gives the ticket back; the money itself is returned on the terminal or
   in Stripe.
 
+## VERI*FACTU
+
+FastBite works as a VERI*FACTU system: every ticket generates a billing record (registro de alta) in the
+same transaction that issues it, so a ticket never exists without its record.
+
+- **Chain**: each record holds the fingerprint (huella) of the record before it. The fingerprint is the
+  SHA-256 of `IDEmisorFactura=…&NumSerieFactura=…&FechaExpedicionFactura=dd-mm-aaaa&TipoFactura=…&CuotaTotal=…&ImporteTotal=…&Huella=<previous>&FechaHoraHusoGenRegistro=<ISO with offset>`
+  in uppercase hexadecimal. The implementation is checked against the two worked examples of the AEAT
+  specification (`VerifactuTest`). Each location is one chain; the sandbox's training records form their own.
+- **Invoice types**: simplified F2, full F1, full invoice replacing a simplified one F3, corrective R5 (of a
+  simplified invoice) or R1 (of a full invoice). Confirm R1 vs R4 for refunds with the tax adviser.
+- **QR code**: printed on every ticket, 34 mm, medium error correction, under "QR tributario:" and above
+  "VERI*FACTU" and "Factura verificable en la sede electrónica de la AEAT". It points to the AEAT checking
+  page (`www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR`), or to its test environment in the sandbox.
+  The QR is drawn on the server as SVG.
+- **Sending**: records are sent through a `VerifactuSubmitter`. The provider (or a direct connection) is not
+  chosen yet, so `UnconfiguredVerifactuSubmitter` keeps every record pending; a background job sends pending
+  records in chain order, at most 1000 at a time, once a submitter marked `@Primary` is added. The owner
+  console shows the status (pending, accepted, refused with the reason) and lets the owner download every
+  record as JSON, from which anyone can recompute the chain.
+- **System**: the software is identified as `fastbite.verifactu.*` (producer name and NIF, system name, id and
+  version). The producer must publish the declaración responsable for each version.
+
+Records are generated for tickets issued after this was deployed; earlier tickets have none.
+
 ## Sandbox and production
 
 `fastbite.environment` (`FASTBITE_ENVIRONMENT`) is `sandbox` unless set to `production`. The sandbox issues

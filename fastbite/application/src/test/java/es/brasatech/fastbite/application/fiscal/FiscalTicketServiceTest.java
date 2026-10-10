@@ -71,10 +71,12 @@ class FiscalTicketServiceTest {
     FiscalProfileService profiles = mock(FiscalProfileService.class);
     TableService tables = mock(TableService.class);
     MemoryTickets tickets = new MemoryTickets();
+    es.brasatech.fastbite.application.verifactu.VerifactuService verifactu =
+            mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class);
     FiscalTicketService production = new FiscalTicketService(orders, tickets, profiles,
-            new PlatformEnvironment("production"), tables, NOON);
+            new PlatformEnvironment("production"), tables, verifactu, NOON);
     FiscalTicketService sandbox = new FiscalTicketService(orders, tickets, profiles,
-            new PlatformEnvironment("sandbox"), tables, NOON);
+            new PlatformEnvironment("sandbox"), tables, verifactu, NOON);
 
     Order kebab;
     Order beer;
@@ -119,6 +121,7 @@ class FiscalTicketServiceTest {
         assertThat(ticket.lines().getFirst().options()).extracting(TicketLine -> TicketLine.name()).containsExactly("Garlic sauce");
         verify(orders).markOrderPaid(kebab.id());
         verify(orders).markOrderPaid(beer.id());
+        verify(verifactu).record(ticket);
     }
 
     @Test

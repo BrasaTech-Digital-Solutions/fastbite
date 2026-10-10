@@ -56,6 +56,7 @@ class TicketEndpointTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private FiscalTicketService tickets;
+    @MockitoBean private es.brasatech.fastbite.application.verifactu.VerifactuService verifactu;
     @MockitoBean private TenantLocationService tenantLocationService;
 
     private static final FiscalTicket SALE = new FiscalTicket("t1", TicketKind.SIMPLIFIED, "KH-T26", 7, "KH-T26-000007",
@@ -103,6 +104,24 @@ class TicketEndpointTest {
                         containsString("1,27"),   // VAT
                         containsString("Cambio"),
                         containsString("6,00"))));
+    }
+
+    @Test
+    void thePrintedTicketCarriesItsTaxQrCode() throws Exception {
+        var record = new es.brasatech.fastbite.domain.verifactu.VerifactuRecord("rec1", "t1", "REAL", 1, "F2",
+                "12345678Z", "Ana García López", "KH-T26-000007", SALE.issuedOn(), SALE.issuedAt(), new BigDecimal("1.27"),
+                new BigDecimal("14.00"), null, "ABC", es.brasatech.fastbite.domain.verifactu.Verifactu.qrUrl(true,
+                "12345678Z", "KH-T26-000007", SALE.issuedOn(), new BigDecimal("14.00")), null, false,
+                es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Submission.PENDING);
+        when(verifactu.findForTicket("t1")).thenReturn(Optional.of(record));
+
+        mockMvc.perform(as("ROLE_CASHIER", get("/kebab/counter/tickets/t1")).locale(Locale.forLanguageTag("es")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("QR tributario:"),
+                        containsString("<svg"),
+                        containsString("VERI*FACTU"),
+                        containsString("Factura verificable en la sede electrónica de la AEAT"))));
     }
 
     @Test
