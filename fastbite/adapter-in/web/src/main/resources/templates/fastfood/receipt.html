@@ -8,6 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/ticket.css}">
 </head>
 <body class="paper">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
 
 <header class="center">
     <p class="trade" th:text="${profile.displayName() ?: #messages.msg('ticket.missing')}">Kebab House</p>

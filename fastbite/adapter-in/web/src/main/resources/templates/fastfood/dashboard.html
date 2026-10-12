@@ -13,6 +13,7 @@
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
 <body>
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <!-- Navigation -->
     <div th:replace="~{fastfood/fragments/navbar :: navbar(activeTab='dashboard')}"></div>
     <div id="kds-timer-config" style="display:none;" th:data-yellow-minutes="${settings.kdsYellowMinutes}" th:data-red-minutes="${settings.kdsRedMinutes}"></div>

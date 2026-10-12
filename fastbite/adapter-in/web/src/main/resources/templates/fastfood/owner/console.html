@@ -4,7 +4,8 @@
 <title>Your workspace — FastBite</title><link rel="stylesheet" href="/css/platform.css"><link rel="stylesheet" href="/css/workspace.css">
 <meta name="csrf-token" th:content="${_csrf.token}"><meta name="csrf-header" th:content="${_csrf.headerName}">
 <script defer src="/js/workspace.js"></script><script defer src="/js/fiscal-profile.js"></script></head>
-<body class="workspace"><a class="skip-link" href="#workspace-main">Skip to content</a>
+<body class="workspace">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main">Skip to content</a>
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
 <div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
 <main id="workspace-main" class="workspace-main">

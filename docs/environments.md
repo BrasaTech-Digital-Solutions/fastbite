@@ -12,6 +12,27 @@ When a restaurant is ready, it is promoted: the owner exports a **production bun
 (menu, settings and business details; never orders, accounts or payment settings) and imports it into its
 production location.
 
+## Linked or standalone
+
+Production is the front door: signup, subscription and the owner's account live there. It sets up each new
+location in the sandbox too, and the sandbox trusts only production's signed sign-in links. Each environment
+knows the other through three settings:
+
+| Setting | On production | On the sandbox |
+|---|---|---|
+| `FASTBITE_LINK_URL` | the sandbox's address for browsers | production's address for browsers |
+| `FASTBITE_LINK_INTERNAL_URL` | how the server reaches the sandbox (defaults to the above) | how the server reaches production |
+| `FASTBITE_LINK_SECRET` | the shared secret, at least 32 characters | the same secret |
+
+Without them an environment runs **standalone**, as before the link existed: the sandbox has its own signup,
+and production applies onboarding concepts to its own locations. **Production refuses to start standalone**
+unless `FASTBITE_STANDALONE=true` allows it on purpose: an IDE run (the `local` profile sets it), tests or a
+demo. A misconfigured server therefore never runs production without its sandbox unnoticed.
+
+Every page of the sandbox carries a striped banner ("SANDBOX: practice environment, nothing here is real"),
+a favicon of its own and "[Sandbox]" in the tab title; a linked sandbox's banner links back to production.
+Printed tickets and pages hide the banner.
+
 ## The same version, always
 
 A bundle written by one version could break a location of another, so:

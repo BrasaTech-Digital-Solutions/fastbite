@@ -11,6 +11,7 @@
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
 <body class="login-body">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <div class="login-card">
         <div class="login-logo">
             <i class="fas fa-hamburger"></i>

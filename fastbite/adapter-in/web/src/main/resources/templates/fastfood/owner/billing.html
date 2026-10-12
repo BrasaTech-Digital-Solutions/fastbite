@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="/css/platform.css">
 <link rel="stylesheet" href="/css/workspace.css">
 </head>
-<body class="workspace"><a class="skip-link" href="#workspace-main">Skip to content</a>
+<body class="workspace">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main">Skip to content</a>
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
 <div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
 <main class="workspace-main" id="workspace-main">

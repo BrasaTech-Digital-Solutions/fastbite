@@ -11,6 +11,7 @@
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
 <body>
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <div class="container-fluid py-4">
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">

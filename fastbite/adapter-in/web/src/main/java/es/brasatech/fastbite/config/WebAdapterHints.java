@@ -49,6 +49,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.controller.TicketController.SettleRequest.class,
                 es.brasatech.fastbite.controller.TicketController.RefundRequest.class,
                 es.brasatech.fastbite.controller.TicketController.CancelRequest.class,
+                es.brasatech.fastbite.controller.EnvironmentAdvice.PlatformView.class,
                 es.brasatech.fastbite.domain.fiscal.TicketCancellation.class,
                 es.brasatech.fastbite.dto.counter.InvoiceDetails.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.class,

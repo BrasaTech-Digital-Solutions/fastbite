@@ -100,6 +100,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/fastbite_production
       FASTBITE_PUBLIC_URL: http://localhost:${FASTBITE_PRODUCTION_PORT:-8090}
       TABLE_QR_SECRET: ${PRODUCTION_TABLE_QR_SECRET:-local-production-table-secret}
+      # Linked to the sandbox: browsers reach it on this machine, the servers inside the compose network
+      FASTBITE_LINK_URL: http://localhost:${FASTBITE_SANDBOX_PORT:-8091}
+      FASTBITE_LINK_INTERNAL_URL: http://sandbox:8080
+      FASTBITE_LINK_SECRET: ${FASTBITE_LINK_SECRET:-local-link-secret-for-docker-compose-only}
       # Never sends to the AEAT's production environment from a laptop
       VERIFACTU_PRODUCTION_ENABLED: "false"
     volumes:
@@ -121,6 +125,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/fastbite_sandbox
       FASTBITE_PUBLIC_URL: http://localhost:${FASTBITE_SANDBOX_PORT:-8091}
       TABLE_QR_SECRET: ${SANDBOX_TABLE_QR_SECRET:-local-sandbox-table-secret}
+      FASTBITE_LINK_URL: http://localhost:${FASTBITE_PRODUCTION_PORT:-8090}
+      FASTBITE_LINK_INTERNAL_URL: http://production:8080
+      FASTBITE_LINK_SECRET: ${FASTBITE_LINK_SECRET:-local-link-secret-for-docker-compose-only}
       # Training records go to the AEAT test environment when a certificate is in docker/secrets
       VERIFACTU_CERTIFICATE_PATH: ${SANDBOX_VERIFACTU_CERTIFICATE_PATH:-}
       VERIFACTU_CERTIFICATE_PASSWORD: ${VERIFACTU_CERTIFICATE_PASSWORD:-}

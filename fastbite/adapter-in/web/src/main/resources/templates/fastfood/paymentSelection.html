@@ -13,6 +13,7 @@
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
 <body>
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">

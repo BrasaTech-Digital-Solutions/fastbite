@@ -1,1 +1,3 @@
 fastbite.migrations.mode: migrate
+# Runs from the IDE may be production without a sandbox
+fastbite.link.standalone: true

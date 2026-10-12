@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- On every page of the sandbox: it must never be mistaken for production -->
+<div th:fragment="banner" th:if="${platform != null && platform.sandbox()}" class="fb-sandbox-banner" role="note">
+    <style>
+        .fb-sandbox-banner{position:sticky;top:0;z-index:2000;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.25rem .75rem;
+            padding:.45rem 1rem;font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1a14;text-align:center;
+            background:repeating-linear-gradient(135deg,#ffd23f 0 18px,#ffc61a 18px 36px);border-bottom:2px solid #1c1a14}
+        .fb-sandbox-banner strong{letter-spacing:.08em;padding:.1rem .45rem;border:2px solid #1c1a14;border-radius:4px;background:#fff8dc}
+        .fb-sandbox-banner a{color:#1c1a14;text-decoration:underline;font-weight:700}
+        @media print{.fb-sandbox-banner{display:none}}
+    </style>
+    <strong th:text="#{sandbox.banner.label}">SANDBOX</strong>
+    <span th:text="#{sandbox.banner.text}">Practice environment: nothing here is real.</span>
+    <a th:if="${platform.productionUrl() != null}" th:href="${platform.productionUrl()}" th:text="#{sandbox.banner.back}">Go to FastBite</a>
+    <script>
+        (() => {
+            const prefix = '[Sandbox] ';
+            if (!document.title.startsWith(prefix)) document.title = prefix + document.title;
+            document.querySelectorAll('link[rel~="icon"]').forEach(icon => { icon.href = '/images/favicon-sandbox.svg'; });
+        })();
+    </script>
+</div>
+</body>
+</html>

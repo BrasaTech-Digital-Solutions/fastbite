@@ -123,6 +123,14 @@ fastbite:
   # sandbox or production. The sandbox issues training tickets with no fiscal value; set
   # FASTBITE_ENVIRONMENT=production only on the deployment where restaurants trade for real.
   environment: ${FASTBITE_ENVIRONMENT:sandbox}
+  # The link between production and the sandbox: the other environment's address for browsers, the
+  # address the servers use to reach it (the same unless set apart), and the secret both share (at least
+  # 32 characters). Production refuses to start without it unless standalone is allowed on purpose.
+  link:
+    url: ${FASTBITE_LINK_URL:}
+    internal-url: ${FASTBITE_LINK_INTERNAL_URL:}
+    secret: ${FASTBITE_LINK_SECRET:}
+    standalone: ${FASTBITE_STANDALONE:false}
   # The FastBite version running. Release images bake it in (FASTBITE_VERSION), so the sandbox and
   # production report the same one when they run the same image; production only imports promotion
   # bundles exported by the same version.
