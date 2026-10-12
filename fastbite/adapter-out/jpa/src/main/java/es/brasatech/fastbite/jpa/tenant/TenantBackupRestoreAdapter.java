@@ -68,6 +68,10 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     @Value("${fastbite.orders.time-zone:Europe/Madrid}")
     private java.time.ZoneId ordersTimeZone;
 
+    /** Written into every archive; production bundles are only imported by the same version. */
+    @Value("${fastbite.version:dev}")
+    private String version;
+
     private final GroupJpaRepository groupJpaRepository;
     private final ProductJpaRepository productJpaRepository;
     private final CustomizationJpaRepository customizationJpaRepository;
@@ -100,6 +104,8 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             // 1. Gather all database entities
             TenantBackupData backupData = new TenantBackupData();
             backupData.setFormatVersion(3);
+            backupData.setAppVersion(version);
+            backupData.setProductionBundle(productionBundleOnly);
             backupData.setGroups(groupJpaRepository.findAll());
             backupData.setProducts(productJpaRepository.findAll());
             backupData.setCustomizations(customizationJpaRepository.findAll());
@@ -176,25 +182,49 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         }
     }
 
-    @Override
-    public void importRestore(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, false);
+    /** Which archives must come from the version running here. */
+    private enum VersionCheck {
+        /** Production bundles: promoting needs the sandbox and production on the same version. */
+        BUNDLES,
+        /** Demo templates are part of the image, whatever version made them. */
+        NEVER
     }
 
+    /** A backup of any version is restored; a production bundle restored this way is still checked. */
+    @Override
+    public void importRestore(String tenantId, InputStream inputStream) {
+        restoreArchive(tenantId, inputStream, false, VersionCheck.BUNDLES);
+    }
+
+    /**
+     * Promotes a sandbox location to production. The bundle must come from the version running
+     * here: the sandbox and production always run the same one, and data from another version
+     * could break the promoted location.
+     */
     @Override
     public void importProductionBundle(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, true);
+        restoreArchive(tenantId, inputStream, true, VersionCheck.BUNDLES, true);
     }
 
     @Override
     public void importDemoTemplate(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, true);
+        restoreArchive(tenantId, inputStream, true, VersionCheck.NEVER);
     }
 
-    private void restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly) {
+    private void restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check) {
+        restoreArchive(tenantId, inputStream, templateOnly, check, false);
+    }
+
+    /** @param bundleExpected the archive is imported as a production bundle, even if it is not marked as one */
+    private void restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check,
+            boolean bundleExpected) {
         Path destination = tenantMediaPath(tenantId);
         try (BackupMediaReplacement media = new BackupMediaReplacement(destination)) {
             TenantBackupData backupData = readArchive(inputStream, media.stagedMedia());
+            boolean bundle = bundleExpected || backupData.isProductionBundle();
+            if (check == VersionCheck.BUNDLES && bundle && !version.equals(backupData.getAppVersion())) {
+                throw new TenantBackupRestorePort.VersionMismatch(backupData.getAppVersion(), version);
+            }
             if (templateOnly) {
                 // A public template must never introduce sample credentials or old customer orders.
                 backupData.setUsers(java.util.List.of());
@@ -209,6 +239,8 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             });
             media.committed();
             log.info("Successfully restored backup data for tenant: {}", tenantId);
+        } catch (TenantBackupRestorePort.VersionMismatch e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Restore backup failed", e);
         }
@@ -458,6 +490,12 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     public static class TenantBackupData {
         // Older demo/translation archives have no explicit version.
         private int formatVersion = 1;
+        /** The FastBite version that exported it; absent in archives made before it was recorded. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String appVersion;
+        /** A production bundle, for promoting a sandbox location, rather than a backup. */
+        @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+        private boolean productionBundle;
         private List<GroupEntity> groups = new ArrayList<>();
         private List<ProductEntity> products = new ArrayList<>();
         private List<CustomizationEntity> customizations = new ArrayList<>();

@@ -39,8 +39,10 @@ spring:
         # Loads lazy collections (e.g. each product's customizations) in batches instead of one query per row
         default_batch_fetch_size: 50
   session:
-    store-type: jdbc
     jdbc:
+      # Created by the platform migration (V2). Named with its schema: connections handed back by a
+      # restaurant request can still point at that restaurant's schema.
+      table-name: PUBLIC.SPRING_SESSION
       initialize-schema: never
   h2:
     console:
@@ -121,6 +123,10 @@ fastbite:
   # sandbox or production. The sandbox issues training tickets with no fiscal value; set
   # FASTBITE_ENVIRONMENT=production only on the deployment where restaurants trade for real.
   environment: ${FASTBITE_ENVIRONMENT:sandbox}
+  # The FastBite version running. Release images bake it in (FASTBITE_VERSION), so the sandbox and
+  # production report the same one when they run the same image; production only imports promotion
+  # bundles exported by the same version.
+  version: ${FASTBITE_VERSION:@project.version@}
   # The billing software as VERI*FACTU records name it (SistemaInformatico). The producer signs the
   # declaración responsable of each version.
   verifactu:
@@ -152,6 +158,12 @@ fastbite:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.
     secret: ${TABLE_QR_SECRET:local-development-only-table-secret}
+  session:
+    # Each environment has its own session cookie (FASTBITE_SESSION, FASTBITE_SANDBOX_SESSION), so signing in
+    # to one never signs anyone out of the other. Set the platform's own domain (e.g. fastbite.brasatech.es)
+    # so the cookie is shared by its restaurant subdomains and no other site of the company domain.
+    cookie-name: ${FASTBITE_SESSION_COOKIE:}
+    cookie-domain: ${FASTBITE_COOKIE_DOMAIN:}
   orders:
     # Order numbers restart at 1 at midnight in this time zone
     time-zone: ${ORDERS_TIME_ZONE:Europe/Madrid}

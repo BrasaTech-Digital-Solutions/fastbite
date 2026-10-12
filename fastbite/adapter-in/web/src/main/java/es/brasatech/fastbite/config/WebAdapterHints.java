@@ -102,7 +102,30 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.serialization().registerType(TypeReference.of("org.springframework.security.core.userdetails.User"));
         hints.serialization().registerType(es.brasatech.fastbite.security.TenantUser.class);
         hints.serialization().registerType(TypeReference.of("org.springframework.security.core.authority.SimpleGrantedAuthority"));
-        hints.serialization().registerType(TypeReference.of("org.springframework.security.authentication.FactorGrantedAuthority"));
+        hints.serialization().registerType(TypeReference.of("org.springframework.security.core.authority.FactorGrantedAuthority"));
+        // Everything else a signed-in session holds (see SessionSerializationHintsTest)
+        for (String type : new String[]{
+                "org.springframework.security.authentication.AbstractAuthenticationToken",
+                "org.springframework.security.core.userdetails.User$AuthorityComparator",
+                "org.springframework.security.web.authentication.WebAuthenticationDetails",
+                "org.springframework.security.web.csrf.DefaultCsrfToken",
+                "org.springframework.security.web.savedrequest.DefaultSavedRequest",
+                "org.springframework.security.web.savedrequest.SavedCookie",
+                "java.lang.String$CaseInsensitiveComparator",
+                "java.time.Ser",
+                "java.util.Collections$UnmodifiableCollection",
+                "java.util.Locale",
+                "java.util.TreeMap",
+                "java.util.TreeSet",
+                "java.lang.String",
+                // Notices shown after a redirect (flash attributes)
+                "org.springframework.web.servlet.FlashMap",
+                "org.springframework.util.LinkedMultiValueMap",
+                "org.springframework.util.MultiValueMapAdapter",
+                "java.util.concurrent.CopyOnWriteArrayList",
+                "java.util.LinkedHashMap"}) {
+            hints.serialization().registerType(TypeReference.of(type));
+        }
         hints.serialization().registerType(java.time.Instant.class);
         hints.serialization().registerType(es.brasatech.fastbite.domain.user.Role.class);
         hints.serialization().registerType(UserDto.class);

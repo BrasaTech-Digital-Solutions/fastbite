@@ -4,7 +4,12 @@ const token=document.querySelector('meta[name="csrf-token"]').content;
 const header=document.querySelector('meta[name="csrf-header"]').content;
 const feedback=document.getElementById('workspace-feedback');
 function message(text,error=false){feedback.textContent=text;feedback.hidden=false;feedback.className='alert '+(error?'error':'success');feedback.scrollIntoView({block:'center',behavior:'smooth'});}
-async function request(url,body,html=false){const response=await fetch(url,{method:'POST',headers:{[header]:token},body});if(!response.ok || response.redirected)throw new Error('The action could not be completed. Check your session and try again.');return html?response.text():response.json();}
+async function request(url,body,html=false){const response=await fetch(url,{method:'POST',headers:{[header]:token},body});if(!response.ok || response.redirected){
+ // A conflict explains itself, such as a production bundle from another FastBite version
+ let reason='The action could not be completed. Check your session and try again.';
+ if(response.status===409){try{reason=(await response.json()).message||reason;}catch(e){}}
+ throw new Error(reason);}
+ return html?response.text():response.json();}
 function busy(form,value){form.querySelectorAll('button').forEach(b=>b.disabled=value);form.setAttribute('aria-busy',String(value));}
 // Replace only the server-rendered team content, preserving the workspace.
 document.addEventListener('submit',async event=>{

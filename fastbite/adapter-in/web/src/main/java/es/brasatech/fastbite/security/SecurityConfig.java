@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.security;
 
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import jakarta.servlet.ServletException;
@@ -7,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
@@ -32,7 +34,8 @@ import java.io.IOException;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService,
+            SessionCookie sessionCookie) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
@@ -72,7 +75,7 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutRequestMatcher(SecurityConfig::isLogoutRequest)
                         .logoutSuccessHandler(new TenantLogoutSuccessHandler())
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies(sessionCookie.name())
                         .invalidateHttpSession(true)
                         .permitAll())
                 .csrf(csrf -> csrf
@@ -168,12 +171,20 @@ public class SecurityConfig {
         }
     }
 
+    /** Read straight from the configuration, so every web slice that imports this class has it. */
     @Bean
-    public CookieSerializer cookieSerializer() {
+    public SessionCookie sessionCookie(Environment configuration) {
+        return new SessionCookie(new PlatformEnvironment(configuration.getProperty("fastbite.environment", "sandbox")),
+                configuration.getProperty("fastbite.session.cookie-name", ""),
+                configuration.getProperty("fastbite.session.cookie-domain", ""));
+    }
+
+    /** One sign-in for the platform and its restaurant subdomains; see {@link SessionCookie}. */
+    @Bean
+    public CookieSerializer cookieSerializer(SessionCookie sessionCookie) {
         DefaultCookieSerializer serializer = new DefaultCookieSerializer();
-        serializer.setCookieName("JSESSIONID");
-        // Allows wildcard session cookie sharing (e.g. *.localhost or *.yourdomain.com)
-        serializer.setDomainNamePattern("^(?:.+?\\.)?(\\w+\\.\\w+)$");
+        serializer.setCookieName(sessionCookie.name());
+        serializer.setDomainNamePattern(sessionCookie.domainPattern());
         return serializer;
     }
 }

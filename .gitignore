@@ -52,3 +52,7 @@ AGENT.md
 # Electronic certificates (VERI*FACTU) are never committed
 *.pfx
 *.p12
+
+# Local secrets mounted by docker compose
+docker/secrets/*
+!docker/secrets/README.md

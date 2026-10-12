@@ -94,6 +94,9 @@ public class TenantMaintenanceController {
             tenantBackupRestorePort.importProductionBundle(tenantId, is);
             log.info("Production bundle imported successfully for tenant: {}", tenantId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Production bundle successfully imported into location."));
+        } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
+            log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             log.error("Failed to import production bundle for tenant: " + tenantId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -115,6 +118,9 @@ public class TenantMaintenanceController {
             tenantBackupRestorePort.importRestore(tenantId, is);
             log.info("Restore completed successfully for tenant: {}", tenantId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Database and files successfully restored."));
+        } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
+            log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             log.error("Failed to restore backup for tenant: " + tenantId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

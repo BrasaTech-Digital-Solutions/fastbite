@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
@@ -210,5 +211,55 @@ class TenantBackupRestoreAdapterTest {
         assertTrue(preview.products() > 0);
         assertEquals(0, preview.orders(), "Production bundle must not contain orders");
         assertEquals(0, preview.accounts(), "Production bundle must not contain accounts");
+    }
+
+    @Test
+    void aProductionBundleIsOnlyImportedByTheVersionThatExportedIt() throws Exception {
+        String sandbox = "bundlesandbox";
+        String production = "bundleproduction";
+        tenantProvisionerAdapter.provisionTenant(sandbox);
+        tenantProvisionerAdapter.provisionTenant(production);
+        TenantContext.setCurrentTenant(sandbox);
+        backupRestoreAdapter.importDemoTemplate(sandbox, "kebab");
+        ByteArrayOutputStream bundle = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(sandbox, bundle);
+
+        TenantContext.setCurrentTenant(production);
+        backupRestoreAdapter.importProductionBundle(production, new ByteArrayInputStream(bundle.toByteArray()));
+
+        // The same bundle, as if exported by another release
+        byte[] other = withVersion(bundle.toByteArray(), "0.9.0");
+        var refused = assertThrows(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch.class,
+                () -> backupRestoreAdapter.importProductionBundle(production, new ByteArrayInputStream(other)));
+        assertTrue(refused.getMessage().contains("0.9.0"), refused.getMessage());
+        // Restored through the console's restore, a bundle is still a bundle
+        assertThrows(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch.class,
+                () -> backupRestoreAdapter.importRestore(production, new ByteArrayInputStream(other)));
+        // A backup of another version is restored as before
+        ByteArrayOutputStream backup = new ByteArrayOutputStream();
+        TenantContext.setCurrentTenant(sandbox);
+        backupRestoreAdapter.exportBackup(sandbox, backup);
+        TenantContext.setCurrentTenant(production);
+        backupRestoreAdapter.importRestore(production, new ByteArrayInputStream(withVersion(backup.toByteArray(), "0.9.0")));
+    }
+
+    /** The archive with data.json claiming another FastBite version. */
+    private static byte[] withVersion(byte[] archive, String version) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (var in = new java.util.zip.ZipInputStream(new ByteArrayInputStream(archive));
+             var zip = new java.util.zip.ZipOutputStream(out)) {
+            for (var entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                byte[] content = in.readAllBytes();
+                if (entry.getName().equals("data.json")) {
+                    content = new String(content, java.nio.charset.StandardCharsets.UTF_8)
+                            .replaceFirst("\"appVersion\"\\s*:\\s*\"[^\"]*\"", "\"appVersion\" : \"" + version + "\"")
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                }
+                zip.putNextEntry(new java.util.zip.ZipEntry(entry.getName()));
+                zip.write(content);
+                zip.closeEntry();
+            }
+        }
+        return out.toByteArray();
     }
 }

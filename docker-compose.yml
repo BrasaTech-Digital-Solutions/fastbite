@@ -1,61 +1,140 @@
-# Local development stack. Production should run the migration job separately.
+# The platform on one machine, as on the server: production and the sandbox side by side. Both run
+# the same image, built once, each with its own database, storage and session cookie. Restaurants
+# set up in the sandbox are promoted to production with a production bundle, which production only
+# accepts from its own version.
+#
+#   docker compose up --build        (optional settings: copy docker/local.env.example to .env)
+#
+#   Production  http://localhost:8090   restaurants at http://<location>.localhost:8090
+#   Sandbox     http://localhost:8091   restaurants at http://<location>.localhost:8091
+#   Email       http://localhost:8027   (mail from both environments)
+#
+# Each environment migrates its database with the migration job before it starts, as on the server.
+
+x-image: &image
+  image: fastbite:${FASTBITE_VERSION:-local}
+
 x-database: &database
-  DB_URL: jdbc:postgresql://postgres:5432/brasatech
-  DB_USER: brasatech
-  DB_PASSWORD: brasatech
+  DB_USER: fastbite
+  DB_PASSWORD: fastbite
   DB_DRIVER: org.postgresql.Driver
   HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+
+x-app: &app
+  SPRING_PROFILES_ACTIVE: jpa
+  # The migration job has run; the application only checks the schemas
+  MIGRATION_MODE: validate
+  H2_CONSOLE_ENABLED: "false"
+  IMAGE_UPLOAD_DIR: /storage/images
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  SMTP_AUTH: "false"
+  SMTP_STARTTLS: "false"
+  # Stripe test mode in both: real payments never run on a laptop
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_CONNECT_WEBHOOK_SECRET: ${STRIPE_CONNECT_WEBHOOK_SECRET:-}
+  STRIPE_CONNECTED_ACCOUNT: ${STRIPE_CONNECTED_ACCOUNT:-}
 
 services:
   postgres:
     image: postgres:17
     environment:
-      POSTGRES_DB: brasatech
-      POSTGRES_USER: brasatech
-      POSTGRES_PASSWORD: brasatech
+      POSTGRES_USER: fastbite
+      POSTGRES_PASSWORD: fastbite
+      POSTGRES_DB: fastbite
     ports:
-      - "${FASTBITE_DB_PORT:-5433}:5432"
+      - "${FASTBITE_DB_PORT:-5434}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-environments:/var/lib/postgresql/data
+      # Creates one database per environment the first time the volume is used
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U brasatech -d brasatech"]
+      test: ["CMD-SHELL", "pg_isready -U fastbite -d fastbite_sandbox"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
 
-  # Catches local outgoing email at http://localhost:8025.
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "${FASTBITE_SMTP_PORT:-1025}:1025"
-      - "${FASTBITE_MAIL_UI_PORT:-8025}:8025"
+      - "${FASTBITE_MAIL_UI_PORT:-8027}:8025"
 
-  fastbite:
+  migrate-production:
+    <<: *image
     build:
       context: .
       dockerfile: docker/Dockerfile-Multi-Stage
-    image: ricardomaximino/fastbite-native:latest
-    ports:
-      - "${FASTBITE_PORT:-8080}:8080"
+      args:
+        FASTBITE_VERSION: ${FASTBITE_VERSION:-local}
+    command: ["--migration-job"]
     environment:
       <<: *database
-      SPRING_PROFILES_ACTIVE: jpa
-      MIGRATION_MODE: migrate
-      H2_CONSOLE_ENABLED: "false"
-      IMAGE_UPLOAD_DIR: /storage/images
-      FASTBITE_PUBLIC_URL: http://localhost:${FASTBITE_PORT:-8080}
-      SMTP_HOST: mailpit
-      SMTP_PORT: "1025"
-      SMTP_AUTH: "false"
-      SMTP_STARTTLS: "false"
-    volumes:
-      - fastbite-storage:/storage
+      DB_URL: jdbc:postgresql://postgres:5432/fastbite_production
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
+
+  migrate-sandbox:
+    <<: *image
+    pull_policy: never
+    command: ["--migration-job"]
+    environment:
+      <<: *database
+      DB_URL: jdbc:postgresql://postgres:5432/fastbite_sandbox
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate-production:
+        condition: service_completed_successfully
+
+  production:
+    <<: *image
+    pull_policy: never
+    ports:
+      - "${FASTBITE_PRODUCTION_PORT:-8090}:8080"
+    environment:
+      <<: [*database, *app]
+      FASTBITE_ENVIRONMENT: production
+      DB_URL: jdbc:postgresql://postgres:5432/fastbite_production
+      FASTBITE_PUBLIC_URL: http://localhost:${FASTBITE_PRODUCTION_PORT:-8090}
+      TABLE_QR_SECRET: ${PRODUCTION_TABLE_QR_SECRET:-local-production-table-secret}
+      # Never sends to the AEAT's production environment from a laptop
+      VERIFACTU_PRODUCTION_ENABLED: "false"
+    volumes:
+      - production-storage:/storage
+    depends_on:
+      migrate-production:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+
+  sandbox:
+    <<: *image
+    pull_policy: never
+    ports:
+      - "${FASTBITE_SANDBOX_PORT:-8091}:8080"
+    environment:
+      <<: [*database, *app]
+      FASTBITE_ENVIRONMENT: sandbox
+      DB_URL: jdbc:postgresql://postgres:5432/fastbite_sandbox
+      FASTBITE_PUBLIC_URL: http://localhost:${FASTBITE_SANDBOX_PORT:-8091}
+      TABLE_QR_SECRET: ${SANDBOX_TABLE_QR_SECRET:-local-sandbox-table-secret}
+      # Training records go to the AEAT test environment when a certificate is in docker/secrets
+      VERIFACTU_CERTIFICATE_PATH: ${SANDBOX_VERIFACTU_CERTIFICATE_PATH:-}
+      VERIFACTU_CERTIFICATE_PASSWORD: ${VERIFACTU_CERTIFICATE_PASSWORD:-}
+      VERIFACTU_ISSUERS: ${VERIFACTU_ISSUERS:-}
+    volumes:
+      - sandbox-storage:/storage
+      - ./docker/secrets:/secrets:ro
+    depends_on:
+      migrate-sandbox:
+        condition: service_completed_successfully
       mailpit:
         condition: service_started
 
 volumes:
-  postgres-data:
-  fastbite-storage:
+  postgres-environments:
+  production-storage:
+  sandbox-storage:

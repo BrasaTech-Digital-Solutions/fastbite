@@ -17,6 +17,10 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 # Minimal non-root Linux runtime with glibc compatible with the GraalVM builder.
 FROM gcr.io/distroless/base-debian13:nonroot
+# The release this image is: the sandbox and production run the same image, so they report the same
+# version (production only imports promotion bundles of its own version).
+ARG FASTBITE_VERSION=dev
+ENV FASTBITE_VERSION=${FASTBITE_VERSION}
 WORKDIR /app
 COPY --from=build --chown=nonroot:nonroot /src/app /app/app
 COPY --from=build --chown=nonroot:nonroot /src/demo-templates /app/demo-templates
