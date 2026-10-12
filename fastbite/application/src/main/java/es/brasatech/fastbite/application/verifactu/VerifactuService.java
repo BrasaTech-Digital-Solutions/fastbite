@@ -20,10 +20,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -148,28 +150,77 @@ public class VerifactuService {
         if (!original.amendable()) {
             throw new IllegalStateException("Only refused records and records accepted with errors can be amended");
         }
-        // The tax agency has the invoice once any of its records was accepted
-        boolean afterRejection = original.submission().status() == VerifactuStatus.REJECTED
-                && (original.amends() == null || original.amends().afterRejection());
+        // A refused cancellation is sent again with RechazoPrevio S; an invoice record with X while
+        // the tax agency has never had the invoice
+        boolean afterRejection = original.cancels() || neverAccepted(original);
         OffsetDateTime generatedAt = OffsetDateTime.now(clock.withZone(original.generatedAt().getOffset()))
                 .truncatedTo(ChronoUnit.SECONDS);
         generatedAt = inOrder(generatedAt, last);
         VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
                 record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
-        String fingerprint = Verifactu.fingerprint(original.issuerNif(), original.invoiceNumber(), original.issueDate(),
-                original.invoiceType(), original.taxTotal(), original.amountTotal(),
-                previous == null ? null : previous.fingerprint(), generatedAt);
+        String previousFingerprint = previous == null ? null : previous.fingerprint();
+        String fingerprint = original.cancels()
+                ? Verifactu.cancellationFingerprint(original.issuerNif(), original.invoiceNumber(), original.issueDate(),
+                        previousFingerprint, generatedAt)
+                : Verifactu.fingerprint(original.issuerNif(), original.invoiceNumber(), original.issueDate(),
+                        original.invoiceType(), original.taxTotal(), original.amountTotal(), previousFingerprint, generatedAt);
         String name = issuerName == null || issuerName.isBlank() ? original.issuerName() : issuerName.strip();
         VerifactuRecord amending = records.append(new VerifactuRecord(UUID.randomUUID().toString(), original.ticketId(),
                 original.chain(), last.map(record -> record.sequence() + 1).orElse(1), original.invoiceType(),
                 original.issuerNif(), name, original.invoiceNumber(), original.issueDate(), generatedAt,
                 original.taxTotal(), original.amountTotal(), previous, fingerprint, original.qrUrl(), original.corrected(),
-                new VerifactuRecord.Amendment(original.id(), afterRejection), original.training(),
-                VerifactuRecord.Submission.PENDING));
-        VerifactuRecord.Submission was = original.submission();
-        records.updateSubmission(original.id(), new VerifactuRecord.Submission(VerifactuStatus.AMENDED, was.attempts(),
-                was.error(), was.csv(), was.at()));
+                new VerifactuRecord.Amendment(original.id(), afterRejection), original.cancellation(),
+                original.training(), VerifactuRecord.Submission.PENDING));
+        supersede(original);
         return amending;
+    }
+
+    /**
+     * Generates the registro de anulación of a ticket cancelled because it was issued by mistake,
+     * in the transaction that cancels it, at the end of the ticket's chain. When the tax agency
+     * never had the invoice, it says so (SinRegistroPrevio S).
+     */
+    public VerifactuRecord cancel(FiscalTicket ticket) {
+        String chain = ticket.training() ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
+        Optional<VerifactuRecord> last = records.lockChain(chain);
+        checkChain(last);
+        Optional<VerifactuRecord> latest = records.findByTicketId(ticket.id());
+        if (latest.isPresent() && latest.get().cancels()) {
+            throw new IllegalStateException("Ticket " + ticket.fullNumber() + " already has a registro de anulación");
+        }
+        // No record at all: the ticket was issued before records were kept, so the agency never had it
+        boolean withoutPreviousRecord = latest.map(VerifactuService::neverAccepted).orElse(true);
+        String nif = Objects.toString(ticket.issuer().taxId(), "");
+        OffsetDateTime generatedAt = inOrder(OffsetDateTime.now(clock.withZone(ticket.issuedAt().getOffset()))
+                .truncatedTo(ChronoUnit.SECONDS), last);
+        VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
+                record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
+        String fingerprint = Verifactu.cancellationFingerprint(nif, ticket.fullNumber(), ticket.issuedOn(),
+                previous == null ? null : previous.fingerprint(), generatedAt);
+        VerifactuRecord cancellation = records.append(new VerifactuRecord(UUID.randomUUID().toString(), ticket.id(),
+                chain, last.map(record -> record.sequence() + 1).orElse(1),
+                latest.map(VerifactuRecord::invoiceType).orElse(Verifactu.invoiceType(ticket.kind(), null)), nif,
+                latest.map(VerifactuRecord::issuerName).orElse(ticket.issuer().legalName()), ticket.fullNumber(),
+                ticket.issuedOn(), generatedAt, ticket.vat().vat(), ticket.total(), previous, fingerprint,
+                latest.map(VerifactuRecord::qrUrl).orElse(Verifactu.qrUrl(!ticket.training(), nif, ticket.fullNumber(),
+                        ticket.issuedOn(), ticket.total())),
+                null, null, new VerifactuRecord.Cancellation(withoutPreviousRecord), ticket.training(),
+                VerifactuRecord.Submission.PENDING));
+        // A record of the cancelled invoice still waiting to be amended no longer needs it
+        latest.filter(VerifactuRecord::amendable).ifPresent(this::supersede);
+        return cancellation;
+    }
+
+    /** The tax agency has never had the invoice of this record: it, and every record before it, was refused. */
+    private static boolean neverAccepted(VerifactuRecord record) {
+        return record.submission().status() == VerifactuStatus.REJECTED
+                && (record.amends() == null || record.amends().afterRejection());
+    }
+
+    private void supersede(VerifactuRecord record) {
+        VerifactuRecord.Submission was = record.submission();
+        records.updateSubmission(record.id(), new VerifactuRecord.Submission(VerifactuStatus.AMENDED, was.attempts(),
+                was.error(), was.csv(), was.at()));
     }
 
     @Transactional(readOnly = true)
@@ -208,7 +259,13 @@ public class VerifactuService {
             return 0;
         }
         List<VerifactuSubmitter.Submission> batch = new ArrayList<>();
+        Set<String> invoices = new HashSet<>();
         for (VerifactuRecord record : pending) {
+            // The agency answers per invoice: a second record of the same invoice, such as its
+            // cancellation, waits for the next submission, so the chain order holds
+            if (!invoices.add(record.issuerNif() + "|" + record.invoiceNumber())) {
+                break;
+            }
             tickets.findById(record.ticketId())
                     .ifPresent(ticket -> batch.add(new VerifactuSubmitter.Submission(record, ticket)));
         }

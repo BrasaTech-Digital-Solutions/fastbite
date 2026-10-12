@@ -64,6 +64,13 @@ never changed or deleted.
 - The bill printed before paying is a pro forma marked "not an invoice".
 - Once a location has issued a real ticket, its NIF and series code are locked and its business details
   must stay complete.
+- **Cancelling a ticket issued by mistake** (*Tickets → Cancel ticket*, managers only, with a reason): only
+  when there was no sale, for example the wrong table was settled. Only simplified tickets and full invoices
+  paid at the counter, not refunded or replaced, and only on the day they were issued; anything else is
+  refunded. The ticket is never changed: the cancellation is kept beside it (`fiscal_ticket_cancellations`),
+  the ticket prints "CANCELLED", it leaves the day's totals, and its orders become unpaid again so they can
+  be charged correctly. Its number is never reused. Any money taken is given back on the terminal or from
+  the till. Online payments are real sales and are always refunded.
 - Refunding a card or online payment gives the ticket back; the money itself is returned on the terminal or
   in Stripe.
 
@@ -107,7 +114,12 @@ same transaction that issues it, so a ticket never exists without its record.
     `IndicadorMultiplesOT` is `S` once the location's owner has more than one location, and stays `S`
     after that; otherwise `N`. Sending a first record (`PrimerRegistro`) in an installation that already
     has records gets the admissible error 2007, which is what happened before this was in place.
-  - Not done yet: cancellation records (`RegistroAnulacion`) for invoices issued by mistake.
+  - **Registros de anulación**: cancelling a ticket adds a cancellation record at the end of the chain,
+    with its own fingerprint (`IDEmisorFacturaAnulada…&Huella…&FechaHoraHusoGenRegistro`, checked against
+    the AEAT's worked example). `SinRegistroPrevio=S` when the AEAT never had the invoice (its record was
+    refused, or it predates the records); a refused cancellation can be sent again from the owner console
+    with `RechazoPrevio=S`. One submission never carries two records of the same invoice, so an invoice and
+    its cancellation go one after the other. Checked live against the AEAT test environment: accepted.
 - **Subsanación**: the owner console lists records the AEAT refused or accepted with errors, with the
   AEAT's reason. *Send again corrected* adds a new record of the same invoice at the end of the chain, with
   the location's current legal name and its own fingerprint, marked `Subsanacion=S`, plus

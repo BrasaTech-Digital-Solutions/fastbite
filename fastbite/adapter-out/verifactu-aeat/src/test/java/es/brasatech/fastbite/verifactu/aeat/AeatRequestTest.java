@@ -101,6 +101,25 @@ class AeatRequestTest {
     }
 
     @Test
+    void aCancellationIsSentAsARegistroDeAnulacion() throws Exception {
+        var sale = AeatFixtures.chain().getFirst();
+        var cancellation = AeatFixtures.cancellation(sale, false, false);
+        var neverHad = AeatFixtures.cancellation(AeatFixtures.chain().get(1), true, false);
+        var again = AeatFixtures.cancellation(AeatFixtures.chain().get(2), false, true);
+
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, List.of(cancellation, neverHad, again)));
+
+        schema().newValidator().validate(new DOMSource(body(doc)));
+        assertThat(doc.getElementsByTagNameNS(AeatRequest.SF, "RegistroAnulacion").getLength()).isEqualTo(3);
+        assertThat(doc.getElementsByTagNameNS(AeatRequest.SF, "RegistroAlta").getLength()).isZero();
+        assertThat(texts(doc, "NumSerieFacturaAnulada")).containsExactly("KH-T26-000001", "KH-F26-000001", "KH-F26-000002");
+        assertThat(texts(doc, "SinRegistroPrevio")).as("the agency never had the second invoice").containsExactly("S");
+        assertThat(texts(doc, "RechazoPrevio")).as("the third cancellation was refused before").containsExactly("S");
+        assertThat(texts(doc, "TipoFactura")).as("no invoice data in a cancellation").isEmpty();
+        assertThat(texts(doc, "Huella")).contains(cancellation.record().fingerprint());
+    }
+
+    @Test
     void aFirstRecordIsNoSubsanacion() throws Exception {
         Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain()));
 

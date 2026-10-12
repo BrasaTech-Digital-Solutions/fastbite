@@ -7,6 +7,7 @@ import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
+import es.brasatech.fastbite.domain.fiscal.TicketCancellation;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
 import es.brasatech.fastbite.domain.fiscal.TicketRecipient;
 import es.brasatech.fastbite.domain.order.CartItem;
@@ -45,13 +46,18 @@ class FiscalTicketServiceTest {
     static class MemoryTickets implements FiscalTicketRepository {
         final Map<String, Integer> series = new HashMap<>();
         final List<FiscalTicket> issued = new ArrayList<>();
+        final Map<String, TicketCancellation> cancelled = new HashMap<>();
 
         public int nextNumber(String name) { return series.merge(name, 1, Integer::sum); }
         public FiscalTicket add(FiscalTicket ticket) { issued.add(ticket); return ticket; }
         public Optional<FiscalTicket> findById(String id) { return issued.stream().filter(t -> t.id().equals(id)).findFirst(); }
         public Optional<FiscalTicket> findSaleByOrderId(String orderId) {
             return issued.stream().filter(t -> (t.kind() == TicketKind.SIMPLIFIED || t.kind() == TicketKind.FULL)
-                    && t.orderIds().contains(orderId)).findFirst();
+                    && t.orderIds().contains(orderId) && !cancelled.containsKey(t.id())).findFirst();
+        }
+        public void cancel(TicketCancellation cancellation) { cancelled.put(cancellation.ticketId(), cancellation); }
+        public Optional<TicketCancellation> findCancellation(String ticketId) {
+            return Optional.ofNullable(cancelled.get(ticketId));
         }
         public Optional<FiscalTicket> findCorrection(String ticketId, TicketKind kind) {
             return issued.stream().filter(t -> t.kind() == kind && t.corrects() != null
@@ -233,5 +239,70 @@ class FiscalTicketServiceTest {
                 .isInstanceOf(LocalizedRejection.class).extracting(e -> ((LocalizedRejection) e).key())
                 .isEqualTo("recipient.error.taxIdInvalid");
         assertThat(tickets.issued).isEmpty();
+    }
+
+    @Test
+    void aTicketIssuedByMistakeIsCancelledAndItsOrdersCanBeChargedAgain() {
+        FiscalTicket wrong = production.settle(List.of(kebab.id(), beer.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CARD, null), null, "carla");
+
+        TicketCancellation cancellation = production.cancel(wrong.id(), "Settled the wrong table", "manager");
+
+        assertThat(cancellation.reason()).isEqualTo("Settled the wrong table");
+        assertThat(cancellation.by()).isEqualTo("manager");
+        assertThat(production.cancellation(wrong.id())).hasValue(cancellation);
+        verify(orders).markOrderUnpaid(kebab.id());
+        verify(orders).markOrderUnpaid(beer.id());
+        verify(verifactu).cancel(wrong);
+        assertThat(tickets.issued).as("the ticket stays as it was issued").containsExactly(wrong);
+
+        FiscalTicket right = production.settle(List.of(kebab.id()), FiscalTicketService.Payment.of(PaymentMethod.CARD, null),
+                null, "carla");
+        assertThat(right.fullNumber()).as("a new number; the cancelled one is never reused").isEqualTo("KH-T26-000002");
+    }
+
+    @Test
+    void aCancelledTicketIsNeitherCancelledAgainNorRefundedNorReplaced() {
+        FiscalTicket wrong = production.settle(List.of(kebab.id()), FiscalTicketService.Payment.of(PaymentMethod.CARD, null),
+                null, "carla");
+        production.cancel(wrong.id(), "Wrong table", "manager");
+
+        assertThatThrownBy(() -> production.cancel(wrong.id(), "Again", "manager"))
+                .isInstanceOf(LocalizedRejection.class).extracting(e -> ((LocalizedRejection) e).key())
+                .isEqualTo("ticket.error.cancelled");
+        assertThatThrownBy(() -> production.refund(wrong.id(), "Refund", "manager"))
+                .isInstanceOf(LocalizedRejection.class).extracting(e -> ((LocalizedRejection) e).key())
+                .isEqualTo("ticket.error.cancelled");
+        assertThatThrownBy(() -> production.replace(wrong.id(), new TicketRecipient("B12345674", "ES", "Acme", null), "carla"))
+                .isInstanceOf(LocalizedRejection.class).extracting(e -> ((LocalizedRejection) e).key())
+                .isEqualTo("ticket.error.cancelled");
+    }
+
+    @Test
+    void onlyAnUntouchedCounterSaleOfTodayCanBeCancelled() {
+        FiscalTicket online = production.settleOnline(kebab.id(), BigDecimal.ZERO, "pi_123");
+        FiscalTicket sale = production.settle(List.of(beer.id()), FiscalTicketService.Payment.of(PaymentMethod.CASH,
+                new BigDecimal("5.00")), null, "carla");
+        FiscalTicketService tomorrow = new FiscalTicketService(orders, tickets, profiles, new PlatformEnvironment("production"),
+                tables, verifactu, Clock.offset(NOON, java.time.Duration.ofDays(1)));
+
+        assertThat(key(() -> production.cancel(online.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelOnline");
+        assertThat(key(() -> production.cancel(sale.id(), " ", "manager"))).isEqualTo("ticket.error.cancelReason");
+        assertThat(key(() -> tomorrow.cancel(sale.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelLate");
+        FiscalTicket refund = production.refund(sale.id(), "Wrong dish", "manager");
+        assertThat(key(() -> production.cancel(sale.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelCorrected");
+        assertThat(key(() -> production.cancel(refund.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelKind");
+        verify(orders, never()).markOrderUnpaid(any());
+    }
+
+    private static String key(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {
+        try {
+            call.call();
+        } catch (LocalizedRejection e) {
+            return e.key();
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+        throw new AssertionError("Not refused");
     }
 }

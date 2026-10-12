@@ -100,6 +100,9 @@ public interface OrderService {
     /** Marks an order's payment as given back after its ticket was refunded. */
     void markOrderRefunded(String id);
 
+    /** Marks an order unpaid again after the ticket that charged it was cancelled as a mistake. */
+    void markOrderUnpaid(String id);
+
     /** The orders staff work with: everything except online orders still waiting to be paid. */
     default List<Order> getAllOrder() {
         return findAll().stream()

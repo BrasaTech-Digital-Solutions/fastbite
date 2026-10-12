@@ -185,6 +185,7 @@
     <ul class="verifactu-rejected">
       <li th:each="record : ${verifactu.toAmend()}">
         <strong th:text="${record.invoiceNumber()}">KH-T26-000002</strong>
+        <span th:if="${record.cancels()}" th:text="'(' + #{owner.verifactu.cancellation} + ')'">(cancellation)</span>
         · <span th:text="#{${'owner.verifactu.status.' + record.submission().status().name()}}">Refused</span>:
         <span th:text="${record.submission().error()}">NIF not identified</span>
         <form method="post" class="verifactu-amend"

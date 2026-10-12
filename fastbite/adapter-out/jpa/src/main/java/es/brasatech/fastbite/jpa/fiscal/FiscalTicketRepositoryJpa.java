@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
+import es.brasatech.fastbite.domain.fiscal.TicketCancellation;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
 import es.brasatech.fastbite.domain.fiscal.TicketLine;
 import es.brasatech.fastbite.domain.fiscal.TicketRecipient;
@@ -81,6 +82,39 @@ public class FiscalTicketRepositoryJpa implements FiscalTicketRepository {
         }
         entityManager.flush();
         return ticket;
+    }
+
+    @Override
+    public void cancel(TicketCancellation cancellation) {
+        entityManager.createNativeQuery("INSERT INTO fiscal_ticket_cancellations "
+                        + "(ticket_id, cancelled_local, cancelled_offset, cancelled_by, reason) "
+                        + "VALUES (:ticket, :local, :offset, :by, :reason)")
+                .setParameter("ticket", cancellation.ticketId())
+                .setParameter("local", cancellation.at().toLocalDateTime())
+                .setParameter("offset", cancellation.at().getOffset().getId())
+                .setParameter("by", cancellation.by())
+                .setParameter("reason", cancellation.reason())
+                .executeUpdate();
+        // There was no sale: the orders can be charged again
+        entityManager.createNativeQuery("DELETE FROM fiscal_sale_orders WHERE ticket_id = :ticket")
+                .setParameter("ticket", cancellation.ticketId()).executeUpdate();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
+    public Optional<TicketCancellation> findCancellation(String ticketId) {
+        List<?> rows = entityManager.createNativeQuery("SELECT cancelled_local, cancelled_offset, cancelled_by, reason "
+                        + "FROM fiscal_ticket_cancellations WHERE ticket_id = :ticket")
+                .setParameter("ticket", ticketId).getResultList();
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        Object[] row = (Object[]) rows.getFirst();
+        java.time.LocalDateTime local = row[0] instanceof java.sql.Timestamp timestamp ? timestamp.toLocalDateTime()
+                : (java.time.LocalDateTime) row[0];
+        return Optional.of(new TicketCancellation(ticketId,
+                OffsetDateTime.of(local, java.time.ZoneOffset.of(row[1].toString())),
+                row[2] == null ? null : row[2].toString(), row[3].toString()));
     }
 
     @Override

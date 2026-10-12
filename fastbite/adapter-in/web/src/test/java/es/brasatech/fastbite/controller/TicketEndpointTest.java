@@ -36,6 +36,7 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -172,5 +173,40 @@ class TicketEndpointTest {
                         .content("{\"orderIds\":[\"o1\"],\"paymentMethod\":\"GOLD\"}"))
                 .andExpect(status().isBadRequest());
         verify(tickets, never()).settle(any(), any(), any(), any());
+    }
+
+    @Test
+    void cashiersCannotCancel() throws Exception {
+        mockMvc.perform(as("ROLE_CASHIER", post("/counter/api/tickets/t1/cancel")).content("{\"reason\":\"Wrong table\"}")
+                        .locale(Locale.forLanguageTag("es")))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Solo un encargado puede anular tickets."));
+        verify(tickets, never()).cancel(any(), any(), any());
+    }
+
+    @Test
+    void managersCancelATicketIssuedByMistake() throws Exception {
+        when(tickets.cancel("t1", "Wrong table", "carla")).thenReturn(new es.brasatech.fastbite.domain.fiscal.TicketCancellation(
+                "t1", SALE.issuedAt().plusMinutes(2), "carla", "Wrong table"));
+
+        mockMvc.perform(as("ROLE_MANAGER", post("/counter/api/tickets/t1/cancel")).content("{\"reason\":\"Wrong table\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticketId").value("t1"))
+                .andExpect(jsonPath("$.fullNumber").value("KH-T26-000007"));
+    }
+
+    @Test
+    void aCancelledTicketIsMarkedLeftOutOfTheTotalsAndPrintedAsCancelled() throws Exception {
+        mockMvc.perform(as("ROLE_MANAGER", get("/kebab/counter/tickets")).locale(Locale.ENGLISH))
+                .andExpect(content().string(containsString("data-action=\"cancel\"")));
+
+        when(tickets.cancellation("t1")).thenReturn(Optional.of(new es.brasatech.fastbite.domain.fiscal.TicketCancellation(
+                "t1", OffsetDateTime.parse("2026-10-09T13:47:00+02:00"), "carla", "Wrong table")));
+
+        mockMvc.perform(as("ROLE_MANAGER", get("/kebab/counter/tickets")).locale(Locale.ENGLISH))
+                .andExpect(content().string(allOf(containsString("Cancelled"), containsString("Wrong table"),
+                        not(containsString("data-action=\"cancel\"")), not(containsString("data-action=\"refund\"")))));
+        mockMvc.perform(as("ROLE_MANAGER", get("/kebab/counter/tickets/t1")).locale(Locale.forLanguageTag("es")))
+                .andExpect(content().string(containsString("ANULADO el 09/10/2026 13:47: Wrong table")));
     }
 }

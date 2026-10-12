@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.application.fiscal;
 
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
+import es.brasatech.fastbite.domain.fiscal.TicketCancellation;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
 
 import java.time.OffsetDateTime;
@@ -29,6 +30,14 @@ public interface FiscalTicketRepository {
 
     /** Tickets issued in a period, oldest first. */
     List<FiscalTicket> findIssuedBetween(OffsetDateTime from, OffsetDateTime to);
+
+    /**
+     * Keeps the cancellation of a sale ticket issued by mistake and frees its orders, so they can
+     * be charged again. The ticket itself is not changed.
+     */
+    void cancel(TicketCancellation cancellation);
+
+    Optional<TicketCancellation> findCancellation(String ticketId);
 
     /** Whether any real (non-training) ticket was ever issued, which fixes the location's NIF and series. */
     boolean anyRealTicket();

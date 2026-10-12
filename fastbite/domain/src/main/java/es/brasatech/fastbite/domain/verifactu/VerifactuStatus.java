@@ -10,6 +10,9 @@ public enum VerifactuStatus {
     ACCEPTED_WITH_ERRORS,
     /** Refused: it has to be corrected and sent again. */
     REJECTED,
-    /** Refused or accepted with errors, and since amended by a later record (subsanación). */
+    /**
+     * Refused or accepted with errors, and since superseded by a later record of the same invoice:
+     * its subsanación, or its cancellation.
+     */
     AMENDED
 }

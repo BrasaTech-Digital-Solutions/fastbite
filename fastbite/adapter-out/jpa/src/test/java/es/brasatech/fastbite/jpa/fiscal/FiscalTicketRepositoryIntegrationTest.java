@@ -145,4 +145,22 @@ class FiscalTicketRepositoryIntegrationTest {
         // A refund is not a sale: the order still points at the ticket that charged it
         assertThat(in(tenant, () -> tickets.findSaleByOrderId("order-1"))).map(FiscalTicket::id).hasValue(sale.id());
     }
+
+    @Test
+    void aCancelledTicketStaysAndFreesItsOrdersToBeChargedAgain() {
+        String tenant = tenant();
+        var sale = in(tenant, () -> tickets.add(ticket(TicketKind.SIMPLIFIED, 1, "order-1", null)));
+        var cancellation = new es.brasatech.fastbite.domain.fiscal.TicketCancellation(sale.id(),
+                OffsetDateTime.parse("2026-10-09T23:40:00+02:00"), "maria", "Wrong table");
+
+        in(tenant, () -> { tickets.cancel(cancellation); return null; });
+
+        assertThat(in(tenant, () -> tickets.findCancellation(sale.id()))).hasValue(cancellation);
+        assertThat(in(tenant, () -> tickets.findById(sale.id()))).as("the ticket itself never changes").isPresent();
+        assertThat(in(tenant, () -> tickets.findSaleByOrderId("order-1"))).isEmpty();
+        var again = in(tenant, () -> tickets.add(ticket(TicketKind.SIMPLIFIED, 2, "order-1", null)));
+        assertThat(in(tenant, () -> tickets.findSaleByOrderId("order-1"))).map(FiscalTicket::id).hasValue(again.id());
+        assertThatThrownBy(() -> in(tenant, () -> { tickets.cancel(cancellation); return null; }))
+                .as("cancelled once only").isInstanceOf(RuntimeException.class);
+    }
 }

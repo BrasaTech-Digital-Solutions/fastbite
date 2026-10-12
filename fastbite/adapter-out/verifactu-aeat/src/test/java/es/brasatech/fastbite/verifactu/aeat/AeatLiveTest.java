@@ -5,6 +5,8 @@ import es.brasatech.fastbite.application.verifactu.VerifactuSystem;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.verifactu.Verifactu;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -95,6 +97,39 @@ class AeatLiveTest {
         System.out.println("AEAT answered the subsanación (RechazoPrevio " + (afterRejection ? "X" : "N") + "): " + second);
         assertThat(second).singleElement().satisfies(result ->
                 assertThat(result.status()).isIn(VerifactuStatus.ACCEPTED, VerifactuStatus.ACCEPTED_WITH_ERRORS));
+    }
+
+    /** Sends an invoice, then its registro de anulación, a minute apart as the AEAT asks. */
+    @Test
+    void theAeatTestEnvironmentTakesACancellation() throws InterruptedException {
+        String nif = env("VERIFACTU_LIVE_NIF");
+        String name = env("VERIFACTU_LIVE_NAME");
+        VerifactuSystem system = new VerifactuSystem(name, nif, "FastBite", "FB", "1.0", "Servicios de restauración");
+        var submitter = new AeatVerifactuSubmitter(env("VERIFACTU_CERTIFICATE_PATH"),
+                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system);
+        String series = "FBANU" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
+        var installation = new VerifactuSubmitter.Installation("live-" + series, false);
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Europe/Madrid")).truncatedTo(ChronoUnit.SECONDS);
+        FiscalTicket ticket = AeatFixtures.ticket(now,
+                new FiscalTicket.Issuer(name, null, nif, "Calle de prueba 1", "28013", "Madrid", "Madrid", null),
+                TicketKind.SIMPLIFIED, series + "-000001", null, null, "12.10", "10");
+        VerifactuSubmitter.Submission sale = AeatFixtures.submission(ticket, "F2", null, now);
+        var first = submitter.submit(system, installation, List.of(sale), false);
+        System.out.println("AEAT answered the invoice: " + first);
+
+        Thread.sleep(61_000);
+        OffsetDateTime later = OffsetDateTime.now(ZoneId.of("Europe/Madrid")).truncatedTo(ChronoUnit.SECONDS);
+        VerifactuRecord r = sale.record();
+        VerifactuRecord cancellation = new VerifactuRecord("cancels-" + r.id(), r.ticketId(), r.chain(), 2,
+                r.invoiceType(), nif, name, r.invoiceNumber(), r.issueDate(), later, r.taxTotal(), r.amountTotal(),
+                new VerifactuRecord.Link(nif, r.invoiceNumber(), r.issueDate(), r.fingerprint()),
+                Verifactu.cancellationFingerprint(nif, r.invoiceNumber(), r.issueDate(), r.fingerprint(), later),
+                r.qrUrl(), null, null, new VerifactuRecord.Cancellation(false), false, VerifactuRecord.Submission.PENDING);
+        var second = submitter.submit(system, installation, List.of(new VerifactuSubmitter.Submission(cancellation, ticket)),
+                false);
+
+        System.out.println("AEAT answered the registro de anulación: " + second);
+        assertThat(second).singleElement().satisfies(result -> assertThat(result.status()).isEqualTo(VerifactuStatus.ACCEPTED));
     }
 
     private static String env(String name) {

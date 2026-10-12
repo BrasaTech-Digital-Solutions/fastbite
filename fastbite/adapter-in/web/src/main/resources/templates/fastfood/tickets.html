@@ -18,7 +18,8 @@
 
 <main class="container py-4" id="tickets"
       th:data-prefix="${tenantPrefix}"
-      th:data-done-invoice="#{tickets.done.invoice('{0}')}" th:data-done-refund="#{tickets.done.refund('{0}')}">
+      th:data-done-invoice="#{tickets.done.invoice('{0}')}" th:data-done-refund="#{tickets.done.refund('{0}')}"
+      th:data-done-cancel="#{tickets.done.cancel('{0}')}">
 
     <div class="alert alert-warning d-flex align-items-center gap-2" th:if="${training}" role="note">
         <i class="fas fa-flask" aria-hidden="true"></i><span th:text="#{tickets.training.banner}">Sandbox: practice tickets.</span>
@@ -79,7 +80,8 @@
                 <tr th:if="${tickets.isEmpty()}">
                     <td colspan="7" class="text-center text-muted py-5" th:text="#{tickets.empty}">No tickets on this day.</td>
                 </tr>
-                <tr th:each="ticket : ${tickets}" th:classappend="${ticket.refund()} ? 'ticket-refund'">
+                <tr th:each="ticket : ${tickets}"
+                    th:classappend="${ticket.refund()} ? 'ticket-refund' : (${cancelled.containsKey(ticket.id())} ? 'ticket-cancelled text-muted')">
                     <td class="fw-semibold font-monospace" th:text="${ticket.fullNumber()}">KHC-T26-000001</td>
                     <td th:text="${#temporals.format(ticket.issuedAt(), 'HH:mm')}">13:45</td>
                     <td>
@@ -89,6 +91,10 @@
                              th:text="#{tickets.corrected(${correctedBy.get(ticket.id())})}">Corrected by KHC-R26-000001</div>
                         <div class="small text-muted mt-1" th:if="${ticket.corrects() != null}"
                              th:text="${ticket.corrects().fullNumber()}">KHC-T26-000001</div>
+                        <div class="mt-1" th:if="${cancelled.containsKey(ticket.id())}">
+                            <span class="badge text-bg-dark" th:text="#{tickets.cancelled}">Cancelled</span>
+                            <span class="small" th:text="${cancelled.get(ticket.id()).reason()}">Wrong table</span>
+                        </div>
                     </td>
                     <td>
                         <span th:if="${ticket.tableName() != null}" th:text="${ticket.tableName()}">Terrace 4</span>
@@ -102,13 +108,19 @@
                                 th:title="#{tickets.action.print}" th:aria-label="#{tickets.action.print} + ' ' + ${ticket.fullNumber()}">
                             <i class="fas fa-print" aria-hidden="true"></i></button>
                         <button type="button" class="btn btn-sm btn-outline-primary"
-                                th:if="${ticket.kind().name() == 'SIMPLIFIED' && !correctedBy.containsKey(ticket.id())}"
+                                th:if="${ticket.kind().name() == 'SIMPLIFIED' && !correctedBy.containsKey(ticket.id()) && !cancelled.containsKey(ticket.id())}"
                                 th:data-ticket="${ticket.id()}" th:data-number="${ticket.fullNumber()}" data-action="invoice"
                                 th:text="#{tickets.action.invoice}">Full invoice</button>
                         <button type="button" class="btn btn-sm btn-outline-danger"
-                                th:if="${mayRefund && !ticket.refund() && !correctedBy.containsKey(ticket.id())}"
+                                th:if="${mayRefund && !ticket.refund() && !correctedBy.containsKey(ticket.id()) && !cancelled.containsKey(ticket.id())}"
                                 th:data-ticket="${ticket.id()}" th:data-number="${ticket.fullNumber()}" data-action="refund"
                                 th:text="#{tickets.action.refund}">Refund</button>
+                        <button type="button" class="btn btn-sm btn-outline-dark"
+                                th:if="${mayRefund && day == today && (ticket.kind().name() == 'SIMPLIFIED' || ticket.kind().name() == 'FULL')
+                                         && ticket.paymentMethod().name() != 'ONLINE'
+                                         && !correctedBy.containsKey(ticket.id()) && !cancelled.containsKey(ticket.id())}"
+                                th:data-ticket="${ticket.id()}" th:data-number="${ticket.fullNumber()}" data-action="cancel"
+                                th:text="#{tickets.action.cancel}">Cancel ticket</button>
                     </td>
                 </tr>
                 </tbody>
@@ -156,6 +168,29 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-link" data-bs-dismiss="modal" th:text="#{button.cancel}">Cancel</button>
                 <button type="submit" class="btn btn-danger" th:text="#{tickets.refund.confirm}">Issue refund</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Cancel a ticket issued by mistake -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="cancelForm" novalidate>
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="cancelTitle" th:data-template="#{tickets.cancel.title('{0}')}">Cancel ticket</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" th:aria-label="#{tickets.close}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small" th:text="#{tickets.cancel.intro}">Only for a ticket issued by mistake, when there was no sale.</p>
+                <label for="cancelReason" class="form-label" th:text="#{tickets.cancel.reason}">What went wrong</label>
+                <input id="cancelReason" class="form-control" maxlength="200" required
+                       th:placeholder="#{tickets.cancel.reason.placeholder}">
+                <div class="alert alert-danger mt-3 mb-0 small" role="alert" id="cancelError" hidden></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link" data-bs-dismiss="modal" th:text="#{button.cancel}">Cancel</button>
+                <button type="submit" class="btn btn-dark" th:text="#{tickets.cancel.confirm}">Cancel ticket</button>
             </div>
         </form>
     </div>

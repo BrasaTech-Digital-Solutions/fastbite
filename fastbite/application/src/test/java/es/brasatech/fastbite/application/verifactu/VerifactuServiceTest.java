@@ -297,4 +297,73 @@ class VerifactuServiceTest {
         assertThat(second.generatedAt()).isEqualTo(first.generatedAt());
         assertThat(service.summary(false).chainIntact()).isTrue();
     }
+
+    private VerifactuRecord refuse(VerifactuRecord record) {
+        records.updateSubmission(record.id(), new VerifactuRecord.Submission(VerifactuStatus.REJECTED, 1, "1100: Mal",
+                null, OffsetDateTime.now(NOON)));
+        return records.findById(record.id()).orElseThrow();
+    }
+
+    @Test
+    void aCancellationIsARecordOfItsOwnAtTheEndOfTheChain() {
+        var ticket = ticket(TicketKind.SIMPLIFIED, 1, false, null);
+        var sale = service.record(ticket);
+        var other = service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
+
+        var cancellation = service.cancel(ticket);
+
+        assertThat(cancellation.cancels()).isTrue();
+        assertThat(cancellation.cancellation().withoutPreviousRecord()).as("the sale goes to the agency first").isFalse();
+        assertThat(cancellation.sequence()).isEqualTo(3);
+        assertThat(cancellation.invoiceNumber()).isEqualTo(sale.invoiceNumber());
+        assertThat(cancellation.previous().fingerprint()).isEqualTo(other.fingerprint());
+        assertThat(cancellation.fingerprint()).isEqualTo(Verifactu.cancellationFingerprint("12345678Z",
+                sale.invoiceNumber(), sale.issueDate(), other.fingerprint(), cancellation.generatedAt()));
+        assertThat(Verifactu.chained(cancellation, other)).isTrue();
+        assertThat(service.findForTicket(ticket.id())).hasValue(cancellation);
+        assertThatThrownBy(() -> service.cancel(ticket)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void cancellingAnInvoiceTheAgencyNeverHadSaysSo() {
+        var ticket = ticket(TicketKind.SIMPLIFIED, 1, false, null);
+        var refused = refuse(service.record(ticket));
+
+        var cancellation = service.cancel(ticket);
+
+        assertThat(cancellation.cancellation().withoutPreviousRecord()).isTrue();
+        assertThat(records.findById(refused.id()).orElseThrow().submission().status())
+                .as("no longer waits to be amended").isEqualTo(VerifactuStatus.AMENDED);
+        assertThat(service.summary(false).toAmend()).isEmpty();
+    }
+
+    @Test
+    void aRefusedCancellationIsSentAgainAsACancellation() {
+        var ticket = ticket(TicketKind.SIMPLIFIED, 1, false, null);
+        service.record(ticket);
+        var refused = refuse(service.cancel(ticket));
+
+        var again = service.amend(refused.id(), "Ana García López");
+
+        assertThat(again.cancels()).isTrue();
+        assertThat(again.amends()).isEqualTo(new VerifactuRecord.Amendment(refused.id(), true));
+        assertThat(again.fingerprint()).isEqualTo(Verifactu.cancellationFingerprint("12345678Z", refused.invoiceNumber(),
+                refused.issueDate(), refused.fingerprint(), again.generatedAt()));
+        assertThat(records.findById(refused.id()).orElseThrow().submission().status()).isEqualTo(VerifactuStatus.AMENDED);
+    }
+
+    @Test
+    void aSubmissionNeverCarriesTwoRecordsOfTheSameInvoice() {
+        var ticket = ticket(TicketKind.SIMPLIFIED, 1, false, null);
+        service.record(ticket);
+        service.cancel(ticket);
+        service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
+
+        service.submitPending(false, false);
+        service.submitPending(false, false);
+
+        assertThat(submitter.calls).hasSize(2);
+        assertThat(submitter.calls.get(0)).extracting(s -> s.record().cancels()).containsExactly(false);
+        assertThat(submitter.calls.get(1)).extracting(s -> s.record().sequence()).containsExactly(2, 3);
+    }
 }

@@ -51,6 +51,9 @@ public class TicketController {
     public record RefundRequest(String reason) {
     }
 
+    public record CancelRequest(String reason) {
+    }
+
     @ResponseBody
     @PostMapping("/counter/api/settle")
     public Map<String, Object> settle(@RequestBody SettleRequest request, Authentication user) {
@@ -77,12 +80,31 @@ public class TicketController {
         return summary(tickets.refund(ticketId, request.reason(), user.getName()));
     }
 
+    /**
+     * Cancels a sale ticket issued by mistake, when there was no sale, on the day it was issued.
+     * Like a refund, it is a manager's decision.
+     */
+    @ResponseBody
+    @PostMapping("/counter/api/tickets/{ticketId}/cancel")
+    public Map<String, Object> cancel(@PathVariable String ticketId, @RequestBody CancelRequest request,
+            Authentication user) {
+        if (!mayRefund(user)) {
+            throw new LocalizedRejection("ticket.error.cancelRole", "Only a manager can cancel tickets");
+        }
+        var cancellation = tickets.cancel(ticketId, request.reason(), user.getName());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ticketId", cancellation.ticketId());
+        tickets.findById(ticketId).ifPresent(ticket -> result.put("fullNumber", ticket.fullNumber()));
+        return result;
+    }
+
     /** The ticket as printed; the counter loads it into a hidden frame and prints it. */
     @GetMapping({"/{tenantId}/counter/tickets/{ticketId}", "/counter/tickets/{ticketId}"})
     public String print(@PathVariable String ticketId, Model model) {
         FiscalTicket ticket = tickets.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("ticket", ticket);
+        tickets.cancellation(ticket.id()).ifPresent(cancellation -> model.addAttribute("cancellation", cancellation));
         // Drawn here, not in the browser: the printed QR must not depend on a script or a network
         verifactu.findForTicket(ticket.id()).ifPresent(record -> {
             model.addAttribute("verifactu", record);
@@ -106,12 +128,15 @@ public class TicketController {
                 .forEach(ticket -> tickets.corrections(ticket.id()).stream().findFirst()
                         .ifPresent(correction -> correctedBy.put(ticket.id(), correction.fullNumber())));
 
+        Map<String, es.brasatech.fastbite.domain.fiscal.TicketCancellation> cancelled = new LinkedHashMap<>();
+        issued.forEach(ticket -> tickets.cancellation(ticket.id()).ifPresent(c -> cancelled.put(ticket.id(), c)));
+
         Map<PaymentMethod, BigDecimal> byMethod = new EnumMap<>(PaymentMethod.class);
         BigDecimal net = BigDecimal.ZERO;
         BigDecimal tips = BigDecimal.ZERO;
         for (FiscalTicket ticket : issued) {
-            if (ticket.kind() == TicketKind.REPLACEMENT) {
-                continue; // replaces a ticket already counted
+            if (ticket.kind() == TicketKind.REPLACEMENT || cancelled.containsKey(ticket.id())) {
+                continue; // replaces a ticket already counted, or there was no sale
             }
             byMethod.merge(ticket.paymentMethod(), ticket.charged(), BigDecimal::add);
             net = net.add(ticket.total());
@@ -121,6 +146,7 @@ public class TicketController {
         model.addAttribute("today", tickets.today());
         model.addAttribute("tickets", issued.reversed());
         model.addAttribute("correctedBy", correctedBy);
+        model.addAttribute("cancelled", cancelled);
         model.addAttribute("byMethod", byMethod);
         model.addAttribute("net", net);
         model.addAttribute("tips", tips);

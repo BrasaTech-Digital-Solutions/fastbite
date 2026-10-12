@@ -90,6 +90,23 @@ final class AeatFixtures {
                 original.ticket());
     }
 
+    /** The registro de anulación of a record's invoice, chained after it. */
+    static VerifactuSubmitter.Submission cancellation(VerifactuSubmitter.Submission original, boolean withoutPreviousRecord,
+            boolean afterRejection) {
+        VerifactuRecord r = original.record();
+        OffsetDateTime generatedAt = r.generatedAt().plusMinutes(10);
+        VerifactuRecord.Link previous = new VerifactuRecord.Link(r.issuerNif(), r.invoiceNumber(), r.issueDate(),
+                r.fingerprint());
+        String fingerprint = Verifactu.cancellationFingerprint(r.issuerNif(), r.invoiceNumber(), r.issueDate(),
+                r.fingerprint(), generatedAt);
+        return new VerifactuSubmitter.Submission(new VerifactuRecord("cancels-" + r.id(), r.ticketId(), r.chain(),
+                r.sequence() + 1, r.invoiceType(), r.issuerNif(), r.issuerName(), r.invoiceNumber(), r.issueDate(),
+                generatedAt, r.taxTotal(), r.amountTotal(), previous, fingerprint, r.qrUrl(), null,
+                afterRejection ? new VerifactuRecord.Amendment("earlier-" + r.id(), true) : null,
+                new VerifactuRecord.Cancellation(withoutPreviousRecord), false, VerifactuRecord.Submission.PENDING),
+                original.ticket());
+    }
+
     /** A sale, a full invoice to a Spanish and one to a French customer, a replacement and a refund. */
     static List<VerifactuSubmitter.Submission> chain() {
         var sale = ticket(TicketKind.SIMPLIFIED, "KH-T26-000001", null, null, "11.00", "10", "3.63", "21");

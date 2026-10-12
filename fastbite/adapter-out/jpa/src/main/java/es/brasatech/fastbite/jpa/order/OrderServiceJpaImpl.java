@@ -120,6 +120,14 @@ public class OrderServiceJpaImpl implements OrderService {
     }
 
     @Override
+    public void markOrderUnpaid(String id) {
+        var entity = repository.findForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        entity.setPaymentStatus(OrderPaymentStatus.UNPAID);
+        entity.setUpdatedAt(java.time.LocalDateTime.now());
+        publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
+    }
+
+    @Override
     public Order create(Order order) {
         OrderEntity entity = toEntityWithDefaultLanguage(order, false);
         OrderEntity saved = repository.save(entity);

@@ -97,4 +97,33 @@ class VerifactuTest {
         assertThat(Verifactu.chained(second, null)).as("says it follows a record that is missing").isFalse();
         assertThat(Verifactu.chained(first, second)).as("a first record that should follow one").isFalse();
     }
+
+    @Test
+    void aCancellationHasTheFingerprintOfTheAeatExample() {
+        // Worked example 6.3 of the AEAT specification for the fingerprint of a registro de anulación
+        String fingerprint = Verifactu.cancellationFingerprint("89890001K", "12345679/G34", NEW_YEAR,
+                "F7B94CFD8924EDFF273501B01EE5153E4CE8F259766F88CF6ACB8935802A2B97",
+                OffsetDateTime.parse("2024-01-01T19:20:40+01:00"));
+
+        assertThat(fingerprint).isEqualTo("177547C0D57AC74748561D054A9CEC14B4C4EA23D1BEFD6F2E69E3A388F90C68");
+    }
+
+    @Test
+    void aCancellationIsCheckedWithItsOwnFingerprint() {
+        var sale = record(1, "KH-T26-000001", null);
+        var link = new VerifactuRecord.Link(sale.issuerNif(), sale.invoiceNumber(), sale.issueDate(), sale.fingerprint());
+        var at = sale.generatedAt().plusMinutes(3);
+        var cancellation = new VerifactuRecord("c1", sale.ticketId(), sale.chain(), 2, "F2", "12345678Z", "Ana",
+                sale.invoiceNumber(), sale.issueDate(), at, sale.taxTotal(), sale.amountTotal(), link,
+                Verifactu.cancellationFingerprint("12345678Z", sale.invoiceNumber(), sale.issueDate(), sale.fingerprint(), at),
+                sale.qrUrl(), null, null, new VerifactuRecord.Cancellation(false), false,
+                VerifactuRecord.Submission.PENDING);
+
+        assertThat(Verifactu.chained(cancellation, sale)).isTrue();
+        assertThat(cancellation.amendable()).isFalse();
+        assertThat(cancellation.withSubmission(new VerifactuRecord.Submission(VerifactuStatus.ACCEPTED_WITH_ERRORS, 1,
+                "x", null, null)).amendable()).as("only a refused cancellation is sent again").isFalse();
+        assertThat(cancellation.withSubmission(new VerifactuRecord.Submission(VerifactuStatus.REJECTED, 1, "x", null,
+                null)).amendable()).isTrue();
+    }
 }

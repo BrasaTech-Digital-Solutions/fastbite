@@ -19,9 +19,8 @@ import java.util.Set;
 
 /**
  * The SOAP message that sends billing records to the AEAT (RegFactuSistemaFacturacion), as the
- * schemas SuministroLR.xsd and SuministroInformacion.xsd describe it. Only registros de alta are
- * written, subsanaciones included: FastBite corrects an invoice by issuing a corrective one, never
- * by cancelling it.
+ * schemas SuministroLR.xsd and SuministroInformacion.xsd describe it: registros de alta,
+ * subsanaciones included, and registros de anulación for tickets issued by mistake.
  */
 final class AeatRequest {
 
@@ -79,7 +78,11 @@ final class AeatRequest {
                     throw new IllegalArgumentException("A submission carries the records of one issuer only");
                 }
                 xml.writeStartElement(LR, "RegistroFactura");
-                alta(xml, system, installation, submission.record(), submission.ticket());
+                if (submission.record().cancels()) {
+                    anulacion(xml, system, installation, submission.record());
+                } else {
+                    alta(xml, system, installation, submission.record(), submission.ticket());
+                }
                 xml.writeEndElement();
             }
 
@@ -134,6 +137,36 @@ final class AeatRequest {
         breakdown(xml, ticket.vat());
         text(xml, "CuotaTotal", Verifactu.amount(record.taxTotal()));
         text(xml, "ImporteTotal", Verifactu.amount(record.amountTotal()));
+        chainAndFingerprint(xml, system, installation, record);
+        xml.writeEndElement();
+    }
+
+    /**
+     * A registro de anulación (AEAT spec 9.2): SinRegistroPrevio S when the agency never had the
+     * invoice, otherwise RechazoPrevio S when it sends again a cancellation the agency refused.
+     */
+    private static void anulacion(XMLStreamWriter xml, VerifactuSystem system,
+            VerifactuSubmitter.Installation installation, VerifactuRecord record) throws XMLStreamException {
+        xml.writeStartElement(SF, "RegistroAnulacion");
+        text(xml, "IDVersion", "1.0");
+        xml.writeStartElement(SF, "IDFactura");
+        text(xml, "IDEmisorFacturaAnulada", record.issuerNif());
+        text(xml, "NumSerieFacturaAnulada", record.invoiceNumber());
+        text(xml, "FechaExpedicionFacturaAnulada", Verifactu.date(record.issueDate()));
+        xml.writeEndElement();
+        text(xml, "RefExterna", record.id());
+        if (record.cancellation().withoutPreviousRecord()) {
+            text(xml, "SinRegistroPrevio", "S");
+        } else if (record.amendment()) {
+            text(xml, "RechazoPrevio", "S");
+        }
+        chainAndFingerprint(xml, system, installation, record);
+        xml.writeEndElement();
+    }
+
+    /** What every record ends with: the record it follows, the system, when it was made and its fingerprint. */
+    private static void chainAndFingerprint(XMLStreamWriter xml, VerifactuSystem system,
+            VerifactuSubmitter.Installation installation, VerifactuRecord record) throws XMLStreamException {
         xml.writeStartElement(SF, "Encadenamiento");
         if (record.firstOfChain()) {
             text(xml, "PrimerRegistro", "S");
@@ -152,7 +185,6 @@ final class AeatRequest {
         text(xml, "FechaHoraHusoGenRegistro", Verifactu.timestamp(record.generatedAt()));
         text(xml, "TipoHuella", "01");
         text(xml, "Huella", record.fingerprint());
-        xml.writeEndElement();
     }
 
     private static void invoices(XMLStreamWriter xml, String list, String item, VerifactuRecord.Link invoice)

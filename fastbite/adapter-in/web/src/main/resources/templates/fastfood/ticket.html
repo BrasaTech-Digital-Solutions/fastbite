@@ -8,6 +8,8 @@
     <link rel="stylesheet" th:href="@{/css/ticket.css}">
 </head>
 <body class="paper" th:with="issuer=${ticket.issuer()}">
+<div class="training" th:if="${cancellation != null}"
+     th:text="#{ticket.cancelled(${#temporals.format(cancellation.at(), 'dd/MM/yyyy HH:mm')}, ${cancellation.reason()})}">CANCELLED</div>
 
 <div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
 

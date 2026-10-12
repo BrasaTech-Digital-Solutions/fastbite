@@ -8,6 +8,7 @@ import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
+import es.brasatech.fastbite.domain.fiscal.TicketCancellation;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
 import es.brasatech.fastbite.domain.fiscal.TicketLine;
 import es.brasatech.fastbite.domain.fiscal.TicketRecipient;
@@ -151,6 +152,7 @@ public class FiscalTicketService {
      */
     public FiscalTicket replace(String ticketId, TicketRecipient recipient, String issuedBy) {
         FiscalTicket original = find(ticketId);
+        requireNotCancelled(original);
         if (original.kind() != TicketKind.SIMPLIFIED) {
             throw new LocalizedRejection("ticket.error.replaceOnlySimplified", "Only a simplified ticket can be replaced by a full invoice");
         }
@@ -176,6 +178,7 @@ public class FiscalTicketService {
      */
     public FiscalTicket refund(String ticketId, String reason, String issuedBy) {
         FiscalTicket original = find(ticketId);
+        requireNotCancelled(original);
         if (original.kind() == TicketKind.RECTIFYING) {
             throw new LocalizedRejection("ticket.error.refundRefund", "A refund cannot be refunded");
         }
@@ -199,6 +202,52 @@ public class FiscalTicketService {
                 original.orderIds(), original.orderNumbers(), original.tableName(), issuedBy);
         original.orderIds().forEach(orders::markOrderRefunded);
         return refund;
+    }
+
+    /**
+     * Cancels a sale ticket issued by mistake, when there was no sale (anulación): for example the
+     * wrong table was settled. Its orders become unpaid again, so they can be charged correctly, and
+     * a registro de anulación is sent to the tax agency. Only on the day it was issued, and never
+     * for a sale that did happen: that is refunded instead. Any money taken is given back on the
+     * terminal or from the till, as with refunds.
+     */
+    public TicketCancellation cancel(String ticketId, String reason, String cancelledBy) {
+        FiscalTicket ticket = find(ticketId);
+        if (ticket.kind() != TicketKind.SIMPLIFIED && ticket.kind() != TicketKind.FULL) {
+            throw new LocalizedRejection("ticket.error.cancelKind",
+                    "Only a sale ticket can be cancelled; a refund or a replacement invoice cannot");
+        }
+        if (ticket.paymentMethod() == PaymentMethod.ONLINE) {
+            throw new LocalizedRejection("ticket.error.cancelOnline",
+                    "An online payment is a sale that happened: refund it instead");
+        }
+        if (reason == null || reason.isBlank() || reason.length() > 200) {
+            throw new LocalizedRejection("ticket.error.cancelReason",
+                    "Say why the ticket was issued by mistake (up to 200 characters)");
+        }
+        requireNotCancelled(ticket);
+        tickets.findCorrection(ticketId, TicketKind.REPLACEMENT).or(() -> tickets.findCorrection(ticketId, TicketKind.RECTIFYING))
+                .ifPresent(done -> {
+                    throw new LocalizedRejection("ticket.error.cancelCorrected", "Ticket " + ticket.fullNumber()
+                            + " was already refunded or replaced by " + done.fullNumber() + " and can no longer be cancelled",
+                            ticket.fullNumber(), done.fullNumber());
+                });
+        if (!ticket.issuedOn().equals(today())) {
+            throw new LocalizedRejection("ticket.error.cancelLate", "Ticket " + ticket.fullNumber()
+                    + " can only be cancelled on the day it was issued: refund it instead", ticket.fullNumber());
+        }
+        TicketCancellation cancellation = new TicketCancellation(ticket.id(), OffsetDateTime.now(clock), cancelledBy,
+                reason.strip());
+        tickets.cancel(cancellation);
+        ticket.orderIds().forEach(orders::markOrderUnpaid);
+        verifactu.cancel(ticket);
+        return cancellation;
+    }
+
+    /** The cancellation of a ticket issued by mistake, if it was cancelled. */
+    @Transactional(readOnly = true)
+    public Optional<TicketCancellation> cancellation(String ticketId) {
+        return tickets.findCancellation(ticketId);
     }
 
     @Transactional(readOnly = true)
@@ -248,6 +297,13 @@ public class FiscalTicketService {
         if (!ready()) {
             throw new LocalizedRejection("ticket.error.notReady", NOT_READY);
         }
+    }
+
+    private void requireNotCancelled(FiscalTicket ticket) {
+        tickets.findCancellation(ticket.id()).ifPresent(cancelled -> {
+            throw new LocalizedRejection("ticket.error.cancelled", "Ticket " + ticket.fullNumber() + " was cancelled",
+                    ticket.fullNumber());
+        });
     }
 
     private FiscalTicket find(String ticketId) {

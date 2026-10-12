@@ -1,5 +1,5 @@
-// Tickets page: reprint, a full invoice for a ticket already issued, and refunds. Every action
-// issues a new ticket on the server; the page reloads to show it.
+// Tickets page: reprint, a full invoice for a ticket already issued, refunds, and cancelling a
+// ticket issued by mistake. Every action is done on the server; the page reloads to show it.
 (() => {
 'use strict';
 const page = document.getElementById('tickets');
@@ -60,6 +60,30 @@ page.addEventListener('click', event => {
     document.getElementById('refundForm').reset();
     document.getElementById('refundError').hidden = true;
     bootstrap.Modal.getOrCreateInstance(document.getElementById('refundModal')).show();
+  } else if (button.dataset.action === 'cancel') {
+    const title = document.getElementById('cancelTitle');
+    title.textContent = title.dataset.template.replace('{0}', current.number);
+    document.getElementById('cancelForm').reset();
+    document.getElementById('cancelError').hidden = true;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelModal')).show();
+  }
+});
+
+document.getElementById('cancelForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const submit = event.submitter;
+  submit.disabled = true;
+  try {
+    const cancelled = await post(`/counter/api/tickets/${encodeURIComponent(current.id)}/cancel`,
+        { reason: document.getElementById('cancelReason').value.trim() });
+    bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
+    // Nothing to print: the orders are unpaid again and can be charged at the counter
+    sessionStorage.setItem('fastbite.ticketNotice', page.dataset.doneCancel.replace('{0}', cancelled.fullNumber || current.number));
+    location.reload();
+  } catch (error) {
+    failed(document.getElementById('cancelError'), error);
+  } finally {
+    submit.disabled = false;
   }
 });
 

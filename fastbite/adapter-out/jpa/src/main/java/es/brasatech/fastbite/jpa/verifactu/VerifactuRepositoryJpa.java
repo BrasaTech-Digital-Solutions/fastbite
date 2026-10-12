@@ -93,10 +93,13 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
 
     @Override
     public List<VerifactuRecord> findToAmend(String chain, int limit) {
-        return entityManager.createQuery("select r from VerifactuRecord r where r.chain = :chain and r.status in :statuses "
-                        + "order by r.sequence desc", VerifactuRecordEntity.class)
+        // A cancellation accepted with errors cannot be sent again
+        return entityManager.createQuery("select r from VerifactuRecord r where r.chain = :chain and (r.status = :rejected "
+                        + "or (r.status = :withErrors and r.cancellation = false)) order by r.sequence desc",
+                        VerifactuRecordEntity.class)
                 .setParameter("chain", chain)
-                .setParameter("statuses", List.of(VerifactuStatus.REJECTED.name(), VerifactuStatus.ACCEPTED_WITH_ERRORS.name()))
+                .setParameter("rejected", VerifactuStatus.REJECTED.name())
+                .setParameter("withErrors", VerifactuStatus.ACCEPTED_WITH_ERRORS.name())
                 .setMaxResults(limit).getResultStream().map(this::toRecord).toList();
     }
 
@@ -165,7 +168,7 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
     private VerifactuRecordEntity toEntity(VerifactuRecord record) {
         var entity = new VerifactuRecordEntity();
         entity.setId(record.id());
-        entity.setTicketId(record.amendment() ? null : record.ticketId());
+        entity.setTicketId(record.amendment() || record.cancels() ? null : record.ticketId());
         entity.setInvoiceTicketId(record.ticketId());
         entity.setChain(record.chain());
         entity.setSequence(record.sequence());
@@ -195,6 +198,10 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
             entity.setAmendsRecordId(record.amends().recordId());
             entity.setAmendsAfterRejection(record.amends().afterRejection());
         }
+        if (record.cancels()) {
+            entity.setCancellation(true);
+            entity.setCancellationWithoutRecord(record.cancellation().withoutPreviousRecord());
+        }
         entity.setTraining(record.training());
         entity.setStatus(record.submission().status().name());
         entity.setAttempts(record.submission().attempts());
@@ -212,6 +219,8 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
                 entity.getCorrectedIssuerNif(), entity.getCorrectedInvoiceNumber(), entity.getCorrectedIssueDate(), null);
         var amends = entity.getAmendsRecordId() == null ? null : new VerifactuRecord.Amendment(
                 entity.getAmendsRecordId(), Boolean.TRUE.equals(entity.getAmendsAfterRejection()));
+        var cancellation = entity.isCancellation()
+                ? new VerifactuRecord.Cancellation(Boolean.TRUE.equals(entity.getCancellationWithoutRecord())) : null;
         var submission = new VerifactuRecord.Submission(VerifactuStatus.valueOf(entity.getStatus()), entity.getAttempts(),
                 entity.getLastError(), entity.getCsv(),
                 entity.getSubmittedAt() == null ? null : OffsetDateTime.of(entity.getSubmittedAt(), offset));
@@ -219,6 +228,6 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
                 entity.getInvoiceType(), entity.getIssuerNif(), entity.getIssuerName(), entity.getInvoiceNumber(),
                 entity.getIssueDate(), OffsetDateTime.of(entity.getGeneratedLocal(), offset), entity.getTaxTotal(),
                 entity.getAmountTotal(), previous, entity.getFingerprint(), entity.getQrUrl(), corrected,
-                amends, entity.isTraining(), submission);
+                amends, cancellation, entity.isTraining(), submission);
     }
 }

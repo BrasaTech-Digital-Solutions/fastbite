@@ -74,6 +74,10 @@ public final class Verifactu {
                 + "&ImporteTotal=" + amount(amountTotal)
                 + "&Huella=" + (previousFingerprint == null ? "" : previousFingerprint)
                 + "&FechaHoraHusoGenRegistro=" + timestamp(generatedAt);
+        return sha256(input);
+    }
+
+    private static String sha256(String input) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().withUpperCase().formatHex(digest);
@@ -90,10 +94,7 @@ public final class Verifactu {
      */
     public static boolean chained(VerifactuRecord record, VerifactuRecord previous) {
         VerifactuRecord.Link link = record.previous();
-        String expected = fingerprint(record.issuerNif(), record.invoiceNumber(), record.issueDate(),
-                record.invoiceType(), record.taxTotal(), record.amountTotal(), link == null ? null : link.fingerprint(),
-                record.generatedAt());
-        if (!expected.equals(record.fingerprint())) {
+        if (!fingerprintOf(record).equals(record.fingerprint())) {
             return false;
         }
         if (previous == null) {
@@ -103,6 +104,30 @@ public final class Verifactu {
                 && previous.invoiceNumber().equals(link.invoiceNumber())
                 && previous.issuerNif().equals(link.issuerNif())
                 && previous.issueDate().equals(link.issueDate());
+    }
+
+    /**
+     * The fingerprint of a registro de anulación: the cancelled invoice and the previous record's
+     * fingerprint, joined the same way.
+     */
+    public static String cancellationFingerprint(String issuerNif, String invoiceNumber, LocalDate issueDate,
+            String previousFingerprint, OffsetDateTime generatedAt) {
+        return sha256("IDEmisorFacturaAnulada=" + issuerNif.trim()
+                + "&NumSerieFacturaAnulada=" + invoiceNumber.trim()
+                + "&FechaExpedicionFacturaAnulada=" + date(issueDate)
+                + "&Huella=" + (previousFingerprint == null ? "" : previousFingerprint)
+                + "&FechaHoraHusoGenRegistro=" + timestamp(generatedAt));
+    }
+
+    /** The fingerprint a record should have, from its own data. */
+    public static String fingerprintOf(VerifactuRecord record) {
+        String previous = record.previous() == null ? null : record.previous().fingerprint();
+        if (record.cancels()) {
+            return cancellationFingerprint(record.issuerNif(), record.invoiceNumber(), record.issueDate(), previous,
+                    record.generatedAt());
+        }
+        return fingerprint(record.issuerNif(), record.invoiceNumber(), record.issueDate(), record.invoiceType(),
+                record.taxTotal(), record.amountTotal(), previous, record.generatedAt());
     }
 
     /** The QR address of an invoice: the AEAT page that shows whether it was reported. */

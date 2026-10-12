@@ -69,6 +69,11 @@ public class VerifactuRecordEntity {
     private String amendsRecordId;
     @Column(updatable = false)
     private Boolean amendsAfterRejection;
+    /** A registro de anulación. */
+    @Column(updatable = false)
+    private boolean cancellation;
+    @Column(updatable = false)
+    private Boolean cancellationWithoutRecord;
     @Column(updatable = false)
     private boolean training;
     private String status;
