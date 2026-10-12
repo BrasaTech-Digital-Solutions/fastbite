@@ -20,8 +20,11 @@ public class VerifactuRecordEntity {
 
     @Id
     private String id;
+    /** Set on a ticket's first record only; amendments leave it empty. */
     @Column(updatable = false)
     private String ticketId;
+    @Column(updatable = false)
+    private String invoiceTicketId;
     @Column(updatable = false)
     private String chain;
     @Column(name = "sequence_number", updatable = false)
@@ -62,6 +65,10 @@ public class VerifactuRecordEntity {
     private String correctedInvoiceNumber;
     @Column(updatable = false)
     private LocalDate correctedIssueDate;
+    @Column(updatable = false)
+    private String amendsRecordId;
+    @Column(updatable = false)
+    private Boolean amendsAfterRejection;
     @Column(updatable = false)
     private boolean training;
     private String status;

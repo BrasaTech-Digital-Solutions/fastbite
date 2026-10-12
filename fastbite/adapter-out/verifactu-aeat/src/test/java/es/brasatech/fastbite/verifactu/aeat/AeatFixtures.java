@@ -65,8 +65,27 @@ final class AeatFixtures {
                 previous == null ? 1 : previous.sequence() + 1, type, ticket.issuer().taxId(), ticket.issuer().legalName(),
                 ticket.fullNumber(), ticket.issuedOn(), generatedAt, ticket.vat().vat(), ticket.total(), link, fingerprint,
                 Verifactu.qrUrl(false, ticket.issuer().taxId(), ticket.fullNumber(), ticket.issuedOn(), ticket.total()),
-                corrected, false, VerifactuRecord.Submission.PENDING);
+                corrected, null, false, VerifactuRecord.Submission.PENDING);
         return new VerifactuSubmitter.Submission(record, ticket);
+    }
+
+    /** A subsanación of a record, chained after it, under the issuer's corrected name. */
+    static VerifactuSubmitter.Submission amendment(VerifactuSubmitter.Submission original, boolean afterRejection) {
+        return amendment(original, afterRejection, "Ana García e Hijos S.L.", original.record().generatedAt().plusMinutes(10));
+    }
+
+    static VerifactuSubmitter.Submission amendment(VerifactuSubmitter.Submission original, boolean afterRejection,
+            String issuerName, OffsetDateTime generatedAt) {
+        VerifactuRecord r = original.record();
+        VerifactuRecord.Link previous = new VerifactuRecord.Link(r.issuerNif(), r.invoiceNumber(), r.issueDate(),
+                r.fingerprint());
+        String fingerprint = Verifactu.fingerprint(r.issuerNif(), r.invoiceNumber(), r.issueDate(), r.invoiceType(),
+                r.taxTotal(), r.amountTotal(), r.fingerprint(), generatedAt);
+        return new VerifactuSubmitter.Submission(new VerifactuRecord("amends-" + r.id(), r.ticketId(), r.chain(),
+                r.sequence() + 1, r.invoiceType(), r.issuerNif(), issuerName, r.invoiceNumber(),
+                r.issueDate(), generatedAt, r.taxTotal(), r.amountTotal(), previous, fingerprint, r.qrUrl(), r.corrected(),
+                new VerifactuRecord.Amendment(r.id(), afterRejection), false, VerifactuRecord.Submission.PENDING),
+                original.ticket());
     }
 
     /** A sale, a full invoice to a Spanish and one to a French customer, a replacement and a refund. */

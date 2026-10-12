@@ -5,6 +5,7 @@ import es.brasatech.fastbite.application.verifactu.VerifactuSystem;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -18,7 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Sends one simplified invoice to the AEAT's test environment, with the producer's own NIF as the
+ * Sends simplified invoices to the AEAT's test environment, with the producer's own NIF as the
  * issuer, so no representation is needed. Never runs in a normal build:
  *
  * <pre>
@@ -56,6 +57,42 @@ class AeatLiveTest {
         System.out.println("AEAT test environment answered: " + results);
         assertThat(results).singleElement().satisfies(result ->
                 assertThat(result.recordId()).isEqualTo(submission.record().id()));
+    }
+
+    /**
+     * Sends a record under a wrong issuer name, then amends it with the right one (subsanación),
+     * flagged as the AEAT's first answer requires. Waits a minute between the two, as the AEAT asks.
+     */
+    @Test
+    void theAeatTestEnvironmentTakesASubsanacion() throws InterruptedException {
+        String nif = env("VERIFACTU_LIVE_NIF");
+        String name = env("VERIFACTU_LIVE_NAME");
+        VerifactuSystem system = new VerifactuSystem(name, nif, "FastBite", "FB", "1.0", "Servicios de restauración");
+        var submitter = new AeatVerifactuSubmitter(env("VERIFACTU_CERTIFICATE_PATH"),
+                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", "1", system);
+
+        String series = "FBSUB" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
+        OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Europe/Madrid")).truncatedTo(ChronoUnit.SECONDS);
+        FiscalTicket ticket = AeatFixtures.ticket(now,
+                new FiscalTicket.Issuer("NOMBRE EQUIVOCADO DE PRUEBA SL", null, nif, "Calle de prueba 1", "28013",
+                        "Madrid", "Madrid", null),
+                TicketKind.SIMPLIFIED, series + "-000001", null, null, "12.10", "10");
+        VerifactuSubmitter.Submission wrong = AeatFixtures.submission(ticket, "F2", null, now);
+        var first = submitter.submit(system, List.of(wrong), false);
+        System.out.println("AEAT answered the record with the wrong name: " + first);
+        assertThat(first).singleElement().satisfies(result ->
+                assertThat(result.status()).as("needs amending").isIn(VerifactuStatus.REJECTED,
+                        VerifactuStatus.ACCEPTED_WITH_ERRORS));
+
+        Thread.sleep(61_000);
+        boolean afterRejection = first.getFirst().status() == VerifactuStatus.REJECTED;
+        VerifactuSubmitter.Submission amendment = AeatFixtures.amendment(wrong, afterRejection, name,
+                OffsetDateTime.now(ZoneId.of("Europe/Madrid")).truncatedTo(ChronoUnit.SECONDS));
+        var second = submitter.submit(system, List.of(amendment), false);
+
+        System.out.println("AEAT answered the subsanación (RechazoPrevio " + (afterRejection ? "X" : "N") + "): " + second);
+        assertThat(second).singleElement().satisfies(result ->
+                assertThat(result.status()).isIn(VerifactuStatus.ACCEPTED, VerifactuStatus.ACCEPTED_WITH_ERRORS));
     }
 
     private static String env(String name) {

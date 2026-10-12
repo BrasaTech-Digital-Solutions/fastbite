@@ -71,6 +71,30 @@ class AeatRequestTest {
     }
 
     @Test
+    void anAmendmentIsSentAsASubsanacion() throws Exception {
+        var sale = AeatFixtures.chain().getFirst();
+        var afterRejection = AeatFixtures.amendment(sale, true);
+        var afterErrors = AeatFixtures.amendment(AeatFixtures.chain().get(1), false);
+
+        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", List.of(afterRejection, afterErrors)));
+
+        schema().newValidator().validate(new DOMSource(body(doc)));
+        assertThat(texts(doc, "Subsanacion")).containsExactly("S", "S");
+        assertThat(texts(doc, "RechazoPrevio")).as("only when the agency never had the invoice").containsExactly("X");
+        assertThat(texts(doc, "NumSerieFactura")).contains(sale.record().invoiceNumber());
+        assertThat(texts(doc, "NombreRazonEmisor")).containsOnly("Ana García e Hijos S.L.");
+        assertThat(texts(doc, "Huella")).contains(afterRejection.record().fingerprint());
+    }
+
+    @Test
+    void aFirstRecordIsNoSubsanacion() throws Exception {
+        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", AeatFixtures.chain()));
+
+        assertThat(texts(doc, "Subsanacion")).isEmpty();
+        assertThat(texts(doc, "RechazoPrevio")).isEmpty();
+    }
+
+    @Test
     void oneSubmissionCarriesOneIssuer() {
         var other = AeatFixtures.submission(AeatFixtures.ticket(
                 new FiscalTicket.Issuer("Ana García", null, "12345678Z", "Calle Mayor 1", "28013", "Madrid", "Madrid", null),

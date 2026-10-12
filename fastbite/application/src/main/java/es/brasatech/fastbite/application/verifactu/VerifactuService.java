@@ -32,9 +32,13 @@ public class VerifactuService {
     /** The tax agency takes at most this many records per submission. */
     static final int BATCH = 1000;
 
-    /** Where a location's records stand, for the owner console. */
+    /**
+     * Where a location's records stand, for the owner console.
+     *
+     * @param toAmend records refused or accepted with errors, newest first, which can be sent again amended
+     */
     public record Summary(boolean configured, String submitter, boolean training, Map<VerifactuStatus, Long> counts,
-            VerifactuRecord last, List<VerifactuRecord> rejected) {
+            VerifactuRecord last, List<VerifactuRecord> toAmend) {
 
         public long total() {
             return counts.values().stream().mapToLong(Long::longValue).sum();
@@ -113,7 +117,52 @@ public class VerifactuService {
         return records.append(new VerifactuRecord(UUID.randomUUID().toString(), ticket.id(), chain,
                 last.map(record -> record.sequence() + 1).orElse(1), type, nif, ticket.issuer().legalName(),
                 ticket.fullNumber(), ticket.issuedOn(), generatedAt, ticket.vat().vat(), ticket.total(), previous,
-                fingerprint, qr, corrected, ticket.training(), VerifactuRecord.Submission.PENDING));
+                fingerprint, qr, corrected, null, ticket.training(), VerifactuRecord.Submission.PENDING));
+    }
+
+    /**
+     * Amends a record the tax agency refused or accepted with errors (subsanación): a new record
+     * of the same invoice, with the issuer's current legal name, appended to the end of the chain
+     * with its own fingerprint. The amended record stays in the chain unchanged.
+     *
+     * <p>Only the record's data can be amended this way; a mistake in the invoice itself is
+     * corrected with a corrective invoice.
+     *
+     * @param issuerName the location's legal name now, which may have been fixed since
+     */
+    public VerifactuRecord amend(String recordId, String issuerName) {
+        VerifactuRecord original = records.findById(recordId)
+                .orElseThrow(() -> new IllegalArgumentException("Billing record " + recordId + " not found"));
+        Optional<VerifactuRecord> last = records.lockChain(original.chain());
+        // Read again under the lock, so two clicks never amend the same record twice
+        original = records.findById(recordId).orElseThrow();
+        if (!original.amendable()) {
+            throw new IllegalStateException("Only refused records and records accepted with errors can be amended");
+        }
+        // The tax agency has the invoice once any of its records was accepted
+        boolean afterRejection = original.submission().status() == VerifactuStatus.REJECTED
+                && (original.amends() == null || original.amends().afterRejection());
+        OffsetDateTime generatedAt = OffsetDateTime.now(clock.withZone(original.generatedAt().getOffset()))
+                .truncatedTo(ChronoUnit.SECONDS);
+        if (last.isPresent() && generatedAt.isBefore(last.get().generatedAt())) {
+            generatedAt = last.get().generatedAt();
+        }
+        VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
+                record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
+        String fingerprint = Verifactu.fingerprint(original.issuerNif(), original.invoiceNumber(), original.issueDate(),
+                original.invoiceType(), original.taxTotal(), original.amountTotal(),
+                previous == null ? null : previous.fingerprint(), generatedAt);
+        String name = issuerName == null || issuerName.isBlank() ? original.issuerName() : issuerName.strip();
+        VerifactuRecord amending = records.append(new VerifactuRecord(UUID.randomUUID().toString(), original.ticketId(),
+                original.chain(), last.map(record -> record.sequence() + 1).orElse(1), original.invoiceType(),
+                original.issuerNif(), name, original.invoiceNumber(), original.issueDate(), generatedAt,
+                original.taxTotal(), original.amountTotal(), previous, fingerprint, original.qrUrl(), original.corrected(),
+                new VerifactuRecord.Amendment(original.id(), afterRejection), original.training(),
+                VerifactuRecord.Submission.PENDING));
+        VerifactuRecord.Submission was = original.submission();
+        records.updateSubmission(original.id(), new VerifactuRecord.Submission(VerifactuStatus.AMENDED, was.attempts(),
+                was.error(), was.csv(), was.at()));
+        return amending;
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +176,7 @@ public class VerifactuService {
         Map<VerifactuStatus, Long> counts = new EnumMap<>(VerifactuStatus.class);
         counts.putAll(records.countByStatus(chain));
         return new Summary(submitter.configured(), submitter.name(), training, counts,
-                records.findLast(chain).orElse(null), records.findRejected(chain, 20));
+                records.findLast(chain).orElse(null), records.findToAmend(chain, 20));
     }
 
     @Transactional(readOnly = true)

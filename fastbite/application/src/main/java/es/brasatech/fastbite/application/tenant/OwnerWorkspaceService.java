@@ -92,6 +92,15 @@ public class OwnerWorkspaceService {
         return inTenant(tenant, () -> verifactu.chain(training));
     }
 
+    /**
+     * Sends a refused billing record again as a subsanación, with the location's legal name as it
+     * is now, so a name corrected in the business details is the one sent.
+     */
+    public VerifactuRecord amendVerifactuRecord(String owner, String tenant, String recordId) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> verifactu.amend(recordId, fiscalProfiles.get().legalName()));
+    }
+
     /** True once the location has issued a real ticket, which fixes its NIF and series code. */
     public boolean fiscalLocked(String owner, String tenant) {
         requireOwner(owner, tenant);

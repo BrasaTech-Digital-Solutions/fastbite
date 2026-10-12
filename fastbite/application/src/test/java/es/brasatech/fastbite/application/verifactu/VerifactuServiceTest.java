@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -36,8 +37,11 @@ class VerifactuServiceTest {
 
         public Optional<VerifactuRecord> lockChain(String chain) { return findLast(chain); }
         public VerifactuRecord append(VerifactuRecord record) { all.add(record); return record; }
+        public Optional<VerifactuRecord> findById(String id) {
+            return all.stream().filter(r -> r.id().equals(id)).findFirst();
+        }
         public Optional<VerifactuRecord> findByTicketId(String ticketId) {
-            return all.stream().filter(r -> r.ticketId().equals(ticketId)).findFirst();
+            return all.stream().filter(r -> r.ticketId().equals(ticketId)).max(Comparator.comparingInt(VerifactuRecord::sequence));
         }
         public Optional<VerifactuRecord> findLast(String chain) {
             return all.stream().filter(r -> r.chain().equals(chain)).max(Comparator.comparingInt(VerifactuRecord::sequence));
@@ -46,8 +50,8 @@ class VerifactuServiceTest {
             return all.stream().filter(r -> r.chain().equals(chain) && r.submission().status() == VerifactuStatus.PENDING)
                     .limit(limit).toList();
         }
-        public List<VerifactuRecord> findRejected(String chain, int limit) {
-            return all.stream().filter(r -> r.chain().equals(chain) && r.submission().status() == VerifactuStatus.REJECTED).toList();
+        public List<VerifactuRecord> findToAmend(String chain, int limit) {
+            return all.stream().filter(r -> r.chain().equals(chain) && r.amendable()).toList();
         }
         public List<VerifactuRecord> findAll(String chain) { return all.stream().filter(r -> r.chain().equals(chain)).toList(); }
         public void updateSubmission(String id, VerifactuRecord.Submission submission) {
@@ -155,7 +159,7 @@ class VerifactuServiceTest {
         var summary = service.summary(false);
         assertThat(summary.count(VerifactuStatus.ACCEPTED)).isEqualTo(1);
         assertThat(summary.count(VerifactuStatus.REJECTED)).isEqualTo(1);
-        assertThat(summary.rejected()).singleElement().satisfies(rejected ->
+        assertThat(summary.toAmend()).singleElement().satisfies(rejected ->
                 assertThat(rejected.submission().error()).isEqualTo("Invalid NIF"));
         assertThat(records.all.getFirst().submission().csv()).isEqualTo("CSV1");
         assertThat(service.submitPending(false)).as("nothing left to send").isZero();
@@ -170,5 +174,58 @@ class VerifactuServiceTest {
         assertThat(submitter.calls).isEmpty();
         assertThat(service.summary(false).count(VerifactuStatus.PENDING)).isEqualTo(1);
         assertThat(service.summary(false).configured()).isFalse();
+    }
+
+    @Test
+    void aRefusedRecordIsAmendedByANewRecordAtTheEndOfTheChain() {
+        service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        var refused = service.record(ticket(TicketKind.SIMPLIFIED, 2, false, null));
+        service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
+        service.submitPending(false);
+
+        var amendment = service.amend(refused.id(), "Ana García López");
+
+        var third = records.all.get(2);
+        assertThat(amendment.sequence()).isEqualTo(4);
+        assertThat(amendment.invoiceNumber()).isEqualTo(refused.invoiceNumber());
+        assertThat(amendment.ticketId()).isEqualTo(refused.ticketId());
+        assertThat(amendment.issuerName()).isEqualTo("Ana García López");
+        assertThat(amendment.amends()).isEqualTo(new VerifactuRecord.Amendment(refused.id(), true));
+        assertThat(amendment.previous().fingerprint()).as("chained to the last record, not the amended one")
+                .isEqualTo(third.fingerprint());
+        assertThat(amendment.fingerprint()).isEqualTo(Verifactu.fingerprint("12345678Z", refused.invoiceNumber(),
+                refused.issueDate(), "F2", refused.taxTotal(), refused.amountTotal(), third.fingerprint(),
+                amendment.generatedAt()));
+        assertThat(amendment.submission().status()).isEqualTo(VerifactuStatus.PENDING);
+        var amended = records.findById(refused.id()).orElseThrow();
+        assertThat(amended.submission().status()).isEqualTo(VerifactuStatus.AMENDED);
+        assertThat(amended.fingerprint()).as("the amended record never changes").isEqualTo(refused.fingerprint());
+        assertThat(service.summary(false).toAmend()).isEmpty();
+        assertThat(service.findForTicket(refused.ticketId())).hasValue(amendment);
+    }
+
+    @Test
+    void anInvoiceTheAgencyAcceptedOnceIsNeverAmendedAsRefusedBefore() {
+        var record = service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        records.updateSubmission(record.id(), new VerifactuRecord.Submission(VerifactuStatus.ACCEPTED_WITH_ERRORS, 1,
+                "2000: Aviso", "CSV1", OffsetDateTime.now(NOON)));
+
+        var first = service.amend(record.id(), null);
+        assertThat(first.amends().afterRejection()).isFalse();
+        assertThat(first.issuerName()).as("kept when no new name is given").isEqualTo("Ana García");
+
+        records.updateSubmission(first.id(), new VerifactuRecord.Submission(VerifactuStatus.REJECTED, 1, "1100: Mal",
+                null, OffsetDateTime.now(NOON)));
+        var second = service.amend(first.id(), null);
+        assertThat(second.amends()).isEqualTo(new VerifactuRecord.Amendment(first.id(), false));
+    }
+
+    @Test
+    void onlyRefusedRecordsOrRecordsWithErrorsCanBeAmended() {
+        var pending = service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+
+        assertThatThrownBy(() -> service.amend(pending.id(), "Ana")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> service.amend("missing", "Ana")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(records.all).hasSize(1);
     }
 }

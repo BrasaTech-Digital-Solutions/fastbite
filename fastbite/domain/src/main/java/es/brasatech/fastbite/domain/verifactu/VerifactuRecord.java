@@ -16,6 +16,7 @@ import java.time.OffsetDateTime;
  * @param fingerprint  SHA-256 "huella" of this record, uppercase hexadecimal
  * @param qrUrl        the AEAT address printed as a QR code on the invoice, where anyone can check it
  * @param corrected    for F3 and corrective invoices, the invoice they replace or correct
+ * @param amends       for a subsanación, the record of the same invoice it amends; null otherwise
  */
 public record VerifactuRecord(
         String id,
@@ -34,11 +35,22 @@ public record VerifactuRecord(
         String fingerprint,
         String qrUrl,
         Link corrected,
+        Amendment amends,
         boolean training,
         Submission submission) {
 
     /** Identifies another record: issuer, invoice number, issue date and, for the chain, its fingerprint. */
     public record Link(String issuerNif, String invoiceNumber, LocalDate issueDate, String fingerprint) {
+    }
+
+    /**
+     * What a subsanación amends: an earlier record of the same invoice, which stays in the chain
+     * unchanged. The amending record carries the corrected data and its own fingerprint.
+     *
+     * @param afterRejection the tax agency never accepted the invoice, so it does not have it yet
+     *                       (RechazoPrevio X)
+     */
+    public record Amendment(String recordId, boolean afterRejection) {
     }
 
     /** Where the record stands with the tax agency. */
@@ -54,9 +66,20 @@ public record VerifactuRecord(
         return previous == null;
     }
 
+    /** A subsanación of an earlier record of the same invoice. */
+    public boolean amendment() {
+        return amends != null;
+    }
+
+    /** Refused, or accepted with errors: it can be sent again as a subsanación. */
+    public boolean amendable() {
+        return submission.status() == VerifactuStatus.REJECTED
+                || submission.status() == VerifactuStatus.ACCEPTED_WITH_ERRORS;
+    }
+
     public VerifactuRecord withSubmission(Submission submission) {
         return new VerifactuRecord(id, ticketId, chain, sequence, invoiceType, issuerNif, issuerName, invoiceNumber,
-                issueDate, generatedAt, taxTotal, amountTotal, previous, fingerprint, qrUrl, corrected, training,
+                issueDate, generatedAt, taxTotal, amountTotal, previous, fingerprint, qrUrl, corrected, amends, training,
                 submission);
     }
 }

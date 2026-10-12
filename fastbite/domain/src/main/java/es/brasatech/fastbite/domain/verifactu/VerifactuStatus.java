@@ -9,5 +9,7 @@ public enum VerifactuStatus {
     /** Accepted, with warnings the restaurant should look at. */
     ACCEPTED_WITH_ERRORS,
     /** Refused: it has to be corrected and sent again. */
-    REJECTED
+    REJECTED,
+    /** Refused or accepted with errors, and since amended by a later record (subsanación). */
+    AMENDED
 }

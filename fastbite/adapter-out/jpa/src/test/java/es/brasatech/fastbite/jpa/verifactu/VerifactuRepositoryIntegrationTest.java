@@ -71,7 +71,7 @@ class VerifactuRepositoryIntegrationTest {
         return records.append(new VerifactuRecord(UUID.randomUUID().toString(), id, chain,
                 last.map(r -> r.sequence() + 1).orElse(1), "F2", "12345678Z", "Ana", number, generated.toLocalDate(),
                 generated, new BigDecimal("1.00"), new BigDecimal("11.00"), previous, fingerprint, "https://qr", null,
-                false, VerifactuRecord.Submission.PENDING));
+                null, false, VerifactuRecord.Submission.PENDING));
     }
 
     @Test
@@ -96,7 +96,7 @@ class VerifactuRepositoryIntegrationTest {
             records.lockChain(VerifactuRecord.REAL_CHAIN);
             return records.append(new VerifactuRecord(UUID.randomUUID().toString(), first.ticketId(), first.chain(), 1,
                     "F2", "12345678Z", "Ana", "KH-T26-X", first.issueDate(), first.generatedAt(), BigDecimal.ONE,
-                    BigDecimal.TEN, null, "F", "https://qr", null, false, VerifactuRecord.Submission.PENDING));
+                    BigDecimal.TEN, null, "F", "https://qr", null, null, false, VerifactuRecord.Submission.PENDING));
         })).isInstanceOf(RuntimeException.class);
     }
 
@@ -132,7 +132,7 @@ class VerifactuRepositoryIntegrationTest {
 
         assertThat(in(tenant, () -> records.findPending(VerifactuRecord.REAL_CHAIN, 10))).extracting(VerifactuRecord::sequence)
                 .containsExactly(3);
-        assertThat(in(tenant, () -> records.findRejected(VerifactuRecord.REAL_CHAIN, 10))).singleElement()
+        assertThat(in(tenant, () -> records.findToAmend(VerifactuRecord.REAL_CHAIN, 10))).singleElement()
                 .satisfies(r -> assertThat(r.submission().error()).isEqualTo("NIF not identified"));
         assertThat(in(tenant, () -> records.countByStatus(VerifactuRecord.REAL_CHAIN)))
                 .containsEntry(VerifactuStatus.ACCEPTED, 1L).containsEntry(VerifactuStatus.REJECTED, 1L)
@@ -140,5 +140,32 @@ class VerifactuRepositoryIntegrationTest {
         var accepted = in(tenant, () -> records.findByTicketId(first.ticketId())).orElseThrow();
         assertThat(accepted.submission().csv()).isEqualTo("CSV1");
         assertThat(accepted.fingerprint()).as("the fiscal content never changes").isEqualTo(first.fingerprint());
+    }
+
+    @Test
+    void anAmendmentIsAnotherRecordOfTheSameTicket() {
+        String tenant = tenant();
+        var original = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        var amendment = in(tenant, () -> {
+            var last = records.lockChain(VerifactuRecord.REAL_CHAIN).orElseThrow();
+            return records.append(new VerifactuRecord(UUID.randomUUID().toString(), original.ticketId(), original.chain(), 2,
+                    "F2", "12345678Z", "Ana García", original.invoiceNumber(), original.issueDate(),
+                    original.generatedAt().plusMinutes(5), original.taxTotal(), original.amountTotal(),
+                    new VerifactuRecord.Link(last.issuerNif(), last.invoiceNumber(), last.issueDate(), last.fingerprint()),
+                    "AMENDED-FINGERPRINT", original.qrUrl(), null, new VerifactuRecord.Amendment(original.id(), true), false,
+                    VerifactuRecord.Submission.PENDING));
+        });
+
+        assertThat(in(tenant, () -> records.findById(amendment.id()))).hasValue(amendment);
+        assertThat(in(tenant, () -> records.findByTicketId(original.ticketId()))).as("the latest record of the invoice")
+                .hasValue(amendment);
+        assertThat(in(tenant, () -> records.findById(original.id()))).hasValue(original);
+        assertThatThrownBy(() -> in(tenant, () -> {
+            records.lockChain(VerifactuRecord.REAL_CHAIN);
+            return records.append(new VerifactuRecord(UUID.randomUUID().toString(), original.ticketId(), original.chain(), 3,
+                    "F2", "12345678Z", "Ana", original.invoiceNumber(), original.issueDate(), original.generatedAt(),
+                    original.taxTotal(), original.amountTotal(), null, "TWICE", original.qrUrl(), null,
+                    new VerifactuRecord.Amendment(original.id(), true), false, VerifactuRecord.Submission.PENDING));
+        })).as("a record is amended at most once").isInstanceOf(RuntimeException.class);
     }
 }

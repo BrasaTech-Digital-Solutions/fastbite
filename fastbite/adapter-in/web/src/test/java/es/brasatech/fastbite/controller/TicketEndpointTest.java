@@ -111,7 +111,7 @@ class TicketEndpointTest {
         var record = new es.brasatech.fastbite.domain.verifactu.VerifactuRecord("rec1", "t1", "REAL", 1, "F2",
                 "12345678Z", "Ana García López", "KH-T26-000007", SALE.issuedOn(), SALE.issuedAt(), new BigDecimal("1.27"),
                 new BigDecimal("14.00"), null, "ABC", es.brasatech.fastbite.domain.verifactu.Verifactu.qrUrl(true,
-                "12345678Z", "KH-T26-000007", SALE.issuedOn(), new BigDecimal("14.00")), null, false,
+                "12345678Z", "KH-T26-000007", SALE.issuedOn(), new BigDecimal("14.00")), null, null, false,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Submission.PENDING);
         when(verifactu.findForTicket("t1")).thenReturn(Optional.of(record));
 

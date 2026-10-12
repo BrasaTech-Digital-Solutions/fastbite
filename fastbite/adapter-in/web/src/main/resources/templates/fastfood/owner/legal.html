@@ -177,11 +177,19 @@
     <p class="fingerprint" th:title="${verifactu.last().fingerprint()}"
        th:text="#{owner.verifactu.fingerprint} + ' ' + ${#strings.substring(verifactu.last().fingerprint(), 0, 16)} + '…'">Fingerprint 3C464DAF61ACB827…</p>
   </div>
-  <div th:if="${!verifactu.rejected().isEmpty()}">
-    <h3 th:text="#{owner.verifactu.rejected.title}">Records the tax agency refused</h3>
+  <div th:if="${!verifactu.toAmend().isEmpty()}">
+    <h3 th:text="#{owner.verifactu.toAmend.title}">Records to fix and send again</h3>
+    <p class="fine" th:text="#{owner.verifactu.toAmend.help}">If the reason points at your business details, correct them above first.</p>
     <ul class="verifactu-rejected">
-      <li th:each="record : ${verifactu.rejected()}"><strong th:text="${record.invoiceNumber()}">KH-T26-000002</strong>:
-        <span th:text="${record.submission().error()}">NIF not identified</span></li>
+      <li th:each="record : ${verifactu.toAmend()}">
+        <strong th:text="${record.invoiceNumber()}">KH-T26-000002</strong>
+        · <span th:text="#{${'owner.verifactu.status.' + record.submission().status().name()}}">Refused</span>:
+        <span th:text="${record.submission().error()}">NIF not identified</span>
+        <form method="post" class="verifactu-amend"
+              th:action="@{/owner/workspace/{tenant}/verifactu/records/{record}/amend(tenant=${selected.tenantId},record=${record.id()})}">
+          <button type="submit" class="quiet-button" th:text="#{owner.verifactu.amend}">Send again corrected</button>
+        </form>
+      </li>
     </ul>
   </div>
   <p class="verifactu-links">

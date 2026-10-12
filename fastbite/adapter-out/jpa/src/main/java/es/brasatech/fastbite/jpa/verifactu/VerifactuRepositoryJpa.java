@@ -59,9 +59,15 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
     }
 
     @Override
+    public Optional<VerifactuRecord> findById(String recordId) {
+        return Optional.ofNullable(entityManager.find(VerifactuRecordEntity.class, recordId)).map(this::toRecord);
+    }
+
+    @Override
     public Optional<VerifactuRecord> findByTicketId(String ticketId) {
-        return entityManager.createQuery("select r from VerifactuRecord r where r.ticketId = :ticket", VerifactuRecordEntity.class)
-                .setParameter("ticket", ticketId).getResultStream().findFirst().map(this::toRecord);
+        return entityManager.createQuery("select r from VerifactuRecord r where r.invoiceTicketId = :ticket "
+                        + "order by r.sequence desc", VerifactuRecordEntity.class)
+                .setParameter("ticket", ticketId).setMaxResults(1).getResultStream().findFirst().map(this::toRecord);
     }
 
     @Override
@@ -77,8 +83,12 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
     }
 
     @Override
-    public List<VerifactuRecord> findRejected(String chain, int limit) {
-        return byStatus(chain, VerifactuStatus.REJECTED, "desc", limit);
+    public List<VerifactuRecord> findToAmend(String chain, int limit) {
+        return entityManager.createQuery("select r from VerifactuRecord r where r.chain = :chain and r.status in :statuses "
+                        + "order by r.sequence desc", VerifactuRecordEntity.class)
+                .setParameter("chain", chain)
+                .setParameter("statuses", List.of(VerifactuStatus.REJECTED.name(), VerifactuStatus.ACCEPTED_WITH_ERRORS.name()))
+                .setMaxResults(limit).getResultStream().map(this::toRecord).toList();
     }
 
     private List<VerifactuRecord> byStatus(String chain, VerifactuStatus status, String order, int limit) {
@@ -123,7 +133,8 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
     private VerifactuRecordEntity toEntity(VerifactuRecord record) {
         var entity = new VerifactuRecordEntity();
         entity.setId(record.id());
-        entity.setTicketId(record.ticketId());
+        entity.setTicketId(record.amendment() ? null : record.ticketId());
+        entity.setInvoiceTicketId(record.ticketId());
         entity.setChain(record.chain());
         entity.setSequence(record.sequence());
         entity.setInvoiceType(record.invoiceType());
@@ -148,6 +159,10 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
             entity.setCorrectedInvoiceNumber(record.corrected().invoiceNumber());
             entity.setCorrectedIssueDate(record.corrected().issueDate());
         }
+        if (record.amends() != null) {
+            entity.setAmendsRecordId(record.amends().recordId());
+            entity.setAmendsAfterRejection(record.amends().afterRejection());
+        }
         entity.setTraining(record.training());
         entity.setStatus(record.submission().status().name());
         entity.setAttempts(record.submission().attempts());
@@ -163,13 +178,15 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
                 entity.getPreviousFingerprint());
         var corrected = entity.getCorrectedInvoiceNumber() == null ? null : new VerifactuRecord.Link(
                 entity.getCorrectedIssuerNif(), entity.getCorrectedInvoiceNumber(), entity.getCorrectedIssueDate(), null);
+        var amends = entity.getAmendsRecordId() == null ? null : new VerifactuRecord.Amendment(
+                entity.getAmendsRecordId(), Boolean.TRUE.equals(entity.getAmendsAfterRejection()));
         var submission = new VerifactuRecord.Submission(VerifactuStatus.valueOf(entity.getStatus()), entity.getAttempts(),
                 entity.getLastError(), entity.getCsv(),
                 entity.getSubmittedAt() == null ? null : OffsetDateTime.of(entity.getSubmittedAt(), offset));
-        return new VerifactuRecord(entity.getId(), entity.getTicketId(), entity.getChain(), entity.getSequence(),
+        return new VerifactuRecord(entity.getId(), entity.getInvoiceTicketId(), entity.getChain(), entity.getSequence(),
                 entity.getInvoiceType(), entity.getIssuerNif(), entity.getIssuerName(), entity.getInvoiceNumber(),
                 entity.getIssueDate(), OffsetDateTime.of(entity.getGeneratedLocal(), offset), entity.getTaxTotal(),
                 entity.getAmountTotal(), previous, entity.getFingerprint(), entity.getQrUrl(), corrected,
-                entity.isTraining(), submission);
+                amends, entity.isTraining(), submission);
     }
 }

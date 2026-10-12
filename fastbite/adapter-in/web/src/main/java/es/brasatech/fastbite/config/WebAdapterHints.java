@@ -51,6 +51,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.dto.counter.InvoiceDetails.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Link.class,
+                es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Amendment.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Submission.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuStatus.class,
                 es.brasatech.fastbite.application.verifactu.VerifactuService.Summary.class,

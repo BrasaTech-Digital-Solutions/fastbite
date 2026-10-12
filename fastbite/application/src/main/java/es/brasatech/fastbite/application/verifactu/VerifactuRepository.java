@@ -19,6 +19,9 @@ public interface VerifactuRepository {
     /** Adds a record at the end of its chain; the chain must be locked by this transaction. */
     VerifactuRecord append(VerifactuRecord record);
 
+    Optional<VerifactuRecord> findById(String recordId);
+
+    /** The latest record of a ticket's invoice: its first record, or the last amendment of it. */
     Optional<VerifactuRecord> findByTicketId(String ticketId);
 
     /** The last record of a chain, without locking it. */
@@ -27,8 +30,8 @@ public interface VerifactuRepository {
     /** Records not yet accepted, oldest first: the tax agency wants them in chain order. */
     List<VerifactuRecord> findPending(String chain, int limit);
 
-    /** Records whose submission was refused and need attention, newest first. */
-    List<VerifactuRecord> findRejected(String chain, int limit);
+    /** Records refused or accepted with errors, not amended yet, newest first. */
+    List<VerifactuRecord> findToAmend(String chain, int limit);
 
     /** Every record of a chain in order, for the restaurant to keep or show an inspector. */
     List<VerifactuRecord> findAll(String chain);

@@ -140,6 +140,20 @@ public class OwnerWorkspaceController {
                 .body(workspace.verifactuRecords(owner.getName(), tenant, environment.sandbox()));
     }
 
+    /** Sends a refused record (or one accepted with errors) again, as a subsanación. */
+    @PostMapping("/owner/workspace/{tenant}/verifactu/records/{record}/amend")
+    public String amendVerifactuRecord(@PathVariable String tenant, @PathVariable String record, Principal owner,
+            RedirectAttributes flash, Locale locale) {
+        check(owner, tenant);
+        try {
+            workspace.amendVerifactuRecord(owner.getName(), tenant, record);
+            flash.addFlashAttribute("notice", messages.getMessage("owner.verifactu.amended", null, locale));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            flash.addFlashAttribute("error", messages.getMessage("owner.verifactu.amend.failed", null, locale));
+        }
+        return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
+    }
+
     @PostMapping("/owner/workspace/{tenant}/backup-preview") @ResponseBody
     public TenantBackupRestorePort.BackupPreview preview(@PathVariable String tenant,@RequestParam MultipartFile file,Principal owner)throws java.io.IOException {
         check(owner,tenant);

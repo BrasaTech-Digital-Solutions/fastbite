@@ -99,8 +99,16 @@ same transaction that issues it, so a ticket never exists without its record.
   - The AEAT's waiting time (`TiempoEsperaEnvio`) is respected per issuer, unless 1000 records are waiting.
     A record the AEAT already has (duplicate, for instance after a lost answer) counts as accepted.
   - Records of a location without a valid NIF or legal name are marked refused without being sent.
-  - Not done yet: resending a refused record as a correction (`Subsanacion`, `RechazoPrevio`), and
-    cancellation records (`RegistroAnulacion`) for invoices issued by mistake.
+  - Not done yet: cancellation records (`RegistroAnulacion`) for invoices issued by mistake.
+- **Subsanación**: the owner console lists records the AEAT refused or accepted with errors, with the
+  AEAT's reason. *Send again corrected* adds a new record of the same invoice at the end of the chain, with
+  the location's current legal name and its own fingerprint, marked `Subsanacion=S`, plus
+  `RechazoPrevio=X` when the AEAT never accepted the invoice (so it does not have it yet). The amended
+  record stays in the chain unchanged, with status `AMENDED`; each record is amended at most once, and an
+  amendment that is refused again can itself be amended. The ticket and its QR code do not change. This only
+  fixes the record's data: a mistake in the invoice itself needs a corrective invoice (*Tickets → Refund*).
+  In the database, `invoice_ticket_id` names the ticket of every record, and `ticket_id` stays on a
+  ticket's first record only.
   - Live check against the test environment: `AeatLiveTest`, which runs only with `-Dverifactu.live=true`.
 - **System**: the software is identified as `fastbite.verifactu.*` (producer name and NIF, system name, id and
   version). The producer must publish the declaración responsable for each version.

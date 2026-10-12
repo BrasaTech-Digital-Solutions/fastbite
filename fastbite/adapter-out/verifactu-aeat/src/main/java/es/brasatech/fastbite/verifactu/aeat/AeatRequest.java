@@ -20,7 +20,8 @@ import java.util.Set;
 /**
  * The SOAP message that sends billing records to the AEAT (RegFactuSistemaFacturacion), as the
  * schemas SuministroLR.xsd and SuministroInformacion.xsd describe it. Only registros de alta are
- * written: FastBite corrects an invoice by issuing a corrective one, never by cancelling it.
+ * written, subsanaciones included: FastBite corrects an invoice by issuing a corrective one, never
+ * by cancelling it.
  */
 final class AeatRequest {
 
@@ -104,6 +105,13 @@ final class AeatRequest {
         xml.writeEndElement();
         text(xml, "RefExterna", record.id());
         text(xml, "NombreRazonEmisor", max(record.issuerName(), 120));
+        if (record.amendment()) {
+            // Subsanación; X when the agency refused the invoice before and so does not have it yet
+            text(xml, "Subsanacion", "S");
+            if (record.amends().afterRejection()) {
+                text(xml, "RechazoPrevio", "X");
+            }
+        }
         text(xml, "TipoFactura", type);
         if (type.startsWith("R")) {
             // By differences: the corrective invoice carries the negative amounts of the refund
