@@ -158,6 +158,8 @@
           th:text="${verifactu.configured()} ? #{owner.verifactu.connected(${verifactu.submitter()})} : #{owner.verifactu.notConnected}">Not connected yet</span>
   </div>
   <p th:text="#{owner.verifactu.intro}">Every ticket creates a billing record chained to the one before it.</p>
+  <div class="alert error" role="alert" th:unless="${verifactu.chainIntact()}"
+       th:text="#{owner.verifactu.chainBroken}">The last billing record does not match its fingerprint.</div>
   <div class="inline-note" th:unless="${verifactu.configured()}">
     <p th:text="#{owner.verifactu.waiting}">Records are kept safely and will be sent in order as soon as the connection is set up.</p>
   </div>

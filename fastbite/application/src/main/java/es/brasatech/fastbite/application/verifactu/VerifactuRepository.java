@@ -24,6 +24,9 @@ public interface VerifactuRepository {
     /** The latest record of a ticket's invoice: its first record, or the last amendment of it. */
     Optional<VerifactuRecord> findByTicketId(String ticketId);
 
+    /** The record at a position of a chain, counting from 1. */
+    Optional<VerifactuRecord> findInChain(String chain, int sequence);
+
     /** The last record of a chain, without locking it. */
     Optional<VerifactuRecord> findLast(String chain);
 

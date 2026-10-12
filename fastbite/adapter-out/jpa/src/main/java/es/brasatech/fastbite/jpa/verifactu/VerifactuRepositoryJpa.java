@@ -72,6 +72,14 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
     }
 
     @Override
+    public Optional<VerifactuRecord> findInChain(String chain, int sequence) {
+        return entityManager.createQuery("select r from VerifactuRecord r where r.chain = :chain and r.sequence = :sequence",
+                        VerifactuRecordEntity.class)
+                .setParameter("chain", chain).setParameter("sequence", sequence).getResultStream().findFirst()
+                .map(this::toRecord);
+    }
+
+    @Override
     public Optional<VerifactuRecord> findLast(String chain) {
         return entityManager.createQuery("select r from VerifactuRecord r where r.chain = :chain order by r.sequence desc",
                         VerifactuRecordEntity.class)

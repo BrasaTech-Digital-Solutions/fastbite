@@ -60,4 +60,41 @@ class VerifactuTest {
         assertThat(Verifactu.invoiceType(TicketKind.RECTIFYING, TicketKind.FULL)).isEqualTo("R1");
         assertThat(Verifactu.invoiceType(TicketKind.RECTIFYING, TicketKind.REPLACEMENT)).isEqualTo("R1");
     }
+
+    private static VerifactuRecord record(int sequence, String number, VerifactuRecord previous) {
+        var generated = OffsetDateTime.parse("2026-10-09T13:00:00+02:00").plusSeconds(sequence);
+        var link = previous == null ? null : new VerifactuRecord.Link(previous.issuerNif(), previous.invoiceNumber(),
+                previous.issueDate(), previous.fingerprint());
+        String fingerprint = Verifactu.fingerprint("12345678Z", number, generated.toLocalDate(), "F2",
+                new BigDecimal("1.00"), new BigDecimal("11.00"), link == null ? null : link.fingerprint(), generated);
+        return new VerifactuRecord("r" + sequence, "t" + sequence, VerifactuRecord.REAL_CHAIN, sequence, "F2",
+                "12345678Z", "Ana", number, generated.toLocalDate(), generated, new BigDecimal("1.00"),
+                new BigDecimal("11.00"), link, fingerprint, "https://qr", null, null, false,
+                VerifactuRecord.Submission.PENDING);
+    }
+
+    @Test
+    void aRecordIsChainedWhenItsFingerprintAndLinkMatch() {
+        var first = record(1, "KH-T26-000001", null);
+        var second = record(2, "KH-T26-000002", first);
+
+        assertThat(Verifactu.chained(first, null)).isTrue();
+        assertThat(Verifactu.chained(second, first)).isTrue();
+    }
+
+    @Test
+    void aChangedRecordOrAWrongLinkBreaksTheChain() {
+        var first = record(1, "KH-T26-000001", null);
+        var second = record(2, "KH-T26-000002", first);
+        var other = record(1, "KH-T26-000009", null);
+        var altered = new VerifactuRecord(second.id(), second.ticketId(), second.chain(), 2, "F2", "12345678Z", "Ana",
+                second.invoiceNumber(), second.issueDate(), second.generatedAt(), second.taxTotal(),
+                new BigDecimal("99.00"), second.previous(), second.fingerprint(), second.qrUrl(), null, null, false,
+                second.submission());
+
+        assertThat(Verifactu.chained(altered, first)).as("amount changed after hashing").isFalse();
+        assertThat(Verifactu.chained(second, other)).as("points at another record").isFalse();
+        assertThat(Verifactu.chained(second, null)).as("says it follows a record that is missing").isFalse();
+        assertThat(Verifactu.chained(first, second)).as("a first record that should follow one").isFalse();
+    }
 }

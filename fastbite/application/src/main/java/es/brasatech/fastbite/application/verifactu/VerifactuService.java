@@ -7,6 +7,8 @@ import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.verifactu.Verifactu;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,14 +38,16 @@ public class VerifactuService {
     static final int BATCH = 1000;
 
     private static final DateTimeFormatter INSTALLED = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final Logger log = LoggerFactory.getLogger(VerifactuService.class);
 
     /**
      * Where a location's records stand, for the owner console.
      *
-     * @param toAmend records refused or accepted with errors, newest first, which can be sent again amended
+     * @param toAmend     records refused or accepted with errors, newest first, which can be sent again amended
+     * @param chainIntact the last record matches its fingerprint and the record before it
      */
     public record Summary(boolean configured, String submitter, boolean training, Map<VerifactuStatus, Long> counts,
-            VerifactuRecord last, List<VerifactuRecord> toAmend) {
+            VerifactuRecord last, List<VerifactuRecord> toAmend, boolean chainIntact) {
 
         public long total() {
             return counts.values().stream().mapToLong(Long::longValue).sum();
@@ -94,6 +98,7 @@ public class VerifactuService {
     public VerifactuRecord record(FiscalTicket ticket) {
         String chain = ticket.training() ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
         Optional<VerifactuRecord> last = records.lockChain(chain);
+        checkChain(last);
         String nif = Objects.toString(ticket.issuer().taxId(), "");
         TicketKind correctedKind = null;
         VerifactuRecord.Link corrected = null;
@@ -111,9 +116,7 @@ public class VerifactuService {
         if (generatedAt.isBefore(ticket.issuedAt().truncatedTo(ChronoUnit.SECONDS))) {
             generatedAt = ticket.issuedAt().truncatedTo(ChronoUnit.SECONDS);
         }
-        if (last.isPresent() && generatedAt.isBefore(last.get().generatedAt())) {
-            generatedAt = last.get().generatedAt();
-        }
+        generatedAt = inOrder(generatedAt, last);
         VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
                 record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
         String fingerprint = Verifactu.fingerprint(nif, ticket.fullNumber(), ticket.issuedOn(), type,
@@ -139,6 +142,7 @@ public class VerifactuService {
         VerifactuRecord original = records.findById(recordId)
                 .orElseThrow(() -> new IllegalArgumentException("Billing record " + recordId + " not found"));
         Optional<VerifactuRecord> last = records.lockChain(original.chain());
+        checkChain(last);
         // Read again under the lock, so two clicks never amend the same record twice
         original = records.findById(recordId).orElseThrow();
         if (!original.amendable()) {
@@ -149,9 +153,7 @@ public class VerifactuService {
                 && (original.amends() == null || original.amends().afterRejection());
         OffsetDateTime generatedAt = OffsetDateTime.now(clock.withZone(original.generatedAt().getOffset()))
                 .truncatedTo(ChronoUnit.SECONDS);
-        if (last.isPresent() && generatedAt.isBefore(last.get().generatedAt())) {
-            generatedAt = last.get().generatedAt();
-        }
+        generatedAt = inOrder(generatedAt, last);
         VerifactuRecord.Link previous = last.map(record -> new VerifactuRecord.Link(record.issuerNif(),
                 record.invoiceNumber(), record.issueDate(), record.fingerprint())).orElse(null);
         String fingerprint = Verifactu.fingerprint(original.issuerNif(), original.invoiceNumber(), original.issueDate(),
@@ -180,8 +182,9 @@ public class VerifactuService {
         String chain = training ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
         Map<VerifactuStatus, Long> counts = new EnumMap<>(VerifactuStatus.class);
         counts.putAll(records.countByStatus(chain));
-        return new Summary(submitter.configured(), submitter.name(), training, counts,
-                records.findLast(chain).orElse(null), records.findToAmend(chain, 20));
+        Optional<VerifactuRecord> last = records.findLast(chain);
+        return new Summary(submitter.configured(), submitter.name(), training, counts, last.orElse(null),
+                records.findToAmend(chain, 20), intact(last));
     }
 
     @Transactional(readOnly = true)
@@ -228,6 +231,48 @@ public class VerifactuService {
 
     public boolean configured() {
         return submitter.configured();
+    }
+
+    /**
+     * Checks, before a new record is generated, that the last one is correctly chained (Orden
+     * HAC/1177/2024, art. 7.i.1). A broken chain never stops billing: it is reported, the owner
+     * console shows it, and the new record is chained to the last one as it is.
+     */
+    private void checkChain(Optional<VerifactuRecord> last) {
+        if (!intact(last)) {
+            VerifactuRecord record = last.orElseThrow();
+            log.error("VERI*FACTU: billing record {} ({}) of chain {} does not match its fingerprint or the record "
+                    + "before it; the new record is chained to it as it is", record.sequence(), record.invoiceNumber(),
+                    record.chain());
+        }
+    }
+
+    private boolean intact(Optional<VerifactuRecord> last) {
+        if (last.isEmpty()) {
+            return true;
+        }
+        VerifactuRecord record = last.get();
+        VerifactuRecord before = record.sequence() > 1
+                ? records.findInChain(record.chain(), record.sequence() - 1).orElse(null) : null;
+        return Verifactu.chained(record, before);
+    }
+
+    /**
+     * Records are generated in the order their invoices are issued, so a record is never dated
+     * before the one it follows (art. 7.i.2). A clock more than a minute behind the last record is
+     * a clock problem: it is reported, and the record still keeps the order.
+     */
+    private static OffsetDateTime inOrder(OffsetDateTime generatedAt, Optional<VerifactuRecord> last) {
+        if (last.isEmpty() || !generatedAt.isBefore(last.get().generatedAt())) {
+            return generatedAt;
+        }
+        OffsetDateTime previous = last.get().generatedAt();
+        if (generatedAt.isBefore(previous.minusMinutes(1))) {
+            log.error("VERI*FACTU: the clock ({}) is more than a minute behind the last billing record of chain {} "
+                    + "({}); the new record takes that record's time to keep the order", generatedAt,
+                    last.get().chain(), previous);
+        }
+        return previous;
     }
 
     /**

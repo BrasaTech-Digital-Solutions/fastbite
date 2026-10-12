@@ -44,6 +44,9 @@ class VerifactuServiceTest {
         public Optional<VerifactuRecord> findByTicketId(String ticketId) {
             return all.stream().filter(r -> r.ticketId().equals(ticketId)).max(Comparator.comparingInt(VerifactuRecord::sequence));
         }
+        public Optional<VerifactuRecord> findInChain(String chain, int sequence) {
+            return all.stream().filter(r -> r.chain().equals(chain) && r.sequence() == sequence).findFirst();
+        }
         public Optional<VerifactuRecord> findLast(String chain) {
             return all.stream().filter(r -> r.chain().equals(chain)).max(Comparator.comparingInt(VerifactuRecord::sequence));
         }
@@ -262,5 +265,36 @@ class VerifactuServiceTest {
                 .as("once the owner has had two locations, always").containsExactly(false, true, true);
         assertThat(VerifactuService.installationNumber(VerifactuRecord.TRAINING_CHAIN, OffsetDateTime.now(NOON)))
                 .as("the sandbox chain is another installation").endsWith("-T-20261009110005");
+    }
+
+    @Test
+    void aBrokenChainIsReportedButBillingGoesOn() {
+        service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        var second = service.record(ticket(TicketKind.SIMPLIFIED, 2, false, null));
+        assertThat(service.summary(false).chainIntact()).isTrue();
+        // Someone changed the amount of the last record after it was hashed
+        records.all.set(1, new VerifactuRecord(second.id(), second.ticketId(), second.chain(), 2, "F2",
+                second.issuerNif(), second.issuerName(), second.invoiceNumber(), second.issueDate(), second.generatedAt(),
+                second.taxTotal(), new BigDecimal("1.00"), second.previous(), second.fingerprint(), second.qrUrl(), null,
+                null, false, second.submission()));
+
+        assertThat(service.summary(false).chainIntact()).isFalse();
+        var third = service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
+
+        assertThat(third.previous().fingerprint()).as("chained to the last record as it is")
+                .isEqualTo(second.fingerprint());
+        assertThat(service.summary(false).chainIntact()).as("the new end of the chain is sound").isTrue();
+    }
+
+    @Test
+    void aClockBehindTheLastRecordNeverPutsRecordsOutOfOrder() {
+        var first = service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        Clock behind = Clock.offset(NOON, java.time.Duration.ofMinutes(-5));
+        var late = new VerifactuService(records, tickets, submitter, SYSTEM, behind);
+
+        var second = late.record(ticket(TicketKind.SIMPLIFIED, 2, false, null));
+
+        assertThat(second.generatedAt()).isEqualTo(first.generatedAt());
+        assertThat(service.summary(false).chainIntact()).isTrue();
     }
 }

@@ -117,6 +117,13 @@ same transaction that issues it, so a ticket never exists without its record.
   fixes the record's data: a mistake in the invoice itself needs a corrective invoice (*Tickets → Refund*).
   In the database, `invoice_ticket_id` names the ticket of every record, and `ticket_id` stays on a
   ticket's first record only.
+  - **Checks before each record** (Orden HAC/1177/2024, art. 7.i): before a new record or amendment is
+    generated, the last record of the chain is checked. Its fingerprint must match its own data, and it must
+    point at the record before it. Records are generated one at a time, in the order the invoices are issued,
+    so a record is never dated before the one it follows; if the clock is more than a minute behind the last
+    record, that is logged as an error and the new record takes the last record's time. Neither check ever
+    stops billing (AEAT developer FAQ, section 15): a broken chain is logged and shown in the owner console,
+    and the new record is chained to the last one as it is.
   - Live check against the test environment: `AeatLiveTest`, which runs only with `-Dverifactu.live=true`.
 - **System**: the software is identified as `fastbite.verifactu.*` (producer name and NIF, system name, id and
   version). The producer must publish the declaración responsable for each version.

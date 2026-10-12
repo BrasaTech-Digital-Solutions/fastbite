@@ -82,6 +82,29 @@ public final class Verifactu {
         }
     }
 
+    /**
+     * Whether a record is correctly chained (Orden HAC/1177/2024, art. 7.i): its fingerprint
+     * matches its own data, and it points at the record before it, by invoice and fingerprint.
+     *
+     * @param previous the record before it in the chain; null when it is the first
+     */
+    public static boolean chained(VerifactuRecord record, VerifactuRecord previous) {
+        VerifactuRecord.Link link = record.previous();
+        String expected = fingerprint(record.issuerNif(), record.invoiceNumber(), record.issueDate(),
+                record.invoiceType(), record.taxTotal(), record.amountTotal(), link == null ? null : link.fingerprint(),
+                record.generatedAt());
+        if (!expected.equals(record.fingerprint())) {
+            return false;
+        }
+        if (previous == null) {
+            return link == null;
+        }
+        return link != null && previous.fingerprint().equals(link.fingerprint())
+                && previous.invoiceNumber().equals(link.invoiceNumber())
+                && previous.issuerNif().equals(link.issuerNif())
+                && previous.issueDate().equals(link.issueDate());
+    }
+
     /** The QR address of an invoice: the AEAT page that shows whether it was reported. */
     public static String qrUrl(boolean production, String issuerNif, String invoiceNumber, LocalDate issueDate,
             BigDecimal amountTotal) {
