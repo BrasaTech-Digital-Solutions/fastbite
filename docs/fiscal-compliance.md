@@ -82,11 +82,26 @@ same transaction that issues it, so a ticket never exists without its record.
   "VERI*FACTU" and "Factura verificable en la sede electrónica de la AEAT". It points to the AEAT checking
   page (`www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR`), or to its test environment in the sandbox.
   The QR is drawn on the server as SVG.
-- **Sending**: records are sent through a `VerifactuSubmitter`. The provider (or a direct connection) is not
-  chosen yet, so `UnconfiguredVerifactuSubmitter` keeps every record pending; a background job sends pending
-  records in chain order, at most 1000 at a time, once a submitter marked `@Primary` is added. The owner
-  console shows the status (pending, accepted, refused with the reason) and lets the owner download every
-  record as JSON, from which anyone can recompute the chain.
+- **Sending**: a background job sends pending records in chain order, at most 1000 at a time, straight to
+  the AEAT's VERI*FACTU web service (module `adapter-out/verifactu-aeat`). The SOAP message is built from
+  the official schemas, which are kept in the module's test resources; the tests validate every message
+  against them. The owner console shows the status (pending, accepted, refused with the reason) and lets
+  the owner download every record as JSON, from which anyone can recompute the chain.
+  - The connection signs in with the producer's electronic certificate (`VERIFACTU_CERTIFICATE_PATH`,
+    `VERIFACTU_CERTIFICATE_PASSWORD`). Without one nothing is sent and records stay pending. The
+    certificate file stays outside the repository (`*.pfx` and `*.p12` are ignored).
+  - The certificate must be allowed to act for each issuer: its own NIF, an apoderamiento registered by
+    the restaurant, or colaboración social (acuerdo Tipo 017 and the client's signed Anexo I).
+    `VERIFACTU_ISSUERS` limits sending to the listed NIFs; the others wait as pending.
+  - The sandbox only talks to the AEAT test environment (`prewww1.aeat.es`). Production
+    (`www1.agenciatributaria.gob.es`) stays closed until `VERIFACTU_PRODUCTION_ENABLED=true`.
+    `VERIFACTU_SEAL_CERTIFICATE=true` switches to the hosts for seal certificates.
+  - The AEAT's waiting time (`TiempoEsperaEnvio`) is respected per issuer, unless 1000 records are waiting.
+    A record the AEAT already has (duplicate, for instance after a lost answer) counts as accepted.
+  - Records of a location without a valid NIF or legal name are marked refused without being sent.
+  - Not done yet: resending a refused record as a correction (`Subsanacion`, `RechazoPrevio`), and
+    cancellation records (`RegistroAnulacion`) for invoices issued by mistake.
+  - Live check against the test environment: `AeatLiveTest`, which runs only with `-Dverifactu.live=true`.
 - **System**: the software is identified as `fastbite.verifactu.*` (producer name and NIF, system name, id and
   version). The producer must publish the declaración responsable for each version.
 - **Declaración responsable**: a draft is in [legal/declaracion-responsable.md](legal/declaracion-responsable.md)

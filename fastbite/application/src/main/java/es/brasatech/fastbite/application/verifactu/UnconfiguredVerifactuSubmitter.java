@@ -5,9 +5,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Used until a provider (or a direct connection to the tax agency) is chosen: nothing is sent and
- * every record stays pending, safely stored with its fingerprint and chain. The adapter that
- * replaces it is marked {@code @Primary}.
+ * Used when no adapter to the tax agency is present: nothing is sent and every record stays
+ * pending, safely stored with its fingerprint and chain. The adapter that replaces it is marked
+ * {@code @Primary}.
  */
 @Component
 public class UnconfiguredVerifactuSubmitter implements VerifactuSubmitter {

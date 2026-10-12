@@ -16,6 +16,7 @@
         <module>jpa</module>
         <module>disk-filestorage</module>
         <module>email</module>
+        <module>verifactu-aeat</module>
     </modules>
 
 </project>

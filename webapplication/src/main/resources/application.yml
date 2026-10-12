@@ -138,6 +138,18 @@ fastbite:
     declaration-signed: ${VERIFACTU_DECLARATION_SIGNED:false}
     # How often pending billing records are sent once a submitter is configured
     submit-delay: PT1M
+    # NumeroInstalacion of the records: this installation of FastBite
+    installation-number: ${VERIFACTU_INSTALLATION_NUMBER:1}
+    # Direct connection to the AEAT. Nothing is sent until a certificate is set; the sandbox only
+    # uses the AEAT test environment, and production stays closed until production-enabled is true.
+    aeat:
+      certificate-path: ${VERIFACTU_CERTIFICATE_PATH:}
+      certificate-password: ${VERIFACTU_CERTIFICATE_PASSWORD:}
+      # true for a seal certificate (certificado de sello), which uses the AEAT's www10/prewww10 hosts
+      seal-certificate: ${VERIFACTU_SEAL_CERTIFICATE:false}
+      production-enabled: ${VERIFACTU_PRODUCTION_ENABLED:false}
+      # Comma-separated NIFs the certificate may send for; empty sends every location's records
+      issuers: ${VERIFACTU_ISSUERS:}
   table:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.

@@ -7,8 +7,8 @@ import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import java.util.List;
 
 /**
- * Sends billing records to the tax agency, directly or through a certified provider. Which one
- * is still to be decided; until an adapter is configured, records wait as pending.
+ * Sends billing records to the tax agency, directly or through a certified provider. FastBite
+ * connects directly (module verifactu-aeat); until it is configured, records wait as pending.
  */
 public interface VerifactuSubmitter {
 
