@@ -61,7 +61,6 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
     private final String testEndpoint;
     private final String productionEndpoint;
     private final boolean productionEnabled;
-    private final String installation;
     private final Set<String> issuers;
     private final Clock clock;
     private final String problem;
@@ -75,7 +74,6 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
             @Value("${fastbite.verifactu.aeat.seal-certificate:false}") boolean sealCertificate,
             @Value("${fastbite.verifactu.aeat.production-enabled:false}") boolean productionEnabled,
             @Value("${fastbite.verifactu.aeat.issuers:}") String issuers,
-            @Value("${fastbite.verifactu.installation-number:1}") String installation,
             VerifactuSystem system) {
         String problem = null;
         HttpClient http = null;
@@ -99,20 +97,18 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
         this.testEndpoint = sealCertificate ? TEST_SEAL : TEST;
         this.productionEndpoint = sealCertificate ? PRODUCTION_SEAL : PRODUCTION;
         this.productionEnabled = productionEnabled;
-        this.installation = installation;
         this.issuers = parseIssuers(issuers);
         this.clock = Clock.systemUTC();
     }
 
     /** For tests: talks to the given endpoints with the given client. */
     AeatVerifactuSubmitter(HttpClient http, String testEndpoint, String productionEndpoint, boolean productionEnabled,
-            String installation, Set<String> issuers, Clock clock) {
+            Set<String> issuers, Clock clock) {
         this.http = http;
         this.problem = null;
         this.testEndpoint = testEndpoint;
         this.productionEndpoint = productionEndpoint;
         this.productionEnabled = productionEnabled;
-        this.installation = installation;
         this.issuers = issuers;
         this.clock = clock;
     }
@@ -128,7 +124,8 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
     }
 
     @Override
-    public List<Result> submit(VerifactuSystem system, List<Submission> records, boolean production) {
+    public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> records,
+            boolean production) {
         if (!configured() || records.isEmpty()) {
             return List.of();
         }
@@ -156,12 +153,13 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
             if (allowed != null && now.isBefore(allowed) && entry.getValue().size() < FULL_BATCH) {
                 continue;
             }
-            results.addAll(send(endpoint, system, entry.getKey(), entry.getValue()));
+            results.addAll(send(endpoint, system, installation, entry.getKey(), entry.getValue()));
         }
         return results;
     }
 
-    private List<Result> send(String endpoint, VerifactuSystem system, String issuer, List<Submission> records) {
+    private List<Result> send(String endpoint, VerifactuSystem system, Installation installation, String issuer,
+            List<Submission> records) {
         String body = AeatRequest.envelope(system, installation, records);
         HttpResponse<String> response;
         try {

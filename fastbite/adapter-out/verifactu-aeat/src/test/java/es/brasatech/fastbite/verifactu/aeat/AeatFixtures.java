@@ -21,6 +21,8 @@ final class AeatFixtures {
             "Servicios de restauración");
     static final FiscalTicket.Issuer ISSUER = new FiscalTicket.Issuer("Ana García & Hijos S.L.", "Kebab House",
             "B12345674", "Calle Mayor 1", "28013", "Madrid", "Madrid", null);
+    static final VerifactuSubmitter.Installation INSTALLATION =
+            new VerifactuSubmitter.Installation("kebab-R-20261009110000", false);
     static final OffsetDateTime NOON = OffsetDateTime.parse("2026-10-09T13:00:05+02:00");
 
     private AeatFixtures() {

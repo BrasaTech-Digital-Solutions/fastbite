@@ -3,6 +3,7 @@ package es.brasatech.fastbite.application.verifactu;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.verifactu.Verifactu;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -31,6 +34,8 @@ public class VerifactuService {
 
     /** The tax agency takes at most this many records per submission. */
     static final int BATCH = 1000;
+
+    private static final DateTimeFormatter INSTALLED = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /**
      * Where a location's records stand, for the owner console.
@@ -187,9 +192,10 @@ public class VerifactuService {
     /**
      * Sends the current location's pending records, oldest first, and stores the answers.
      *
+     * @param multipleBillings the location's owner has more than one location
      * @return how many records got an answer
      */
-    public int submitPending(boolean training) {
+    public int submitPending(boolean training, boolean multipleBillings) {
         if (!submitter.configured()) {
             return 0;
         }
@@ -204,8 +210,10 @@ public class VerifactuService {
                     .ifPresent(ticket -> batch.add(new VerifactuSubmitter.Submission(record, ticket)));
         }
         OffsetDateTime now = OffsetDateTime.now(clock);
+        VerifactuSubmitter.Installation installation = records.installation(chain, installationNumber(chain, now),
+                multipleBillings);
         int answered = 0;
-        for (VerifactuSubmitter.Result result : submitter.submit(system, batch, !training)) {
+        for (VerifactuSubmitter.Result result : submitter.submit(system, installation, batch, !training)) {
             VerifactuRecord sent = pending.stream().filter(record -> record.id().equals(result.recordId())).findFirst()
                     .orElse(null);
             if (sent == null) {
@@ -220,5 +228,15 @@ public class VerifactuService {
 
     public boolean configured() {
         return submitter.configured();
+    }
+
+    /**
+     * A number no other installation of the same NIF has ever had: the location, its chain and
+     * when the installation was set up, as the AEAT recommends (timestamp of the installation).
+     */
+    static String installationNumber(String chain, OffsetDateTime now) {
+        String tenant = Objects.toString(TenantContext.getCurrentTenant(), "public");
+        return tenant + "-" + (VerifactuRecord.TRAINING_CHAIN.equals(chain) ? "T" : "R") + "-"
+                + now.atZoneSameInstant(ZoneOffset.UTC).format(INSTALLED);
     }
 }

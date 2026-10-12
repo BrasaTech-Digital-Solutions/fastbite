@@ -5,6 +5,7 @@ import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
 import es.brasatech.fastbite.domain.fiscal.VatBreakdown;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.verifactu.Verifactu;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
@@ -57,6 +58,15 @@ class VerifactuServiceTest {
         public void updateSubmission(String id, VerifactuRecord.Submission submission) {
             all.replaceAll(r -> r.id().equals(id) ? r.withSubmission(submission) : r);
         }
+        final Map<String, VerifactuSubmitter.Installation> installations = new java.util.HashMap<>();
+        public VerifactuSubmitter.Installation installation(String chain, String number, boolean multiple) {
+            var known = installations.computeIfAbsent(chain, c -> new VerifactuSubmitter.Installation(number, multiple));
+            if (multiple && !known.multipleBillings()) {
+                known = new VerifactuSubmitter.Installation(known.number(), true);
+                installations.put(chain, known);
+            }
+            return known;
+        }
         public Map<VerifactuStatus, Long> countByStatus(String chain) {
             return all.stream().filter(r -> r.chain().equals(chain))
                     .collect(Collectors.groupingBy(r -> r.submission().status(), Collectors.counting()));
@@ -67,10 +77,13 @@ class VerifactuServiceTest {
     static class FakeSubmitter implements VerifactuSubmitter {
         boolean configured = true;
         final List<List<Submission>> calls = new ArrayList<>();
+        final List<Installation> installations = new ArrayList<>();
         public boolean configured() { return configured; }
         public String name() { return "Test provider"; }
-        public List<Result> submit(VerifactuSystem system, List<Submission> records, boolean production) {
+        public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> records,
+                boolean production) {
             calls.add(records);
+            installations.add(installation);
             return records.stream().map(s -> s.record().invoiceNumber().endsWith("2")
                     ? new Result(s.record().id(), VerifactuStatus.REJECTED, "Invalid NIF", null)
                     : new Result(s.record().id(), VerifactuStatus.ACCEPTED, null, "CSV" + s.record().sequence())).toList();
@@ -152,7 +165,7 @@ class VerifactuServiceTest {
         service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
         service.record(ticket(TicketKind.SIMPLIFIED, 2, false, null));
 
-        assertThat(service.submitPending(false)).isEqualTo(2);
+        assertThat(service.submitPending(false, false)).isEqualTo(2);
 
         assertThat(submitter.calls).singleElement().satisfies(batch ->
                 assertThat(batch).extracting(s -> s.record().sequence()).containsExactly(1, 2));
@@ -162,7 +175,7 @@ class VerifactuServiceTest {
         assertThat(summary.toAmend()).singleElement().satisfies(rejected ->
                 assertThat(rejected.submission().error()).isEqualTo("Invalid NIF"));
         assertThat(records.all.getFirst().submission().csv()).isEqualTo("CSV1");
-        assertThat(service.submitPending(false)).as("nothing left to send").isZero();
+        assertThat(service.submitPending(false, false)).as("nothing left to send").isZero();
     }
 
     @Test
@@ -170,7 +183,7 @@ class VerifactuServiceTest {
         submitter.configured = false;
         service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
 
-        assertThat(service.submitPending(false)).isZero();
+        assertThat(service.submitPending(false, false)).isZero();
         assertThat(submitter.calls).isEmpty();
         assertThat(service.summary(false).count(VerifactuStatus.PENDING)).isEqualTo(1);
         assertThat(service.summary(false).configured()).isFalse();
@@ -181,7 +194,7 @@ class VerifactuServiceTest {
         service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
         var refused = service.record(ticket(TicketKind.SIMPLIFIED, 2, false, null));
         service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
-        service.submitPending(false);
+        service.submitPending(false, false);
 
         var amendment = service.amend(refused.id(), "Ana García López");
 
@@ -227,5 +240,27 @@ class VerifactuServiceTest {
         assertThatThrownBy(() -> service.amend(pending.id(), "Ana")).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> service.amend("missing", "Ana")).isInstanceOf(IllegalArgumentException.class);
         assertThat(records.all).hasSize(1);
+    }
+
+    @Test
+    void eachChainIsOneInstallationWhoseNumberNeverChanges() {
+        TenantContext.setCurrentTenant("kebab");
+        try {
+            service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+            service.submitPending(false, false);
+            service.record(ticket(TicketKind.SIMPLIFIED, 3, false, null));
+            service.submitPending(false, true);
+            service.record(ticket(TicketKind.SIMPLIFIED, 5, false, null));
+            service.submitPending(false, false);
+        } finally {
+            TenantContext.clear();
+        }
+
+        assertThat(submitter.installations).extracting(VerifactuSubmitter.Installation::number)
+                .containsOnly("kebab-R-20261009110005");
+        assertThat(submitter.installations).extracting(VerifactuSubmitter.Installation::multipleBillings)
+                .as("once the owner has had two locations, always").containsExactly(false, true, true);
+        assertThat(VerifactuService.installationNumber(VerifactuRecord.TRAINING_CHAIN, OffsetDateTime.now(NOON)))
+                .as("the sandbox chain is another installation").endsWith("-T-20261009110005");
     }
 }

@@ -23,7 +23,8 @@ public class UnconfiguredVerifactuSubmitter implements VerifactuSubmitter {
     }
 
     @Override
-    public List<Result> submit(VerifactuSystem system, List<Submission> records, boolean production) {
+    public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> records,
+            boolean production) {
         return List.of();
     }
 }

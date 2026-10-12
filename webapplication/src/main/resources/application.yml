@@ -138,8 +138,6 @@ fastbite:
     declaration-signed: ${VERIFACTU_DECLARATION_SIGNED:false}
     # How often pending billing records are sent once a submitter is configured
     submit-delay: PT1M
-    # NumeroInstalacion of the records: this installation of FastBite
-    installation-number: ${VERIFACTU_INSTALLATION_NUMBER:1}
     # Direct connection to the AEAT. Nothing is sent until a certificate is set; the sandbox only
     # uses the AEAT test environment, and production stays closed until production-enabled is true.
     aeat:

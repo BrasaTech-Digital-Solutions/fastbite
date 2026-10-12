@@ -44,9 +44,10 @@ final class AeatRequest {
     /**
      * The whole SOAP message for records of one issuer, in chain order.
      *
-     * @param installation the NumeroInstalacion of this installation of the system
+     * @param installation the installation of the location's chain the records belong to
      */
-    static String envelope(VerifactuSystem system, String installation, List<VerifactuSubmitter.Submission> records) {
+    static String envelope(VerifactuSystem system, VerifactuSubmitter.Installation installation,
+            List<VerifactuSubmitter.Submission> records) {
         if (records.isEmpty() || records.size() > 1000) {
             throw new IllegalArgumentException("A submission carries 1 to 1000 records, not " + records.size());
         }
@@ -93,7 +94,8 @@ final class AeatRequest {
         return out.toString();
     }
 
-    private static void alta(XMLStreamWriter xml, VerifactuSystem system, String installation, VerifactuRecord record,
+    private static void alta(XMLStreamWriter xml, VerifactuSystem system, VerifactuSubmitter.Installation installation,
+            VerifactuRecord record,
             FiscalTicket ticket) throws XMLStreamException {
         String type = record.invoiceType();
         xml.writeStartElement(SF, "RegistroAlta");
@@ -204,19 +206,23 @@ final class AeatRequest {
         xml.writeEndElement();
     }
 
-    /** FastBite works only as VERI*FACTU and serves many taxpayers from one installation. */
-    private static void system(XMLStreamWriter xml, VerifactuSystem system, String installation)
-            throws XMLStreamException {
+    /**
+     * FastBite works only as VERI*FACTU and can serve many taxpayers (TipoUsoPosibleMultiOT). Each
+     * location's chain is its own installation; IndicadorMultiplesOT says whether its owner has
+     * more than one location (AEAT developer FAQ, section 4).
+     */
+    private static void system(XMLStreamWriter xml, VerifactuSystem system,
+            VerifactuSubmitter.Installation installation) throws XMLStreamException {
         xml.writeStartElement(SF, "SistemaInformatico");
         text(xml, "NombreRazon", max(system.producerName(), 120));
         text(xml, "NIF", system.producerNif());
         text(xml, "NombreSistemaInformatico", max(system.systemName(), 30));
         text(xml, "IdSistemaInformatico", max(system.systemId(), 2));
         text(xml, "Version", max(system.version(), 50));
-        text(xml, "NumeroInstalacion", max(installation, 100));
+        text(xml, "NumeroInstalacion", max(installation.number(), 100));
         text(xml, "TipoUsoPosibleSoloVerifactu", "S");
         text(xml, "TipoUsoPosibleMultiOT", "S");
-        text(xml, "IndicadorMultiplesOT", "S");
+        text(xml, "IndicadorMultiplesOT", installation.multipleBillings() ? "S" : "N");
         xml.writeEndElement();
     }
 

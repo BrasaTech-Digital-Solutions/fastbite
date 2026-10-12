@@ -65,7 +65,7 @@ class AeatVerifactuSubmitterTest {
     AeatVerifactuSubmitter submitter(boolean productionEnabled, Set<String> issuers) {
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         return new AeatVerifactuSubmitter(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
-                base + "/test", base + "/production", productionEnabled, "1", issuers, clock);
+                base + "/test", base + "/production", productionEnabled, issuers, clock);
     }
 
     @Test
@@ -76,7 +76,7 @@ class AeatVerifactuSubmitterTest {
                 AeatResponseTest.line("KH-F26-000001", "AceptadoConErrores", "2000", "NIF del destinatario no identificado"),
                 AeatResponseTest.line("KH-F26-000002", "Incorrecto", "1100", "Valor o tipo incorrecto del campo"));
 
-        List<VerifactuSubmitter.Result> results = submitter(false, Set.of()).submit(SYSTEM, chain, false);
+        List<VerifactuSubmitter.Result> results = submitter(false, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, chain, false);
 
         assertThat(paths).containsExactly("/test");
         assertThat(requests.getFirst()).contains("RegFactuSistemaFacturacion", "KH-T26-000001", "Envelope");
@@ -94,10 +94,10 @@ class AeatVerifactuSubmitterTest {
         answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line("KH-T26-000001", "Correcto", null, null));
         var submitter = submitter(false, Set.of());
 
-        submitter.submit(SYSTEM, chain.subList(0, 1), false);
-        assertThat(submitter.submit(SYSTEM, chain.subList(1, 2), false)).as("too soon").isEmpty();
+        submitter.submit(SYSTEM, AeatFixtures.INSTALLATION, chain.subList(0, 1), false);
+        assertThat(submitter.submit(SYSTEM, AeatFixtures.INSTALLATION, chain.subList(1, 2), false)).as("too soon").isEmpty();
         clock.now = clock.now.plusSeconds(61);
-        submitter.submit(SYSTEM, chain.subList(1, 2), false);
+        submitter.submit(SYSTEM, AeatFixtures.INSTALLATION, chain.subList(1, 2), false);
 
         assertThat(requests).hasSize(2);
     }
@@ -106,10 +106,10 @@ class AeatVerifactuSubmitterTest {
     void productionStaysClosedUntilEnabled() {
         answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line("KH-T26-000001", "Correcto", null, null));
 
-        assertThat(submitter(false, Set.of()).submit(SYSTEM, AeatFixtures.chain().subList(0, 1), true)).isEmpty();
+        assertThat(submitter(false, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true)).isEmpty();
         assertThat(requests).isEmpty();
 
-        submitter(true, Set.of()).submit(SYSTEM, AeatFixtures.chain().subList(0, 1), true);
+        submitter(true, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true);
         assertThat(paths).containsExactly("/production");
     }
 
@@ -117,7 +117,7 @@ class AeatVerifactuSubmitterTest {
     void onlyTheListedIssuersAreSentAndTheRestWait() {
         answer = AeatResponseTest.answer("Correcto", "60");
 
-        assertThat(submitter(false, Set.of("12345678Z")).submit(SYSTEM, AeatFixtures.chain(), false)).isEmpty();
+        assertThat(submitter(false, Set.of("12345678Z")).submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain(), false)).isEmpty();
         assertThat(requests).isEmpty();
     }
 
@@ -128,7 +128,7 @@ class AeatVerifactuSubmitterTest {
                 new FiscalTicket.Issuer("Demo", null, "", null, null, null, null, null),
                 TicketKind.SIMPLIFIED, "TEST-KH-T26-000001", null, null, "5.00", "10"), "F2", null);
 
-        var results = submitter(false, Set.of()).submit(SYSTEM, List.of(withoutNif), false);
+        var results = submitter(false, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(withoutNif), false);
 
         assertThat(requests).isEmpty();
         assertThat(results).singleElement().satisfies(result -> {
@@ -146,8 +146,8 @@ class AeatVerifactuSubmitterTest {
                 </env:Fault></env:Body></env:Envelope>""";
         var submitter = submitter(false, Set.of());
 
-        assertThatThrownBy(() -> submitter.submit(SYSTEM, AeatFixtures.chain().subList(0, 1), false))
+        assertThatThrownBy(() -> submitter.submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), false))
                 .hasMessageContaining("4102").hasMessageContaining("HTTP 500");
-        assertThat(submitter.submit(SYSTEM, AeatFixtures.chain().subList(0, 1), false)).as("not resent at once").isEmpty();
+        assertThat(submitter.submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), false)).as("not resent at once").isEmpty();
     }
 }

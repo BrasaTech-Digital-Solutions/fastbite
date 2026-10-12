@@ -16,6 +16,16 @@ public interface VerifactuSubmitter {
     record Submission(VerifactuRecord record, FiscalTicket ticket) {
     }
 
+    /**
+     * The billing system as the tax agency tells installations apart: each location's chain is
+     * its own installation, because the agency keeps one chain per NIF, system and installation.
+     *
+     * @param number           NumeroInstalacion: never reused for the same NIF
+     * @param multipleBillings IndicadorMultiplesOT: the owner has, or has had, more than one location
+     */
+    record Installation(String number, boolean multipleBillings) {
+    }
+
     /** What the tax agency answered for one record. */
     record Result(String recordId, VerifactuStatus status, String error, String csv) {
     }
@@ -29,8 +39,9 @@ public interface VerifactuSubmitter {
     /**
      * Sends records of one location, in chain order.
      *
+     * @param installation the installation the records were generated in
      * @param production false in the sandbox, which only ever talks to the tax agency's test environment
      * @return one result per record that got an answer; records without one stay pending
      */
-    List<Result> submit(VerifactuSystem system, List<Submission> records, boolean production);
+    List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> records, boolean production);
 }

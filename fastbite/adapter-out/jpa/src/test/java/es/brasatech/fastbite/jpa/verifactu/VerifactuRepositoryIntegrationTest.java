@@ -2,6 +2,7 @@ package es.brasatech.fastbite.jpa.verifactu;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.application.verifactu.VerifactuRepository;
+import es.brasatech.fastbite.application.verifactu.VerifactuSubmitter;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
@@ -167,5 +168,19 @@ class VerifactuRepositoryIntegrationTest {
                     original.taxTotal(), original.amountTotal(), null, "TWICE", original.qrUrl(), null,
                     new VerifactuRecord.Amendment(original.id(), true), false, VerifactuRecord.Submission.PENDING));
         })).as("a record is amended at most once").isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void aChainKeepsItsFirstInstallationNumber() {
+        String tenant = tenant();
+        var first = in(tenant, () -> records.installation(VerifactuRecord.REAL_CHAIN, "loc-R-20261009110000", false));
+        var later = in(tenant, () -> records.installation(VerifactuRecord.REAL_CHAIN, "loc-R-20261010120000", true));
+        var after = in(tenant, () -> records.installation(VerifactuRecord.REAL_CHAIN, "loc-R-20261011130000", false));
+        var training = in(tenant, () -> records.installation(VerifactuRecord.TRAINING_CHAIN, "loc-T-20261011130000", false));
+
+        assertThat(first).isEqualTo(new VerifactuSubmitter.Installation("loc-R-20261009110000", false));
+        assertThat(later).isEqualTo(new VerifactuSubmitter.Installation("loc-R-20261009110000", true));
+        assertThat(after.multipleBillings()).as("stays true").isTrue();
+        assertThat(training.number()).isEqualTo("loc-T-20261011130000");
     }
 }

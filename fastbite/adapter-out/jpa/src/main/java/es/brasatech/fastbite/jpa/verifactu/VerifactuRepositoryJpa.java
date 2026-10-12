@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.jpa.verifactu;
 
 import es.brasatech.fastbite.application.verifactu.VerifactuRepository;
+import es.brasatech.fastbite.application.verifactu.VerifactuSubmitter;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import jakarta.persistence.EntityManager;
@@ -128,6 +129,29 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
                 .setParameter("chain", chain).getResultList()
                 .forEach(row -> counts.put(VerifactuStatus.valueOf(row[0].toString()), ((Number) row[1]).longValue()));
         return counts;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public VerifactuSubmitter.Installation installation(String chain, String newNumber, boolean multipleBillings) {
+        List<?> rows = entityManager.createNativeQuery(
+                        "SELECT installation_number, multiple_billings FROM verifactu_installations WHERE chain = :chain")
+                .setParameter("chain", chain).getResultList();
+        if (rows.isEmpty()) {
+            entityManager.createNativeQuery("INSERT INTO verifactu_installations (chain, installation_number, multiple_billings) "
+                            + "VALUES (:chain, :number, :multiple)")
+                    .setParameter("chain", chain).setParameter("number", newNumber)
+                    .setParameter("multiple", multipleBillings).executeUpdate();
+            return new VerifactuSubmitter.Installation(newNumber, multipleBillings);
+        }
+        Object[] row = (Object[]) rows.getFirst();
+        boolean multiple = Boolean.TRUE.equals(row[1]);
+        if (multipleBillings && !multiple) {
+            entityManager.createNativeQuery("UPDATE verifactu_installations SET multiple_billings = TRUE WHERE chain = :chain")
+                    .setParameter("chain", chain).executeUpdate();
+            multiple = true;
+        }
+        return new VerifactuSubmitter.Installation(row[0].toString(), multiple);
     }
 
     private VerifactuRecordEntity toEntity(VerifactuRecord record) {

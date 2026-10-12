@@ -99,6 +99,14 @@ same transaction that issues it, so a ticket never exists without its record.
   - The AEAT's waiting time (`TiempoEsperaEnvio`) is respected per issuer, unless 1000 records are waiting.
     A record the AEAT already has (duplicate, for instance after a lost answer) counts as accepted.
   - Records of a location without a valid NIF or legal name are marked refused without being sent.
+  - **Installations**: the AEAT identifies a billing system by NIF + system id + installation number and
+    keeps one chain for each (developer FAQ of 4 December 2025, section 4). A SaaS must give each billing,
+    including two shops of the same NIF, its own installation number, never reused. So each location's
+    chain is its own installation (`verifactu_installations`), numbered on its first submission as
+    `<location>-<R|T>-<UTC timestamp>` (R real, T sandbox training) and never changed.
+    `IndicadorMultiplesOT` is `S` once the location's owner has more than one location, and stays `S`
+    after that; otherwise `N`. Sending a first record (`PrimerRegistro`) in an installation that already
+    has records gets the admissible error 2007, which is what happened before this was in place.
   - Not done yet: cancellation records (`RegistroAnulacion`) for invoices issued by mistake.
 - **Subsanación**: the owner console lists records the AEAT refused or accepted with errors, with the
   AEAT's reason. *Send again corrected* adds a new record of the same invoice at the end of the chain, with

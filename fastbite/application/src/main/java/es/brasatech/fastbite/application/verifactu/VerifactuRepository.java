@@ -39,4 +39,10 @@ public interface VerifactuRepository {
     void updateSubmission(String recordId, VerifactuRecord.Submission submission);
 
     Map<VerifactuStatus, Long> countByStatus(String chain);
+
+    /**
+     * The chain's installation. The first call creates it with the given number, which never
+     * changes afterwards; once {@code multipleBillings} is true it stays true.
+     */
+    VerifactuSubmitter.Installation installation(String chain, String newNumber, boolean multipleBillings);
 }

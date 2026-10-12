@@ -19,6 +19,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.List;
 
+import static es.brasatech.fastbite.verifactu.aeat.AeatFixtures.INSTALLATION;
 import static es.brasatech.fastbite.verifactu.aeat.AeatFixtures.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,7 +28,7 @@ class AeatRequestTest {
 
     @Test
     void theMessageFollowsTheAeatSchemas() throws Exception {
-        String xml = AeatRequest.envelope(SYSTEM, "1", AeatFixtures.chain());
+        String xml = AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain());
 
         Element message = body(parse(xml));
         // Throws with the line and reason if anything breaks the official schemas
@@ -38,7 +39,7 @@ class AeatRequestTest {
     @Test
     void theRecordsCarryWhatTheFingerprintWasComputedFrom() throws Exception {
         var chain = AeatFixtures.chain();
-        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", chain));
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, chain));
 
         assertThat(texts(doc, "Huella")).containsSubsequence(chain.get(0).record().fingerprint(),
                 chain.get(1).record().fingerprint());
@@ -50,8 +51,21 @@ class AeatRequestTest {
     }
 
     @Test
+    void eachRecordNamesItsLocationsInstallation() throws Exception {
+        Document single = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain()));
+        Document multiple = parse(AeatRequest.envelope(SYSTEM,
+                new es.brasatech.fastbite.application.verifactu.VerifactuSubmitter.Installation("kebab-R-1", true),
+                AeatFixtures.chain()));
+
+        assertThat(texts(single, "NumeroInstalacion")).hasSize(5).containsOnly("kebab-R-20261009110000");
+        assertThat(texts(single, "IndicadorMultiplesOT")).as("an owner with one location").containsOnly("N");
+        assertThat(texts(multiple, "IndicadorMultiplesOT")).containsOnly("S");
+        assertThat(texts(single, "TipoUsoPosibleMultiOT")).as("what FastBite can do").containsOnly("S");
+    }
+
+    @Test
     void correctionsAndReplacementsNameTheOriginalInvoice() throws Exception {
-        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", AeatFixtures.chain()));
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain()));
 
         assertThat(texts(doc, "TipoRectificativa")).containsExactly("I");
         Element rectified = (Element) doc.getElementsByTagNameNS("*", "IDFacturaRectificada").item(0);
@@ -62,7 +76,7 @@ class AeatRequestTest {
 
     @Test
     void customersAreNamedOnFullInvoicesOnly() throws Exception {
-        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", AeatFixtures.chain()));
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain()));
 
         // F1, F1 and F3 name the customer; the simplified invoice and its correction do not
         assertThat(doc.getElementsByTagNameNS("*", "IDDestinatario").getLength()).isEqualTo(3);
@@ -76,7 +90,7 @@ class AeatRequestTest {
         var afterRejection = AeatFixtures.amendment(sale, true);
         var afterErrors = AeatFixtures.amendment(AeatFixtures.chain().get(1), false);
 
-        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", List.of(afterRejection, afterErrors)));
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, List.of(afterRejection, afterErrors)));
 
         schema().newValidator().validate(new DOMSource(body(doc)));
         assertThat(texts(doc, "Subsanacion")).containsExactly("S", "S");
@@ -88,7 +102,7 @@ class AeatRequestTest {
 
     @Test
     void aFirstRecordIsNoSubsanacion() throws Exception {
-        Document doc = parse(AeatRequest.envelope(SYSTEM, "1", AeatFixtures.chain()));
+        Document doc = parse(AeatRequest.envelope(SYSTEM, INSTALLATION, AeatFixtures.chain()));
 
         assertThat(texts(doc, "Subsanacion")).isEmpty();
         assertThat(texts(doc, "RechazoPrevio")).isEmpty();
@@ -100,7 +114,7 @@ class AeatRequestTest {
                 new FiscalTicket.Issuer("Ana García", null, "12345678Z", "Calle Mayor 1", "28013", "Madrid", "Madrid", null),
                 TicketKind.SIMPLIFIED, "AG-T26-000001", null, null, "1.00", "10"), "F2", null);
 
-        assertThatThrownBy(() -> AeatRequest.envelope(SYSTEM, "1", List.of(AeatFixtures.chain().getFirst(), other)))
+        assertThatThrownBy(() -> AeatRequest.envelope(SYSTEM, INSTALLATION, List.of(AeatFixtures.chain().getFirst(), other)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

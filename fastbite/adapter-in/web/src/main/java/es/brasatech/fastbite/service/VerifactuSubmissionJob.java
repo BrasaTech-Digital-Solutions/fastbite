@@ -9,6 +9,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 /**
  * Sends pending billing records of every location, oldest first. Until a submitter is configured
  * it does nothing, and the records wait safely. A failure in one location never stops the others.
@@ -35,10 +39,15 @@ public class VerifactuSubmissionJob {
         if (!verifactu.configured()) {
             return;
         }
-        for (var location : locations.getAllLocations()) {
+        var all = locations.getAllLocations();
+        // IndicadorMultiplesOT is worked out per owner: more than one location in FastBite
+        Map<String, Long> perOwner = all.stream().filter(location -> location.ownerUsername() != null)
+                .collect(Collectors.groupingBy(location -> location.ownerUsername(), Collectors.counting()));
+        for (var location : all) {
             try {
                 TenantContext.setCurrentTenant(location.tenantId());
-                int answered = verifactu.submitPending(environment.sandbox());
+                boolean multiple = perOwner.getOrDefault(Objects.toString(location.ownerUsername(), ""), 0L) > 1;
+                int answered = verifactu.submitPending(environment.sandbox(), multiple);
                 if (answered > 0) {
                     log.info("Sent {} billing records of {}", answered, location.tenantId());
                 }
