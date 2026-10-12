@@ -47,6 +47,11 @@
 
             <button type="submit" class="btn-login" th:text="#{button.login}">Login</button>
 
+            <p th:if="${platform != null && platform.productionUrl() != null}" class="mt-3 mb-0 text-center small">
+                <span th:text="#{sandbox.login.owner}">Restaurant owner?</span>
+                <a th:href="${platform.productionUrl() + '/owner/sandbox'}" th:text="#{sandbox.login.enter}">Enter through FastBite</a>
+            </p>
+
             <div class="back-link">
                 <a th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/'}" href="/"><i class="fas fa-arrow-left me-1"></i> <span
                         th:text="#{button.back.to.menu}">Back to Menu</span></a>

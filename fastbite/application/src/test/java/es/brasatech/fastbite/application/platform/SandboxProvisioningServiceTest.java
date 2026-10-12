@@ -117,11 +117,22 @@ class SandboxProvisioningServiceTest {
         var service = linkedProduction();
         service.locationCreated("kebab", "ana", "RESTAURANT");
 
-        assertThat(service.ensure("kebab")).isTrue();
+        assertThat(service.ensure("kebab", "ana")).isTrue();
         assertThat(sandbox.received).hasSize(1);
-        assertThat(service.ensure("kebab")).as("already there").isTrue();
+        assertThat(service.ensure("kebab", "ana")).as("already there").isTrue();
         assertThat(sandbox.received).hasSize(1);
-        assertThat(service.ensure("unknown")).isFalse();
+    }
+
+    @Test
+    void aLocationFromBeforeTheLinkIsListedWhenItsOwnerEnters() {
+        var service = linkedProduction();
+
+        assertThat(service.ensure("oldcafe", "ana")).isTrue();
+        assertThat(sandbox.received).extracting(SandboxLinkPort.LinkedLocation::tenantId).containsExactly("oldcafe");
+
+        sandbox.down = true;
+        assertThat(service.ensure("oldbistro", "ana")).as("still being prepared").isFalse();
+        assertThat(service.status("oldbistro")).get().extracting(SandboxProvisioningPort.Entry::attempts).isEqualTo(1);
     }
 
     @Test

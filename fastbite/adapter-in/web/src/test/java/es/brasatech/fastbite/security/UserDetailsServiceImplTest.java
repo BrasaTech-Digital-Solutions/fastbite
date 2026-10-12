@@ -1,6 +1,8 @@
 package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.office.UserService;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
+import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.user.Role;
@@ -25,7 +27,9 @@ class UserDetailsServiceImplTest {
 
     private final UserService userService = mock(UserService.class);
     private final TenantLocationService tenantLocationService = mock(TenantLocationService.class);
-    private final UserDetailsServiceImpl service = new UserDetailsServiceImpl(userService, tenantLocationService);
+    private static final PlatformEnvironment PRODUCTION = new PlatformEnvironment("production");
+    private final UserDetailsServiceImpl service = new UserDetailsServiceImpl(userService, tenantLocationService,
+            PRODUCTION, new PlatformLink(PRODUCTION, "http://sandbox", "", "a-secret-of-at-least-thirty-two-characters", false));
 
     @AfterEach
     void tearDown() {
@@ -79,5 +83,19 @@ class UserDetailsServiceImplTest {
         TenantContext.setCurrentTenant("burger");
 
         assertThatThrownBy(() -> service.loadUserByUsername("alice")).isInstanceOf(UsernameNotFoundException.class);
+    }
+
+    @Test
+    void aLinkedSandboxTakesNoOwnersPasswordButStillSignsInItsStaff() {
+        var sandbox = new PlatformEnvironment("sandbox");
+        var linkedSandbox = new UserDetailsServiceImpl(userService, tenantLocationService, sandbox,
+                new PlatformLink(sandbox, "http://production", "", "a-secret-of-at-least-thirty-two-characters", false));
+        users(OWNER, PIZZA_COOK);
+        when(tenantLocationService.isOwnerOf("alice", "pizza")).thenReturn(true);
+
+        assertThatThrownBy(() -> linkedSandbox.loadUserByUsername("alice")).isInstanceOf(UsernameNotFoundException.class);
+        TenantContext.setCurrentTenant("pizza");
+        assertThatThrownBy(() -> linkedSandbox.loadUserByUsername("alice")).isInstanceOf(UsernameNotFoundException.class);
+        assertThat(((TenantUser) linkedSandbox.loadUserByUsername("carl")).belongsTo("pizza")).isTrue();
     }
 }

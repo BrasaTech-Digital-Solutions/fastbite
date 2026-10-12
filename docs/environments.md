@@ -44,6 +44,30 @@ of the time and the content; refused if older than five minutes) and naming the 
   Sandbox locations have no trial or billing of their own (plan `FREE`); access follows production.
 - Only a linked production does this; a standalone one keeps everything to itself.
 
+### Owners enter the sandbox from production
+
+A linked sandbox has no passwords for owners. In production's owner console, **Practise in the sandbox**
+(`/owner/sandbox?location=…`) opens it in a new tab:
+
+1. Production checks that the location is the owner's and may trade (an ended trial or subscription closes
+   the sandbox too), and makes sure the sandbox has the location, setting it up on the spot if needed. A
+   location created before the link is set up the first time its owner enters.
+2. It redirects the browser to the sandbox's `/link/enter?token=…`: a link signed with the shared secret
+   (HMAC-SHA256) naming the owner, the location and the version, good for 60 seconds and only once. The
+   sandbox records each link it takes (`sandbox_sign_in`, platform migration V16).
+3. The sandbox signs the owner in with a fresh session and opens that location's owner console.
+
+If the sandbox cannot take the owner yet, nobody is signed in: production says the practice space is being
+prepared, and the sandbox answers an expired or used link, or one from another version during a release, with
+a page to try again.
+
+In a linked sandbox:
+
+- `/login` and every owner page send owners to production, which sends them straight back with a fresh link.
+- An owner's password is refused there, even one from before the link; staff still sign in at their
+  restaurant (`/<location>/login`) with the accounts the owner created in the sandbox.
+- `/signup` goes to production's signup, and signing out goes back to production.
+
 Every page of the sandbox carries a striped banner ("SANDBOX: practice environment, nothing here is real"),
 a favicon of its own and "[Sandbox]" in the tab title; a linked sandbox's banner links back to production.
 Printed tickets and pages hide the banner.

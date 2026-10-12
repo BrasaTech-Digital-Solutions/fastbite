@@ -1,10 +1,11 @@
 package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.office.UserService;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
+import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.user.UserDto;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,14 +20,23 @@ import java.util.function.Supplier;
  * Signs users in against the right schema:
  * outside a restaurant, or as the owner of the current restaurant, against the platform schema;
  * otherwise against the current restaurant's staff accounts.
+ *
+ * <p>A linked sandbox takes no owner's password: owners enter it through production's sign-in link.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserService userService;
     private final TenantLocationService tenantLocationService;
+    private final boolean ownersEnterThroughProduction;
+
+    public UserDetailsServiceImpl(UserService userService, TenantLocationService tenantLocationService,
+            PlatformEnvironment environment, PlatformLink link) {
+        this.userService = userService;
+        this.tenantLocationService = tenantLocationService;
+        this.ownersEnterThroughProduction = environment.sandbox() && link.linked();
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -35,6 +45,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         if (tenantId == null || platformUser.filter(u -> tenantLocationService.isOwnerOf(u.username(), tenantId)).isPresent()) {
             log.debug("Signing in platform account {}", username);
+            if (ownersEnterThroughProduction && platformUser.filter(UserDto::isOwner).isPresent()) {
+                log.info("Refused password sign-in of owner {}: this sandbox is entered through production", username);
+                throw new UsernameNotFoundException("Owners enter the sandbox through production");
+            }
             return platformUser.map(u -> toUserDetails(u, null))
                     .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
         }

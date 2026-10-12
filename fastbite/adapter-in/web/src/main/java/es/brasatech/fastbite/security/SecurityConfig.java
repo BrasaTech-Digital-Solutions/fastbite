@@ -35,14 +35,16 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService,
-            SessionCookie sessionCookie) throws Exception {
+            SessionCookie sessionCookie, Environment configuration) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
                         .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
                                 "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/api/webhooks/stripe", "/api/stripe/**",
                                 // Calls from the other environment, signed with the shared secret (LinkController)
-                                "/internal/link/**").permitAll()
+                                "/internal/link/**",
+                                // Production's single-use sign-in links into the sandbox (SandboxEntryController)
+                                "/link/enter").permitAll()
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
                                 "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()
@@ -76,7 +78,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new TenantAuthenticationEntryPoint()))
                 .logout(logout -> logout
                         .logoutRequestMatcher(SecurityConfig::isLogoutRequest)
-                        .logoutSuccessHandler(new TenantLogoutSuccessHandler())
+                        .logoutSuccessHandler(new TenantLogoutSuccessHandler(afterSignOut(configuration)))
                         .deleteCookies(sessionCookie.name())
                         .invalidateHttpSession(true)
                         .permitAll())
@@ -151,11 +153,23 @@ public class SecurityConfig {
         }
     }
 
-    private static class TenantLogoutSuccessHandler implements LogoutSuccessHandler {
+    /**
+     * Where someone lands after signing out outside a restaurant: the signup page, or production for a
+     * linked sandbox, which owners only enter from there. Read straight from the configuration, so
+     * every web slice that imports this class has it.
+     */
+    private static String afterSignOut(Environment configuration) {
+        boolean sandbox = !"production".equalsIgnoreCase(configuration.getProperty("fastbite.environment", "sandbox").strip());
+        String partner = configuration.getProperty("fastbite.link.url", "").strip();
+        return sandbox && !partner.isEmpty() ? partner : "/signup";
+    }
+
+    private record TenantLogoutSuccessHandler(String platformTarget) implements LogoutSuccessHandler {
         @Override
         public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
             String prefix = tenantUrlPrefix(request);
-            response.sendRedirect(request.getContextPath() + (prefix != null ? prefix + "/menu" : "/signup"));
+            response.sendRedirect(prefix != null ? request.getContextPath() + prefix + "/menu"
+                    : platformTarget.startsWith("/") ? request.getContextPath() + platformTarget : platformTarget);
         }
     }
 

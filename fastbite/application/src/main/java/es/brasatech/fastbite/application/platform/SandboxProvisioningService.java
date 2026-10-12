@@ -86,15 +86,20 @@ public class SandboxProvisioningService implements NewLocationListener {
     }
 
     /**
-     * Makes sure the sandbox has the location now, for an owner about to enter it.
+     * Makes sure the sandbox has the location now, for an owner about to enter it. A location created
+     * before the link existed is listed now.
      *
      * @return true when the sandbox has it; false when it is still being prepared
      */
-    public boolean ensure(String tenantId) {
+    public boolean ensure(String tenantId, String ownerUsername) {
         if (!active()) {
             return false;
         }
         Optional<SandboxProvisioningPort.Entry> entry = queue.find(tenantId);
+        if (entry.isEmpty()) {
+            queue.enqueue(tenantId, ownerUsername, null, clock.instant());
+            entry = queue.find(tenantId);
+        }
         if (entry.isEmpty()) {
             return false;
         }

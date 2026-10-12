@@ -15,8 +15,9 @@ public class EnvironmentAdvice {
     /**
      * @param sandbox       pages of the sandbox
      * @param productionUrl where a linked sandbox sends people to production; null when standalone
+     * @param practice      production with a sandbox its owners can enter
      */
-    public record PlatformView(boolean sandbox, String productionUrl) {
+    public record PlatformView(boolean sandbox, String productionUrl, boolean practice) {
     }
 
     private final PlatformView view;
@@ -24,7 +25,7 @@ public class EnvironmentAdvice {
     public EnvironmentAdvice(Environment configuration) {
         boolean sandbox = !"production".equalsIgnoreCase(configuration.getProperty("fastbite.environment", "sandbox").strip());
         String link = configuration.getProperty("fastbite.link.url", "").strip();
-        this.view = new PlatformView(sandbox, sandbox && !link.isEmpty() ? link : null);
+        this.view = new PlatformView(sandbox, sandbox && !link.isEmpty() ? link : null, !sandbox && !link.isEmpty());
     }
 
     @ModelAttribute("platform")

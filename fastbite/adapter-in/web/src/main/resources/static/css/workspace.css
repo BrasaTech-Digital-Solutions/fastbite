@@ -59,6 +59,7 @@
 .inline-note p{font-size:13px;margin:8px 0 12px}
 .inline-note:last-child{margin-bottom:0}
 .quiet-button{border:0;background:none;color:#536259;font:inherit;font-size:12px;padding:8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:36px}
+.sandbox-entry{margin-left:auto;white-space:nowrap;font-weight:600;color:#2f4a3a}
 .location-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
 .location-card{margin:0}
 .card-links{display:flex;flex-wrap:wrap;gap:20px;margin-top:20px;font-size:13px}
