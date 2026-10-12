@@ -29,6 +29,21 @@ and production applies onboarding concepts to its own locations. **Production re
 unless `FASTBITE_STANDALONE=true` allows it on purpose: an IDE run (the `local` profile sets it), tests or a
 demo. A misconfigured server therefore never runs production without its sandbox unnoticed.
 
+### New locations appear in the sandbox by themselves
+
+When production creates a location (free signup, an added location or a paid checkout), it lists it in
+`sandbox_provisioning` and a background job (`fastbite.link.provision-delay`, 15 seconds) sends it to the
+sandbox: `POST /internal/link/locations`, JSON signed with the shared secret (`X-FastBite-Signature`, HMAC-SHA256
+of the time and the content; refused if older than five minutes) and naming the version (`X-FastBite-Version`).
+
+- Production never waits for the sandbox and never fails because of it. A location the sandbox could not
+  take (down, or on another version during a release, which it answers with 409) is tried again after 30
+  seconds, then doubling up to every half hour, until it is there.
+- The sandbox creates the same owner and location; doing it again changes nothing, and a location of another
+  owner is refused. The owner gets no usable password there: a linked sandbox is entered through production.
+  Sandbox locations have no trial or billing of their own (plan `FREE`); access follows production.
+- Only a linked production does this; a standalone one keeps everything to itself.
+
 Every page of the sandbox carries a striped banner ("SANDBOX: practice environment, nothing here is real"),
 a favicon of its own and "[Sandbox]" in the tab title; a linked sandbox's banner links back to production.
 Printed tickets and pages hide the banner.

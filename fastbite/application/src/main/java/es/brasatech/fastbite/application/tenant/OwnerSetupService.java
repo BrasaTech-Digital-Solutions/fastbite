@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.application.tenant;
 
 import es.brasatech.fastbite.application.mail.OwnerSetupMailPort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,9 +23,24 @@ public class OwnerSetupService {
     private final TenantProvisionerPort provisioner;
     private final OwnerSetupMailPort mail;
     private final String publicUrl;
+    private final NewLocationListener listener;
 
     public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
-            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, @Value("${fastbite.public-url:http://localhost:8080}") String publicUrl) {
+            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, String publicUrl) {
+        this(persistence, provisioner, mail, lifecycle, publicUrl, NewLocationListener.NONE);
+    }
+
+    /** @param listener told of the location the paid checkout created, for example to set it up in the sandbox */
+    @Autowired
+    public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
+            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, @Value("${fastbite.public-url:http://localhost:8080}") String publicUrl,
+            java.util.Optional<NewLocationListener> listener) {
+        this(persistence, provisioner, mail, lifecycle, publicUrl, listener.orElse(NewLocationListener.NONE));
+    }
+
+    public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
+            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, String publicUrl, NewLocationListener listener) {
+        this.listener = listener;
         this.persistence = persistence;
         this.lifecycle = lifecycle;
         this.provisioner = provisioner;
@@ -63,6 +79,7 @@ public class OwnerSetupService {
                         mail.sendSetupLink(invitation.email(), invitation.username(), publicUrl + "/set-password?token=" + token);
                     }
                 });
+        listener.locationCreated(tenant, invitation.username(), invitation.plan());
     }
 
     public boolean isValid(String token) {
