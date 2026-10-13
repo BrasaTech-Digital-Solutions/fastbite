@@ -1632,3 +1632,18 @@ h6 {
 .ticket-refund td {
   color: #a3241b;
 }
+
+/* The cash check dialog: nothing in it is saved */
+.cash-check [data-cash-out="error"]:empty { display: none; }
+.cash-check-figures { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; margin: 0 0 4px; font-size: 14px; }
+.cash-check-figures dt { font-weight: normal; color: #6c757d; }
+.cash-check-figures dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.cash-check-denominations summary { cursor: pointer; font-size: 14px; color: #0d6efd; }
+.cash-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px 12px; margin-top: 8px; }
+.cash-check-grid label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 14px; }
+.cash-check-grid input { width: 70px; padding: 4px 6px; border: 1px solid #ced4da; border-radius: 6px; text-align: right; }
+.cash-check-result { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: #f6f7f9; font-variant-numeric: tabular-nums; }
+.cash-check-status { margin-top: 4px; font-weight: 600; }
+.cash-check-status.is-match { color: #137333; }
+.cash-check-status.is-over { color: #b06000; }
+.cash-check-status.is-short { color: #c5221f; }

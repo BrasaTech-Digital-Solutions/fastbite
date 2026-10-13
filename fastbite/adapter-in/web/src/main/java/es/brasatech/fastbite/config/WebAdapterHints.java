@@ -27,11 +27,6 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         hints.reflection().registerType(ThemeCatalog.Theme.class, MemberCategory.values());
-        // Allergens are EnumSets, whose JDK classes are private: the menu, counter and allergen chart
-        // call isEmpty() and contains() on them through reflection
-        for (String enumSet : new String[]{"java.util.RegularEnumSet", "java.util.JumboEnumSet"}) {
-            hints.reflection().registerType(TypeReference.of(enumSet), MemberCategory.INVOKE_PUBLIC_METHODS);
-        }
         hints.resources().registerPattern("themes/**");
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SetupProgress.class, org.springframework.aot.hint.MemberCategory.values());
         // Read by the business details page and the VAT lines of guest carts
@@ -56,6 +51,12 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.controller.TicketController.CancelRequest.class,
                 es.brasatech.fastbite.controller.EnvironmentAdvice.PlatformView.class,
                 es.brasatech.fastbite.domain.fiscal.TicketCancellation.class,
+                es.brasatech.fastbite.controller.BackOfficeController.ImageFolder.class,
+                // Read by the end-of-day report
+                es.brasatech.fastbite.domain.fiscal.DayReport.class,
+                es.brasatech.fastbite.domain.fiscal.DayReport.MethodTotal.class,
+                es.brasatech.fastbite.domain.fiscal.DayReport.SeriesRange.class,
+                es.brasatech.fastbite.domain.fiscal.DayReport.Cancelled.class,
                 es.brasatech.fastbite.dto.counter.InvoiceDetails.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.class,
                 es.brasatech.fastbite.domain.verifactu.VerifactuRecord.Link.class,
@@ -144,6 +145,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(org.thymeleaf.expression.Lists.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         hints.reflection().registerType(org.thymeleaf.expression.Numbers.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         hints.reflection().registerType(org.thymeleaf.expression.Maps.class, MemberCategory.INVOKE_PUBLIC_METHODS);
+        hints.reflection().registerType(org.thymeleaf.expression.Sets.class, MemberCategory.INVOKE_PUBLIC_METHODS);
+        hints.reflection().registerType(org.thymeleaf.expression.Temporals.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         hints.reflection().registerType(org.thymeleaf.expression.Strings.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         hints.reflection().registerType(org.thymeleaf.expression.Messages.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         

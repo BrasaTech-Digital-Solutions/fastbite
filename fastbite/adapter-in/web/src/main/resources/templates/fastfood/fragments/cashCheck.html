@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  The cash check: what the drawer should hold by the day's tickets, against what the cashier counted.
+  Worked out in the browser each time it opens (cash-check.js); nothing of it is saved.
+-->
+<div th:fragment="modal(day)" class="modal fade" id="cashCheckModal" tabindex="-1" aria-labelledby="cashCheckTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content" data-cash-check
+             th:data-url="${(tenantId != null ? '/' + tenantId : '') + '/counter/api/cash?date=' + #temporals.format(day, 'yyyy-MM-dd')}"
+             th:data-pending="#{cash.check.pending}" th:data-match="#{cash.check.match}"
+             th:data-over="#{cash.check.over('{0}')}" th:data-short="#{cash.check.short('{0}')}"
+             th:data-as-of="#{cash.check.asOf('{0}')}" th:data-error="#{cash.check.error}">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cashCheckTitle">
+                    <i class="fas fa-coins me-2" aria-hidden="true"></i><span th:text="#{cash.check.title}">Check the cash</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" th:aria-label="#{cash.check.close}"></button>
+            </div>
+            <div class="modal-body cash-check">
+                <p class="text-muted small" th:text="#{cash.check.intro}">Count the drawer and compare it.</p>
+                <p class="alert alert-danger py-2 small" data-cash-out="error" role="alert"></p>
+
+                <label class="form-label small mb-1" for="cash-start" th:text="#{cash.check.start}">Starting cash</label>
+                <input class="form-control mb-2" id="cash-start" data-cash="start" inputmode="decimal" autocomplete="off">
+
+                <dl class="cash-check-figures">
+                    <dt th:text="#{cash.check.sales}">Cash sales today</dt><dd data-cash-out="sales">—</dd>
+                    <dt th:text="#{cash.check.refunds}">Cash refunds today</dt><dd data-cash-out="refunds">—</dd>
+                </dl>
+                <p class="text-muted small mb-3" data-cash-out="asOf"></p>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small mb-1" for="cash-out" th:text="#{cash.check.out}">Cash taken out</label>
+                        <input class="form-control" id="cash-out" data-cash="out" inputmode="decimal" autocomplete="off" placeholder="0,00"
+                               th:title="#{cash.check.out.hint}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1" for="cash-in" th:text="#{cash.check.in}">Cash put in</label>
+                        <input class="form-control" id="cash-in" data-cash="in" inputmode="decimal" autocomplete="off" placeholder="0,00"
+                               th:title="#{cash.check.in.hint}">
+                    </div>
+                </div>
+
+                <label class="form-label small mb-1 fw-semibold" for="cash-counted" th:text="#{cash.check.counted}">Cash counted</label>
+                <input class="form-control form-control-lg mb-2" id="cash-counted" data-cash="counted" inputmode="decimal" autocomplete="off">
+                <div th:replace="~{fastfood/fragments/cashCheck :: denominations}"></div>
+
+                <div class="cash-check-result">
+                    <div class="d-flex justify-content-between"><span th:text="#{cash.check.expected}">Expected in the drawer</span>
+                        <strong data-cash-out="expected">—</strong></div>
+                    <div class="d-flex justify-content-between"><span th:text="#{cash.check.difference}">Difference</span>
+                        <strong data-cash-out="difference">—</strong></div>
+                    <p class="cash-check-status mb-0" data-cash-out="status" role="status" aria-live="polite"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a class="btn btn-outline-secondary me-auto" th:href="${(tenantId != null ? '/' + tenantId : '') + '/counter/day-report'}">
+                    <i class="fas fa-file-invoice me-1" aria-hidden="true"></i><span th:text="#{dayreport.open}">End-of-day report</span>
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" th:text="#{cash.check.close}">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notes and coins, for counting: their total fills in the cash counted -->
+<details th:fragment="denominations" class="cash-check-denominations mb-3">
+    <summary th:text="#{cash.check.denominations}">Count notes and coins</summary>
+    <div class="cash-check-grid">
+        <label th:each="value : ${ {'100', '50', '20', '10', '5', '2', '1', '0.50', '0.20', '0.10', '0.05', '0.02', '0.01'} }">
+            <span th:text="${#strings.replace(value, '.', ',')} + ' €'">50 €</span>
+            <input type="number" min="0" step="1" inputmode="numeric" th:data-denomination="${value}" placeholder="0">
+        </label>
+    </div>
+</details>
+</body>
+</html>

@@ -76,7 +76,7 @@
                 <h4 id="total" class="m-0 fw-bold text-success" th:text="${#numbers.formatDecimal(total, 1, 2)}">71.93
                 </h4>
             </div>
-            <div class="vat-included small text-muted mt-n3 mb-3" th:if="${vat != null && !vat.lines().isEmpty()}">
+            <div class="vat-included small text-muted mt-n3 mb-3" th:if="${vat != null && !#lists.isEmpty(vat.lines())}">
                 <div class="d-flex justify-content-between" th:each="line : ${vat.lines()}">
                     <span th:text="#{label.vat.included.rate(${line.rate().intValue()})}">VAT included (10%)</span>
                     <span th:text="${#numbers.formatDecimal(line.vat(), 1, 2)}">1.00</span>
@@ -217,7 +217,7 @@
                                 <h4 class="m-0 fw-bold text-success" th:text="${#numbers.formatDecimal(total, 1, 2)}">
                                     62.96</h4>
                             </div>
-                            <div class="vat-included small text-muted mt-2" th:if="${vat != null && !vat.lines().isEmpty()}">
+                            <div class="vat-included small text-muted mt-2" th:if="${vat != null && !#lists.isEmpty(vat.lines())}">
                                 <div class="d-flex justify-content-between" th:each="line : ${vat.lines()}">
                                     <span th:text="#{label.vat.included.rate(${line.rate().intValue()})}">VAT included (10%)</span>
                                     <span th:text="${#numbers.formatDecimal(line.vat(), 1, 2)}">1.00</span>

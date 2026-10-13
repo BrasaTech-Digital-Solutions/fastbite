@@ -78,6 +78,9 @@ class TicketEndpointTest {
         when(tickets.findById("t1")).thenReturn(Optional.of(SALE));
         when(tickets.today()).thenReturn(LocalDate.of(2026, 10, 9));
         when(tickets.issuedOn(any())).thenReturn(List.of(SALE));
+        // The day's totals, worked out as the service does from the same tickets
+        when(tickets.dayReport(any())).thenAnswer(call -> es.brasatech.fastbite.domain.fiscal.DayReport.of(
+                call.getArgument(0), List.of(SALE), tickets.cancellation("t1").map(List::of).orElse(List.of())));
     }
 
     private static MockHttpServletRequestBuilder as(String role, MockHttpServletRequestBuilder request) {

@@ -90,7 +90,7 @@
                         </div>
 
                         <div class="d-grid gap-3">
-                            <a th:href="${tenantId != null && !tenantId.isEmpty()} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" class="btn btn-pos-primary btn-lg rounded-pill" id="startNewOrderBtn">
+                            <a th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" class="btn btn-pos-primary btn-lg rounded-pill" id="startNewOrderBtn">
                                 <i class="fas fa-arrow-left me-2"></i> <span
                                     th:text="#{button.place.another.order}">Place Another Order</span>
                             </a>

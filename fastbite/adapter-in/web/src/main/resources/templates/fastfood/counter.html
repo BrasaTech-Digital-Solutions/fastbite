@@ -68,6 +68,10 @@
                         th:classappend="${settings.takeaway} ? '' : 'd-none'">
                         <i class="fas fa-shopping-bag me-1"></i> <span th:text="#{label.takeaway}">Takeaway</span>
                     </button>
+                    <button class="btn btn-outline-secondary" type="button" th:if="${handlesTill}"
+                        data-bs-toggle="modal" data-bs-target="#cashCheckModal">
+                        <i class="fas fa-coins me-1" aria-hidden="true"></i> <span th:text="#{cash.check.button}">Check the cash</span>
+                    </button>
                     <button class="btn btn-outline-secondary" id="btn-pickup-orders"
                         th:classappend="${settings.takeaway} ? '' : 'd-none'">
                         <i class="fas fa-hand-holding-usd me-1"></i> <span th:text="#{label.pickup.orders}">To collect</span>
@@ -383,6 +387,10 @@
     </script>
     <script th:src="@{/js/kitchen-audio.js}"></script>
     <script th:src="@{/js/counter.js}"></script>
+    <th:block th:if="${handlesTill}">
+        <div th:replace="~{fastfood/fragments/cashCheck :: modal(${today})}"></div>
+        <script th:src="@{/js/cash-check.js}"></script>
+    </th:block>
     <iframe id="print-frame" style="visibility:hidden;position:absolute;width:0;height:0;border:none;"></iframe>
 </body>
 

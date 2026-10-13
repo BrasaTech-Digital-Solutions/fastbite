@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="#{dayreport.title} + ' ' + ${#temporals.format(day, 'dd/MM/yyyy')}">End-of-day report</title>
+    <link rel="stylesheet" th:href="@{/css/ticket.css}">
+    <script th:src="@{/js/cash-check.js}" defer></script>
+</head>
+<body class="paper day-report">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
+
+<form class="screen-bar" method="get">
+    <a th:href="${tenantPrefix + '/counter/tickets?date=' + #temporals.format(day, 'yyyy-MM-dd')}" th:text="'← ' + #{tickets.title}">← Tickets</a>
+    <input type="date" name="date" th:value="${#temporals.format(day, 'yyyy-MM-dd')}" th:max="${#temporals.format(today, 'yyyy-MM-dd')}" th:aria-label="#{tickets.day}" onchange="this.form.submit()">
+    <button type="button" onclick="window.print()" th:text="#{dayreport.print}">Print</button>
+</form>
+
+<div class="training" th:if="${training}" th:text="#{ticket.training}">TRAINING — NOT VALID</div>
+
+<header class="center">
+    <p class="trade" th:text="${business.displayName() ?: #messages.msg('ticket.missing')}">Kebab House</p>
+    <p th:if="${business.taxId() != null}" th:text="#{ticket.taxId} + ' ' + ${business.taxId()}">NIF 12345678Z</p>
+    <span class="kind" th:text="#{dayreport.title}">End-of-day report</span>
+    <p class="big" th:text="${#temporals.format(day, 'dd/MM/yyyy')}">13/10/2026</p>
+    <p class="muted" th:text="#{dayreport.printed(${#temporals.format(printedAt, 'dd/MM/yyyy HH:mm')})}">Printed</p>
+</header>
+
+<hr class="rule">
+
+<p class="center" th:if="${report.empty()}" th:text="#{dayreport.empty}">No tickets were issued on this day.</p>
+
+<th:block th:unless="${report.empty()}">
+    <div class="row"><span th:text="#{dayreport.sales}">Sale tickets</span><span th:text="${report.salesCount()}">12</span></div>
+    <div class="row"><span th:text="#{tickets.net}">Net sales</span>
+        <span th:text="${#numbers.formatDecimal(report.net(), 1, 'POINT', 2, 'COMMA')}">250,00</span></div>
+    <div class="row" th:if="${report.tips().signum() != 0}"><span th:text="#{tickets.tips}">Tips</span>
+        <span th:text="${#numbers.formatDecimal(report.tips(), 1, 'POINT', 2, 'COMMA')}">5,00</span></div>
+    <div class="row big"><span th:text="#{dayreport.takings}">Total taken</span>
+        <span th:text="${#numbers.formatDecimal(report.takings(), 1, 'POINT', 2, 'COMMA')} + ' €'">255,00 €</span></div>
+
+    <hr class="rule">
+    <h2 class="section" th:text="#{dayreport.methods}">By payment method</h2>
+    <table>
+        <thead><tr>
+            <th th:text="#{dayreport.col.method}">Payment</th>
+            <th class="num" th:text="#{dayreport.col.sales}">Sales</th>
+            <th class="num" th:text="#{dayreport.col.refunds}">Refunds</th>
+            <th class="num" th:text="#{dayreport.col.net}">Net</th>
+        </tr></thead>
+        <tbody>
+        <tr th:each="m : ${report.methods()}">
+            <td th:text="#{${m.method().messageKey()}}">Cash</td>
+            <td class="num" th:text="${#numbers.formatDecimal(m.sales(), 1, 'POINT', 2, 'COMMA')}">100,00</td>
+            <td class="num" th:text="${#numbers.formatDecimal(m.refunds(), 1, 'POINT', 2, 'COMMA')}">0,00</td>
+            <td class="num" th:text="${#numbers.formatDecimal(m.net(), 1, 'POINT', 2, 'COMMA')}">100,00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <hr class="rule">
+    <h2 class="section" th:text="#{dayreport.vat}">VAT</h2>
+    <table class="vat">
+        <thead><tr>
+            <th th:text="#{dayreport.col.rate}">Rate</th>
+            <th class="num" th:text="#{dayreport.col.base}">Base</th>
+            <th class="num" th:text="#{dayreport.col.vat}">VAT</th>
+            <th class="num" th:text="#{dayreport.col.total}">Total</th>
+        </tr></thead>
+        <tbody>
+        <tr th:each="line : ${report.vat()}">
+            <td th:text="${#numbers.formatDecimal(line.rate(), 1, 'POINT', 0, 'COMMA')} + '%'">10%</td>
+            <td class="num" th:text="${#numbers.formatDecimal(line.base(), 1, 'POINT', 2, 'COMMA')}">90,91</td>
+            <td class="num" th:text="${#numbers.formatDecimal(line.vat(), 1, 'POINT', 2, 'COMMA')}">9,09</td>
+            <td class="num" th:text="${#numbers.formatDecimal(line.gross(), 1, 'POINT', 2, 'COMMA')}">100,00</td>
+        </tr>
+        <tr class="total">
+            <td th:text="#{dayreport.total}">Total</td>
+            <td class="num" th:text="${#numbers.formatDecimal(report.vatBase(), 1, 'POINT', 2, 'COMMA')}">90,91</td>
+            <td class="num" th:text="${#numbers.formatDecimal(report.vatAmount(), 1, 'POINT', 2, 'COMMA')}">9,09</td>
+            <td class="num" th:text="${#numbers.formatDecimal(report.net(), 1, 'POINT', 2, 'COMMA')}">100,00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <hr class="rule">
+    <h2 class="section" th:text="#{dayreport.series}">Tickets issued</h2>
+    <table>
+        <thead><tr>
+            <th th:text="#{dayreport.col.first}">First</th>
+            <th th:text="#{dayreport.col.last}">Last</th>
+            <th class="num" th:text="#{dayreport.col.count}">Count</th>
+        </tr></thead>
+        <tbody>
+        <tr th:each="s : ${report.series()}">
+            <td th:text="${s.first()}">KH-T26-000001</td>
+            <td th:text="${s.last()}">KH-T26-000012</td>
+            <td class="num" th:text="${s.count()}">12</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <th:block th:unless="${#lists.isEmpty(report.refunds())}">
+        <hr class="rule">
+        <h2 class="section" th:text="#{dayreport.refunds}">Refunds</h2>
+        <div th:each="r : ${report.refunds()}" class="entry">
+            <div class="row"><span th:text="${r.fullNumber()}">KH-R26-000001</span>
+                <span th:text="${#numbers.formatDecimal(r.charged(), 1, 'POINT', 2, 'COMMA')}">-11,00</span></div>
+            <p class="muted" th:text="#{dayreport.col.corrects} + ' ' + ${r.corrects().fullNumber()} + ' · ' + #{${r.paymentMethod().messageKey()}}">Corrects</p>
+            <p class="muted" th:if="${r.corrects().reason() != null}" th:text="${r.corrects().reason()}">Wrong dish</p>
+        </div>
+    </th:block>
+
+    <th:block th:unless="${#lists.isEmpty(report.cancelled())}">
+        <hr class="rule">
+        <h2 class="section" th:text="#{dayreport.cancelled}">Cancelled tickets</h2>
+        <p class="muted small" th:text="#{dayreport.cancelled.note}">Issued by mistake and not counted above.</p>
+        <div th:each="c : ${report.cancelled()}" class="entry">
+            <div class="row"><span th:text="${c.ticket().fullNumber()}">KH-T26-000004</span>
+                <span th:text="${#numbers.formatDecimal(c.ticket().charged(), 1, 'POINT', 2, 'COMMA')}">30,00</span></div>
+            <p class="muted" th:text="#{${c.ticket().paymentMethod().messageKey()}} + ' · ' + ${c.cancellation().reason()}">Cash · wrong table</p>
+        </div>
+    </th:block>
+
+    <th:block th:unless="${#lists.isEmpty(report.replacements())}">
+        <hr class="rule">
+        <h2 class="section" th:text="#{dayreport.replacements}">Full invoices for earlier tickets</h2>
+        <p class="muted small" th:text="#{dayreport.replacements.note}">Not counted above.</p>
+        <div th:each="f : ${report.replacements()}" class="row">
+            <span th:text="${f.fullNumber()}">KH-F26-000001</span>
+            <span th:text="#{dayreport.col.replaces} + ' ' + ${f.corrects().fullNumber()}">Replaces</span>
+        </div>
+    </th:block>
+</th:block>
+
+<hr class="rule">
+<section class="cash" data-cash-check
+         th:data-url="${tenantPrefix + '/counter/api/cash?date=' + #temporals.format(day, 'yyyy-MM-dd')}"
+         th:data-pending="#{cash.check.pending}" th:data-match="#{cash.check.match}"
+         th:data-over="#{cash.check.over('{0}')}" th:data-short="#{cash.check.short('{0}')}"
+         th:data-as-of="#{cash.check.asOf('{0}')}" th:data-error="#{cash.check.error}">
+    <h2 class="section" th:text="#{dayreport.cash}">Cash check</h2>
+    <p class="muted small screen-only" th:text="#{dayreport.cash.note}">Fill in the count before printing.</p>
+    <p class="error" data-cash-out="error" role="alert"></p>
+    <label class="row"><span th:text="#{cash.check.start}">Starting cash</span><input data-cash="start" inputmode="decimal" autocomplete="off"></label>
+    <div class="row"><span th:text="#{cash.check.sales}">Cash sales</span><span data-cash-out="sales">—</span></div>
+    <div class="row"><span th:text="#{cash.check.refunds}">Cash refunds</span><span data-cash-out="refunds">—</span></div>
+    <label class="row"><span th:text="#{cash.check.out}">Cash taken out</span><input data-cash="out" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+    <label class="row"><span th:text="#{cash.check.in}">Cash put in</span><input data-cash="in" inputmode="decimal" autocomplete="off" placeholder="0,00"></label>
+    <div class="row big"><span th:text="#{cash.check.expected}">Expected</span><span data-cash-out="expected">—</span></div>
+    <label class="row big"><span th:text="#{cash.check.counted}">Cash counted</span><input data-cash="counted" inputmode="decimal" autocomplete="off"></label>
+    <div th:replace="~{fastfood/fragments/cashCheck :: denominations}"></div>
+    <div class="row"><span th:text="#{cash.check.difference}">Difference</span><span data-cash-out="difference">—</span></div>
+    <p class="status" data-cash-out="status" role="status" aria-live="polite"></p>
+    <p class="muted" data-cash-out="asOf"></p>
+</section>
+
+<div class="training" th:if="${training}" th:text="#{ticket.training}">TRAINING — NOT VALID</div>
+</body>
+</html>

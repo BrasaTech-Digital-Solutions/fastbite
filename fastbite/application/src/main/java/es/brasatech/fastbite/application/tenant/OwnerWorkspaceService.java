@@ -50,6 +50,18 @@ public class OwnerWorkspaceService {
         inTenant(tenant,()->settings.save(new RestaurantSettings(dineIn,takeaway,yellow,red)));
         progress.update(tenant,p->new SetupProgress(true,true,p.previewReviewed(),p.dismissed()));
     }
+    /** The cash the location's drawer starts each day with, offered when the cash is checked. */
+    public java.math.BigDecimal cashFloat(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, settings::cashFloat);
+    }
+    public void saveCashFloat(String owner, String tenant, java.math.BigDecimal cashFloat) {
+        requireOwner(owner, tenant);
+        if (cashFloat == null || cashFloat.signum() < 0 || cashFloat.compareTo(java.math.BigDecimal.valueOf(100_000)) > 0 || cashFloat.scale() > 2) {
+            throw new IllegalArgumentException("Enter the starting cash in euros, from 0 to 100000, with up to two decimals.");
+        }
+        inTenant(tenant, () -> { settings.saveCashFloat(cashFloat); return null; });
+    }
     public FiscalProfile fiscalProfile(String owner, String tenant) {
         requireOwner(owner, tenant);
         return inTenant(tenant, fiscalProfiles::get);

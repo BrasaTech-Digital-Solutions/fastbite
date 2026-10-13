@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"><body>
 <section th:fragment="legal" class="legal-layout" th:if="${section=='legal'}"
-         th:with="missing=${fiscal.missingFields().size()},required=7,kind=${fiscal.taxIdKind()}">
+         th:with="missing=${#lists.size(fiscal.missingFields())},required=7,kind=${fiscal.taxIdKind()}">
 <form class="panel legal-form" id="legal-form" method="post" novalidate
       th:action="@{/owner/workspace/{tenant}/legal(tenant=${selected.tenantId})}"
       th:data-year="${ticketYear}" th:data-required="${required}"
@@ -20,7 +20,7 @@
     <span id="legal-progress-text"
           th:text="${missing==0}?#{owner.legal.progress.done}:#{owner.legal.progress(${required-missing},${required})}">0 of 7</span>
   </div>
-  <div class="alert error" role="alert" th:if="${fiscalErrors!=null && !fiscalErrors.isEmpty()}" th:text="#{owner.legal.errors}"></div>
+  <div class="alert error" role="alert" th:if="${fiscalErrors!=null && !#maps.isEmpty(fiscalErrors)}" th:text="#{owner.legal.errors}"></div>
 
   <fieldset class="legal-group">
     <legend><span class="legal-step">1</span><span th:text="#{owner.legal.business}">Your business</span></legend>
@@ -28,19 +28,19 @@
     <div class="taxid-row">
       <input id="taxId" name="taxId" th:value="${fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false" th:readonly="${fiscalLocked}"
              inputmode="text" autocapitalize="characters" aria-describedby="taxId-hint taxId-status" required
-             th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}?'invalid'">
+             th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'taxId')}?'invalid'">
       <span id="taxId-status" class="field-status" role="status"
             th:classappend="${kind!=null}?'valid'"
             th:text="${kind==null}?'':(${kind.name()=='DNI'}?#{owner.legal.taxId.dni}:(${kind.name()=='NIE'}?#{owner.legal.taxId.nie}:(${kind.name()=='COMPANY'}?#{owner.legal.taxId.company}:#{owner.legal.taxId.other})))"></span>
     </div>
-    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
+    <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
     <p class="fine" id="taxId-hint" th:text="${fiscalLocked}?#{owner.legal.locked}:#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
 
     <label for="legalName" id="legalName-label"
            th:text="${kind==null}?#{owner.legal.legalName}:(${kind.name()=='COMPANY'}?#{owner.legal.legalName.company}:#{owner.legal.legalName.person})">Legal name</label>
     <input id="legalName" name="legalName" th:value="${fiscal.legalName}" maxlength="120" autocomplete="organization" required
-           th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('legalName')}?'invalid'">
-    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('legalName')}" th:text="#{${fiscalErrors.get('legalName')}}"></p>
+           th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'legalName')}?'invalid'">
+    <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'legalName')}" th:text="#{${fiscalErrors.get('legalName')}}"></p>
 
     <label for="tradeName"><span th:text="#{owner.legal.tradeName}">Name on the door</span> <small th:text="'· '+#{owner.legal.optional}">· optional</small></label>
     <input id="tradeName" name="tradeName" th:value="${fiscal.tradeName}" maxlength="80" aria-describedby="tradeName-hint">
@@ -51,19 +51,19 @@
     <legend><span class="legal-step">2</span><span th:text="#{owner.legal.address}">Where this location is</span></legend>
     <label for="addressLine" th:text="#{owner.legal.addressLine}">Street and number</label>
     <input id="addressLine" name="addressLine" th:value="${fiscal.addressLine}" maxlength="160" autocomplete="street-address" required
-           th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('addressLine')}?'invalid'">
-    <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('addressLine')}" th:text="#{${fiscalErrors.get('addressLine')}}"></p>
+           th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'addressLine')}?'invalid'">
+    <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'addressLine')}" th:text="#{${fiscalErrors.get('addressLine')}}"></p>
     <div class="form-grid postal-grid">
       <div>
         <label for="postalCode" th:text="#{owner.legal.postalCode}">Postal code</label>
         <input id="postalCode" name="postalCode" th:value="${fiscal.postalCode}" maxlength="5" inputmode="numeric" pattern="[0-9]{5}"
-               autocomplete="postal-code" required th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('postalCode')}?'invalid'">
-        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('postalCode')}" th:text="#{${fiscalErrors.get('postalCode')}}"></p>
+               autocomplete="postal-code" required th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'postalCode')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'postalCode')}" th:text="#{${fiscalErrors.get('postalCode')}}"></p>
       </div>
       <div>
         <label for="city" th:text="#{owner.legal.city}">Town or city</label>
         <input id="city" name="city" th:value="${fiscal.city}" maxlength="80" autocomplete="address-level2" required
-               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('city')}?'invalid'">
+               th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'city')}?'invalid'">
       </div>
     </div>
     <label for="province" th:text="#{owner.legal.province}">Province</label>
@@ -76,14 +76,14 @@
       <div>
         <label for="phone"><span th:text="#{owner.legal.phone}">Phone</span> <small th:text="'· '+#{owner.legal.optional}"></small></label>
         <input id="phone" name="phone" type="tel" th:value="${fiscal.phone}" maxlength="20" autocomplete="tel"
-               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('phone')}?'invalid'">
-        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('phone')}" th:text="#{${fiscalErrors.get('phone')}}"></p>
+               th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'phone')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'phone')}" th:text="#{${fiscalErrors.get('phone')}}"></p>
       </div>
       <div>
         <label for="email"><span th:text="#{owner.legal.email}">Email</span> <small th:text="'· '+#{owner.legal.optional}"></small></label>
         <input id="email" name="email" type="email" th:value="${fiscal.email}" maxlength="254" autocomplete="email"
-               th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('email')}?'invalid'">
-        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('email')}" th:text="#{${fiscalErrors.get('email')}}"></p>
+               th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'email')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'email')}" th:text="#{${fiscalErrors.get('email')}}"></p>
       </div>
     </div>
   </fieldset>
@@ -111,8 +111,8 @@
         <label for="seriesPrefix" th:text="#{owner.legal.seriesPrefix}">Series code</label>
         <input id="seriesPrefix" name="seriesPrefix" th:value="${fiscal.seriesPrefix!=null?fiscal.seriesPrefix:suggestedPrefix}"
                maxlength="8" autocomplete="off" spellcheck="false" autocapitalize="characters" required th:readonly="${fiscalLocked}"
-               aria-describedby="seriesPrefix-hint" th:classappend="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}?'invalid'">
-        <p class="field-error" th:if="${fiscalErrors!=null && fiscalErrors.containsKey('seriesPrefix')}" th:text="#{${fiscalErrors.get('seriesPrefix')}}"></p>
+               aria-describedby="seriesPrefix-hint" th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'seriesPrefix')}?'invalid'">
+        <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'seriesPrefix')}" th:text="#{${fiscalErrors.get('seriesPrefix')}}"></p>
       </div>
       <div class="series-preview">
         <span th:text="#{owner.legal.series.preview}">Your first ticket number</span>
@@ -179,7 +179,7 @@
     <p class="fingerprint" th:title="${verifactu.last().fingerprint()}"
        th:text="#{owner.verifactu.fingerprint} + ' ' + ${#strings.substring(verifactu.last().fingerprint(), 0, 16)} + '…'">Fingerprint 3C464DAF61ACB827…</p>
   </div>
-  <div th:if="${!verifactu.toAmend().isEmpty()}">
+  <div th:if="${!#lists.isEmpty(verifactu.toAmend())}">
     <h3 th:text="#{owner.verifactu.toAmend.title}">Records to fix and send again</h3>
     <p class="fine" th:text="#{owner.verifactu.toAmend.help}">If the reason points at your business details, correct them above first.</p>
     <ul class="verifactu-rejected">

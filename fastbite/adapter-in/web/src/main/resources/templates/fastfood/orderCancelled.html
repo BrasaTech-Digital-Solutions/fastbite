@@ -11,7 +11,7 @@
 <main class="container py-5">
     <h1 th:text="#{message.order.cancelled.title}">Order cancelled</h1>
     <p th:text="#{message.order.cancelled.help}">This order is no longer waiting for payment. Unpaid online takeaway orders expire after one hour. Please place a new order, or contact the restaurant if you already paid.</p>
-    <a class="btn btn-primary" th:href="${tenantId != null && !tenantId.isEmpty()} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" th:text="#{button.back.to.menu}">Back to menu</a>
+    <a class="btn btn-primary" th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" th:text="#{button.back.to.menu}">Back to menu</a>
 </main>
 </body>
 </html>

@@ -198,18 +198,18 @@
 
 <!-- Image Gallery -->
 <div th:fragment="image-gallery" th:remove="tag">
-    <div th:if="${#maps.isEmpty(imagesByFolder)}" class="col-12 text-center text-muted py-5">
+    <div th:if="${#lists.isEmpty(folders)}" class="col-12 text-center text-muted py-5">
         <p
             th:text="${type == 'system' ? #messages.msg('backoffice.modal.image.loading.system') : #messages.msg('backoffice.modal.image.loading.user')}">
             No images available</p>
     </div>
-    <th:block th:each="entry : ${imagesByFolder}">
+    <th:block th:each="folder : ${folders}">
         <div class="col-12">
             <h6 class="text-muted mb-3">
-                <i class="fas fa-folder me-2"></i><span th:text="${entry.key}">folder</span>
+                <i class="fas fa-folder me-2"></i><span th:text="${folder.name()}">folder</span>
             </h6>
         </div>
-        <div th:each="image : ${entry.value}" class="col-6 col-md-4 col-lg-3">
+        <div th:each="image : ${folder.images()}" class="col-6 col-md-4 col-lg-3">
             <div class="card h-100 image-card" style="cursor: pointer;" th:data-url="${image['url']}"
                 onclick="selectImage(this.dataset.url)">
                 <img th:src="${image['url']}" class="card-img-top" th:alt="${image['name']}"
@@ -276,9 +276,9 @@
             th:checked="${#lists.contains(selectedIds, item['id'])}">
         <label class="form-check-label" th:for="|item-${item['id']}|">
             <span th:text="${item['name']}">Item Name</span>
-            <span th:if="${item.containsKey('price') && item['price'] != null}"
+            <span th:if="${#maps.containsKey(item, 'price') && item['price'] != null}"
                 th:text="| - $${#numbers.formatDecimal(item['price'], 1, 2)}|"> - $0.00</span>
-            <span th:if="${item.containsKey('type') && item['type'] != null}" th:text="| (${item['type']})|">
+            <span th:if="${#maps.containsKey(item, 'type') && item['type'] != null}" th:text="| (${item['type']})|">
                 (type)</span>
         </label>
     </div>

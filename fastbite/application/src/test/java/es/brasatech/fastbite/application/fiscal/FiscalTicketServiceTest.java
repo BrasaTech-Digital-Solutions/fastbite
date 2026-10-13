@@ -59,6 +59,9 @@ class FiscalTicketServiceTest {
         public Optional<TicketCancellation> findCancellation(String ticketId) {
             return Optional.ofNullable(cancelled.get(ticketId));
         }
+        public List<TicketCancellation> findCancellationsBetween(OffsetDateTime from, OffsetDateTime to) {
+            return cancelled.values().stream().filter(c -> !c.at().isBefore(from) && c.at().isBefore(to)).toList();
+        }
         public Optional<FiscalTicket> findCorrection(String ticketId, TicketKind kind) {
             return issued.stream().filter(t -> t.kind() == kind && t.corrects() != null
                     && t.corrects().ticketId().equals(ticketId)).findFirst();

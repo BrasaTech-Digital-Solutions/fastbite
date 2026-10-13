@@ -39,6 +39,9 @@ public interface FiscalTicketRepository {
 
     Optional<TicketCancellation> findCancellation(String ticketId);
 
+    /** Cancellations made in a period, oldest first. */
+    List<TicketCancellation> findCancellationsBetween(OffsetDateTime from, OffsetDateTime to);
+
     /** Whether any real (non-training) ticket was ever issued, which fixes the location's NIF and series. */
     boolean anyRealTicket();
 }

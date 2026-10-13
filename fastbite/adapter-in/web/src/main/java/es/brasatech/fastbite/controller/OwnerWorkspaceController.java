@@ -53,6 +53,9 @@ public class OwnerWorkspaceController {
             model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
             var setup=workspace.summary(owner.getName(),selected.tenantId());
             model.addAttribute("setup",setup);
+            if(view.equals("location-settings") && section.equals("general")) {
+                model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
+            }
             if(section.equals("legal")) {
                 addLegal(model,setup.fiscal(),selected.tenantId());
                 model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
@@ -93,6 +96,19 @@ public class OwnerWorkspaceController {
         }
         workspace.action(owner.getName(),tenant,action);
         return action.equals("start")?"redirect:/"+tenant+"/backoffice":"redirect:/owner/console?location="+tenant;
+    }
+    @PostMapping("/owner/workspace/{tenant}/cash-float")
+    public String cashFloat(@PathVariable String tenant,@RequestParam(defaultValue="") String cashFloat,Principal owner,RedirectAttributes flash) {
+        check(owner,tenant);
+        try {
+            workspace.saveCashFloat(owner.getName(),tenant,new BigDecimal(cashFloat.strip().replace(',','.')));
+            flash.addFlashAttribute("notice","Starting cash saved. The counter offers it when the cash is checked.");
+        } catch(NumberFormatException e) {
+            flash.addFlashAttribute("error","Enter the starting cash in euros, such as 150 or 150.50.");
+        } catch(IllegalArgumentException e) {
+            flash.addFlashAttribute("error",e.getMessage());
+        }
+        return "redirect:/owner/console?view=location-settings&location="+tenant;
     }
     @PostMapping("/owner/workspace/{tenant}/service")
     public String service(@PathVariable String tenant,@RequestParam(defaultValue="false") boolean dineIn,@RequestParam(defaultValue="false") boolean takeaway,

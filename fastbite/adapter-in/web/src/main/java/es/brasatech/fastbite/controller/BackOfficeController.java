@@ -99,9 +99,19 @@ public class BackOfficeController {
         return "fastfood/fragments/backOffice :: customization-option";
     }
 
+    /** A folder of the image gallery and its images, as the page sent them. */
+    public record ImageFolder(String name, List<?> images) {
+    }
+
     @PostMapping("/api/backoffice/fragments/image-gallery")
     public String getImageGallery(@RequestBody Map<String, Object> payload, Model model) {
-        model.addAttribute("imagesByFolder", payload.get("imagesByFolder"));
+        // A list of records rather than the map: map entries are JDK classes the native image cannot read
+        List<ImageFolder> folders = new java.util.ArrayList<>();
+        if (payload.get("imagesByFolder") instanceof Map<?, ?> byFolder) {
+            byFolder.forEach((name, images) -> folders.add(new ImageFolder(String.valueOf(name),
+                    images instanceof List<?> list ? list : List.of())));
+        }
+        model.addAttribute("folders", folders);
         model.addAttribute("type", payload.get("type"));
         return "fastfood/fragments/backOffice :: image-gallery";
     }

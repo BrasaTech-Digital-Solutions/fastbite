@@ -23,7 +23,7 @@
                 <img th:src="${p.image ?: '/images/placeholder.png'}" class="product-img" th:alt="${p.name}">
                 <div class="card-body">
                     <h6 class="card-title" th:text="${p.name}">Product Name</h6>
-                    <span class="counter-allergens" th:if="${p.allergensDeclared() && !p.allergens().isEmpty()}"
+                    <span class="counter-allergens" th:if="${p.allergensDeclared() && !#sets.isEmpty(p.allergens())}"
                         th:title="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}"
                         th:aria-label="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}" role="img"
                         th:text="${#strings.listJoin(p.allergens().![icon()], '')}">🌾🥛</span>

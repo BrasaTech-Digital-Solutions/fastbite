@@ -9,4 +9,10 @@ public interface RestaurantSettingsService {
     RestaurantSettings get();
 
     RestaurantSettings save(RestaurantSettings settings);
+
+    /** The cash the drawer starts each day with, as the owner set it; zero if never set. */
+    java.math.BigDecimal cashFloat();
+
+    /** Kept apart from the other settings: saving those never changes it. */
+    void saveCashFloat(java.math.BigDecimal cashFloat);
 }

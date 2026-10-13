@@ -106,7 +106,7 @@
                                     <p class="card-text text-muted mb-3" th:text="${product.description}">4 burgers, 2
                                         large fries, 4 drinks</p>
                                     <div class="allergen-chips mb-3" th:if="${product.allergensDeclared()}">
-                                        <span th:if="${product.allergens().isEmpty()}" class="allergen-none"
+                                        <span th:if="${#sets.isEmpty(product.allergens())}" class="allergen-none"
                                             th:text="#{menu.allergens.none}">No allergens</span>
                                         <span th:each="allergen : ${product.allergens()}" class="allergen-chip">
                                             <span aria-hidden="true" th:text="${allergen.icon()}">🌾</span>

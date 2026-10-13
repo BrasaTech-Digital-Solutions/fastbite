@@ -45,8 +45,8 @@
                 <td th:if="${!product.allergensDeclared()}" th:colspan="${allergens.length}" class="undeclared"
                     th:text="#{allergens.chart.undeclared}">Ask our staff</td>
                 <th:block th:if="${product.allergensDeclared()}">
-                    <td th:each="allergen : ${allergens}" th:classappend="${product.allergens().contains(allergen)}?'contains'">
-                        <span th:if="${product.allergens().contains(allergen)}" class="dot"
+                    <td th:each="allergen : ${allergens}" th:classappend="${#sets.contains(product.allergens(), allergen)}?'contains'">
+                        <span th:if="${#sets.contains(product.allergens(), allergen)}" class="dot"
                               th:aria-label="#{${allergen.messageKey()}}" role="img">●</span>
                     </td>
                 </th:block>
@@ -55,7 +55,7 @@
         </table>
     </div>
 
-    <section class="chart-options" th:if="${!options.isEmpty()}">
+    <section class="chart-options" th:if="${!#lists.isEmpty(options)}">
         <h2 th:text="#{allergens.chart.options}">Options that add allergens</h2>
         <ul>
             <li th:each="row : ${options}">

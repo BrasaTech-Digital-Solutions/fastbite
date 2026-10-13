@@ -110,11 +110,25 @@ public class FiscalTicketRepositoryJpa implements FiscalTicketRepository {
             return Optional.empty();
         }
         Object[] row = (Object[]) rows.getFirst();
-        java.time.LocalDateTime local = row[0] instanceof java.sql.Timestamp timestamp ? timestamp.toLocalDateTime()
-                : (java.time.LocalDateTime) row[0];
-        return Optional.of(new TicketCancellation(ticketId,
-                OffsetDateTime.of(local, java.time.ZoneOffset.of(row[1].toString())),
-                row[2] == null ? null : row[2].toString(), row[3].toString()));
+        return Optional.of(toCancellation(ticketId, row[0], row[1], row[2], row[3]));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
+    public List<TicketCancellation> findCancellationsBetween(OffsetDateTime from, OffsetDateTime to) {
+        List<?> rows = entityManager.createNativeQuery("SELECT ticket_id, cancelled_local, cancelled_offset, cancelled_by, reason "
+                        + "FROM fiscal_ticket_cancellations WHERE cancelled_local >= :from AND cancelled_local < :to "
+                        + "ORDER BY cancelled_local")
+                .setParameter("from", from.toLocalDateTime()).setParameter("to", to.toLocalDateTime()).getResultList();
+        return rows.stream().map(found -> (Object[]) found)
+                .map(row -> toCancellation(row[0].toString(), row[1], row[2], row[3], row[4])).toList();
+    }
+
+    private static TicketCancellation toCancellation(String ticketId, Object at, Object offset, Object by, Object reason) {
+        java.time.LocalDateTime local = at instanceof java.sql.Timestamp timestamp ? timestamp.toLocalDateTime()
+                : (java.time.LocalDateTime) at;
+        return new TicketCancellation(ticketId, OffsetDateTime.of(local, java.time.ZoneOffset.of(offset.toString())),
+                by == null ? null : by.toString(), reason.toString());
     }
 
     @Override

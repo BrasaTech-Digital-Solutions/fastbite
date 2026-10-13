@@ -16,7 +16,7 @@
         <strong>Borrador</strong>
         Este texto está pendiente de revisión por un asesor y de firma por el productor. No tiene validez
         hasta que se firme y publique.
-        <ul th:if="${!declaration.missing().isEmpty()}">
+        <ul th:if="${!#lists.isEmpty(declaration.missing())}">
             <li th:each="key : ${declaration.missing()}">Falta configurar <code th:text="${key}">fastbite.verifactu.producer-nif</code></li>
         </ul>
     </div>

@@ -4,7 +4,6 @@ import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
-import es.brasatech.fastbite.domain.fiscal.TicketKind;
 import es.brasatech.fastbite.dto.counter.InvoiceDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,7 +22,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -131,27 +129,19 @@ public class TicketController {
         Map<String, es.brasatech.fastbite.domain.fiscal.TicketCancellation> cancelled = new LinkedHashMap<>();
         issued.forEach(ticket -> tickets.cancellation(ticket.id()).ifPresent(c -> cancelled.put(ticket.id(), c)));
 
-        Map<PaymentMethod, BigDecimal> byMethod = new EnumMap<>(PaymentMethod.class);
-        BigDecimal net = BigDecimal.ZERO;
-        BigDecimal tips = BigDecimal.ZERO;
-        for (FiscalTicket ticket : issued) {
-            if (ticket.kind() == TicketKind.REPLACEMENT || cancelled.containsKey(ticket.id())) {
-                continue; // replaces a ticket already counted, or there was no sale
-            }
-            byMethod.merge(ticket.paymentMethod(), ticket.charged(), BigDecimal::add);
-            net = net.add(ticket.total());
-            tips = tips.add(ticket.tip());
-        }
+        // The same totals as the end-of-day report
+        var report = tickets.dayReport(day);
         model.addAttribute("day", day);
         model.addAttribute("today", tickets.today());
         model.addAttribute("tickets", issued.reversed());
         model.addAttribute("correctedBy", correctedBy);
         model.addAttribute("cancelled", cancelled);
-        model.addAttribute("byMethod", byMethod);
-        model.addAttribute("net", net);
-        model.addAttribute("tips", tips);
+        model.addAttribute("methods", report.methods());
+        model.addAttribute("net", report.net());
+        model.addAttribute("tips", report.tips());
         model.addAttribute("training", tickets.training());
         model.addAttribute("mayRefund", mayRefund(user));
+        model.addAttribute("handlesTill", DayReportController.handlesTill(user));
         model.addAttribute("tenantPrefix", tenantId != null ? "/" + tenantId : "");
         return "fastfood/tickets";
     }

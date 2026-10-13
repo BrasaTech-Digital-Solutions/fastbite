@@ -17,6 +17,8 @@ public class RestaurantSettingsEntity {
     private boolean takeaway;
     private int kdsYellowMinutes;
     private int kdsRedMinutes;
+    /** Archives made before it existed restore with zero. */
+    private java.math.BigDecimal cashFloat = java.math.BigDecimal.ZERO;
 
     public boolean isDineIn() {
         return dineIn;
@@ -48,5 +50,13 @@ public class RestaurantSettingsEntity {
 
     public void setKdsRedMinutes(int kdsRedMinutes) {
         this.kdsRedMinutes = kdsRedMinutes;
+    }
+
+    public java.math.BigDecimal getCashFloat() {
+        return cashFloat;
+    }
+
+    public void setCashFloat(java.math.BigDecimal cashFloat) {
+        this.cashFloat = cashFloat;
     }
 }

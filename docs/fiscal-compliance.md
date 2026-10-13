@@ -74,6 +74,37 @@ never changed or deleted.
 - Refunding a card or online payment gives the ticket back; the money itself is returned on the terminal or
   in Stripe.
 
+## End-of-day report and cash check
+
+Both are worked out from the day's tickets each time they are opened (`DayReport`). Nothing counted or
+printed is stored, so any day's report can be printed again. Only cashiers, managers, admins and owners see
+them; the kitchen and waiters get 403.
+
+- **End-of-day report** (`/counter/day-report?date=`, from *Tickets*): printed on the receipt printer, like
+  tickets. It shows the business day (in the location's time zone) with:
+  - net sales, tips and the total taken;
+  - sales, refunds and net by payment method;
+  - the VAT by rate;
+  - the first and last number of each series;
+  - the refunds, the cancelled tickets and the full invoices issued for earlier tickets.
+- **What counts:** sales and refunds count by payment method, tips included. A full invoice issued in place of
+  a ticket counts nothing, because the ticket it replaces already did. A cancelled ticket counts nothing, and
+  its money was given back. These are the same totals as the *Tickets* page.
+- **Cash check** (*Check the cash* on the counter and on *Tickets*, and at the bottom of the report): the
+  cashier enters the starting cash, any cash taken out or put in, and the cash counted, either as a total or
+  by notes and coins. The page shows what the drawer should hold:
+
+  > starting cash + cash sales − cash refunds − cash taken out + cash put in
+
+  and the difference. It is checked against the whole day so far, so a cashier taking over checks the drawer
+  the same way, with no shifts to open or close. The figures come from `/counter/api/cash` each time the
+  dialog opens; what the cashier types stays in the browser.
+- **Starting cash:** the owner sets it per location (*Location settings → General & service*,
+  `restaurant_settings.cash_float`, default 0). It is offered when the cash is checked and can be changed
+  there for the day. It travels with backups and production bundles.
+- **Business day:** the calendar day, as for cancellations. A location trading past midnight sees the hours
+  after midnight on the next day's report.
+
 ## VERI*FACTU
 
 FastBite works as a VERI*FACTU system: every ticket generates a billing record (registro de alta) in the

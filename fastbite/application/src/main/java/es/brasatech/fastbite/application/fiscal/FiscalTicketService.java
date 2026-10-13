@@ -277,9 +277,24 @@ public class FiscalTicketService {
                 day.plusDays(1).atStartOfDay(zone).toOffsetDateTime());
     }
 
+    /** What the location took on a business day, worked out from its tickets; nothing of it is stored. */
+    @Transactional(readOnly = true)
+    public es.brasatech.fastbite.domain.fiscal.DayReport dayReport(java.time.LocalDate day) {
+        ZoneId zone = clock.getZone();
+        OffsetDateTime from = day.atStartOfDay(zone).toOffsetDateTime();
+        OffsetDateTime to = day.plusDays(1).atStartOfDay(zone).toOffsetDateTime();
+        return es.brasatech.fastbite.domain.fiscal.DayReport.of(day, tickets.findIssuedBetween(from, to),
+                tickets.findCancellationsBetween(from, to));
+    }
+
     /** Today in the location's time zone. */
     public java.time.LocalDate today() {
         return java.time.LocalDate.now(clock);
+    }
+
+    /** The time now in the location's time zone. */
+    public java.time.LocalTime now() {
+        return java.time.LocalTime.now(clock);
     }
 
     /** Whether this deployment issues training tickets (the sandbox). */

@@ -45,7 +45,9 @@ public class CounterController {
     private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
 
     @GetMapping({"/{tenantId}/counter", "/counter"})
-    public String counter(Model model) {
+    public String counter(Model model, org.springframework.security.core.Authentication user) {
+        model.addAttribute("handlesTill", DayReportController.handlesTill(user));
+        model.addAttribute("today", fiscalTicketService.today());
         model.addAttribute("tables", tableService.findAll());
         model.addAttribute("settings", settingsService.get());
         model.addAttribute("ticketsReady", fiscalTicketService.ready());
