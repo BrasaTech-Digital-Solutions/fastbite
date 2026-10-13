@@ -75,6 +75,16 @@ public class PlatformLink {
         return environment.production() && !linked();
     }
 
+    /** Production with a sandbox where its owners set up and practise. */
+    public boolean linkedProduction() {
+        return environment.production() && linked();
+    }
+
+    /** A sandbox entered from production, where signup, owner accounts and billing live. */
+    public boolean linkedSandbox() {
+        return environment.sandbox() && linked();
+    }
+
     private static String trimmed(String value) {
         if (value == null || value.isBlank()) {
             return null;

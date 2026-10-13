@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.config.ProductionOnly;
 import es.brasatech.fastbite.application.tenant.TenantSignupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class OwnerConsoleController {
     @Value("${fastbite.public-url:http://localhost:8080}")
     private String publicUrl;
 
+    @ProductionOnly
     @PostMapping("/owner/add-location")
     public String addLocation(
             @RequestParam String tenantId,
@@ -46,6 +48,7 @@ public class OwnerConsoleController {
         }
     }
 
+    @ProductionOnly
     @PostMapping("/owner/delete-location")
     public String deleteLocation(
             @RequestParam String tenantId,
@@ -61,6 +64,7 @@ public class OwnerConsoleController {
         return "redirect:/owner/console?view=locations";
     }
 
+    @ProductionOnly
     @PostMapping("/owner/bind-domain")
     public String bindDomain(
             @RequestParam String tenantId,

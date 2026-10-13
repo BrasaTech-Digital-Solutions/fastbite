@@ -1,6 +1,5 @@
 package es.brasatech.fastbite.controller;
 
-import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantSignupService;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +18,12 @@ public class SignupController {
 
     private final TenantSignupService tenantSignupService;
     private final PasswordEncoder passwordEncoder;
-    private final PlatformEnvironment environment;
     private final PlatformLink link;
 
     @GetMapping("/signup")
     public String signup() {
-        if (linkedSandbox()) {
+        // Owners sign up in production, which sets their locations up in its sandbox
+        if (link.linkedSandbox()) {
             return "redirect:" + link.url() + "/signup";
         }
         return "fastfood/signup";
@@ -39,7 +38,7 @@ public class SignupController {
             @RequestParam(defaultValue = "RESTAURANT") String plan,
             jakarta.servlet.http.HttpServletRequest request,
             Model model) {
-        if (linkedSandbox()) {
+        if (link.linkedSandbox()) {
             return "redirect:" + link.url() + "/signup";
         }
         model.addAttribute("tenantId", tenantId);
@@ -71,10 +70,5 @@ public class SignupController {
             model.addAttribute("error", "We could not finish creating your restaurant. Please try again.");
             return "fastfood/signup";
         }
-    }
-
-    /** Owners sign up in production, which sets their locations up here. */
-    private boolean linkedSandbox() {
-        return environment.sandbox() && link.linked();
     }
 }

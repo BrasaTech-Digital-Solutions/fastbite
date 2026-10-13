@@ -13,7 +13,9 @@ import static org.mockito.Mockito.*;
 
 class TenantBackupDownloadTest {
     private final TenantBackupRestorePort backups = mock(TenantBackupRestorePort.class);
-    private final TenantMaintenanceController controller = new TenantMaintenanceController(backups);
+    private final TenantMaintenanceController controller = new TenantMaintenanceController(backups,
+            new es.brasatech.fastbite.application.platform.PlatformLink(
+                    new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), "", "", "", false));
 
     @Test void failedExportReturns500WithoutAPartialDownload() throws Exception {
         doAnswer(call -> {

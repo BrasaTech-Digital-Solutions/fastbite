@@ -9,7 +9,7 @@ FastBite runs as two environments with the same version:
   It is part of the product, not a development environment.
 
 When a restaurant is ready, it is promoted: the owner exports a **production bundle** from the sandbox
-(menu, settings and business details; never orders, accounts or payment settings) and imports it into its
+(menu, settings, theme and business details; never orders, accounts or payment settings) and imports it into its
 production location.
 
 ## Linked or standalone
@@ -67,6 +67,24 @@ In a linked sandbox:
 - An owner's password is refused there, even one from before the link; staff still sign in at their
   restaurant (`/<location>/login`) with the accounts the owner created in the sandbox.
 - `/signup` goes to production's signup, and signing out goes back to production.
+
+### Set up in the sandbox, run in production
+
+When the environments are linked, each one does its own part:
+
+- **The sandbox is where a restaurant is set up.** The owner chooses a concept there (Fast Food, Café, Fine
+  Dining), builds the menu, tables and team, and practises. Once setup has started, its overview shows how to
+  take it to production: export the production bundle there, restore it in production.
+- **Production gets its menu only by promotion.** A new location's overview invites the owner into the sandbox
+  instead of offering concepts, and demo templates cannot be loaded there (the setup form and the advanced
+  tools' "Load demo template" are refused with 409). The backup page explains how to bring in the bundle.
+- **Locations, subscriptions, billing and custom domains belong to production.** In a linked sandbox the
+  console links to production for them, and the actions themselves (`@ProductionOnly`) send the owner there: a
+  page to the same page in production, a form to production's owner console. A location therefore never exists
+  only in the sandbox, and nobody pays there.
+
+A standalone environment keeps everything in one place, as before: concepts, demo templates, locations and
+billing.
 
 Every page of the sandbox carries a striped banner ("SANDBOX: practice environment, nothing here is real"),
 a favicon of its own and "[Sandbox]" in the tab title; a linked sandbox's banner links back to production.

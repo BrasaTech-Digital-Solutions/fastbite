@@ -1,7 +1,6 @@
 package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.office.UserService;
-import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
@@ -32,10 +31,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final boolean ownersEnterThroughProduction;
 
     public UserDetailsServiceImpl(UserService userService, TenantLocationService tenantLocationService,
-            PlatformEnvironment environment, PlatformLink link) {
+            PlatformLink link) {
         this.userService = userService;
         this.tenantLocationService = tenantLocationService;
-        this.ownersEnterThroughProduction = environment.sandbox() && link.linked();
+        this.ownersEnterThroughProduction = link.linkedSandbox();
     }
 
     @Override

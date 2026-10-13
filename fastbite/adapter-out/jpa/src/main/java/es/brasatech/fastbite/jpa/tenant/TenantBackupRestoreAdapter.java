@@ -82,6 +82,10 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     private final UserJpaRepository userJpaRepository;
     private final PaymentConfigJpaRepository paymentConfigJpaRepository;
     private final DynamicDemoTemplateRegistry dynamicDemoTemplateRegistry;
+    private final es.brasatech.fastbite.application.tenant.AppearancePort appearance;
+
+    /** A theme id as the theme catalog names them; anything else in an archive is ignored. */
+    private static final java.util.regex.Pattern THEME_ID = java.util.regex.Pattern.compile("[a-z0-9-]{1,40}");
 
     @Override
     public void exportBackup(String tenantId, OutputStream outputStream) {
@@ -95,10 +99,13 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
 
     private void exportArchive(String tenantId, OutputStream outputStream, boolean productionBundleOnly) {
         tenantMediaPath(tenantId); // Validate before starting any database/file operation.
-        inTenantTransaction(tenantId, true, () -> exportInTransaction(tenantId, outputStream, productionBundleOnly));
+        // Kept with the platform, outside the restaurant's schema: read it before entering it
+        String locationTheme = appearance.locationTheme(tenantId);
+        inTenantTransaction(tenantId, true, () -> exportInTransaction(tenantId, outputStream, productionBundleOnly, locationTheme));
     }
 
-    private void exportInTransaction(String tenantId, OutputStream outputStream, boolean productionBundleOnly) {
+    private void exportInTransaction(String tenantId, OutputStream outputStream, boolean productionBundleOnly,
+            String locationTheme) {
         try {
             
             // 1. Gather all database entities
@@ -106,6 +113,8 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             backupData.setFormatVersion(3);
             backupData.setAppVersion(version);
             backupData.setProductionBundle(productionBundleOnly);
+            // The look chosen in the sandbox goes to production with the menu
+            backupData.setLocationTheme(locationTheme);
             backupData.setGroups(groupJpaRepository.findAll());
             backupData.setProducts(productJpaRepository.findAll());
             backupData.setCustomizations(customizationJpaRepository.findAll());
@@ -238,6 +247,11 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 media.install();
             });
             media.committed();
+            String theme = backupData.getLocationTheme();
+            // Backups and bundles bring their theme; a demo template keeps the one chosen with it
+            if (check != VersionCheck.NEVER && theme != null && THEME_ID.matcher(theme).matches()) {
+                appearance.saveLocationTheme(tenantId, theme);
+            }
             log.info("Successfully restored backup data for tenant: {}", tenantId);
         } catch (TenantBackupRestorePort.VersionMismatch e) {
             throw e;
@@ -506,6 +520,9 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         private List<UserEntity> users = new ArrayList<>();
         private List<PaymentConfigEntity> paymentConfigs = new ArrayList<>();
         private es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity restaurantSettings;
+        /** The location's own theme, when it has one; archives made before it was recorded have none. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String locationTheme;
         private FiscalProfileEntity fiscalProfile;
         private OrderCounterBackup orderCounter;
 

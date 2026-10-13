@@ -7,7 +7,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.security.Principal;
 
+/** Subscriptions and billing: production's alone when the environments are linked. */
 @Controller
+@es.brasatech.fastbite.config.ProductionOnly
 public class BillingController {
     private final SubscriptionService subscriptions;
     private final es.brasatech.fastbite.application.tenant.TenantLocationService locations;

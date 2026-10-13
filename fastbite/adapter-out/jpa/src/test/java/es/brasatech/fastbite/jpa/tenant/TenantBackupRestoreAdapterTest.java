@@ -46,6 +46,12 @@ class TenantBackupRestoreAdapterTest {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    @Autowired
+    private AppearanceJdbcAdapter appearance;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @BeforeEach
     void setUp() {
         TenantContext.clear();
@@ -241,6 +247,30 @@ class TenantBackupRestoreAdapterTest {
         backupRestoreAdapter.exportBackup(sandbox, backup);
         TenantContext.setCurrentTenant(production);
         backupRestoreAdapter.importRestore(production, new ByteArrayInputStream(withVersion(backup.toByteArray(), "0.9.0")));
+    }
+
+    @Test
+    void theLookChosenInTheSandboxGoesToProductionWithTheMenu() {
+        String sandbox = "themesandbox";
+        String production = "themeproduction";
+        for (String tenant : new String[] {sandbox, production}) {
+            tenantProvisionerAdapter.provisionTenant(tenant);
+            jdbc.update("INSERT INTO public.tenant_locations (id, owner_username, tenant_id) VALUES (?, 'themeowner', ?)",
+                    java.util.UUID.randomUUID().toString(), tenant);
+        }
+        appearance.saveLocationTheme(sandbox, "cafe");
+        TenantContext.setCurrentTenant(sandbox);
+        backupRestoreAdapter.importDemoTemplate(sandbox, "cafe");
+        ByteArrayOutputStream bundle = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(sandbox, bundle);
+
+        TenantContext.setCurrentTenant(production);
+        backupRestoreAdapter.importProductionBundle(production, new ByteArrayInputStream(bundle.toByteArray()));
+
+        assertEquals("cafe", appearance.locationTheme(production));
+        // A demo template keeps the theme the owner chose for it
+        backupRestoreAdapter.importDemoTemplate(production, "kebab");
+        assertEquals("cafe", appearance.locationTheme(production));
     }
 
     /** The archive with data.json claiming another FastBite version. */

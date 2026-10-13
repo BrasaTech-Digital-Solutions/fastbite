@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class TenantMaintenanceController {
 
     private final TenantBackupRestorePort tenantBackupRestorePort;
+    private final PlatformLink link;
 
     @GetMapping("/backup")
     public void downloadBackup(@PathVariable String tenantId, HttpServletResponse response) {
@@ -156,6 +158,11 @@ public class TenantMaintenanceController {
     public ResponseEntity<Map<String, String>> restoreDemo(
             @PathVariable String tenantId,
             @RequestParam(value = "template", required = false) String template) {
+        if (link.linkedProduction()) {
+            // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "Demo templates are loaded in the sandbox. Set up there, then restore your production bundle here."));
+        }
         String templateName = (template != null && !template.isBlank()) ? template : "kebab";
         log.info("Requested restore from demo package '{}' for tenant: {}", templateName, tenantId);
         try {

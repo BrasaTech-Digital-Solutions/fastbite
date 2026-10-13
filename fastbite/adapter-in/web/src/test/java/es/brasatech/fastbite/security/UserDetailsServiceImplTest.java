@@ -29,7 +29,7 @@ class UserDetailsServiceImplTest {
     private final TenantLocationService tenantLocationService = mock(TenantLocationService.class);
     private static final PlatformEnvironment PRODUCTION = new PlatformEnvironment("production");
     private final UserDetailsServiceImpl service = new UserDetailsServiceImpl(userService, tenantLocationService,
-            PRODUCTION, new PlatformLink(PRODUCTION, "http://sandbox", "", "a-secret-of-at-least-thirty-two-characters", false));
+            new PlatformLink(PRODUCTION, "http://sandbox", "", "a-secret-of-at-least-thirty-two-characters", false));
 
     @AfterEach
     void tearDown() {
@@ -88,7 +88,7 @@ class UserDetailsServiceImplTest {
     @Test
     void aLinkedSandboxTakesNoOwnersPasswordButStillSignsInItsStaff() {
         var sandbox = new PlatformEnvironment("sandbox");
-        var linkedSandbox = new UserDetailsServiceImpl(userService, tenantLocationService, sandbox,
+        var linkedSandbox = new UserDetailsServiceImpl(userService, tenantLocationService,
                 new PlatformLink(sandbox, "http://production", "", "a-secret-of-at-least-thirty-two-characters", false));
         users(OWNER, PIZZA_COOK);
         when(tenantLocationService.isOwnerOf("alice", "pizza")).thenReturn(true);

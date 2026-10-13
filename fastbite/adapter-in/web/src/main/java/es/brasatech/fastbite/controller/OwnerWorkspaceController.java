@@ -27,10 +27,12 @@ public class OwnerWorkspaceController {
     private final es.brasatech.fastbite.config.ThemeCatalog themes;
     private final MessageSource messages;
     private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
+    private final es.brasatech.fastbite.application.platform.PlatformLink link;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
-            MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment) {
+            MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
+            es.brasatech.fastbite.application.platform.PlatformLink link) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
-        this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;
+        this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -72,6 +74,11 @@ public class OwnerWorkspaceController {
             Principal owner, RedirectAttributes flash) {
         check(owner,tenant);
         if("adopt".equals(action) && template != null && !template.isBlank()) {
+            if(link.linkedProduction()) {
+                // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
+                flash.addFlashAttribute("error", "Concepts are loaded in the sandbox. Open it with Practise in the sandbox.");
+                return "redirect:/owner/console?location=" + tenant;
+            }
             try {
                 backups.importDemoTemplate(tenant, template);
                 if(theme != null && !theme.isBlank()) {
