@@ -27,6 +27,11 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         hints.reflection().registerType(ThemeCatalog.Theme.class, MemberCategory.values());
+        // Allergens are EnumSets, whose JDK classes are private: the menu, counter and allergen chart
+        // call isEmpty() and contains() on them through reflection
+        for (String enumSet : new String[]{"java.util.RegularEnumSet", "java.util.JumboEnumSet"}) {
+            hints.reflection().registerType(TypeReference.of(enumSet), MemberCategory.INVOKE_PUBLIC_METHODS);
+        }
         hints.resources().registerPattern("themes/**");
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SetupProgress.class, org.springframework.aot.hint.MemberCategory.values());
         // Read by the business details page and the VAT lines of guest carts
