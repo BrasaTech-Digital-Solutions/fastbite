@@ -20,6 +20,9 @@ spring:
     username: ${DB_USER:sa}
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:2}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
   sql:
     init:
       # Schemas are versioned by Flyway; demo content comes from kebab_demo.zip.
