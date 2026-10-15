@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.mockito.ArgumentCaptor;
 
@@ -34,7 +33,6 @@ import static org.mockito.Mockito.*;
         "spring.datasource.username=sa", "spring.datasource.password=",
         "fastbite.public-url=http://localhost:8080", "spring.mail.password=", "management.health.mail.enabled=false",
         "fastbite.migrations.mode=migrate", "spring.jpa.hibernate.ddl-auto=none", "spring.session.jdbc.initialize-schema=never", "stripe.secret.key=", "stripe.webhook.secret=", "stripe.connected-account="})
-@ActiveProfiles("jpa")
 class OwnerSetupFlowTest {
     @Value("${local.server.port}") int port;
     @Autowired OwnerSetupService setup;

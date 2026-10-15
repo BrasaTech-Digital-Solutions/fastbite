@@ -1,14 +1,12 @@
 package es.brasatech.fastbite.jpa.tenant;
 import es.brasatech.fastbite.application.tenant.OwnerWorkspacePort;
 import es.brasatech.fastbite.domain.tenant.SetupProgress;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.function.UnaryOperator;
 import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
-@Component @Profile("jpa")
-public class OwnerWorkspaceJdbcAdapter implements OwnerWorkspacePort {
+@Component public class OwnerWorkspaceJdbcAdapter implements OwnerWorkspacePort {
     private final DataSource source;
     public OwnerWorkspaceJdbcAdapter(DataSource source) { this.source=source; }
     public SetupProgress read(String tenant) { return transaction(source,c->read(c,tenant)); }

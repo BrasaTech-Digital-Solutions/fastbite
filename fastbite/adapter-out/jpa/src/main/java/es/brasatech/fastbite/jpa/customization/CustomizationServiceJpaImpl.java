@@ -7,7 +7,6 @@ import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.domain.customization.CustomizationOptionDto;
 import es.brasatech.fastbite.jpa.i18n.Translations;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
  * other languages in their translations columns (customization and each option).
  */
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class CustomizationServiceJpaImpl implements CustomizationService {

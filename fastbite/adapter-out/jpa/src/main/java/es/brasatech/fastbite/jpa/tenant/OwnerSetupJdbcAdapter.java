@@ -1,7 +1,6 @@
 package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.tenant.OwnerSetupPort;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -13,7 +12,6 @@ import java.util.UUID;
 
 /** Explicit schema names avoid request tenant context, search_path and Hibernate session leakage. */
 @Component
-@Profile("jpa")
 public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
     private final DataSource dataSource;
 

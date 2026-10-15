@@ -21,7 +21,6 @@ x-database: &database
   HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
 
 x-app: &app
-  SPRING_PROFILES_ACTIVE: jpa
   # The migration job has run; the application only checks the schemas
   MIGRATION_MODE: validate
   H2_CONSOLE_ENABLED: "false"

@@ -2,12 +2,10 @@ package es.brasatech.fastbite.jpa.tenant;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /** Production startup checks history; upgrades belong to the migration job. */
 @Component
-@Profile("jpa")
 public class TenantSchemaInitializer implements InitializingBean {
     private final TenantMigrationService migrations;
     private final String mode;

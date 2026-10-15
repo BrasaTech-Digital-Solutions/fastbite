@@ -4,7 +4,6 @@ import es.brasatech.fastbite.application.order.OrderNumberService;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +16,6 @@ import java.time.ZoneId;
  * restarts and scale-out. The UPDATE locks the row: concurrent orders never get the same number.
  */
 @Service
-@Profile("jpa")
 public class OrderNumberServiceJpaImpl implements OrderNumberService {
 
     private final EntityManager entityManager;

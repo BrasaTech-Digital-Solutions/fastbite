@@ -10,7 +10,7 @@ Database schema changes are versioned with Flyway. Production startup validates 
 
 ## 🎯 FastBite Application Goal
 The main goal of **FastBite** is to provide a highly scalable, multi-tenant Point-of-Sale (POS) and guest-interactive menu system built on a clean **Hexagonal Architecture**. 
-* **Opt-in Demo Startup**: Run with `--spring.profiles.active=jpa,local` to load the **`kebab`** demo and its demo staff accounts. The default `jpa` profile creates no demo accounts or catalog.
+* **Opt-in Demo Startup**: Run with `--spring.profiles.active=local` to load the **`kebab`** demo and its demo staff accounts. Default startup creates no demo accounts or catalog.
 * **Subdomain Hostname Routing**: Multi-tenancy is handled via subdomains (e.g., `kebab.localhost:8080` or `pizza.localhost:8080`). No tenant ID path prefixes are needed.
 * **Single Sign-On (SSO)**: Platform Tenant Owners can log in at the root domain (`localhost:8080`) and seamlessly navigate between all their branch subdomains (e.g., `pizza.localhost:8080`, `burger.localhost:8080`) using wildcard session cookies.
 
@@ -50,9 +50,9 @@ To start the application within IntelliJ, configure a Spring Boot or Application
    *   **Main class**: `es.brasatech.fastbite.Application`
    *   **Use classpath of module**: `webapplication`
 4. Set the active profile using **VM Options** (under Modify Options if not visible):
-   *   **For JPA with the local H2 demo**:
+   *   **For the local H2 demo**:
        ```bash
-       -Dspring.profiles.active=jpa,local
+       -Dspring.profiles.active=local
        ```
 5. Click **Apply** and then **OK**.
 
@@ -102,10 +102,10 @@ This compiles a native executable in the target directory of the `webapplication
 Run the compiled native binary directly:
 ```bash
 # Windows
-.\webapplication\target\webapplication.exe --spring.profiles.active=jpa
+.\webapplication\target\webapplication.exe
 
 # Linux / macOS
-./webapplication/target/webapplication --spring.profiles.active=jpa
+./webapplication/target/webapplication
 ```
 
 ---

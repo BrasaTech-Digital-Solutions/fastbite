@@ -4,7 +4,6 @@ import es.brasatech.fastbite.application.payment.PaymentService;
 import es.brasatech.fastbite.domain.payment.MoneyDenomination;
 import es.brasatech.fastbite.domain.payment.PaymentConfig;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +13,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class PaymentServiceJpaImpl implements PaymentService {

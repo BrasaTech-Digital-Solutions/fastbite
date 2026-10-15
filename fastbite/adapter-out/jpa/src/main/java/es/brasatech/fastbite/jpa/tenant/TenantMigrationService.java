@@ -2,7 +2,6 @@ package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
 import org.flywaydb.core.Flyway;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -13,7 +12,6 @@ import java.util.Locale;
 
 /** Separate history per schema; platform migrations run only in PUBLIC. */
 @Component
-@Profile("jpa")
 public class TenantMigrationService {
     private final DataSource dataSource;
 

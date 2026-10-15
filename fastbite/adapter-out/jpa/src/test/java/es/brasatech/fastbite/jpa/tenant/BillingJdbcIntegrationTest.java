@@ -4,7 +4,6 @@ import es.brasatech.fastbite.application.tenant.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.Instant;
 import java.util.concurrent.Executors;
@@ -14,7 +13,6 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes=es.brasatech.fastbite.jpa.TestConfig.class)
-@ActiveProfiles("jpa")
 class BillingJdbcIntegrationTest {
     @Autowired TenantSignupService signup;
     @Autowired BillingPort billing;

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.*;
@@ -20,7 +19,6 @@ import java.util.zip.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = TestConfig.class, properties = "image.upload.directory=target/backup-round-trip-media")
-@ActiveProfiles("jpa")
 class OrderBackupRoundTripTest {
     @Autowired TenantBackupRestoreAdapter backups;
     @Autowired TenantProvisionerAdapter provisioner;

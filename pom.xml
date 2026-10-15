@@ -26,7 +26,7 @@
 		<spring-boot.version>4.0.6</spring-boot.version>
 		<byte-buddy.version>1.18.7</byte-buddy.version>
 		<net.bytebuddy.experimental>true</net.bytebuddy.experimental>
-		<spring-boot.aot.jvmArguments>-Dspring.profiles.active=jpa -Dspring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</spring-boot.aot.jvmArguments>
+		<spring-boot.aot.jvmArguments>-Dspring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</spring-boot.aot.jvmArguments>
 	</properties>
 
 	<build>

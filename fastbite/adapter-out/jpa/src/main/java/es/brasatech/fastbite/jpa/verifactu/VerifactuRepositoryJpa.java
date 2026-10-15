@@ -6,7 +6,6 @@ import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +19,6 @@ import java.util.Optional;
 
 /** Billing records of the current restaurant schema. */
 @Repository
-@Profile("jpa")
 @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
 public class VerifactuRepositoryJpa implements VerifactuRepository {
 

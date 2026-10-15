@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.net.CookieManager;
@@ -37,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "stripe.secret.key=", "stripe.webhook.secret=", "stripe.platform.webhook.secret=", "stripe.restaurant-price-id=", "stripe.connected-account=",
         "fastbite.environment=sandbox", "fastbite.version=9.9.9",
         "fastbite.link.url=https://fastbite.example", "fastbite.link.secret=" + LinkedSandboxFlowTest.SECRET})
-@ActiveProfiles("jpa")
 class LinkedSandboxFlowTest {
 
     static final String SECRET = "a-secret-of-at-least-thirty-two-characters";

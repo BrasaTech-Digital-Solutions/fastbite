@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 
 import javax.sql.DataSource;
 import java.util.concurrent.*;
@@ -20,7 +19,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
-@ActiveProfiles("jpa")
 class TenantLifecycleIntegrationTest {
     @Autowired TenantSignupService signup;
     @Autowired TenantProvisionerPort provisioner;

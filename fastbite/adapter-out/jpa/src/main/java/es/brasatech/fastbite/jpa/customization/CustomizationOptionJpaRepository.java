@@ -1,6 +1,5 @@
 package es.brasatech.fastbite.jpa.customization;
 
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,7 +11,6 @@ import java.util.Optional;
  * Provides efficient queries for translation lookups in orders.
  */
 @Repository
-@Profile("jpa")
 public interface CustomizationOptionJpaRepository extends JpaRepository<CustomizationOptionEntity, String> {
 
     /**

@@ -14,7 +14,6 @@ import es.brasatech.fastbite.domain.fiscal.VatBreakdown;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +26,6 @@ import java.util.Optional;
 
 /** Tickets of the current restaurant schema; rows are inserted and read, never updated or deleted. */
 @Repository
-@Profile("jpa")
 @Transactional(propagation = Propagation.MANDATORY)
 public class FiscalTicketRepositoryJpa implements FiscalTicketRepository {
 

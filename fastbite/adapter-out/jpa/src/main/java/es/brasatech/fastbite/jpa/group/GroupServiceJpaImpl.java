@@ -5,7 +5,6 @@ import es.brasatech.fastbite.application.office.I18nConfig;
 import es.brasatech.fastbite.domain.group.Group;
 import es.brasatech.fastbite.jpa.i18n.Translations;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +18,6 @@ import java.util.Optional;
  * other languages in its translations column.
  */
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class GroupServiceJpaImpl implements GroupService {

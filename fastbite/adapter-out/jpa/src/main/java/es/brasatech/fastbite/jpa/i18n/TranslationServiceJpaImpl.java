@@ -17,7 +17,6 @@ import es.brasatech.fastbite.jpa.product.ProductJpaRepository;
 import es.brasatech.fastbite.jpa.table.TableEntity;
 import es.brasatech.fastbite.jpa.table.TableJpaRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +37,6 @@ import static es.brasatech.fastbite.domain.TranslatableText.OPTION;
  * the other languages in its translations column.
  */
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class TranslationServiceJpaImpl implements TranslationService {

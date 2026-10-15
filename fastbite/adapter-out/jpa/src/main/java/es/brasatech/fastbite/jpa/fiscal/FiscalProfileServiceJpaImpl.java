@@ -3,14 +3,12 @@ package es.brasatech.fastbite.jpa.fiscal;
 import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class FiscalProfileServiceJpaImpl implements FiscalProfileService {

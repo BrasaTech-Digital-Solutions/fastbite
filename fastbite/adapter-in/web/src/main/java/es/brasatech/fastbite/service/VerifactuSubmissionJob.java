@@ -5,7 +5,6 @@ import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +17,6 @@ import java.util.stream.Collectors;
  * it does nothing, and the records wait safely. A failure in one location never stops the others.
  */
 @Component
-@Profile("jpa")
 @Slf4j
 public class VerifactuSubmissionJob {
 

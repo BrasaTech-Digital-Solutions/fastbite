@@ -2,7 +2,6 @@ package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.tenant.TenantRegistrationPort;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -13,7 +12,6 @@ import java.util.UUID;
 import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
 
 @Component
-@Profile("jpa")
 public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
     private final DataSource dataSource;
     public TenantRegistrationJdbcAdapter(DataSource dataSource) { this.dataSource = dataSource; }

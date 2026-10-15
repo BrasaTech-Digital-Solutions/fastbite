@@ -5,7 +5,6 @@ import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.table.TableStatus;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class TableServiceJpaImpl implements TableService {

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,7 +24,6 @@ import java.util.concurrent.*;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
-@ActiveProfiles("jpa")
 @Import({OrderServiceJpaImpl.class, TableServiceJpaImpl.class, DiscountServiceJpaImpl.class,
         TableSignatureUtil.class, ResultsOutliveTheirTransactionIntegrationTest.Beans.class})
 class AbandonedOrderIntegrationTest {

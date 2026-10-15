@@ -1,7 +1,6 @@
 package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.platform.SandboxProvisioningPort;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -19,7 +18,6 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.update;
 
 /** Production's list of locations to set up in the sandbox, in the platform schema. */
 @Component
-@Profile("jpa")
 public class SandboxProvisioningJdbcAdapter implements SandboxProvisioningPort {
 
     private static final String SELECT = "SELECT p.tenant_id, p.owner_username, u.full_name, p.plan, p.state, p.attempts, "

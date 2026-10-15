@@ -3,12 +3,10 @@ package es.brasatech.fastbite.jpa.settings;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class RestaurantSettingsServiceJpaImpl implements RestaurantSettingsService {

@@ -1,7 +1,6 @@
 package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.platform.SandboxSignInPort;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -12,7 +11,6 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.update;
 
 /** The sign-in links the sandbox has accepted, in the platform schema, shared by all its instances. */
 @Component
-@Profile("jpa")
 public class SandboxSignInJdbcAdapter implements SandboxSignInPort {
 
     private final DataSource dataSource;

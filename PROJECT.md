@@ -96,5 +96,5 @@ A native image compiles compiled bytecode directly into machine code, dropping c
 3. Locate the compiled executable inside the `webapplication/target` directory. Run it directly with your active JPA configuration:
    ```bash
    # Windows
-   .\webapplication\target\fastbite.exe --spring.profiles.active=jpa
+   .\webapplication\target\webapplication.exe
    ```

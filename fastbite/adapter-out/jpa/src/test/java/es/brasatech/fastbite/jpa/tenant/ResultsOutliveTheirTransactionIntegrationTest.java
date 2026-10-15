@@ -27,7 +27,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -40,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (spring.jpa.open-in-view is off), so nothing returned may still depend on it.
  */
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
-@ActiveProfiles("jpa")
 @Import({ProductServiceJpaImpl.class, GroupServiceJpaImpl.class, OrderServiceJpaImpl.class, TableServiceJpaImpl.class,
         DiscountServiceJpaImpl.class, TableSignatureUtil.class, ResultsOutliveTheirTransactionIntegrationTest.Beans.class})
 class ResultsOutliveTheirTransactionIntegrationTest {

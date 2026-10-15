@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.net.CookieManager;
@@ -32,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "fastbite.environment=production",
         // A sandbox nobody answers at: production must work regardless
         "fastbite.link.url=http://127.0.0.1:9", "fastbite.link.secret=a-secret-of-at-least-thirty-two-characters"})
-@ActiveProfiles("jpa")
 class LinkedProductionFlowTest {
 
     @Value("${local.server.port}") int port;

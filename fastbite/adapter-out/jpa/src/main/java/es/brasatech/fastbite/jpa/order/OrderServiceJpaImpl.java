@@ -15,7 +15,6 @@ import es.brasatech.fastbite.jpa.customization.CustomizationOptionEntity;
 import es.brasatech.fastbite.jpa.customization.CustomizationOptionJpaRepository;
 import es.brasatech.fastbite.jpa.i18n.Translations;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +28,6 @@ import java.util.Optional;
  * and translating on retrieval based on orderLanguage field.
  */
 @Service
-@Profile("jpa")
 @Transactional
 public class OrderServiceJpaImpl implements OrderService {
 

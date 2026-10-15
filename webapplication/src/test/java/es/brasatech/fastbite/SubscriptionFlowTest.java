@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.net.CookieManager;
@@ -26,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.*;
     "spring.datasource.username=sa","spring.datasource.password=","spring.mail.password=",
     "fastbite.migrations.mode=migrate","spring.jpa.hibernate.ddl-auto=none","spring.session.jdbc.initialize-schema=never",
     "stripe.secret.key=","stripe.webhook.secret=","stripe.platform.webhook.secret=","stripe.restaurant-price-id=","stripe.connected-account="})
-@ActiveProfiles("jpa")
 class SubscriptionFlowTest {
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;

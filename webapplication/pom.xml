@@ -75,7 +75,6 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <skip>false</skip>
-                    <jvmArguments>-Dspring.profiles.active=jpa</jvmArguments>
                 </configuration>
                 <executions>
                     <execution>
@@ -91,7 +90,7 @@
                             <goal>process-aot</goal>
                         </goals>
                         <configuration>
-                            <jvmArguments>-Dspring.profiles.active=jpa -Dspring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</jvmArguments>
+                            <jvmArguments>-Dspring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</jvmArguments>
                         </configuration>
                     </execution>
                 </executions>

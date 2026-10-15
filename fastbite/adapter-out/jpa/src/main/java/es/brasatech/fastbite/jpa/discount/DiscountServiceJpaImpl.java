@@ -8,7 +8,6 @@ import es.brasatech.fastbite.domain.discount.DiscountType;
 import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +16,6 @@ import java.math.RoundingMode;
 import java.util.*;
 
 @Service
-@Profile("jpa")
 @RequiredArgsConstructor
 @Transactional
 public class DiscountServiceJpaImpl implements DiscountService {
