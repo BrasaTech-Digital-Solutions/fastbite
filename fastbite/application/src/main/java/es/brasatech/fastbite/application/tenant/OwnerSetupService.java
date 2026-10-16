@@ -46,7 +46,7 @@ public class OwnerSetupService {
         this.provisioner = provisioner;
         this.mail = mail;
         URI uri = URI.create(publicUrl);
-        boolean local = "http".equals(uri.getScheme()) && ("localhost".equals(uri.getHost()) || "127.0.0.1".equals(uri.getHost()));
+        boolean local = "http".equals(uri.getScheme()) && ("localhost".equals(uri.getHost()) || "127.0.0.1".equals(uri.getHost()) || (uri.getHost() != null && uri.getHost().endsWith(".localhost")));
         if (uri.getHost() == null || (!"https".equals(uri.getScheme()) && !local)
                 || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
                 || !(uri.getPath().isEmpty() || "/".equals(uri.getPath()))) {

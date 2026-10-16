@@ -50,6 +50,8 @@ class OwnerSetupServiceTest {
     }
 
     @Test void publicUrlRejectsInsecureOrInjectedOrigins() {
+        assertDoesNotThrow(() -> new OwnerSetupService(persistence, provisioner, mail, lifecycle, "http://fastbite.localhost:8088"));
+        assertDoesNotThrow(() -> new OwnerSetupService(persistence, provisioner, mail, lifecycle, "http://localhost:8080"));
         for (String url : new String[]{"http://production.example", "https://example.test/?redirect=bad", "https://user@example.test", "https://example.test/#bad"}) {
             assertThrows(IllegalArgumentException.class, () -> new OwnerSetupService(persistence, provisioner, mail, lifecycle, url));
         }

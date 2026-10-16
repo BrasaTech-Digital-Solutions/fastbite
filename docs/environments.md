@@ -135,13 +135,22 @@ docker compose up --build
 
 | | Address |
 |---|---|
-| Production | http://localhost:8090, restaurants at `http://<location>.localhost:8090` |
-| Sandbox | http://localhost:8091, restaurants at `http://<location>.localhost:8091` |
+| Proxy (Firebase-like) | http://fastbite.localhost:8088, http://sandbox.fastbite.localhost:8088 |
+| Production (direct) | http://localhost:8090, restaurants at `http://<location>.localhost:8090` |
+| Sandbox (direct) | http://localhost:8091, restaurants at `http://<location>.localhost:8091` |
 | Email from both | http://localhost:8027 (Mailpit) |
 | PostgreSQL | `localhost:5434`, user and password `fastbite`, databases `fastbite_production` and `fastbite_sandbox` |
 
+- The local proxy (`docker/nginx/nginx.conf`, port 8088) reproduces Firebase Hosting locally:
+  it overwrites client `X-Forwarded-*` headers (sending `X-Forwarded-Host $http_host` with the port),
+  strips all cookies except `__session`, sets `proxy_read_timeout 60s`, and leaves buffering on.
+- Production and sandbox are configured with `FASTBITE_SESSION_COOKIE=__session` and public/link URLs
+  pointing at the proxy (`fastbite.localhost:8088` and `sandbox.fastbite.localhost:8088`). Direct ports 8090/8091
+  remain published for debugging.
 - Ports 8090 and 8091 leave 8080 free for the app run from the IDE. If another program listens on a port,
   `localhost` may reach it over IPv6 instead of the container: change the port in `.env`.
+- Both environments now use `__session` and the direct ports share the host `localhost`, so signing in on
+  8090 signs you out on 8091. Use the proxy addresses for anything that involves both.
 - The image is built once and both environments run it.
 - Before each environment starts, the migration job (`--migration-job`) migrates its database, as on the
   server; the application itself only validates the schemas (`MIGRATION_MODE=validate`).
@@ -154,11 +163,12 @@ docker compose up --build
 
 ### Trying a promotion
 
-1. Sign up in the sandbox (port 8091), create a location and set it up, or load a demo template.
-2. Export its production bundle (owner console → Location settings → Backup → Export Production Bundle).
-3. Sign up in production (port 8090) and create the production location.
-4. Restore the bundle there (same page: check the file, then Review and restore). A bundle from another
-   version is refused with the reason.
+1. Sign up at http://fastbite.localhost:8088/signup.
+2. Open the location's "Practise in the sandbox", which signs you in to the sandbox.
+3. Set the location up there.
+4. Export the production bundle (owner console → Location settings → Backup → Export Production Bundle).
+5. Restore it in production on the same page of http://fastbite.localhost:8088.
+6. You stay signed in to both.
 
 ## Firebase Hosting & Cloud Run
 
