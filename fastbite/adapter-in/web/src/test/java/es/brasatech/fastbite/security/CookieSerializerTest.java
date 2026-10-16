@@ -1,11 +1,13 @@
 package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,22 +30,23 @@ public class CookieSerializerTest {
 
     @Test
     public void testCookieSerializerDomainOnLocalhost() {
-        // On localhost, we must NOT set any Domain attribute (to avoid Chrome rejection and allow host-only login)
+        // Without configured domain, cookie is host-only (no Domain attribute)
         assertFalse(setCookie(PRODUCTION, "localhost").contains("Domain="),
                 "Set-Cookie should not contain Domain attribute on localhost");
     }
 
     @Test
     public void testCookieSerializerDomainOnSubdomainLocalhost() {
-        assertTrue(setCookie(PRODUCTION, "kebab.localhost").contains("Domain=kebab.localhost"),
-                "Set-Cookie should contain Domain=kebab.localhost");
+        // Without configured domain, subdomains also get host-only cookie
+        assertFalse(setCookie(PRODUCTION, "kebab.localhost").contains("Domain="),
+                "Set-Cookie should not contain Domain attribute on kebab.localhost");
     }
 
     @Test
     public void testCookieSerializerDomainOnProductionSubdomain() {
-        // Without a configured domain, kebab.fastbite.com shares the cookie with fastbite.com
-        assertTrue(setCookie(PRODUCTION, "kebab.fastbite.com").contains("Domain=fastbite.com"),
-                "Set-Cookie should contain Domain=fastbite.com");
+        // Without configured domain, hosts get host-only cookie
+        assertFalse(setCookie(PRODUCTION, "kebab.fastbite.com").contains("Domain="),
+                "Set-Cookie should not contain Domain attribute without configured domain");
     }
 
     @Test
@@ -53,6 +56,7 @@ public class CookieSerializerTest {
         assertTrue(setCookie(PRODUCTION, "localhost").startsWith("FASTBITE_SESSION="));
         assertTrue(setCookie(sandbox, "localhost").startsWith("FASTBITE_SANDBOX_SESSION="));
         assertEquals("CUSTOM", new SessionCookie(new PlatformEnvironment("sandbox"), " CUSTOM ", "").name());
+        assertEquals("__session", new SessionCookie(new PlatformEnvironment("production"), "__session", "").name());
     }
 
     @Test
@@ -66,5 +70,28 @@ public class CookieSerializerTest {
         assertFalse(setCookie(platform, "kebabhouse.es").contains("Domain="),
                 "a restaurant's own domain keeps its cookie to itself");
         assertFalse(setCookie(platform, "evilfastbite.brasatech.es").contains("Domain="));
+    }
+
+    @Test
+    public void secureAttributeIsSetWhenForwardedProtoIsHttps() throws Exception {
+        CookieSerializer serializer = new SecurityConfig().cookieSerializer(PRODUCTION);
+        MockHttpServletRequest rawRequest = new MockHttpServletRequest("GET", "/");
+        rawRequest.setServerName("internal.run.app");
+        rawRequest.addHeader("Host", "internal.run.app");
+        rawRequest.addHeader("X-Forwarded-Host", "fastbite.brasatech.es");
+        rawRequest.addHeader("X-Forwarded-Proto", "https");
+
+        ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+        HttpServletRequest[] filtered = new HttpServletRequest[1];
+        filter.doFilter(rawRequest, new MockHttpServletResponse(), (req, res) -> {
+            filtered[0] = (HttpServletRequest) req;
+        });
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        serializer.writeCookieValue(new CookieSerializer.CookieValue(filtered[0], response, "SESSION-SECURE"));
+        String header = response.getHeader("Set-Cookie");
+        assertNotNull(header);
+        assertTrue(header.contains("Secure"), "Set-Cookie should contain Secure when forwarded proto is https");
+        assertFalse(header.contains("Domain="), "Default without domain should be host-only");
     }
 }

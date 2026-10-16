@@ -113,15 +113,17 @@ a connection handed back by a restaurant request can still point at that restaur
 a session is serialized, so the native image must have each class registered:
 `SessionSerializationHintsTest` signs in and fails if one is missing.
 
-Browsers share cookies across ports and subdomains, so the session cookies have different names:
-`FASTBITE_SESSION` in production and `FASTBITE_SANDBOX_SESSION` in the sandbox (override with
-`FASTBITE_SESSION_COOKIE`). Signing in to one never signs anyone out of the other.
+Each environment keeps its own sign-in. Locally both run on `localhost` and browsers share cookies across
+ports, so the cookies have different names: `FASTBITE_SESSION` in production and `FASTBITE_SANDBOX_SESSION`
+in the sandbox (`FASTBITE_SESSION_COOKIE` overrides the name). Behind Firebase Hosting, which forwards only
+the cookie named `__session`, both use `__session` and are kept apart by host instead.
 
-The cookie is shared by the platform's restaurant subdomains, so an owner signs in once. On a server, set
-`FASTBITE_COOKIE_DOMAIN` to the platform's own domain (for example `fastbite.brasatech.es`): the cookie is
-then shared with that domain and its subdomains only, not with other sites of the company domain such as
-`soberana.brasatech.es`, and a restaurant's own domain keeps a cookie of its own. Without it, the last two
-parts of the host name are used, which suits `kebab.localhost`.
+Session cookies are host-only by default (no `Domain` attribute): a cookie set by `fastbite.brasatech.es`
+is never sent to `sandbox.fastbite.brasatech.es`, nor to other sites of the company domain, and locally
+`kebab.localhost` and `localhost` each have their own sign-in. `FASTBITE_COOKIE_DOMAIN` shares the cookie
+with a domain and its subdomains. Do not set it to `fastbite.brasatech.es` while the sandbox is
+`sandbox.fastbite.brasatech.es` and both use `__session`: production's cookie would then reach the sandbox.
+A restaurant's own custom domain always keeps a cookie of its own.
 
 ## Both on one machine
 

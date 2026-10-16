@@ -202,7 +202,7 @@ public class SecurityConfig {
     public CookieSerializer cookieSerializer(SessionCookie sessionCookie) {
         DefaultCookieSerializer serializer = new DefaultCookieSerializer();
         serializer.setCookieName(sessionCookie.name());
-        serializer.setDomainNamePattern(sessionCookie.domainPattern());
+        sessionCookie.domainPattern().ifPresent(serializer::setDomainNamePattern);
         return serializer;
     }
 }
