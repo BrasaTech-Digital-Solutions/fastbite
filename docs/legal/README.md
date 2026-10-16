@@ -49,9 +49,10 @@ so they always match what the app charges. The cookie policy shows the session c
    Production and the sandbox will need `FASTBITE_SESSION_COOKIE=__session`, or nobody stays signed in. Each
    environment must also keep its cookie to its own host (no shared cookie domain), so the two `__session` cookies
    don't collide. The cookie policy follows the configured name automatically.
-4. **Google Fonts and the CDNs.** Several pages load Google Fonts, cdnjs and jsDelivr, which receive visitors' IP
-   addresses. A German court (LG München, 2022) fined a site for embedding Google Fonts without consent. Hosting the
-   fonts and libraries ourselves would remove the issue; until then the privacy and cookie policies disclose it.
+4. **Google Fonts and the CDNs: resolved.** A German court (LG München, 2022) fined a site for embedding Google Fonts
+   without consent, since they receive visitors' IP addresses. FastBite now serves its fonts, icons and libraries
+   itself (see `docs/third-party-assets.md`), and the privacy and cookie policies say so. Keep it that way: a new
+   page must not load anything from a third-party host.
 5. **Log retention.** The privacy policy says technical logs are kept up to 90 days. Check the Cloud Logging retention
    configured in GCP and align either side.
 
