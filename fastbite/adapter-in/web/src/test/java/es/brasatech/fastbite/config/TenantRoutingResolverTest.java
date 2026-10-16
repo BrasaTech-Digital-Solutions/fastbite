@@ -2,8 +2,11 @@ package es.brasatech.fastbite.config;
 
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.util.Optional;
 
@@ -41,6 +44,8 @@ class TenantRoutingResolverTest {
     @Test
     void resolvesTheSubdomainForPlatformPaths() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/menu");
+        request.setServerName("kebab.localhost");
+        request.setServerPort(8080);
         request.addHeader("Host", "kebab.localhost:8080");
 
         var tenant = resolver.resolve(request);
@@ -50,10 +55,56 @@ class TenantRoutingResolverTest {
     }
 
     @Test
+    void platformHostsAreNeverResolvedAsTenants() {
+        TenantRoutingResolver platformResolver = new TenantRoutingResolver(
+                tenantLocationService,
+                "http://fastbite.localhost:8088",
+                "https://sandbox.fastbite.localhost:8088"
+        );
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/menu");
+        request.setServerName("fastbite.localhost");
+        request.setServerPort(8088);
+        request.addHeader("Host", "fastbite.localhost:8088");
+
+        assertThat(platformResolver.resolve(request)).isNull();
+
+        MockHttpServletRequest sandboxRequest = new MockHttpServletRequest("GET", "/menu");
+        sandboxRequest.setServerName("sandbox.fastbite.localhost");
+        sandboxRequest.setServerPort(8088);
+        sandboxRequest.addHeader("Host", "sandbox.fastbite.localhost:8088");
+
+        assertThat(platformResolver.resolve(sandboxRequest)).isNull();
+
+        MockHttpServletRequest kebabRequest = new MockHttpServletRequest("GET", "/menu");
+        kebabRequest.setServerName("kebab.localhost");
+        kebabRequest.setServerPort(8088);
+        kebabRequest.addHeader("Host", "kebab.localhost:8088");
+
+        assertThat(platformResolver.resolve(kebabRequest).id()).isEqualTo("kebab");
+    }
+
+    @Test
+    void forwardedHostWinsOverInternalHostHeader() throws Exception {
+        ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+        MockHttpServletRequest rawRequest = new MockHttpServletRequest("GET", "/menu");
+        rawRequest.addHeader("Host", "internal.run.app");
+        rawRequest.addHeader("X-Forwarded-Host", "kebab.localhost");
+        rawRequest.addHeader("X-Forwarded-Proto", "https");
+
+        HttpServletRequest[] filtered = new HttpServletRequest[1];
+        filter.doFilter(rawRequest, new MockHttpServletResponse(), (req, res) -> {
+            filtered[0] = (HttpServletRequest) req;
+        });
+
+        assertThat(resolver.resolve(filtered[0]).id()).isEqualTo("kebab");
+    }
+
+    @Test
     void resolvesABoundCustomDomainAndCachesTheLookup() {
         when(tenantLocationService.getLocationByCustomDomain("orders.pizza.es"))
                 .thenReturn(Optional.of(new TenantLocation("1", "alice", "pizza", "RESTAURANT", "orders.pizza.es")));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/menu");
+        request.setServerName("orders.pizza.es");
         request.addHeader("Host", "orders.pizza.es");
 
         assertThat(resolver.resolve(request).id()).isEqualTo("pizza");

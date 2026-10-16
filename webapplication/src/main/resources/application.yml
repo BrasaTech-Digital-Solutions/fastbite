@@ -1,6 +1,5 @@
 server.port: 8080
-
-fastbite.protocol: ${PROTOCOL:http}
+server.forward-headers-strategy: framework
 
 spring:
   datasource:

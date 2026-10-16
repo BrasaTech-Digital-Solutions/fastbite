@@ -6,13 +6,13 @@ import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
@@ -23,13 +23,10 @@ public class TableQrController {
 
     private final TableService tableService;
     private final TableSignatureUtil tableSignatureUtil;
-    private final String protocol;
 
-    public TableQrController(TableService tableService, TableSignatureUtil tableSignatureUtil,
-            @Value("${fastbite.protocol:http}") String protocol) {
+    public TableQrController(TableService tableService, TableSignatureUtil tableSignatureUtil) {
         this.tableService = tableService;
         this.tableSignatureUtil = tableSignatureUtil;
-        this.protocol = protocol;
     }
 
     public record TableQr(String tableName, String url) {
@@ -39,9 +36,9 @@ public class TableQrController {
     @GetMapping({"/backoffice/tables/qr-codes", "/{tenantId}/backoffice/tables/qr-codes"})
     public String qrCodes(@RequestParam(required = false) String table, HttpServletRequest request, Model model) {
         String tenantId = TenantContext.getCurrentTenant();
-        String host = request.getHeader("Host") != null ? request.getHeader("Host") : "localhost:8080";
+        String origin = ServletUriComponentsBuilder.fromContextPath(request).build().toUriString();
         Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
-        String menuUrl = protocol + "://" + host + (prefix != null ? prefix : "") + "/menu";
+        String menuUrl = origin + (prefix != null ? prefix : "") + "/menu";
 
         List<TableQr> codes = tableService.findAll().stream()
                 .filter(t -> table == null ? t.active() : t.id().equals(table))
@@ -56,7 +53,8 @@ public class TableQrController {
 
         model.addAttribute("codes", codes);
         // Codes printed from a local or test address would send guests nowhere
-        model.addAttribute("localAddress", host.startsWith("localhost") || host.startsWith("127.") || host.contains(".localhost"));
+        String serverName = request.getServerName();
+        model.addAttribute("localAddress", serverName.startsWith("localhost") || serverName.startsWith("127.") || serverName.contains(".localhost"));
         return "fastfood/tableQrCodes";
     }
 }

@@ -4,11 +4,16 @@ import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ConcurrentLruCache;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -38,12 +43,36 @@ public class TenantRoutingResolver {
     private static final int CUSTOM_DOMAIN_CACHE_SIZE = 1024;
 
     private final TenantLocationService tenantLocationService;
+    /** Caches custom domain to tenantId lookups; the key is the client-controlled host name (Host or X-Forwarded-Host). */
     private final ConcurrentLruCache<String, String> customDomainCache;
+    /** Platform hosts from public-url and link.url that must never resolve as tenant subdomains. */
+    private final Set<String> platformHosts;
 
     public TenantRoutingResolver(TenantLocationService tenantLocationService) {
+        this(tenantLocationService, null, null);
+    }
+
+    @Autowired
+    public TenantRoutingResolver(
+            TenantLocationService tenantLocationService,
+            @Value("${fastbite.public-url:}") String publicUrl,
+            @Value("${fastbite.link.url:}") String linkUrl) {
         this.tenantLocationService = tenantLocationService;
-        // Bounded: the key is the client-controlled Host header. "" caches "no tenant".
         this.customDomainCache = new ConcurrentLruCache<>(CUSTOM_DOMAIN_CACHE_SIZE, this::lookupCustomDomain);
+        Set<String> hosts = new HashSet<>();
+        addHost(hosts, publicUrl);
+        addHost(hosts, linkUrl);
+        this.platformHosts = Collections.unmodifiableSet(hosts);
+    }
+
+    private static void addHost(Set<String> set, String url) {
+        if (url != null && !url.isBlank()) {
+            URI uri = URI.create(url.strip());
+            String host = uri.getHost();
+            if (host != null && !host.isBlank()) {
+                set.add(host.toLowerCase(Locale.ROOT));
+            }
+        }
     }
 
     public record ResolvedTenant(String id, boolean fromHost) {
@@ -60,7 +89,7 @@ public class TenantRoutingResolver {
             return new ResolvedTenant(pathTenant, false);
         }
 
-        String hostTenant = resolveTenantId(request.getHeader("Host"));
+        String hostTenant = resolveTenantId(request.getServerName());
         if (hostTenant != null) {
             return new ResolvedTenant(hostTenant, true);
         }
@@ -86,9 +115,9 @@ public class TenantRoutingResolver {
         if (host == null) {
             return null;
         }
-        String cleanHost = host.split(":")[0].toLowerCase();
+        String cleanHost = host.split(":")[0].toLowerCase(Locale.ROOT);
 
-        if (cleanHost.matches("^[0-9.]+$")) {
+        if (cleanHost.matches("^[0-9.]+$") || platformHosts.contains(cleanHost)) {
             return null;
         }
 

@@ -4,6 +4,7 @@ import com.stripe.model.checkout.Session;
 import es.brasatech.fastbite.TestConfig;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.config.TenantContextFilter;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.order.Order;
@@ -21,6 +22,9 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,17 +37,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = StripeCheckoutController.class, properties = "fastbite.protocol=https")
+@WebMvcTest(controllers = StripeCheckoutController.class)
 @ContextConfiguration(classes = {TestConfig.class, StripeCheckoutController.class, SecurityConfig.class,
         TenantRoutingResolver.class, WebConfig.class})
 class OrderCheckoutEndpointTest {
 
-    @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private WebApplicationContext webApplicationContext;
 
     @MockitoBean
     private OrderCheckoutService orderCheckoutService;
@@ -58,6 +65,12 @@ class OrderCheckoutEndpointTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        mockMvc = MockMvcBuilders
+                .webAppContextSetup(webApplicationContext)
+                .addFilters(new ForwardedHeaderFilter(),
+                        webApplicationContext.getBean(TenantContextFilter.class))
+                .apply(springSecurity())
+                .build();
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(orderService.findById("order-12")).thenReturn(Optional.of(order));
         Session session = new Session();
@@ -76,6 +89,7 @@ class OrderCheckoutEndpointTest {
     void theGuestPaysTheirOwnSavedOrderWhateverTheBrowserSends() throws Exception {
         mockMvc.perform(post("/kebab/api/stripe/create-checkout-session").session(guestWithOrder()).with(csrf())
                         .header("Host", "fastbite.example")
+                        .header("X-Forwarded-Proto", "https")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tipPercent\":10,\"amount\":\"0.01\",\"orderId\":\"someone-else\",\"tenantId\":\"pizza\"}"))
                 .andExpect(status().isOk())
@@ -90,12 +104,39 @@ class OrderCheckoutEndpointTest {
     void onARestaurantsOwnHostTheGuestComesBackToThatHost() throws Exception {
         mockMvc.perform(post("/api/stripe/create-checkout-session").session(guestWithOrder()).with(csrf())
                         .header("Host", "kebab.localhost:8080")
+                        .header("X-Forwarded-Host", "kebab.localhost:8080")
+                        .header("X-Forwarded-Proto", "https")
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk());
 
         verify(orderCheckoutService).start(eq("kebab"), eq(order), eq(0),
                 eq("https://kebab.localhost:8080/order-confirmation?session_id={CHECKOUT_SESSION_ID}"),
                 eq("https://kebab.localhost:8080/select-payment"));
+    }
+
+    @Test
+    void forwardedHeadersDetermineSchemeAndHostAndPort() throws Exception {
+        mockMvc.perform(post("/kebab/api/stripe/create-checkout-session").session(guestWithOrder()).with(csrf())
+                        .header("Host", "fastbite-xyz.a.run.app")
+                        .header("X-Forwarded-Host", "fastbite.brasatech.es")
+                        .header("X-Forwarded-Proto", "https")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
+
+        verify(orderCheckoutService).start(eq("kebab"), eq(order), eq(0),
+                eq("https://fastbite.brasatech.es/kebab/order-confirmation?session_id={CHECKOUT_SESSION_ID}"),
+                eq("https://fastbite.brasatech.es/kebab/select-payment"));
+
+        mockMvc.perform(post("/kebab/api/stripe/create-checkout-session").session(guestWithOrder()).with(csrf())
+                        .header("Host", "fastbite-xyz.a.run.app")
+                        .header("X-Forwarded-Host", "fastbite.localhost:8088")
+                        .header("X-Forwarded-Proto", "http")
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
+
+        verify(orderCheckoutService).start(eq("kebab"), eq(order), eq(0),
+                eq("http://fastbite.localhost:8088/kebab/order-confirmation?session_id={CHECKOUT_SESSION_ID}"),
+                eq("http://fastbite.localhost:8088/kebab/select-payment"));
     }
 
     @Test

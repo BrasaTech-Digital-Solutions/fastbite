@@ -11,13 +11,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.security.Principal;
 import java.util.Map;
@@ -31,9 +31,6 @@ public class StripeCheckoutController {
     private final StripeService stripeService;
     private final OrderCheckoutService orderCheckoutService;
     private final OrderService orderService;
-
-    @Value("${fastbite.protocol:http}")
-    private String protocol;
 
     /**
      * Level 2: a guest pays the order they placed in this browser session. The order and its total
@@ -54,12 +51,9 @@ public class StripeCheckoutController {
         }
 
         try {
-            String host = httpRequest.getHeader("Host");
-            if (host == null || host.isBlank()) {
-                host = "localhost:8080";
-            }
+            String origin = ServletUriComponentsBuilder.fromContextPath(httpRequest).build().toUriString();
             Object prefix = httpRequest.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
-            String baseUrl = protocol + "://" + host + (prefix != null ? prefix : "");
+            String baseUrl = origin + (prefix != null ? prefix : "");
 
             Session session = orderCheckoutService.start(
                     tenantId,
