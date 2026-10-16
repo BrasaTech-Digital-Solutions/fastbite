@@ -24,3 +24,18 @@ body.legal{margin:0;background:var(--soft);color:var(--ink);font:16px/1.65 Georg
 .legal :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 @media(max-width:640px){.legal main{margin:0;border-radius:0;padding:28px 18px}.legal dl.facts{grid-template-columns:1fr}.legal dl.facts dt{border-bottom:0;padding-bottom:0}}
 @media print{body.legal{background:#fff;font-size:12pt}.legal main{margin:0;border:0;padding:0;max-width:none}.legal .actions{display:none}}
+
+/* Legal pages: a bar with the brand and the languages, and links between the documents */
+.legal .legal-bar{max-width:820px;margin:20px auto 0;padding:0 8px;display:flex;justify-content:space-between;align-items:center;font:600 14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.legal .legal-brand{color:var(--ink);text-decoration:none;font:700 20px/1 Georgia,"Times New Roman",serif}
+.legal .legal-languages{display:flex;gap:6px}
+.legal .legal-languages a{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:999px;min-height:32px}
+.legal .legal-languages a.current{background:var(--ink);color:#fff}
+.legal .legal-pages{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.legal .legal-pages a{color:var(--muted)}
+.legal .legal-pages a.current{color:var(--ink);font-weight:700;text-decoration:none}
+.legal .legal-updated{margin-top:16px}
+.legal table{width:100%;border-collapse:collapse;margin:0 0 16px;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.legal th,.legal td{text-align:left;vertical-align:top;padding:8px 10px 8px 0;border-bottom:1px solid var(--line)}
+.legal th{color:var(--muted);font-weight:600}
+@media print{.legal .legal-bar,.legal .legal-pages{display:none}}

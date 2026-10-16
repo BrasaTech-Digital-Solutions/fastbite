@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<!-- Información de privacidad para los clientes de un restaurante (RGPD arts. 13 y 14), at /<restaurant>/privacy.
+     The restaurant is the controller; its details come from the location's business details (FiscalProfile).
+     DRAFT pending legal review: see docs/legal/README.md. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<article th:fragment="es" th:with="r=${restaurant}">
+    <p class="eyebrow">RGPD · arts. 13 y 14</p>
+    <h1>Información de privacidad para clientes</h1>
+    <p class="lead" th:text="${#strings.isEmpty(r.displayName()) ? 'Cómo trata este restaurante sus datos cuando pide y paga.' : 'Cómo trata ' + r.displayName() + ' sus datos cuando pide y paga.'}">
+        Cómo trata este restaurante sus datos cuando pide y paga.</p>
+
+    <h2>1. Responsable</h2>
+    <dl class="facts">
+        <dt>Restaurante</dt><dd th:text="${r.displayName() ?: '—'}">Kebab House</dd>
+        <dt>Titular</dt>
+        <dd><span th:text="${r.legalName()}" th:if="${!#strings.isEmpty(r.legalName())}">Ana García López</span>
+            <span class="missing" th:if="${#strings.isEmpty(r.legalName())}">[El restaurante aún no ha completado sus datos]</span></dd>
+        <dt>NIF</dt><dd th:text="${r.taxId() ?: '—'}">12345678Z</dd>
+        <dt>Dirección</dt><dd th:text="${#strings.isEmpty(r.addressLine()) ? '—' : r.addressLine() + ', ' + (r.postalCode() ?: '') + ' ' + (r.city() ?: '')}">Calle Mayor 12, 28013 Madrid</dd>
+        <dt>Contacto</dt><dd th:text="${r.email() ?: (r.phone() ?: '—')}">hola@kebabhouse.es</dd>
+    </dl>
+
+    <h2>2. Qué datos, para qué y por qué</h2>
+    <table>
+        <thead><tr><th>Datos</th><th>Finalidad</th><th>Base jurídica</th></tr></thead>
+        <tbody>
+        <tr><td>Su pedido, la mesa y, para llevar, el nombre con el que lo recoge</td>
+            <td>Preparar y servir su pedido</td><td>Ejecución del contrato de compraventa (art. 6.1.b RGPD)</td></tr>
+        <tr><td>Datos de la factura: nombre o razón social, NIF y dirección, solo si pide factura completa</td>
+            <td>Emitir la factura</td><td>Obligación legal (art. 6.1.c RGPD; normativa de facturación)</td></tr>
+        <tr><td>Datos del ticket o factura, incluida su copia en el registro VERI*FACTU</td>
+            <td>Cumplir las obligaciones fiscales y enviar los registros a la Agencia Tributaria</td>
+            <td>Obligación legal (art. 6.1.c RGPD)</td></tr>
+        <tr><td>Referencia del pago en línea (nunca los datos de su tarjeta)</td>
+            <td>Cobrar el pedido y, si procede, devolverlo</td><td>Ejecución del contrato (art. 6.1.b RGPD)</td></tr>
+        </tbody>
+    </table>
+    <p>La carta puede recordar en su propio navegador los alérgenos que elija filtrar; esa preferencia no sale de su
+        dispositivo.</p>
+
+    <h2>3. Conservación</h2>
+    <p>Los pedidos se conservan mientras el restaurante los necesite para su gestión. Los tickets y facturas, durante los
+        plazos que exige la ley (cuatro años a efectos fiscales y seis según el Código de Comercio).</p>
+
+    <h2>4. Destinatarios</h2>
+    <ul>
+        <li><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, que presta al restaurante el
+            servicio FastBite como encargado del tratamiento.</li>
+        <li><strong>Stripe</strong>, si paga en línea, que procesa el pago con sus propias condiciones.</li>
+        <li><strong>Agencia Tributaria</strong>, que recibe los registros de facturación por obligación legal.</li>
+    </ul>
+
+    <h2>5. Sus derechos</h2>
+    <p>Puede pedir al restaurante el acceso, la rectificación, la supresión, la oposición, la limitación o la portabilidad
+        de sus datos, con los datos de contacto de arriba. Las facturas no pueden suprimirse mientras la ley obligue a
+        conservarlas. Si no queda satisfecho, puede reclamar ante la Agencia Española de Protección de Datos
+        (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+    <p><a th:href="@{/legal/cookies(lang='es')}">Política de cookies</a> ·
+        <a th:href="@{/legal/notice(lang='es')}">Aviso legal de FastBite</a></p>
+</article>
+
+<article th:fragment="en" th:with="r=${restaurant}">
+    <p class="eyebrow">GDPR · Arts. 13 and 14</p>
+    <h1>Privacy notice for guests</h1>
+    <p class="lead" th:text="${#strings.isEmpty(r.displayName()) ? 'How this restaurant handles your data when you order and pay.' : 'How ' + r.displayName() + ' handles your data when you order and pay.'} + ' This is a translation: the Spanish version prevails.'">
+        How this restaurant handles your data when you order and pay.</p>
+
+    <h2>1. Controller</h2>
+    <dl class="facts">
+        <dt>Restaurant</dt><dd th:text="${r.displayName() ?: '—'}">Kebab House</dd>
+        <dt>Owner</dt>
+        <dd><span th:text="${r.legalName()}" th:if="${!#strings.isEmpty(r.legalName())}">Ana García López</span>
+            <span class="missing" th:if="${#strings.isEmpty(r.legalName())}">[The restaurant has not completed its details yet]</span></dd>
+        <dt>Tax ID</dt><dd th:text="${r.taxId() ?: '—'}">12345678Z</dd>
+        <dt>Address</dt><dd th:text="${#strings.isEmpty(r.addressLine()) ? '—' : r.addressLine() + ', ' + (r.postalCode() ?: '') + ' ' + (r.city() ?: '')}">Calle Mayor 12, 28013 Madrid</dd>
+        <dt>Contact</dt><dd th:text="${r.email() ?: (r.phone() ?: '—')}">hola@kebabhouse.es</dd>
+    </dl>
+
+    <h2>2. What data, why, and on what basis</h2>
+    <table>
+        <thead><tr><th>Data</th><th>Purpose</th><th>Legal basis</th></tr></thead>
+        <tbody>
+        <tr><td>Your order, the table and, for takeaway, the name you collect it under</td>
+            <td>Prepare and serve your order</td><td>Performance of the sale contract (Art. 6(1)(b) GDPR)</td></tr>
+        <tr><td>Invoice details: name or company name, tax ID and address, only if you ask for a full invoice</td>
+            <td>Issue the invoice</td><td>Legal obligation (Art. 6(1)(c) GDPR; invoicing rules)</td></tr>
+        <tr><td>Ticket or invoice details, including their copy in the VERI*FACTU record</td>
+            <td>Meet tax obligations and send records to the Spanish Tax Agency</td><td>Legal obligation (Art. 6(1)(c) GDPR)</td></tr>
+        <tr><td>Online payment reference (never your card details)</td>
+            <td>Charge the order and refund it if needed</td><td>Performance of the contract (Art. 6(1)(b) GDPR)</td></tr>
+        </tbody>
+    </table>
+    <p>The menu can remember in your own browser the allergens you choose to filter; that preference never leaves your
+        device.</p>
+
+    <h2>3. Retention</h2>
+    <p>Orders are kept for as long as the restaurant needs them to run its business. Tickets and invoices are kept for the
+        periods the law requires (four years for tax purposes and six under the Spanish Commercial Code).</p>
+
+    <h2>4. Recipients</h2>
+    <ul>
+        <li><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, which provides the FastBite
+            service to the restaurant as a processor.</li>
+        <li><strong>Stripe</strong>, if you pay online, which processes the payment under its own terms.</li>
+        <li><strong>Spanish Tax Agency</strong>, which receives billing records by law.</li>
+    </ul>
+
+    <h2>5. Your rights</h2>
+    <p>You can ask the restaurant for access, rectification, erasure, objection, restriction or portability of your data,
+        using the contact details above. Invoices cannot be erased while the law requires them to be kept. If you are not
+        satisfied, you can complain to the Spanish Data Protection Agency (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+    <p><a th:href="@{/legal/cookies(lang='en')}">Cookie policy</a> ·
+        <a th:href="@{/legal/notice(lang='en')}">FastBite legal notice</a></p>
+</article>
+
+<article th:fragment="pt" th:with="r=${restaurant}">
+    <p class="eyebrow">RGPD · arts. 13.º e 14.º</p>
+    <h1>Aviso de privacidade para clientes</h1>
+    <p class="lead" th:text="${#strings.isEmpty(r.displayName()) ? 'Como este restaurante trata os seus dados quando pede e paga.' : 'Como ' + r.displayName() + ' trata os seus dados quando pede e paga.'} + ' Esta é uma tradução: prevalece a versão em espanhol.'">
+        Como este restaurante trata os seus dados quando pede e paga.</p>
+
+    <h2>1. Responsável</h2>
+    <dl class="facts">
+        <dt>Restaurante</dt><dd th:text="${r.displayName() ?: '—'}">Kebab House</dd>
+        <dt>Titular</dt>
+        <dd><span th:text="${r.legalName()}" th:if="${!#strings.isEmpty(r.legalName())}">Ana García López</span>
+            <span class="missing" th:if="${#strings.isEmpty(r.legalName())}">[O restaurante ainda não completou os seus dados]</span></dd>
+        <dt>NIF</dt><dd th:text="${r.taxId() ?: '—'}">12345678Z</dd>
+        <dt>Morada</dt><dd th:text="${#strings.isEmpty(r.addressLine()) ? '—' : r.addressLine() + ', ' + (r.postalCode() ?: '') + ' ' + (r.city() ?: '')}">Calle Mayor 12, 28013 Madrid</dd>
+        <dt>Contacto</dt><dd th:text="${r.email() ?: (r.phone() ?: '—')}">hola@kebabhouse.es</dd>
+    </dl>
+
+    <h2>2. Que dados, para quê e porquê</h2>
+    <table>
+        <thead><tr><th>Dados</th><th>Finalidade</th><th>Fundamento jurídico</th></tr></thead>
+        <tbody>
+        <tr><td>O seu pedido, a mesa e, para levar, o nome com que o levanta</td>
+            <td>Preparar e servir o seu pedido</td><td>Execução do contrato de compra e venda (art. 6.º, n.º 1, al. b) do RGPD)</td></tr>
+        <tr><td>Dados da fatura: nome ou denominação, NIF e morada, apenas se pedir fatura completa</td>
+            <td>Emitir a fatura</td><td>Obrigação legal (al. c); regras de faturação)</td></tr>
+        <tr><td>Dados do talão ou fatura, incluindo a sua cópia no registo VERI*FACTU</td>
+            <td>Cumprir as obrigações fiscais e enviar os registos à Agência Tributária espanhola</td><td>Obrigação legal (al. c))</td></tr>
+        <tr><td>Referência do pagamento online (nunca os dados do seu cartão)</td>
+            <td>Cobrar o pedido e, se for o caso, reembolsá-lo</td><td>Execução do contrato (al. b))</td></tr>
+        </tbody>
+    </table>
+    <p>O menu pode lembrar no seu próprio navegador os alergénios que escolher filtrar; essa preferência não sai do seu
+        dispositivo.</p>
+
+    <h2>3. Conservação</h2>
+    <p>Os pedidos são conservados enquanto o restaurante precisar deles para a sua gestão. Os talões e faturas, durante os
+        prazos exigidos por lei (quatro anos para efeitos fiscais e seis segundo o Código Comercial espanhol).</p>
+
+    <h2>4. Destinatários</h2>
+    <ul>
+        <li><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, que presta ao restaurante o
+            serviço FastBite como subcontratante.</li>
+        <li><strong>Stripe</strong>, se pagar online, que processa o pagamento nos seus próprios termos.</li>
+        <li><strong>Agência Tributária espanhola</strong>, que recebe os registos de faturação por obrigação legal.</li>
+    </ul>
+
+    <h2>5. Os seus direitos</h2>
+    <p>Pode pedir ao restaurante o acesso, retificação, apagamento, oposição, limitação ou portabilidade dos seus dados,
+        com os contactos acima. As faturas não podem ser apagadas enquanto a lei obrigar a conservá-las. Se não ficar
+        satisfeito, pode apresentar reclamação à Agência Espanhola de Proteção de Dados
+        (<a href="https://www.aepd.es">www.aepd.es</a>) ou à autoridade de controlo do seu país.</p>
+    <p><a th:href="@{/legal/cookies(lang='pt')}">Política de cookies</a> ·
+        <a th:href="@{/legal/notice(lang='pt')}">Aviso legal da FastBite</a></p>
+</article>
+
+</body>
+</html>

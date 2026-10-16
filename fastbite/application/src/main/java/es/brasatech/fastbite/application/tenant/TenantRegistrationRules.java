@@ -6,7 +6,7 @@ import java.util.Set;
 public final class TenantRegistrationRules {
     private static final Set<String> RESERVED = Set.of("default", "admin", "kebab", "signup", "login",
             "logout", "owner", "menu", "dashboard", "counter", "backoffice", "api", "css", "js", "images",
-            "webjars", "stripe", "error", "actuator", "appspecific", "allergens", "verifactu", "internal", "link");
+            "webjars", "stripe", "error", "actuator", "appspecific", "allergens", "verifactu", "internal", "link", "legal", "privacy");
     private TenantRegistrationRules() { }
 
     public static String tenantId(String input) {

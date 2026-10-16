@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!-- Política de cookies (LSSI-CE art. 22.2; Guía sobre el uso de las cookies de la AEPD). DRAFT pending legal review.
+     FastBite sets only strictly necessary cookies and storage, which are exempt from consent: keep it that way, or add
+     a consent banner before adding analytics or advertising. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<article th:fragment="es">
+    <p class="eyebrow">LSSI-CE · art. 22.2</p>
+    <h1>Política de cookies</h1>
+    <p class="lead">FastBite solo usa las cookies y el almacenamiento del navegador imprescindibles para funcionar. No
+        usamos cookies de análisis, de publicidad ni de seguimiento.</p>
+
+    <h2>1. Qué son</h2>
+    <p>Las cookies son pequeños archivos que un sitio web guarda en su navegador. El almacenamiento local del navegador
+        (localStorage y sessionStorage) cumple una función parecida. Las que son estrictamente necesarias para prestar un
+        servicio que usted ha pedido no requieren su consentimiento (art. 22.2 de la LSSI-CE), pero le informamos de ellas.</p>
+
+    <h2>2. Cookies que usamos</h2>
+    <table>
+        <thead><tr><th>Nombre</th><th>Para qué</th><th>Duración</th><th>Tipo</th></tr></thead>
+        <tbody>
+        <tr><td><code th:text="${sessionCookie}">FASTBITE_SESSION</code></td>
+            <td>Mantener su sesión: el acceso de titulares y personal, el pedido en curso de un cliente y la protección
+                frente a peticiones falsificadas (CSRF)</td>
+            <td>Sesión; caduca tras 30 minutos sin actividad o al cerrar sesión</td>
+            <td>Propia, técnica</td></tr>
+        </tbody>
+    </table>
+
+    <h2>3. Almacenamiento del navegador</h2>
+    <table>
+        <thead><tr><th>Clave</th><th>Para qué</th><th>Duración</th></tr></thead>
+        <tbody>
+        <tr><td><code>fastbite.allergens</code></td><td>Recordar los alérgenos que ha elegido filtrar en la carta</td>
+            <td>Hasta que la borre</td></tr>
+        <tr><td><code>fastbite-kitchen-chime-enabled</code></td><td>Recordar si la pantalla de cocina avisa con sonido</td>
+            <td>Hasta que la borre</td></tr>
+        <tr><td><code>fastbite.ticketNotice</code></td><td>Mostrar un aviso tras una acción sobre un ticket</td>
+            <td>Hasta cerrar la pestaña</td></tr>
+        </tbody>
+    </table>
+
+    <h2>4. Servicios de terceros</h2>
+    <ul>
+        <li><strong>Stripe</strong>: cuando se paga en línea, el pago se completa en las páginas de Stripe, que usan sus
+            propias cookies para el pago y la prevención del fraude. Consulte la política de cookies de Stripe.</li>
+        <li><strong>Google Fonts, cdnjs y jsDelivr</strong>: sirven tipos de letra, iconos y bibliotecas. No instalamos
+            cookies a través de ellos, pero reciben la dirección IP de su navegador al descargar los archivos.</li>
+    </ul>
+
+    <h2>5. Cómo gestionarlas</h2>
+    <p>Puede borrar o bloquear las cookies y el almacenamiento desde la configuración de su navegador. Si bloquea la
+        cookie de sesión no podrá iniciar sesión ni completar un pedido.</p>
+
+    <h2>6. Cambios</h2>
+    <p>Si en el futuro usamos cookies que no sean imprescindibles, le pediremos antes su consentimiento y actualizaremos
+        esta política.</p>
+</article>
+
+<article th:fragment="en">
+    <p class="eyebrow">Spanish LSSI-CE · Art. 22.2</p>
+    <h1>Cookie policy</h1>
+    <p class="lead">FastBite only uses the cookies and browser storage it needs to work. We use no analytics,
+        advertising or tracking cookies. This is a translation: the Spanish version prevails.</p>
+
+    <h2>1. What they are</h2>
+    <p>Cookies are small files a website stores in your browser. The browser's local storage (localStorage and
+        sessionStorage) works in a similar way. Those strictly needed to provide a service you asked for do not require
+        your consent (Art. 22.2 of the Spanish LSSI-CE), but we tell you about them.</p>
+
+    <h2>2. Cookies we use</h2>
+    <table>
+        <thead><tr><th>Name</th><th>Purpose</th><th>Duration</th><th>Type</th></tr></thead>
+        <tbody>
+        <tr><td><code th:text="${sessionCookie}">FASTBITE_SESSION</code></td>
+            <td>Keep your session: owner and staff sign-in, a guest's order in progress, and protection against forged
+                requests (CSRF)</td>
+            <td>Session; expires after 30 minutes without activity or on sign-out</td>
+            <td>First-party, technical</td></tr>
+        </tbody>
+    </table>
+
+    <h2>3. Browser storage</h2>
+    <table>
+        <thead><tr><th>Key</th><th>Purpose</th><th>Duration</th></tr></thead>
+        <tbody>
+        <tr><td><code>fastbite.allergens</code></td><td>Remember the allergens you chose to filter on the menu</td>
+            <td>Until you clear it</td></tr>
+        <tr><td><code>fastbite-kitchen-chime-enabled</code></td><td>Remember whether the kitchen screen plays a sound</td>
+            <td>Until you clear it</td></tr>
+        <tr><td><code>fastbite.ticketNotice</code></td><td>Show a notice after an action on a ticket</td>
+            <td>Until the tab is closed</td></tr>
+        </tbody>
+    </table>
+
+    <h2>4. Third-party services</h2>
+    <ul>
+        <li><strong>Stripe</strong>: when paying online, payment is completed on Stripe's pages, which use their own
+            cookies for payment and fraud prevention. See Stripe's cookie policy.</li>
+        <li><strong>Google Fonts, cdnjs and jsDelivr</strong>: serve fonts, icons and libraries. We set no cookies through
+            them, but they receive your browser's IP address when the files are downloaded.</li>
+    </ul>
+
+    <h2>5. Managing them</h2>
+    <p>You can delete or block cookies and storage in your browser settings. If you block the session cookie, you will
+        not be able to sign in or complete an order.</p>
+
+    <h2>6. Changes</h2>
+    <p>If we ever use cookies that are not strictly necessary, we will ask for your consent first and update this policy.</p>
+</article>
+
+<article th:fragment="pt">
+    <p class="eyebrow">LSSI-CE espanhola · art. 22.2</p>
+    <h1>Política de cookies</h1>
+    <p class="lead">A FastBite só usa os cookies e o armazenamento do navegador indispensáveis para funcionar. Não usamos
+        cookies de análise, publicidade nem seguimento. Esta é uma tradução: prevalece a versão em espanhol.</p>
+
+    <h2>1. O que são</h2>
+    <p>Os cookies são pequenos ficheiros que um site guarda no seu navegador. O armazenamento local do navegador
+        (localStorage e sessionStorage) tem uma função semelhante. Os estritamente necessários para prestar um serviço
+        que pediu não exigem o seu consentimento (art. 22.2 da LSSI-CE espanhola), mas informamo-lo sobre eles.</p>
+
+    <h2>2. Cookies que usamos</h2>
+    <table>
+        <thead><tr><th>Nome</th><th>Para quê</th><th>Duração</th><th>Tipo</th></tr></thead>
+        <tbody>
+        <tr><td><code th:text="${sessionCookie}">FASTBITE_SESSION</code></td>
+            <td>Manter a sua sessão: o acesso de titulares e pessoal, o pedido em curso de um cliente e a proteção contra
+                pedidos falsificados (CSRF)</td>
+            <td>Sessão; expira após 30 minutos sem atividade ou ao terminar sessão</td>
+            <td>Próprio, técnico</td></tr>
+        </tbody>
+    </table>
+
+    <h2>3. Armazenamento do navegador</h2>
+    <table>
+        <thead><tr><th>Chave</th><th>Para quê</th><th>Duração</th></tr></thead>
+        <tbody>
+        <tr><td><code>fastbite.allergens</code></td><td>Lembrar os alergénios que escolheu filtrar no menu</td>
+            <td>Até a apagar</td></tr>
+        <tr><td><code>fastbite-kitchen-chime-enabled</code></td><td>Lembrar se o ecrã da cozinha avisa com som</td>
+            <td>Até a apagar</td></tr>
+        <tr><td><code>fastbite.ticketNotice</code></td><td>Mostrar um aviso após uma ação sobre um talão</td>
+            <td>Até fechar o separador</td></tr>
+        </tbody>
+    </table>
+
+    <h2>4. Serviços de terceiros</h2>
+    <ul>
+        <li><strong>Stripe</strong>: quando paga online, o pagamento é concluído nas páginas da Stripe, que usam os seus
+            próprios cookies para o pagamento e a prevenção de fraude. Consulte a política de cookies da Stripe.</li>
+        <li><strong>Google Fonts, cdnjs e jsDelivr</strong>: fornecem tipos de letra, ícones e bibliotecas. Não instalamos
+            cookies através deles, mas recebem o endereço IP do seu navegador ao descarregar os ficheiros.</li>
+    </ul>
+
+    <h2>5. Como geri-los</h2>
+    <p>Pode apagar ou bloquear os cookies e o armazenamento nas definições do seu navegador. Se bloquear o cookie de
+        sessão, não poderá iniciar sessão nem concluir um pedido.</p>
+
+    <h2>6. Alterações</h2>
+    <p>Se no futuro usarmos cookies que não sejam indispensáveis, pediremos antes o seu consentimento e atualizaremos esta
+        política.</p>
+</article>
+
+</body>
+</html>

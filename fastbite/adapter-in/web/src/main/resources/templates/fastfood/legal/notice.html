@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- Aviso legal (LSSI-CE, Ley 34/2002, art. 10). DRAFT pending legal review: see docs/legal/README.md. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<article th:fragment="es">
+    <p class="eyebrow">Ley 34/2002 (LSSI-CE)</p>
+    <h1>Aviso legal</h1>
+    <p class="lead">Información sobre el titular de FastBite y las condiciones de uso de este sitio web.</p>
+
+    <h2>1. Titular del sitio web</h2>
+    <dl class="facts">
+        <dt>Denominación social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>NIF</dt><dd th:text="${company.taxId()}">B09767898</dd>
+        <dt>Domicilio social</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España</dd>
+        <dt>Correo electrónico</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
+        <dt>Datos registrales</dt>
+        <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Registro Mercantil de Alicante</span>
+            <span class="missing" th:if="${#strings.isEmpty(company.registry())}">[Pendiente: Registro Mercantil, tomo, folio, hoja e inscripción]</span></dd>
+        <dt>Sitio web</dt><dd th:text="${company.website()}">https://fastbite.brasatech.es</dd>
+    </dl>
+
+    <h2>2. Objeto</h2>
+    <p>Este sitio web da acceso a FastBite, un servicio en la nube para la gestión de restaurantes: carta digital
+        y pedidos por código QR, punto de venta, pantalla de cocina, pedidos para llevar, información de alérgenos y
+        emisión de facturas conforme a la normativa española. El servicio está dirigido a empresas y profesionales de
+        la hostelería. Las condiciones de su contratación están en las <a th:href="@{/legal/terms(lang='es')}">Condiciones del servicio</a>.</p>
+    <p>Las cartas, pedidos y páginas de cada restaurante que usa FastBite son responsabilidad de ese restaurante, que
+        actúa en su propio nombre frente a sus clientes.</p>
+
+    <h2>3. Entorno de prácticas (sandbox)</h2>
+    <p>FastBite ofrece un entorno de prácticas, identificado en todas sus páginas con la banda «SANDBOX», donde los
+        restaurantes aprenden y preparan su configuración. En él nada es real: no se cobran pagos, no se emiten
+        facturas con validez fiscal y los pedidos son de prueba.</p>
+
+    <h2>4. Condiciones de uso</h2>
+    <p>Quien accede a este sitio se compromete a usarlo conforme a la ley, a la buena fe y a este aviso, y a no
+        dañarlo, sobrecargarlo ni intentar acceder sin autorización a datos o cuentas de terceros. El titular puede
+        suspender el acceso a quien incumpla estas condiciones.</p>
+
+    <h2>5. Propiedad intelectual e industrial</h2>
+    <p>El software, el diseño, los textos propios, los logotipos y la marca FastBite pertenecen al titular o a sus
+        licenciantes. No se permite su reproducción, distribución o transformación sin autorización, salvo lo
+        necesario para usar el servicio. Los contenidos que cada restaurante publica (cartas, fotos, textos) son
+        suyos y él responde de ellos.</p>
+
+    <h2>6. Responsabilidad</h2>
+    <p>El titular procura que el sitio esté disponible y libre de errores, pero no puede garantizarlo en todo
+        momento. No responde de los contenidos publicados por los restaurantes, en particular precios, descripciones
+        e información de alérgenos, que cada restaurante debe mantener exacta. Tampoco responde de los sitios de
+        terceros a los que se pueda enlazar.</p>
+
+    <h2>7. Protección de datos y cookies</h2>
+    <p>El tratamiento de datos personales se explica en la <a th:href="@{/legal/privacy(lang='es')}">Política de privacidad</a>
+        y el uso de cookies en la <a th:href="@{/legal/cookies(lang='es')}">Política de cookies</a>.</p>
+
+    <h2>8. Legislación y jurisdicción</h2>
+    <p>Este aviso se rige por la legislación española. Para cualquier controversia, las partes se someten a los
+        juzgados y tribunales que correspondan conforme a la ley; cuando quien accede actúe como empresa, a los de
+        Alicante.</p>
+</article>
+
+<article th:fragment="en">
+    <p class="eyebrow">Spanish Law 34/2002 (LSSI-CE)</p>
+    <h1>Legal notice</h1>
+    <p class="lead">Who runs FastBite, and the terms of use of this website. This is a translation: the Spanish
+        version prevails.</p>
+
+    <h2>1. Owner of the website</h2>
+    <dl class="facts">
+        <dt>Company name</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>Tax ID (NIF)</dt><dd th:text="${company.taxId()}">B09767898</dd>
+        <dt>Registered office</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Spain</dd>
+        <dt>Email</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
+        <dt>Registry details</dt>
+        <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Mercantile Registry of Alicante</span>
+            <span class="missing" th:if="${#strings.isEmpty(company.registry())}">[Pending: Mercantile Registry volume, folio, sheet and entry]</span></dd>
+        <dt>Website</dt><dd th:text="${company.website()}">https://fastbite.brasatech.es</dd>
+    </dl>
+
+    <h2>2. Purpose</h2>
+    <p>This website gives access to FastBite, a cloud service for running restaurants: digital menus and QR
+        ordering, point of sale, kitchen display, takeaway orders, allergen information and invoicing that complies
+        with Spanish rules. The service is meant for hospitality businesses and professionals. Its contract terms are in
+        the <a th:href="@{/legal/terms(lang='en')}">Terms of service</a>.</p>
+    <p>The menus, orders and pages of each restaurant using FastBite are that restaurant's responsibility; it acts in
+        its own name towards its guests.</p>
+
+    <h2>3. Practice environment (sandbox)</h2>
+    <p>FastBite offers a practice environment, marked on every page with the "SANDBOX" band, where restaurants learn
+        and prepare their setup. Nothing there is real: no payments are taken, no invoices with tax value are issued
+        and orders are tests.</p>
+
+    <h2>4. Terms of use</h2>
+    <p>Anyone using this website agrees to do so lawfully, in good faith and according to this notice, and not to
+        damage or overload it or try to access other people's data or accounts without permission. The owner may
+        suspend access for anyone who breaks these terms.</p>
+
+    <h2>5. Intellectual and industrial property</h2>
+    <p>The software, design, our own texts, logos and the FastBite brand belong to the owner or its licensors. They
+        may not be copied, distributed or modified without permission, beyond what is needed to use the service. The
+        content each restaurant publishes (menus, photos, texts) is its own, and it is responsible for it.</p>
+
+    <h2>6. Liability</h2>
+    <p>The owner works to keep the website available and free of errors, but cannot guarantee this at all times. It is
+        not responsible for content published by restaurants, in particular prices, descriptions and allergen
+        information, which each restaurant must keep accurate, nor for third-party websites linked from here.</p>
+
+    <h2>7. Data protection and cookies</h2>
+    <p>How personal data is handled is explained in the <a th:href="@{/legal/privacy(lang='en')}">Privacy policy</a>, and
+        the use of cookies in the <a th:href="@{/legal/cookies(lang='en')}">Cookie policy</a>.</p>
+
+    <h2>8. Governing law and jurisdiction</h2>
+    <p>This notice is governed by Spanish law. Disputes go to the courts that have jurisdiction under the law; where the
+        user acts as a business, to the courts of Alicante.</p>
+</article>
+
+<article th:fragment="pt">
+    <p class="eyebrow">Lei espanhola 34/2002 (LSSI-CE)</p>
+    <h1>Aviso legal</h1>
+    <p class="lead">Quem é o titular da FastBite e as condições de utilização deste site. Esta é uma tradução: prevalece a
+        versão em espanhol.</p>
+
+    <h2>1. Titular do site</h2>
+    <dl class="facts">
+        <dt>Denominação social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>NIF</dt><dd th:text="${company.taxId()}">B09767898</dd>
+        <dt>Sede</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Espanha</dd>
+        <dt>Email</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
+        <dt>Dados de registo</dt>
+        <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Registo Comercial de Alicante</span>
+            <span class="missing" th:if="${#strings.isEmpty(company.registry())}">[Pendente: dados de inscrição no Registo Comercial]</span></dd>
+        <dt>Site</dt><dd th:text="${company.website()}">https://fastbite.brasatech.es</dd>
+    </dl>
+
+    <h2>2. Objeto</h2>
+    <p>Este site dá acesso à FastBite, um serviço na nuvem para a gestão de restaurantes: menu digital e pedidos por
+        código QR, ponto de venda, ecrã de cozinha, pedidos para levar, informação de alergénios e emissão de faturas
+        conforme a legislação espanhola. O serviço destina-se a empresas e profissionais da restauração. As condições
+        de contratação estão nos <a th:href="@{/legal/terms(lang='pt')}">Termos de serviço</a>.</p>
+    <p>Os menus, pedidos e páginas de cada restaurante que usa a FastBite são da responsabilidade desse restaurante,
+        que atua em nome próprio perante os seus clientes.</p>
+
+    <h2>3. Ambiente de prática (sandbox)</h2>
+    <p>A FastBite oferece um ambiente de prática, identificado em todas as páginas com a faixa «SANDBOX», onde os
+        restaurantes aprendem e preparam a sua configuração. Nada nele é real: não se cobram pagamentos, não se emitem
+        faturas com valor fiscal e os pedidos são de teste.</p>
+
+    <h2>4. Condições de utilização</h2>
+    <p>Quem acede a este site compromete-se a usá-lo de acordo com a lei, a boa-fé e este aviso, e a não o danificar,
+        sobrecarregar nem tentar aceder sem autorização a dados ou contas de terceiros. O titular pode suspender o acesso
+        a quem não cumprir estas condições.</p>
+
+    <h2>5. Propriedade intelectual e industrial</h2>
+    <p>O software, o design, os textos próprios, os logótipos e a marca FastBite pertencem ao titular ou aos seus
+        licenciantes. Não é permitida a sua reprodução, distribuição ou transformação sem autorização, para além do
+        necessário para usar o serviço. Os conteúdos que cada restaurante publica (menus, fotos, textos) são seus e é
+        ele quem responde por eles.</p>
+
+    <h2>6. Responsabilidade</h2>
+    <p>O titular procura que o site esteja disponível e sem erros, mas não o pode garantir em todos os momentos. Não
+        responde pelos conteúdos publicados pelos restaurantes, em especial preços, descrições e informação de
+        alergénios, que cada restaurante deve manter exatos, nem pelos sites de terceiros para os quais possa haver
+        ligação.</p>
+
+    <h2>7. Proteção de dados e cookies</h2>
+    <p>O tratamento de dados pessoais está explicado na <a th:href="@{/legal/privacy(lang='pt')}">Política de privacidade</a>
+        e a utilização de cookies na <a th:href="@{/legal/cookies(lang='pt')}">Política de cookies</a>.</p>
+
+    <h2>8. Lei aplicável e foro</h2>
+    <p>Este aviso rege-se pela lei espanhola. Os litígios são submetidos aos tribunais competentes nos termos da lei;
+        quando o utilizador atue como empresa, aos tribunais de Alicante.</p>
+</article>
+
+</body>
+</html>

@@ -51,6 +51,7 @@ public class MenuController {
         model.addAttribute("menuData", menuDataService.buildMenuData(locale));
         Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
         model.addAttribute("allergenChartUrl", (prefix != null ? prefix : "") + "/allergens");
+        model.addAttribute("privacyUrl", (prefix != null ? prefix : "") + "/privacy");
         model.addAttribute("allergenList", java.util.List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
         try {
             String existingTableNumber = (String) session.getAttribute("tableNumber");

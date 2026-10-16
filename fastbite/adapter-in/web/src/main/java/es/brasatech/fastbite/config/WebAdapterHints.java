@@ -52,6 +52,10 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.controller.EnvironmentAdvice.PlatformView.class,
                 es.brasatech.fastbite.domain.fiscal.TicketCancellation.class,
                 es.brasatech.fastbite.controller.BackOfficeController.ImageFolder.class,
+                // Read by the legal pages
+                es.brasatech.fastbite.controller.LegalController.Company.class,
+                es.brasatech.fastbite.controller.LegalController.Plans.class,
+                es.brasatech.fastbite.controller.LegalController.NavLink.class,
                 // Read by the end-of-day report
                 es.brasatech.fastbite.domain.fiscal.DayReport.class,
                 es.brasatech.fastbite.domain.fiscal.DayReport.MethodTotal.class,

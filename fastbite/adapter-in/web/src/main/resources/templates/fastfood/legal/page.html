@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<!--
+  FastBite's legal pages. DRAFTS pending review by a lawyer: see docs/legal/README.md.
+  Spanish is the binding version; English and Portuguese are translations.
+  Each document is one template with a fragment per language (es, en, pt).
+-->
+<!-- title, navigation (the pages, titled in this language) and prefix (this page's address) come from LegalController -->
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="${title} + ' · FastBite'">Aviso legal · FastBite</title>
+    <link rel="stylesheet" th:href="@{/css/legal.css}">
+</head>
+<body class="legal">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
+<nav class="legal-bar" aria-label="FastBite">
+    <a class="legal-brand" href="/">fastbite</a>
+    <span class="legal-languages">
+        <a th:each="code : ${ {'es', 'en', 'pt'} }" th:href="@{${prefix}(lang=${code})}" th:text="${#strings.toUpperCase(code)}"
+           th:classappend="${code == language} ? 'current'" th:attr="aria-current=${code == language ? 'true' : null},hreflang=${code}">ES</a>
+    </span>
+</nav>
+<main>
+    <div class="actions"><button type="button" onclick="window.print()"
+            th:text="${language == 'en' ? 'Print' : 'Imprimir'}">Imprimir</button></div>
+    <article th:replace="~{fastfood/legal/__${page}__ :: __${language}__}"></article>
+    <nav class="legal-pages" th:unless="${page == 'guests'}" aria-label="FastBite">
+        <a th:each="link : ${navigation}" th:href="@{/legal/{p}(p=${link.page()},lang=${language})}" th:text="${link.title()}"
+           th:classappend="${link.current()} ? 'current'" th:attr="aria-current=${link.current() ? 'page' : null}">Aviso legal</a>
+    </nav>
+    <p class="lead legal-updated"
+       th:text="${language == 'en' ? 'Last updated: ' : language == 'pt' ? 'Última atualização: ' : 'Última actualización: '} + ${company.updated()}">
+        Última actualización: 16/10/2026</p>
+</main>
+</body>
+</html>

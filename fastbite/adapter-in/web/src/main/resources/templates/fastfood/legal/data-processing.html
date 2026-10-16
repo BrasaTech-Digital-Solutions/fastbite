@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<!-- Contrato de encargo del tratamiento (RGPD art. 28.3; LOPDGDD art. 33). DRAFT pending legal review. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<article th:fragment="es">
+    <p class="eyebrow">RGPD · art. 28</p>
+    <h1>Contrato de encargo del tratamiento</h1>
+    <p class="lead">Forma parte de las <a th:href="@{/legal/terms(lang='es')}">Condiciones del servicio</a> y se acepta
+        con ellas.</p>
+
+    <h2>1. Partes y objeto</h2>
+    <p>El <strong>Cliente</strong> (el restaurante que contrata FastBite) es el responsable del tratamiento de los datos
+        de sus clientes y de su personal. <strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>,
+        NIF <span th:text="${company.taxId()}">B09767898</span>, es el <strong>encargado del tratamiento</strong>: trata esos
+        datos solo para prestar FastBite al Cliente.</p>
+
+    <h2>2. Naturaleza, finalidad y duración</h2>
+    <p>Alojar, registrar, consultar, organizar y conservar los datos necesarios para la carta y los pedidos, el punto de
+        venta, la cocina, los pedidos para llevar, la facturación y el envío de registros VERI*FACTU a la Agencia
+        Tributaria. El encargo dura lo mismo que el contrato de servicio.</p>
+
+    <h2>3. Interesados y datos</h2>
+    <table>
+        <thead><tr><th>Interesados</th><th>Datos</th></tr></thead>
+        <tbody>
+        <tr><td>Clientes del restaurante</td><td>Pedidos, mesa, nombre para recoger un pedido, datos para una factura
+            completa (nombre o razón social, NIF y dirección), referencias de pago (nunca los datos de la tarjeta)</td></tr>
+        <tr><td>Personal del restaurante</td><td>Usuario, nombre, función y contraseña cifrada de forma irreversible;
+            pedidos y tickets que gestiona</td></tr>
+        </tbody>
+    </table>
+    <p>El servicio no está pensado para tratar categorías especiales de datos. La información de alérgenos describe los
+        platos, no a las personas.</p>
+
+    <h2>4. Obligaciones del encargado</h2>
+    <ol>
+        <li>Tratar los datos solo siguiendo las instrucciones documentadas del Cliente, que son estas condiciones y lo que
+            el Cliente configura en el servicio, salvo obligación legal, de la que le informaremos antes si la ley lo
+            permite.</li>
+        <li>Garantizar que las personas autorizadas a tratar los datos se han comprometido a respetar su
+            confidencialidad.</li>
+        <li>Aplicar las medidas de seguridad del artículo 32 del RGPD descritas en el apartado 6.</li>
+        <li>Recurrir a subencargados solo según el apartado 5.</li>
+        <li>Ayudar al Cliente a atender los derechos de los interesados. Si un interesado se dirige a nosotros, le
+            remitiremos al Cliente y se lo comunicaremos.</li>
+        <li>Ayudar al Cliente a cumplir sus obligaciones de seguridad, notificación de brechas, evaluaciones de impacto y
+            consultas previas, teniendo en cuenta la información de que dispongamos.</li>
+        <li>Notificar al Cliente sin dilación indebida, y en lo posible en 48 horas, cualquier violación de la seguridad de
+            los datos de la que tengamos conocimiento, con la información necesaria para que pueda notificarla.</li>
+        <li>Al terminar el servicio, permitir al Cliente exportar sus datos durante 30 días y después suprimirlos, salvo
+            que la ley exija conservarlos (por ejemplo, las facturas y los registros de facturación).</li>
+        <li>Poner a disposición del Cliente la información necesaria para demostrar el cumplimiento de este contrato y
+            permitir auditorías razonables, con aviso previo y sin acceso a datos de otros clientes.</li>
+    </ol>
+
+    <h2>5. Subencargados</h2>
+    <p>El Cliente autoriza de forma general el recurso a subencargados. Los actuales son:</p>
+    <table>
+        <thead><tr><th>Subencargado</th><th>Servicio</th><th>Ubicación</th></tr></thead>
+        <tbody>
+        <tr><td>Google Ireland Ltd. (Google Cloud, Firebase)</td><td>Alojamiento de la aplicación, base de datos y archivos</td>
+            <td>Unión Europea (Madrid)</td></tr>
+        <tr><td>Microsoft Ireland Operations Ltd. (Microsoft 365)</td><td>Correo electrónico del servicio</td>
+            <td>Unión Europea</td></tr>
+        </tbody>
+    </table>
+    <p>Avisaremos de cualquier alta o sustitución con al menos 30 días de antelación; el Cliente puede oponerse por
+        motivos razonables y, si no se encuentra solución, resolver el contrato. Cada subencargado queda sujeto a las
+        mismas obligaciones que este contrato. Stripe y la Agencia Tributaria no son subencargados: Stripe trata los pagos
+        como responsable propio y la Agencia Tributaria recibe los registros por obligación legal del Cliente.</p>
+
+    <h2>6. Medidas de seguridad</h2>
+    <ul>
+        <li>Cifrado de las comunicaciones (HTTPS) y de los datos almacenados por el proveedor de alojamiento.</li>
+        <li>Separación de los datos de cada restaurante en su propio esquema de base de datos.</li>
+        <li>Contraseñas guardadas con algoritmos de resumen irreversibles; control de acceso por funciones.</li>
+        <li>Copias de seguridad y posibilidad de exportación por el Cliente.</li>
+        <li>Actualización del software y registro de la actividad relevante para detectar y resolver incidentes.</li>
+    </ul>
+
+    <h2>7. Transferencias internacionales</h2>
+    <p>Los datos se alojan en la Unión Europea. Cualquier acceso desde fuera del Espacio Económico Europeo se hará con las
+        garantías del capítulo V del RGPD.</p>
+
+    <h2>8. Obligaciones del Cliente</h2>
+    <p>El Cliente garantiza que trata los datos de forma lícita, que informa a los interesados (puede usar la página de
+        privacidad que FastBite ofrece para cada local) y que sus instrucciones cumplen la normativa.</p>
+</article>
+
+<article th:fragment="en">
+    <p class="eyebrow">GDPR · Art. 28</p>
+    <h1>Data processing agreement</h1>
+    <p class="lead">Part of the <a th:href="@{/legal/terms(lang='en')}">Terms of service</a> and accepted with them. This
+        is a translation: the Spanish version prevails.</p>
+
+    <h2>1. Parties and subject</h2>
+    <p>The <strong>Customer</strong> (the restaurant using FastBite) is the controller of its guests' and staff's data.
+        <strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, tax ID
+        <span th:text="${company.taxId()}">B09767898</span>, is the <strong>processor</strong>: it handles that data only
+        to provide FastBite to the Customer.</p>
+
+    <h2>2. Nature, purpose and duration</h2>
+    <p>Hosting, recording, consulting, organising and keeping the data needed for the menu and orders, point of sale,
+        kitchen, takeaway, invoicing and sending VERI*FACTU records to the Spanish Tax Agency. The processing lasts as long
+        as the service contract.</p>
+
+    <h2>3. Data subjects and data</h2>
+    <table>
+        <thead><tr><th>Data subjects</th><th>Data</th></tr></thead>
+        <tbody>
+        <tr><td>Restaurant guests</td><td>Orders, table, name to collect an order, details for a full invoice (name, tax
+            ID and address), payment references (never card details)</td></tr>
+        <tr><td>Restaurant staff</td><td>Username, name, role and irreversibly hashed password; orders and tickets they
+            handle</td></tr>
+        </tbody>
+    </table>
+    <p>The service is not designed to handle special categories of data. Allergen information describes dishes, not
+        people.</p>
+
+    <h2>4. The processor's obligations</h2>
+    <ol>
+        <li>Process the data only on the Customer's documented instructions, which are these terms and what the Customer
+            configures in the service, unless the law requires otherwise; we will tell the Customer first where the law
+            allows.</li>
+        <li>Ensure that people authorised to process the data are bound to confidentiality.</li>
+        <li>Apply the Art. 32 GDPR security measures described in section 6.</li>
+        <li>Use sub-processors only as set out in section 5.</li>
+        <li>Help the Customer answer data subjects' requests. If a data subject contacts us, we will refer them to the
+            Customer and let the Customer know.</li>
+        <li>Help the Customer meet its obligations on security, breach notification, impact assessments and prior
+            consultation, given the information available to us.</li>
+        <li>Notify the Customer without undue delay, and where possible within 48 hours, of any personal data breach we
+            become aware of, with the information it needs to report it.</li>
+        <li>When the service ends, let the Customer export its data for 30 days and then delete it, unless the law
+            requires it to be kept (for example invoices and billing records).</li>
+        <li>Make available the information needed to show compliance with this agreement and allow reasonable audits, with
+            prior notice and without access to other customers' data.</li>
+    </ol>
+
+    <h2>5. Sub-processors</h2>
+    <p>The Customer gives general authorisation to use sub-processors. The current ones are:</p>
+    <table>
+        <thead><tr><th>Sub-processor</th><th>Service</th><th>Location</th></tr></thead>
+        <tbody>
+        <tr><td>Google Ireland Ltd. (Google Cloud, Firebase)</td><td>Hosting of the application, database and files</td>
+            <td>European Union (Madrid)</td></tr>
+        <tr><td>Microsoft Ireland Operations Ltd. (Microsoft 365)</td><td>Service email</td><td>European Union</td></tr>
+        </tbody>
+    </table>
+    <p>We will announce any addition or replacement at least 30 days in advance; the Customer may object on reasonable
+        grounds and, if no solution is found, end the contract. Each sub-processor is bound by the same obligations as this
+        agreement. Stripe and the Tax Agency are not sub-processors: Stripe handles payments as a controller in its own
+        right, and the Tax Agency receives records under the Customer's legal obligation.</p>
+
+    <h2>6. Security measures</h2>
+    <ul>
+        <li>Encryption of communications (HTTPS) and of data stored by the hosting provider.</li>
+        <li>Each restaurant's data kept in its own database schema.</li>
+        <li>Passwords stored with irreversible hashing; role-based access control.</li>
+        <li>Backups, and export by the Customer.</li>
+        <li>Up-to-date software and logging of relevant activity to detect and resolve incidents.</li>
+    </ul>
+
+    <h2>7. International transfers</h2>
+    <p>Data is hosted in the European Union. Any access from outside the European Economic Area will have the safeguards of
+        Chapter V of the GDPR.</p>
+
+    <h2>8. The Customer's obligations</h2>
+    <p>The Customer guarantees that it processes the data lawfully, that it informs data subjects (it can use the privacy
+        page FastBite provides for each location) and that its instructions comply with the law.</p>
+</article>
+
+<article th:fragment="pt">
+    <p class="eyebrow">RGPD · art. 28.º</p>
+    <h1>Contrato de subcontratação de tratamento de dados</h1>
+    <p class="lead">Faz parte dos <a th:href="@{/legal/terms(lang='pt')}">Termos de serviço</a> e é aceite com eles. Esta é
+        uma tradução: prevalece a versão em espanhol.</p>
+
+    <h2>1. Partes e objeto</h2>
+    <p>O <strong>Cliente</strong> (o restaurante que contrata a FastBite) é o responsável pelo tratamento dos dados dos seus
+        clientes e do seu pessoal. A <strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, NIF
+        <span th:text="${company.taxId()}">B09767898</span>, é o <strong>subcontratante</strong>: trata esses dados apenas
+        para prestar a FastBite ao Cliente.</p>
+
+    <h2>2. Natureza, finalidade e duração</h2>
+    <p>Alojar, registar, consultar, organizar e conservar os dados necessários para o menu e os pedidos, o ponto de venda,
+        a cozinha, os pedidos para levar, a faturação e o envio de registos VERI*FACTU à Agência Tributária espanhola. A
+        subcontratação dura o mesmo que o contrato de serviço.</p>
+
+    <h2>3. Titulares e dados</h2>
+    <table>
+        <thead><tr><th>Titulares</th><th>Dados</th></tr></thead>
+        <tbody>
+        <tr><td>Clientes do restaurante</td><td>Pedidos, mesa, nome para levantar um pedido, dados para uma fatura completa
+            (nome ou denominação, NIF e morada), referências de pagamento (nunca os dados do cartão)</td></tr>
+        <tr><td>Pessoal do restaurante</td><td>Utilizador, nome, função e palavra-passe com resumo irreversível; pedidos e
+            talões que gere</td></tr>
+        </tbody>
+    </table>
+    <p>O serviço não se destina a tratar categorias especiais de dados. A informação de alergénios descreve pratos, não
+        pessoas.</p>
+
+    <h2>4. Obrigações do subcontratante</h2>
+    <ol>
+        <li>Tratar os dados apenas segundo as instruções documentadas do Cliente, que são estes termos e o que o Cliente
+            configura no serviço, salvo obrigação legal, da qual o informaremos antes se a lei o permitir.</li>
+        <li>Garantir que as pessoas autorizadas a tratar os dados assumiram um compromisso de confidencialidade.</li>
+        <li>Aplicar as medidas de segurança do artigo 32.º do RGPD descritas no ponto 6.</li>
+        <li>Recorrer a subcontratantes ulteriores apenas nos termos do ponto 5.</li>
+        <li>Ajudar o Cliente a responder aos pedidos dos titulares. Se um titular nos contactar, encaminhá-lo-emos para o
+            Cliente e informaremos o Cliente.</li>
+        <li>Ajudar o Cliente a cumprir as suas obrigações de segurança, notificação de violações, avaliações de impacto e
+            consultas prévias, tendo em conta a informação de que dispomos.</li>
+        <li>Notificar o Cliente sem demora injustificada, e se possível em 48 horas, de qualquer violação de dados pessoais
+            de que tenhamos conhecimento, com a informação necessária para a poder notificar.</li>
+        <li>No fim do serviço, permitir ao Cliente exportar os seus dados durante 30 dias e depois apagá-los, salvo quando a
+            lei exija conservá-los (por exemplo, faturas e registos de faturação).</li>
+        <li>Disponibilizar a informação necessária para demonstrar o cumprimento deste contrato e permitir auditorias
+            razoáveis, com aviso prévio e sem acesso a dados de outros clientes.</li>
+    </ol>
+
+    <h2>5. Subcontratantes ulteriores</h2>
+    <p>O Cliente autoriza de forma geral o recurso a subcontratantes ulteriores. Os atuais são:</p>
+    <table>
+        <thead><tr><th>Subcontratante</th><th>Serviço</th><th>Localização</th></tr></thead>
+        <tbody>
+        <tr><td>Google Ireland Ltd. (Google Cloud, Firebase)</td><td>Alojamento da aplicação, base de dados e ficheiros</td>
+            <td>União Europeia (Madrid)</td></tr>
+        <tr><td>Microsoft Ireland Operations Ltd. (Microsoft 365)</td><td>Email do serviço</td><td>União Europeia</td></tr>
+        </tbody>
+    </table>
+    <p>Avisaremos de qualquer novo subcontratante ou substituição com pelo menos 30 dias de antecedência; o Cliente pode
+        opor-se por motivos razoáveis e, se não houver solução, resolver o contrato. Cada subcontratante fica sujeito às
+        mesmas obrigações deste contrato. A Stripe e a Agência Tributária não são subcontratantes: a Stripe trata os
+        pagamentos como responsável próprio e a Agência Tributária recebe os registos por obrigação legal do Cliente.</p>
+
+    <h2>6. Medidas de segurança</h2>
+    <ul>
+        <li>Cifragem das comunicações (HTTPS) e dos dados guardados pelo fornecedor de alojamento.</li>
+        <li>Dados de cada restaurante separados no seu próprio esquema de base de dados.</li>
+        <li>Palavras-passe guardadas com resumo irreversível; controlo de acesso por funções.</li>
+        <li>Cópias de segurança e exportação pelo Cliente.</li>
+        <li>Software atualizado e registo da atividade relevante para detetar e resolver incidentes.</li>
+    </ul>
+
+    <h2>7. Transferências internacionais</h2>
+    <p>Os dados estão alojados na União Europeia. Qualquer acesso a partir de fora do Espaço Económico Europeu terá as
+        garantias do capítulo V do RGPD.</p>
+
+    <h2>8. Obrigações do Cliente</h2>
+    <p>O Cliente garante que trata os dados de forma lícita, que informa os titulares (pode usar a página de privacidade que
+        a FastBite disponibiliza para cada local) e que as suas instruções cumprem a lei.</p>
+</article>
+
+</body>
+</html>

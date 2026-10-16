@@ -44,7 +44,9 @@ public class SecurityConfig {
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",
                                 // Production's single-use sign-in links into the sandbox (SandboxEntryController)
-                                "/link/enter").permitAll()
+                                "/link/enter",
+                                // Legal pages, and each restaurant's privacy notice for its guests (LegalController)
+                                "/legal/**", "/privacy", "/*/privacy").permitAll()
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
                                 "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()

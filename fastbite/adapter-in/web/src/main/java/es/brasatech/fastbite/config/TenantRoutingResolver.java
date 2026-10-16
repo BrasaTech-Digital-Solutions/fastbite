@@ -33,7 +33,7 @@ public class TenantRoutingResolver {
     private static final Set<String> RESERVED = Set.of(
             "signup", "login", "logout", "owner", "menu", "dashboard", "counter", "backoffice",
             "api", "css", "js", "images", "webjars", "stripe", "error", "actuator", "appspecific", "allergens", "verifactu",
-            "internal", "link");
+            "internal", "link", "legal", "privacy");
 
     private static final int CUSTOM_DOMAIN_CACHE_SIZE = 1024;
 

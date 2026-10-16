@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<!-- Condiciones del servicio (contrato B2B). DRAFT pending legal review: see docs/legal/README.md.
+     Prices and trial length come from SubscriptionPlan through LegalController, so they match what the app charges. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<article th:fragment="es">
+    <p class="eyebrow">Contrato de servicio para empresas</p>
+    <h1>Condiciones del servicio</h1>
+    <p class="lead">Las condiciones entre <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+        NIF <span th:text="${company.taxId()}">B09767898</span>, con domicilio en <span th:text="${company.address()}">Santa Pola</span>
+        («FastBite», «nosotros») y la empresa o profesional que contrata FastBite para su restaurante («el Cliente»).</p>
+
+    <h2>1. Objeto y aceptación</h2>
+    <p>FastBite es un servicio en la nube (software como servicio) para gestionar restaurantes: carta digital y pedidos
+        por QR, punto de venta, pantalla de cocina, pedidos para llevar, información de alérgenos y emisión de facturas.
+        Al crear una cuenta, el Cliente acepta estas condiciones, el
+        <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>, que forma parte de
+        ellas, y declara haber leído la <a th:href="@{/legal/privacy(lang='es')}">Política de privacidad</a>.</p>
+    <p>FastBite se ofrece solo a empresas y profesionales que actúan en el marco de su actividad, no a consumidores.
+        Quien acepta declara tener facultades para obligar al Cliente.</p>
+
+    <h2>2. Cuenta, locales y personal</h2>
+    <ul>
+        <li>El Cliente crea una cuenta de titular y uno o varios locales. Cada local tiene su carta, su personal, sus datos
+            fiscales y su propia suscripción.</li>
+        <li>El Cliente custodia sus credenciales y las de su personal, y responde del uso que se haga con ellas. Debe
+            avisarnos sin demora si sospecha un acceso no autorizado.</li>
+        <li>El Cliente da de alta a su personal y le asigna funciones. Es responsable de que el personal use el servicio
+            conforme a estas condiciones.</li>
+    </ul>
+
+    <h2>3. Entorno de prácticas (sandbox)</h2>
+    <p>Cada local tiene un espacio de prácticas para aprender y preparar su configuración. En él nada tiene efectos
+        reales: no se cobran pagos, los tickets son de formación y no tienen validez fiscal, y los registros se envían
+        solo al entorno de pruebas de la Agencia Tributaria. El Cliente puede trasladar su configuración (carta, ajustes,
+        aspecto y datos fiscales) al entorno real; los pedidos, cuentas de personal y ajustes de pago de prácticas no se
+        trasladan. Podemos restablecer el espacio de prácticas avisando con antelación razonable.</p>
+
+    <h2>4. Planes y precios</h2>
+    <ul>
+        <li><strong>Plan Restaurante</strong>: <span th:text="${plans.monthlyPrice()}">49</span> € al mes por local, más
+            IVA. Incluye <span th:text="${plans.trialDays()}">30</span> días de prueba gratuita sin tarjeta.</li>
+        <li><strong>Plan Gratuito</strong>: 0 € al mes. Sobre los pedidos para llevar pagados en línea con tarjeta se
+            aplica una comisión de plataforma del <span th:text="${plans.freeFee()}">2,5</span> % de su importe, que se
+            retiene en el propio pago.</li>
+        <li>Para tres locales o más puede solicitarse un precio por volumen.</li>
+        <li>Las comisiones del proveedor de pagos (Stripe) son independientes de estos precios.</li>
+    </ul>
+    <p>Podemos cambiar los precios avisando con al menos 30 días de antelación. El Cliente que no esté de acuerdo puede
+        cancelar antes de que el cambio se aplique.</p>
+
+    <h2>5. Facturación, pago y fin de la prueba</h2>
+    <ul>
+        <li>La suscripción se paga por meses anticipados, mediante Stripe, con el medio de pago que el Cliente registre.
+            Emitimos factura de cada cobro.</li>
+        <li>Al terminar la prueba o la suscripción, o si un cobro no se atiende, se <strong>pausan los pedidos nuevos</strong>
+            del local. El acceso, la facturación, los pedidos existentes y la exportación de datos siguen disponibles
+            para que el Cliente pueda regularizar la situación o llevarse sus datos.</li>
+        <li>El Cliente puede cancelar en cualquier momento desde la facturación del local; la cancelación tiene efecto al
+            final del periodo ya pagado. No se reembolsan periodos parciales salvo que la ley lo exija.</li>
+    </ul>
+
+    <h2>6. Cobros a los clientes del restaurante</h2>
+    <p>Si el Cliente activa los pagos en línea, los recibe en su propia cuenta de Stripe, que contrata directamente con
+        Stripe y conforme a sus condiciones. FastBite no custodia ese dinero. El Cliente es responsable de sus precios,
+        de los reembolsos a sus clientes y de las disputas sobre sus pagos.</p>
+
+    <h2>7. Facturas y VERI*FACTU</h2>
+    <ul>
+        <li>FastBite emite las facturas del restaurante en nombre del Cliente, con los datos fiscales que el Cliente
+            introduce, y genera los registros de facturación que exige el Reglamento aprobado por el Real Decreto
+            1007/2023 (VERI*FACTU). Ofrecemos la declaración responsable del sistema en
+            <a href="/verifactu/declaracion-responsable">/verifactu/declaracion-responsable</a>.</li>
+        <li>El Cliente es el obligado tributario: responde de la exactitud de sus datos fiscales, de los tipos de IVA que
+            aplica y del contenido de sus facturas.</li>
+        <li>Para que FastBite remita los registros a la Agencia Tributaria en su nombre, el Cliente otorga la
+            representación necesaria (apoderamiento o el mecanismo de colaboración social que corresponda). Sin ella, el
+            envío no puede realizarse.</li>
+    </ul>
+
+    <h2>8. Obligaciones del Cliente</h2>
+    <ul>
+        <li>Usar el servicio conforme a la ley y a estas condiciones.</li>
+        <li>Mantener exactos sus precios, descripciones y la <strong>información de alérgenos</strong> de su carta, de la
+            que es el único responsable (Reglamento (UE) 1169/2011).</li>
+        <li>Informar a sus clientes y a su personal del tratamiento de sus datos; FastBite ofrece a cada local una página de
+            privacidad para sus clientes que el Cliente debe revisar.</li>
+        <li>No intentar acceder a datos de otros clientes, eludir medidas de seguridad, sobrecargar el servicio ni
+            revenderlo sin autorización.</li>
+    </ul>
+
+    <h2>9. Datos del Cliente</h2>
+    <p>Los datos que el Cliente introduce (carta, pedidos, facturas, personal) son suyos. Los tratamos por su cuenta según
+        el <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>. El Cliente puede
+        exportarlos en cualquier momento desde la consola (copia de seguridad).</p>
+
+    <h2>10. Disponibilidad, soporte y cambios del servicio</h2>
+    <p>Procuramos que el servicio esté disponible de forma continua, pero puede haber interrupciones por mantenimiento,
+        actualizaciones o causas ajenas a nosotros; avisaremos de las programadas cuando sea posible. Damos soporte por
+        correo electrónico en días laborables. Podemos mejorar o cambiar funciones; si retiramos una función esencial,
+        avisaremos con antelación razonable.</p>
+
+    <h2>11. Propiedad intelectual</h2>
+    <p>FastBite, su software y su marca son nuestros o de nuestros licenciantes. El Cliente recibe un derecho de uso no
+        exclusivo e intransferible mientras dure el contrato. El Cliente conserva sus contenidos y nos autoriza a usarlos
+        solo para prestar el servicio.</p>
+
+    <h2>12. Responsabilidad</h2>
+    <p>Respondemos de los daños causados por nuestro dolo o negligencia grave. En los demás casos, nuestra
+        responsabilidad total frente al Cliente se limita al importe que haya pagado por el servicio en los doce meses
+        anteriores al hecho que la cause, y no cubre el lucro cesante ni los daños indirectos. Estas limitaciones no
+        se aplican cuando la ley no lo permita.</p>
+
+    <h2>13. Duración y terminación</h2>
+    <ul>
+        <li>El contrato dura mientras el Cliente mantenga su cuenta. Puede darla de baja en cualquier momento.</li>
+        <li>Podemos suspender o resolver el contrato si el Cliente incumple gravemente estas condiciones, en particular
+            por impago o uso ilícito, tras avisarle cuando sea posible.</li>
+        <li>Al terminar, el Cliente dispone de 30 días para exportar sus datos. Después los suprimimos, salvo lo que la ley
+            obligue a conservar, como las facturas y los registros de facturación.</li>
+    </ul>
+
+    <h2>14. Cambios en estas condiciones</h2>
+    <p>Podemos modificar estas condiciones avisando con al menos 30 días de antelación. Si el Cliente no está de
+        acuerdo, puede dar de baja la cuenta antes de que entren en vigor.</p>
+
+    <h2>15. Ley aplicable y jurisdicción</h2>
+    <p>Estas condiciones se rigen por la legislación española. Para cualquier controversia, las partes se someten a los
+        juzgados y tribunales de Alicante. La versión en español prevalece sobre cualquier traducción.</p>
+</article>
+
+<article th:fragment="en">
+    <p class="eyebrow">Service contract for businesses</p>
+    <h1>Terms of service</h1>
+    <p class="lead">The terms between <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+        tax ID <span th:text="${company.taxId()}">B09767898</span>, of <span th:text="${company.address()}">Santa Pola</span>
+        ("FastBite", "we") and the business or professional that uses FastBite for its restaurant ("the Customer"). This is
+        a translation: the Spanish version prevails.</p>
+
+    <h2>1. Purpose and acceptance</h2>
+    <p>FastBite is a cloud service (software as a service) for running restaurants: digital menus and QR ordering, point
+        of sale, kitchen display, takeaway orders, allergen information and invoicing. By creating an account, the
+        Customer accepts these terms and the <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>,
+        which is part of them, and confirms having read the <a th:href="@{/legal/privacy(lang='en')}">Privacy policy</a>.</p>
+    <p>FastBite is offered only to businesses and professionals acting in the course of their business, not to
+        consumers. Whoever accepts confirms they have authority to bind the Customer.</p>
+
+    <h2>2. Account, locations and staff</h2>
+    <ul>
+        <li>The Customer creates an owner account and one or more locations. Each location has its own menu, staff, tax
+            details and subscription.</li>
+        <li>The Customer keeps its own and its staff's credentials safe and is responsible for their use. It must tell us
+            promptly if it suspects unauthorised access.</li>
+        <li>The Customer creates its staff accounts and gives them roles, and is responsible for staff using the service
+            according to these terms.</li>
+    </ul>
+
+    <h2>3. Practice environment (sandbox)</h2>
+    <p>Each location has a practice space to learn and prepare its setup. Nothing there has real effect: no payments are
+        taken, tickets are training tickets with no tax value, and records go only to the Tax Agency's test environment.
+        The Customer can move its setup (menu, settings, look and tax details) to the live environment; practice orders,
+        staff accounts and payment settings are not moved. We may reset the practice space with reasonable notice.</p>
+
+    <h2>4. Plans and prices</h2>
+    <ul>
+        <li><strong>Restaurant plan</strong>: €<span th:text="${plans.monthlyPrice()}">49</span> per month per location,
+            plus VAT, including a <span th:text="${plans.trialDays()}">30</span>-day free trial with no card required.</li>
+        <li><strong>Free plan</strong>: €0 per month. Takeaway orders paid online by card carry a platform fee of
+            <span th:text="${plans.freeFee()}">2,5</span>% of their amount, withheld from the payment itself.</li>
+        <li>Volume pricing can be requested for three or more locations.</li>
+        <li>The payment provider's (Stripe's) fees are separate from these prices.</li>
+    </ul>
+    <p>We may change prices with at least 30 days' notice. A Customer who does not agree can cancel before the change
+        applies.</p>
+
+    <h2>5. Billing, payment and the end of the trial</h2>
+    <ul>
+        <li>The subscription is paid monthly in advance through Stripe, with the payment method the Customer registers. We
+            issue an invoice for each charge.</li>
+        <li>When the trial or the subscription ends, or a charge fails, <strong>new orders are paused</strong> for that
+            location. Sign-in, billing, existing orders and data export stay available so the Customer can put things
+            right or take its data.</li>
+        <li>The Customer can cancel at any time from the location's billing page; cancellation takes effect at the end of
+            the period already paid. Partial periods are not refunded unless the law requires it.</li>
+    </ul>
+
+    <h2>6. Payments from the restaurant's guests</h2>
+    <p>If the Customer turns on online payments, it receives them in its own Stripe account, which it contracts directly
+        with Stripe under Stripe's terms. FastBite does not hold that money. The Customer is responsible for its prices,
+        refunds to its guests and disputes about its payments.</p>
+
+    <h2>7. Invoices and VERI*FACTU</h2>
+    <ul>
+        <li>FastBite issues the restaurant's invoices in the Customer's name, with the tax details the Customer enters,
+            and creates the billing records required by the Regulation approved by Spanish Royal Decree 1007/2023
+            (VERI*FACTU). The system's statement of compliance is at
+            <a href="/verifactu/declaracion-responsable">/verifactu/declaracion-responsable</a>.</li>
+        <li>The Customer is the taxpayer: it is responsible for the accuracy of its tax details, the VAT rates it applies
+            and the content of its invoices.</li>
+        <li>For FastBite to send records to the Tax Agency on its behalf, the Customer grants the necessary authorisation
+            (a power of representation or the applicable social collaboration arrangement). Without it, records cannot be
+            sent.</li>
+    </ul>
+
+    <h2>8. The Customer's obligations</h2>
+    <ul>
+        <li>Use the service lawfully and according to these terms.</li>
+        <li>Keep its prices, descriptions and the <strong>allergen information</strong> on its menu accurate; it is solely
+            responsible for them (Regulation (EU) 1169/2011).</li>
+        <li>Inform its guests and staff about how their data is handled; FastBite gives each location a privacy page for
+            its guests, which the Customer must review.</li>
+        <li>Not try to access other customers' data, get around security measures, overload the service or resell it
+            without permission.</li>
+    </ul>
+
+    <h2>9. The Customer's data</h2>
+    <p>The data the Customer enters (menu, orders, invoices, staff) belongs to it. We handle it on the Customer's behalf
+        under the <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>. The Customer can export
+        it at any time from the console (backup).</p>
+
+    <h2>10. Availability, support and changes to the service</h2>
+    <p>We aim to keep the service available continuously, but there may be interruptions for maintenance, updates or
+        causes beyond our control; we will announce planned ones where possible. Support is by email on working days.
+        We may improve or change features; if we remove an essential feature, we will give reasonable notice.</p>
+
+    <h2>11. Intellectual property</h2>
+    <p>FastBite, its software and its brand belong to us or our licensors. The Customer receives a non-exclusive,
+        non-transferable right to use them while the contract lasts. The Customer keeps its content and lets us use it
+        only to provide the service.</p>
+
+    <h2>12. Liability</h2>
+    <p>We are liable for damage caused by our wilful misconduct or gross negligence. Otherwise, our total liability to the
+        Customer is limited to the amount it paid for the service in the twelve months before the event giving rise to it,
+        and excludes lost profits and indirect damage. These limits do not apply where the law does not allow them.</p>
+
+    <h2>13. Term and termination</h2>
+    <ul>
+        <li>The contract lasts while the Customer keeps its account. It can close the account at any time.</li>
+        <li>We may suspend or end the contract if the Customer seriously breaches these terms, in particular by not paying
+            or by unlawful use, after notice where possible.</li>
+        <li>When the contract ends, the Customer has 30 days to export its data. We then delete it, except what the law
+            requires us to keep, such as invoices and billing records.</li>
+    </ul>
+
+    <h2>14. Changes to these terms</h2>
+    <p>We may change these terms with at least 30 days' notice. A Customer who does not agree can close its account before
+        they take effect.</p>
+
+    <h2>15. Governing law and jurisdiction</h2>
+    <p>These terms are governed by Spanish law. The parties submit any dispute to the courts of Alicante. The Spanish
+        version prevails over any translation.</p>
+</article>
+
+<article th:fragment="pt">
+    <p class="eyebrow">Contrato de serviço para empresas</p>
+    <h1>Termos de serviço</h1>
+    <p class="lead">Os termos entre a <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+        NIF <span th:text="${company.taxId()}">B09767898</span>, com sede em <span th:text="${company.address()}">Santa Pola</span>
+        («FastBite», «nós») e a empresa ou profissional que contrata a FastBite para o seu restaurante («o Cliente»). Esta é
+        uma tradução: prevalece a versão em espanhol.</p>
+
+    <h2>1. Objeto e aceitação</h2>
+    <p>A FastBite é um serviço na nuvem (software como serviço) para gerir restaurantes: menu digital e pedidos por QR,
+        ponto de venda, ecrã de cozinha, pedidos para levar, informação de alergénios e emissão de faturas. Ao criar uma
+        conta, o Cliente aceita estes termos e o <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>,
+        que deles faz parte, e declara ter lido a <a th:href="@{/legal/privacy(lang='pt')}">Política de privacidade</a>.</p>
+    <p>A FastBite é oferecida apenas a empresas e profissionais que atuam no âmbito da sua atividade, não a
+        consumidores. Quem aceita declara ter poderes para vincular o Cliente.</p>
+
+    <h2>2. Conta, locais e pessoal</h2>
+    <ul>
+        <li>O Cliente cria uma conta de titular e um ou vários locais. Cada local tem o seu menu, pessoal, dados fiscais e
+            subscrição própria.</li>
+        <li>O Cliente guarda as suas credenciais e as do seu pessoal e responde pela sua utilização. Deve avisar-nos sem
+            demora se suspeitar de um acesso não autorizado.</li>
+        <li>O Cliente cria as contas do seu pessoal e atribui-lhes funções, e é responsável por o pessoal usar o serviço de
+            acordo com estes termos.</li>
+    </ul>
+
+    <h2>3. Ambiente de prática (sandbox)</h2>
+    <p>Cada local tem um espaço de prática para aprender e preparar a sua configuração. Nada nele tem efeitos reais: não
+        se cobram pagamentos, os talões são de formação sem valor fiscal e os registos vão apenas para o ambiente de testes
+        da Agência Tributária espanhola. O Cliente pode passar a sua configuração (menu, definições, aspeto e dados fiscais)
+        para o ambiente real; os pedidos, contas de pessoal e definições de pagamento de prática não passam. Podemos
+        reiniciar o espaço de prática com aviso prévio razoável.</p>
+
+    <h2>4. Planos e preços</h2>
+    <ul>
+        <li><strong>Plano Restaurante</strong>: <span th:text="${plans.monthlyPrice()}">49</span> € por mês por local, mais
+            IVA, com <span th:text="${plans.trialDays()}">30</span> dias de experiência gratuita sem cartão.</li>
+        <li><strong>Plano Gratuito</strong>: 0 € por mês. Os pedidos para levar pagos online com cartão têm uma comissão de
+            plataforma de <span th:text="${plans.freeFee()}">2,5</span> % do seu valor, retida no próprio pagamento.</li>
+        <li>Para três ou mais locais pode pedir-se um preço por volume.</li>
+        <li>As comissões do fornecedor de pagamentos (Stripe) são independentes destes preços.</li>
+    </ul>
+    <p>Podemos alterar os preços com pelo menos 30 dias de aviso prévio. O Cliente que não concorde pode cancelar antes de
+        a alteração se aplicar.</p>
+
+    <h2>5. Faturação, pagamento e fim da experiência</h2>
+    <ul>
+        <li>A subscrição paga-se mensalmente e de forma antecipada, através da Stripe, com o meio de pagamento que o Cliente
+            registar. Emitimos fatura de cada cobrança.</li>
+        <li>Quando termina a experiência ou a subscrição, ou uma cobrança falha, <strong>os novos pedidos ficam em pausa</strong>
+            nesse local. O acesso, a faturação, os pedidos existentes e a exportação de dados continuam disponíveis para
+            que o Cliente possa regularizar a situação ou levar os seus dados.</li>
+        <li>O Cliente pode cancelar a qualquer momento na faturação do local; o cancelamento produz efeito no fim do período
+            já pago. Não se reembolsam períodos parciais, salvo quando a lei o exija.</li>
+    </ul>
+
+    <h2>6. Cobranças aos clientes do restaurante</h2>
+    <p>Se o Cliente ativar os pagamentos online, recebe-os na sua própria conta Stripe, que contrata diretamente com a
+        Stripe nos termos desta. A FastBite não guarda esse dinheiro. O Cliente é responsável pelos seus preços, pelos
+        reembolsos aos seus clientes e pelas disputas sobre os seus pagamentos.</p>
+
+    <h2>7. Faturas e VERI*FACTU</h2>
+    <ul>
+        <li>A FastBite emite as faturas do restaurante em nome do Cliente, com os dados fiscais que o Cliente introduz, e
+            gera os registos de faturação exigidos pelo Regulamento aprovado pelo Real Decreto espanhol 1007/2023
+            (VERI*FACTU). A declaração de conformidade do sistema está em
+            <a href="/verifactu/declaracion-responsable">/verifactu/declaracion-responsable</a>.</li>
+        <li>O Cliente é o sujeito passivo: responde pela exatidão dos seus dados fiscais, pelas taxas de IVA que aplica e
+            pelo conteúdo das suas faturas.</li>
+        <li>Para que a FastBite envie os registos à Agência Tributária em seu nome, o Cliente concede a representação
+            necessária (procuração ou o mecanismo de colaboração social aplicável). Sem ela, o envio não é possível.</li>
+    </ul>
+
+    <h2>8. Obrigações do Cliente</h2>
+    <ul>
+        <li>Usar o serviço de acordo com a lei e estes termos.</li>
+        <li>Manter exatos os seus preços, descrições e a <strong>informação de alergénios</strong> do seu menu, pela qual é
+            o único responsável (Regulamento (UE) 1169/2011).</li>
+        <li>Informar os seus clientes e o seu pessoal sobre o tratamento dos seus dados; a FastBite dá a cada local uma
+            página de privacidade para os seus clientes, que o Cliente deve rever.</li>
+        <li>Não tentar aceder a dados de outros clientes, contornar medidas de segurança, sobrecarregar o serviço nem
+            revendê-lo sem autorização.</li>
+    </ul>
+
+    <h2>9. Dados do Cliente</h2>
+    <p>Os dados que o Cliente introduz (menu, pedidos, faturas, pessoal) são seus. Tratamo-los por sua conta nos termos do
+        <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>. O Cliente pode exportá-los a
+        qualquer momento na consola (cópia de segurança).</p>
+
+    <h2>10. Disponibilidade, suporte e alterações ao serviço</h2>
+    <p>Procuramos que o serviço esteja disponível de forma contínua, mas pode haver interrupções por manutenção,
+        atualizações ou causas alheias; avisaremos das programadas sempre que possível. O suporte é prestado por email em
+        dias úteis. Podemos melhorar ou alterar funcionalidades; se retirarmos uma funcionalidade essencial, avisaremos com
+        antecedência razoável.</p>
+
+    <h2>11. Propriedade intelectual</h2>
+    <p>A FastBite, o seu software e a sua marca pertencem-nos ou aos nossos licenciantes. O Cliente recebe um direito de
+        utilização não exclusivo e intransmissível enquanto durar o contrato. O Cliente mantém os seus conteúdos e
+        autoriza-nos a usá-los apenas para prestar o serviço.</p>
+
+    <h2>12. Responsabilidade</h2>
+    <p>Respondemos pelos danos causados por dolo ou negligência grave. Nos restantes casos, a nossa responsabilidade total
+        perante o Cliente limita-se ao montante pago pelo serviço nos doze meses anteriores ao facto que a origine, e não
+        abrange lucros cessantes nem danos indiretos. Estas limitações não se aplicam quando a lei não o permita.</p>
+
+    <h2>13. Duração e cessação</h2>
+    <ul>
+        <li>O contrato dura enquanto o Cliente mantiver a conta. Pode encerrá-la a qualquer momento.</li>
+        <li>Podemos suspender ou resolver o contrato se o Cliente violar gravemente estes termos, em especial por falta de
+            pagamento ou uso ilícito, após aviso sempre que possível.</li>
+        <li>No fim do contrato, o Cliente tem 30 dias para exportar os seus dados. Depois apagamo-los, exceto o que a lei
+            obrigue a conservar, como as faturas e os registos de faturação.</li>
+    </ul>
+
+    <h2>14. Alterações a estes termos</h2>
+    <p>Podemos alterar estes termos com pelo menos 30 dias de aviso prévio. O Cliente que não concorde pode encerrar a
+        conta antes de entrarem em vigor.</p>
+
+    <h2>15. Lei aplicável e foro</h2>
+    <p>Estes termos regem-se pela lei espanhola. As partes submetem qualquer litígio aos tribunais de Alicante. A versão em
+        espanhol prevalece sobre qualquer tradução.</p>
+</article>
+
+</body>
+</html>

@@ -134,6 +134,16 @@ fastbite:
   # production report the same one when they run the same image; production only imports promotion
   # bundles exported by the same version.
   version: ${FASTBITE_VERSION:@project.version@}
+  # Who provides FastBite, as the legal pages show it (/legal/notice and the others; see docs/legal/README.md).
+  # The registry entry (Registro Mercantil: tomo, folio, hoja, inscripción) must be filled in before going live.
+  legal:
+    company-name: ${LEGAL_COMPANY_NAME:BRASATECH DIGITAL SOLUTIONS S.L.}
+    tax-id: ${LEGAL_TAX_ID:B09767898}
+    address: ${LEGAL_ADDRESS:Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España}
+    email: ${LEGAL_EMAIL:info@brasatech.es}
+    registry: ${LEGAL_REGISTRY:}
+    website: ${LEGAL_WEBSITE:https://fastbite.brasatech.es}
+    updated: ${LEGAL_UPDATED:16/10/2026}
   # The billing software as VERI*FACTU records name it (SistemaInformatico). The producer signs the
   # declaración responsable of each version.
   verifactu:
