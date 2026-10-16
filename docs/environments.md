@@ -170,6 +170,24 @@ docker compose up --build
 5. Restore it in production on the same page of http://fastbite.localhost:8088.
 6. You stay signed in to both.
 
+### Release Check (`scripts/release-check.sh`)
+
+Before any release or deployment, ensure the stack is running with the current image (`docker compose up -d`), then run the end-to-end release check against the running Docker Compose containers through the proxy:
+
+```bash
+bash scripts/release-check.sh
+```
+
+The script:
+1. Provisions a throwaway tenant on `http://fastbite.localhost:8088`, enters the sandbox, sets up the cafe concept, and records a cash payment (verifying fiscal ticket creation).
+2. Creates a staff user with `CASHIER` role, signs in at `/{tenant}/login`, and tests cashier surfaces (`counter`, `tickets`, `day-report`, `api/cash`, `dashboard`).
+3. Sweeps guest pages (`menu`, `allergens`, `declaracion-responsable`), legal pages across all supported languages (`es`, `en`, `pt`), and the cart calculation endpoint.
+4. Sweeps owner pages across all setting sections (`legal`, `appearance`, `payments`, `backup`, `advanced`) and POST fragments (`image-gallery`).
+5. Exercises promotion: exports the production promotion bundle from the sandbox and imports it into production.
+6. Verifies static assets and self-hosted fonts (`live-updates.js`, `fonts.css`, `.woff2` files, `qrcode.min.js`).
+7. Greps container logs for both `production` and `sandbox` since the run started for `TemplateProcessingException`, `SpelEvaluationException`, `MissingReflectionRegistrationError`, or `ERROR`.
+8. Cleans up temporary files and cookies automatically on exit, outputs a single-line summary, and exits non-zero if any check fails or any error is logged.
+
 ## Firebase Hosting & Cloud Run
 
 Firebase Hosting provides the public edge (custom domains, SSL certificates, CDN) and forwards traffic
