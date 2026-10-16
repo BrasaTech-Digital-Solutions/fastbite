@@ -141,7 +141,7 @@ public class OwnerWorkspaceController {
         Map<String, String> wrong = workspace.saveFiscalProfile(owner.getName(), tenant, profile);
         if (!wrong.isEmpty()) {
             flash.addFlashAttribute("fiscalDraft", profile);
-            flash.addFlashAttribute("fiscalErrors", wrong);
+            flash.addFlashAttribute("fiscalErrors", new java.util.HashMap<>(wrong));
         } else {
             flash.addFlashAttribute("notice", messages.getMessage(
                     profile.complete() ? "owner.legal.saved" : "owner.legal.saved.incomplete", null, locale));

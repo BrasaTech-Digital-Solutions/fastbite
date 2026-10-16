@@ -140,6 +140,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.serialization().registerType(java.time.Instant.class);
         hints.serialization().registerType(es.brasatech.fastbite.domain.user.Role.class);
         hints.serialization().registerType(UserDto.class);
+        hints.serialization().registerType(es.brasatech.fastbite.domain.fiscal.FiscalProfile.class);
 
         // Reflection hints for DTOs and Domain objects used in Thymeleaf/SpEL
         hints.reflection().registerType(TypeReference.of(java.math.BigDecimal.class), MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS, MemberCategory.INVOKE_PUBLIC_METHODS);

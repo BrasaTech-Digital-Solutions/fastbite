@@ -21,7 +21,10 @@ import java.util.Map;
  */
 public record FiscalProfile(String legalName, String tradeName, String taxId, String addressLine,
         String postalCode, String city, String province, String phone, String email, String seriesPrefix,
-        BigDecimal defaultVatRate) {
+        BigDecimal defaultVatRate) implements java.io.Serializable {
+
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
 
     public static final FiscalProfile EMPTY = new FiscalProfile(null, null, null, null, null, null, null, null,
             null, null, VatRates.DEFAULT);

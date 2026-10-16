@@ -102,5 +102,17 @@ class OwnerWorkspaceFlowTest {
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM tenant_workspacesecond.orders",Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_workspacesecond.products",Integer.class)>0);
         assertEquals(200,get(owner,"/owner/console?location=workspacesecond").statusCode());
+
+        // Test item 2: invalid legal form submission flashes errors into session and survives 302 redirect
+        String legalToken = csrf(get(owner, "/owner/console?view=location-settings&section=legal&location=workspacecafe").body());
+        var invalidPost = post(owner, "/owner/workspace/workspacecafe/legal", "legalName=Test&taxId=INVALID_NIF&_csrf=" + legalToken);
+        assertEquals(302, invalidPost.statusCode());
+        String redirectTarget = invalidPost.headers().firstValue("location").orElse("");
+        assertTrue(redirectTarget.contains("/owner/console?view=location-settings&section=legal&location=workspacecafe"));
+        String redirectPath = URI.create(redirectTarget).getRawPath() + "?" + URI.create(redirectTarget).getRawQuery();
+        var afterRedirect = get(owner, redirectPath);
+        assertEquals(200, afterRedirect.statusCode());
+        assertTrue(afterRedirect.body().contains("INVALID_NIF"));
+        assertTrue(afterRedirect.body().contains("Please check the highlighted fields."));
     }
 }
