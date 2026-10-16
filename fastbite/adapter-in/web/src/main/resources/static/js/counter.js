@@ -1091,29 +1091,31 @@ function startRealtimeOrderUpdates() {
     }
 
     const sseUrl = getTenantPrefix() + '/api/orders/live';
-    if (window.EventSource) {
-        try {
-            const sseSource = new EventSource(sseUrl);
-            sseSource.addEventListener('order-update', (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data && data.orderNumber) {
-                        showToast(`Order #${data.orderNumber} updated: ${data.status}`);
-                    }
-                    if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
-                        window.kitchenChime.play();
-                    }
-                } catch (e) {
-                    console.debug('SSE event parse error in counter', e);
-                }
-                showTableCount();
-                refreshPickupCount();
-                if (selectedTable) {
-                    loadOrders();
-                }
-            });
-        } catch (e) {
-            console.warn('Counter SSE failed', e);
+
+    function refreshCounterView() {
+        showTableCount();
+        refreshPickupCount();
+        if (selectedTable) {
+            loadOrders();
         }
     }
+
+    connectLiveUpdates(sseUrl, {
+        poll: refreshCounterView,
+        intervalMs: 5000,
+        onUpdate: function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && data.orderNumber) {
+                    showToast(`Order #${data.orderNumber} updated: ${data.status}`);
+                }
+                if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
+                    window.kitchenChime.play();
+                }
+            } catch (e) {
+                console.debug('SSE event parse error in counter', e);
+            }
+            refreshCounterView();
+        }
+    });
 }

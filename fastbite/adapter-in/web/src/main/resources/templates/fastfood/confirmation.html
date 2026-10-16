@@ -100,6 +100,7 @@
             </div>
         </div>
     </div>
+    <script th:src="@{/js/live-updates.js}"></script>
     <script>
 
 
@@ -120,8 +121,7 @@
         }
 
         function startOrderProgressPolling() {
-            let eventSource = null;
-            let fallbackTimer = null;
+            let liveUpdates = null;
             const orderStatusUrl = getTenantPrefix() + '/api/order-status';
             const sseUrl = getTenantPrefix() + '/api/order-status/live';
 
@@ -141,35 +141,23 @@
             // Immediate initial poll
             pollOnce();
 
-            if (window.EventSource) {
-                try {
-                    eventSource = new EventSource(sseUrl);
-                    eventSource.addEventListener('order-update', (event) => {
-                        try {
-                            const data = JSON.parse(event.data);
-                            if (data && data.status) {
-                                updateProgressTracker(data.status);
-                                if (FINISHED_STATUSES.includes(data.status)) {
-                                    eventSource.close();
-                                }
+            liveUpdates = connectLiveUpdates(sseUrl, {
+                poll: pollOnce,
+                intervalMs: 5000,
+                onUpdate: function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data && data.status) {
+                            updateProgressTracker(data.status);
+                            if (FINISHED_STATUSES.includes(data.status) && liveUpdates) {
+                                liveUpdates.close();
                             }
-                        } catch (e) {
-                            console.error('Failed to parse order-update event', e);
                         }
-                    });
-
-                    eventSource.onerror = () => {
-                        if (!fallbackTimer) {
-                            fallbackTimer = setInterval(pollOnce, 5000);
-                        }
-                    };
-                    return;
-                } catch (e) {
-                    console.warn('SSE initialization failed, fallback to poll', e);
+                    } catch (e) {
+                        console.error('Failed to parse order-update event', e);
+                    }
                 }
-            }
-
-            fallbackTimer = setInterval(pollOnce, 5000);
+            });
         }
 
         function updateProgressTracker(status) {

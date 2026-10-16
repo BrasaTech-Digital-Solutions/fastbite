@@ -25,7 +25,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class OrderLiveEventService {
 
-    private static final Long SSE_TIMEOUT = 30 * 60 * 1000L; // 30 minutes
+    private static final Long SSE_TIMEOUT = 50 * 1000L; // 50 seconds (clean close before Firebase 60s timeout)
+    private static final Long SSE_RECONNECT_RETRY_MS = 2000L;
 
     // Tenant ID -> List of SSE emitters (staff dashboards / POS / KDS)
     private final Map<String, List<SseEmitter>> tenantEmitters = new ConcurrentHashMap<>();
@@ -43,12 +44,18 @@ public class OrderLiveEventService {
         list.add(emitter);
 
         emitter.onCompletion(() -> list.remove(emitter));
-        emitter.onTimeout(() -> list.remove(emitter));
+        emitter.onTimeout(() -> {
+            list.remove(emitter);
+            emitter.complete();
+        });
         emitter.onError(e -> list.remove(emitter));
 
-        // Initial connection handshake event
+        // Initial connection handshake event with retry hint
         try {
-            emitter.send(SseEmitter.event().name("connected").data(Map.of("tenantId", effectiveTenant)));
+            emitter.send(SseEmitter.event()
+                    .name("connected")
+                    .reconnectTime(SSE_RECONNECT_RETRY_MS)
+                    .data(Map.of("tenantId", effectiveTenant)));
         } catch (IOException e) {
             list.remove(emitter);
         }
@@ -65,11 +72,17 @@ public class OrderLiveEventService {
         list.add(emitter);
 
         emitter.onCompletion(() -> list.remove(emitter));
-        emitter.onTimeout(() -> list.remove(emitter));
+        emitter.onTimeout(() -> {
+            list.remove(emitter);
+            emitter.complete();
+        });
         emitter.onError(e -> list.remove(emitter));
 
         try {
-            emitter.send(SseEmitter.event().name("connected").data(Map.of("orderId", orderId)));
+            emitter.send(SseEmitter.event()
+                    .name("connected")
+                    .reconnectTime(SSE_RECONNECT_RETRY_MS)
+                    .data(Map.of("orderId", orderId)));
         } catch (IOException e) {
             list.remove(emitter);
         }

@@ -1,0 +1,40 @@
+{
+  "hosting": [
+    {
+      "target": "production",
+      "public": "firebase/public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "run": {
+            "serviceId": "fastbite",
+            "region": "europe-southwest1"
+          }
+        }
+      ]
+    },
+    {
+      "target": "sandbox",
+      "public": "firebase/public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "run": {
+            "serviceId": "fastbite-sandbox",
+            "region": "europe-southwest1"
+          }
+        }
+      ]
+    }
+  ]
+}

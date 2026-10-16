@@ -552,9 +552,6 @@ function showToast(message) {
 
 // Start realtime updates via Server-Sent Events (SSE) with fallback polling
 function startRealtimeUpdates() {
-    let sseSource = null;
-    let fallbackInterval = null;
-
     // Periodic time-ago ticker
     setInterval(() => {
         renderAllDashboards();
@@ -562,36 +559,24 @@ function startRealtimeUpdates() {
 
     const sseUrl = getTenantPrefix() + '/api/orders/live';
 
-    if (window.EventSource) {
-        try {
-            sseSource = new EventSource(sseUrl);
-            sseSource.addEventListener('order-update', (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data && data.orderNumber) {
-                        showToast(`Order #${data.orderNumber} status changed: ${data.status}`);
-                    }
-                    if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
-                        window.kitchenChime.play();
-                    }
-                } catch (e) {
-                    console.debug('SSE event parse error', e);
+    connectLiveUpdates(sseUrl, {
+        poll: updateOrders,
+        intervalMs: 5000,
+        onUpdate: function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && data.orderNumber) {
+                    showToast(`Order #${data.orderNumber} status changed: ${data.status}`);
                 }
-                updateOrders();
-            });
-
-            sseSource.onerror = () => {
-                if (!fallbackInterval) {
-                    fallbackInterval = setInterval(updateOrders, 5000);
+                if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
+                    window.kitchenChime.play();
                 }
-            };
-            return;
-        } catch (e) {
-            console.warn('Dashboard SSE failed, falling back to polling', e);
+            } catch (e) {
+                console.debug('SSE event parse error', e);
+            }
+            updateOrders();
         }
-    }
-
-    fallbackInterval = setInterval(updateOrders, 5000);
+    });
 }
 
 // Add demo order (for testing)

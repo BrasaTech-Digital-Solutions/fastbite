@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "REPLACE-WITH-GCP-PROJECT-ID"
+  },
+  "targets": {
+    "REPLACE-WITH-GCP-PROJECT-ID": {
+      "hosting": {
+        "production": [
+          "fastbite"
+        ],
+        "sandbox": [
+          "fastbite-sandbox"
+        ]
+      }
+    }
+  }
+}

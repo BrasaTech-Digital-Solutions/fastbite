@@ -159,3 +159,50 @@ docker compose up --build
 3. Sign up in production (port 8090) and create the production location.
 4. Restore the bundle there (same page: check the file, then Review and restore). A bundle from another
    version is refused with the reason.
+
+## Firebase Hosting & Cloud Run
+
+Firebase Hosting provides the public edge (custom domains, SSL certificates, CDN) and forwards traffic
+to Cloud Run services in `europe-southwest1`:
+- Production target `production` rewrites to Cloud Run service `fastbite` (`https://fastbite.brasatech.es`).
+- Sandbox target `sandbox` rewrites to Cloud Run service `fastbite-sandbox` (`https://sandbox.fastbite.brasatech.es`).
+
+### Prerequisites
+
+- **Hosting site IDs are globally unique:** create them with `firebase hosting:sites:create <id>`. If `fastbite` or `fastbite-sandbox` is taken, pick another ID and use it in `target:apply`.
+- Connect the custom domains `fastbite.brasatech.es` and `sandbox.fastbite.brasatech.es` in the Firebase Console.
+- Hosting calls Cloud Run as a public client, so both Cloud Run services must allow unauthenticated invocations (`roles/run.invoker` granted to `allUsers`).
+
+### Setup and Deployment
+
+1. Configure project and targets in `.firebaserc`. Its `targets` block is keyed by project ID. Replace `"REPLACE-WITH-GCP-PROJECT-ID"` in both places, or run `firebase use --add` and `target:apply`, which write it under the real ID:
+   ```bash
+   firebase use --add <gcp-project-id>
+   firebase target:apply hosting production fastbite
+   firebase target:apply hosting sandbox fastbite-sandbox
+   ```
+2. Deploy hosting configurations (rewrites and public folder):
+   ```bash
+   firebase deploy --only hosting
+   # Or deploy individual environments:
+   firebase deploy --only hosting:production
+   firebase deploy --only hosting:sandbox
+   ```
+
+### Cloud Run Environment Settings
+
+For each Cloud Run service:
+- `FASTBITE_SESSION_COOKIE=__session`: Firebase Hosting forwards only cookies named `__session`.
+- `FASTBITE_PUBLIC_URL` and `FASTBITE_LINK_URL`: the public HTTPS origins (each service's own URL, and the other's).
+- `FASTBITE_COOKIE_DOMAIN`: must **not** be set. Leaving it empty keeps cookies host-only, preventing session collision between `fastbite.brasatech.es` and `sandbox.fastbite.brasatech.es`.
+
+### Caching and Timeouts
+
+- **Caching:**
+  - Static files (`/css`, `/js`, `/images`, `/webjars`) are served with `Cache-Control: max-age=600, public`.
+  - Dynamic responses (HTML pages, APIs, redirects) carry `Cache-Control: no-cache, no-store, max-age=0, must-revalidate`.
+  - Backend 404 responses also carry `no-store`, preventing the Firebase CDN from caching 404s for 10 minutes (which would otherwise cause newly provisioned restaurants or newly uploaded files to stay "not found").
+- **Timeouts & SSE Streaming:**
+  - Firebase Hosting terminates requests at 60 seconds with a 504 gateway timeout.
+  - Live order tracking SSE streams (`/api/orders/live`, `/api/order-status/live`) close cleanly after 50 seconds (`SSE_TIMEOUT = 50s`) with a `retry: 2000` hint, allowing `EventSource` clients to reconnect seamlessly without triggering a 504.
+  - The client helper (`/js/live-updates.js`) includes a 10-second watchdog: if stream buffering prevents the initial `connected` event from arriving within 10 seconds, or if repeated reconnections fail, clients fall back to polling every 5 seconds.

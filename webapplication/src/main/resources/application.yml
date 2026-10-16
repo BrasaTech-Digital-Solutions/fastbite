@@ -2,6 +2,12 @@ server.port: 8080
 server.forward-headers-strategy: framework
 
 spring:
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 10m
+          cache-public: true
   datasource:
     url: ${DB_URL:jdbc:h2:file:./data/fast_bite.db}
     username: ${DB_USER:sa}
