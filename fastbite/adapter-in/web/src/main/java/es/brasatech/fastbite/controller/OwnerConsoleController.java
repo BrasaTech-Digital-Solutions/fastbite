@@ -112,6 +112,7 @@ public class OwnerConsoleController {
         String ownerUsername = principal.getName();
         try {
             tenantLocationService.updateStripeAccountId(ownerUsername, tenantId, stripeAccountId);
+            refreshStripeStatus(stripeAccountId);
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         } catch (Exception e) {
             log.error("Failed to update Stripe account ID for location: " + tenantId, e);
@@ -170,8 +171,29 @@ public class OwnerConsoleController {
         if (principal == null) {
             return "redirect:/login";
         }
+        var locationOpt = tenantLocationService.getLocation(tenantId);
+        String accountId = locationOpt.map(es.brasatech.fastbite.domain.tenant.TenantLocation::stripeAccountId).orElse(null);
+        refreshStripeStatus(accountId);
         model.addFlashAttribute("success", "Stripe connection updated for " + tenantId);
         return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
+    }
+
+    private void refreshStripeStatus(String stripeAccountId) {
+        if (stripeAccountId == null || stripeAccountId.isBlank() || !stripeService.isConfigured()) {
+            return;
+        }
+        try {
+            com.stripe.model.Account account = stripeService.retrieveAccount(stripeAccountId.trim());
+            if (account != null) {
+                boolean chargesEnabled = Boolean.TRUE.equals(account.getChargesEnabled());
+                boolean detailsSubmitted = Boolean.TRUE.equals(account.getDetailsSubmitted());
+                tenantLocationService.syncStripeCapabilities(stripeAccountId.trim(), chargesEnabled, detailsSubmitted);
+                log.info("Refreshed Stripe Connect account {} capabilities: chargesEnabled={}, detailsSubmitted={}",
+                        stripeAccountId, chargesEnabled, detailsSubmitted);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to refresh Stripe account status for {}: {}", stripeAccountId, e.getMessage());
+        }
     }
 
     private String resolveOrigin(jakarta.servlet.http.HttpServletRequest request) {

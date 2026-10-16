@@ -1,2 +1,3 @@
 org.springframework.aot.hint.RuntimeHintsRegistrar=\
-es.brasatech.fastbite.config.WebAdapterHints
+es.brasatech.fastbite.config.WebAdapterHints,\
+es.brasatech.fastbite.config.StripeHints

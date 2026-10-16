@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
 @SpringBootApplication(scanBasePackages = {"es.brasatech.fastbite"})
-@ImportRuntimeHints(es.brasatech.fastbite.config.WebAdapterHints.class)
+@ImportRuntimeHints({es.brasatech.fastbite.config.WebAdapterHints.class, es.brasatech.fastbite.config.StripeHints.class})
 public class Application {
 
     public static void main(String[] args) {

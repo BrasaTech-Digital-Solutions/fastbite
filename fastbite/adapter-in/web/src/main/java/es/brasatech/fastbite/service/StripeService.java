@@ -167,4 +167,12 @@ public class StripeService {
                 .build();
         return com.stripe.model.AccountLink.create(params);
     }
+
+    /**
+     * Retrieves a Stripe connected account to inspect current status and capabilities.
+     */
+    public com.stripe.model.Account retrieveAccount(String accountId) throws StripeException {
+        requireSecretKey();
+        return com.stripe.model.Account.retrieve(accountId);
+    }
 }

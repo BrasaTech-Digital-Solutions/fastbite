@@ -14,7 +14,7 @@ import java.nio.file.Paths;
  * Web configuration to serve user-uploaded images.
  */
 @Configuration
-@ImportRuntimeHints(WebAdapterHints.class)
+@ImportRuntimeHints({WebAdapterHints.class, StripeHints.class})
 @RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 

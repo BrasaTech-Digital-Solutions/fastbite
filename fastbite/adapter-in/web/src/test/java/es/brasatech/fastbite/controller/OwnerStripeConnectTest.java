@@ -97,12 +97,63 @@ class OwnerStripeConnectTest {
     }
 
     @Test
-    void connectStripeReturnRedirectsBackToPaymentsSection() throws Exception {
+    void connectStripeReturnRefreshesCapabilitiesWhenAccountEnabled() throws Exception {
+        when(tenantLocationService.getLocation("cafe")).thenReturn(Optional.of(
+                new TenantLocation("id1", "testowner", "cafe", "RESTAURANT", null, "acct_enabled123", false, false)
+        ));
+        when(stripeService.isConfigured()).thenReturn(true);
+        Account account = new Account();
+        account.setId("acct_enabled123");
+        account.setChargesEnabled(true);
+        account.setDetailsSubmitted(true);
+        when(stripeService.retrieveAccount("acct_enabled123")).thenReturn(account);
+
         mockMvc.perform(get("/owner/connect-stripe/return")
                         .param("tenantId", "cafe")
                         .principal(principal))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/owner/console?view=location-settings&section=payments&location=cafe"))
                 .andExpect(flash().attributeExists("success"));
+
+        verify(tenantLocationService).syncStripeCapabilities("acct_enabled123", true, true);
+    }
+
+    @Test
+    void connectStripeReturnToleratesStripeExceptionAndStillRedirects() throws Exception {
+        when(tenantLocationService.getLocation("cafe")).thenReturn(Optional.of(
+                new TenantLocation("id1", "testowner", "cafe", "RESTAURANT", null, "acct_error123", false, false)
+        ));
+        when(stripeService.isConfigured()).thenReturn(true);
+        when(stripeService.retrieveAccount("acct_error123"))
+                .thenThrow(new com.stripe.exception.ApiException("Stripe API down", null, null, 500, null));
+
+        mockMvc.perform(get("/owner/connect-stripe/return")
+                        .param("tenantId", "cafe")
+                        .principal(principal))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?view=location-settings&section=payments&location=cafe"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(tenantLocationService, never()).syncStripeCapabilities(eq("acct_error123"), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void updateStripeAccountRefreshesCapabilities() throws Exception {
+        when(stripeService.isConfigured()).thenReturn(true);
+        Account account = new Account();
+        account.setId("acct_manual456");
+        account.setChargesEnabled(true);
+        account.setDetailsSubmitted(true);
+        when(stripeService.retrieveAccount("acct_manual456")).thenReturn(account);
+
+        mockMvc.perform(post("/owner/update-stripe-account")
+                        .param("tenantId", "cafe")
+                        .param("stripeAccountId", "acct_manual456")
+                        .principal(principal))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?view=location-settings&section=payments&location=cafe"));
+
+        verify(tenantLocationService).updateStripeAccountId("testowner", "cafe", "acct_manual456");
+        verify(tenantLocationService).syncStripeCapabilities("acct_manual456", true, true);
     }
 }
