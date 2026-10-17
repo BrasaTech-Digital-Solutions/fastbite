@@ -281,3 +281,30 @@ To test multi-instance deployments locally matching Cloud Run's horizontal autos
   ```
 - Normal single-instance development remains unchanged with `docker compose up -d`.
 - **Live updates across instances:** Live order tracking updates in `OrderLiveEventService` use in-memory SSE emitters on each JVM instance. Within the same instance, updates are pushed instantly via SSE. Across different instances, updates arrive within about 15 seconds via a safety poll in `live-updates.js` (`safetyIntervalMs = 15000`). This safety poll was Ricardo's choice over PostgreSQL LISTEN/NOTIFY, which could replace it later if instant cross-instance push is needed.
+
+### Scheduled Jobs Under Request-Only CPU
+
+FastBite defines two `@Scheduled` background jobs in the web adapter:
+- **`SandboxProvisioningJob`** (`fastbite.link.provision-delay`, default `PT15S` initial and fixed delay): On a linked production environment, sends newly created locations (`public.sandbox_provisioning`) to the sandbox (`POST /internal/link/locations`), retrying failed entries with exponential backoff (30 s up to 30 min). Uses a database claim lease (`claimed_at`) so concurrent instances do not send the same location simultaneously. Also Note: if an owner clicks "Practise in the sandbox" before the background job runs, `SandboxProvisioningService.ensure(...)` provisions the location synchronously on the spot during that request.
+- **`VerifactuSubmissionJob`** (`fastbite.verifactu.submit-delay`, default `PT1M` initial and fixed delay): Iterates over all locations and submits pending VERI*FACTU billing records (`VerifactuStatus.PENDING`, oldest first) to the AEAT SOAP endpoint when a certificate/submitter is configured.
+
+**Impact of Cloud Run's default CPU allocation and horizontal scaling:**
+1. **Request-only CPU (CPU throttling):** By default on Cloud Run (request-based billing), CPU is allocated only while an instance is actively handling an HTTP request (plus a brief startup/shutdown window). Between requests, CPU is throttled to near zero, meaning in-process `@Scheduled` timers freeze or barely advance when the service is idle, and containers scale down to zero after ~15 minutes of inactivity. A record or sandbox provisioning queued just before traffic stops may sit untouched until the next incoming HTTP request wakes an instance.
+2. **Multiple instances:** Every running container instance starts its own `@Scheduled` scheduler.
+   - `SandboxProvisioningJob` coordinates via atomic row claims (`claimed_at` lease in `public.sandbox_provisioning`), so multiple instances are safe.
+   - `VerifactuSubmissionJob` queries `PENDING` records without a cross-instance claim lock (`VerifactuService.submitPending`), so if two instances run the timer at the same moment (e.g. while both are serving requests), both could read the same pending records and submit them concurrently to the AEAT.
+
+**Options for Ricardo (no option chosen yet):**
+1. **Keep request-only CPU (`--cpu-throttling`) and scale-to-zero (`--min-instances=0`):**
+   - *Behavior:* Jobs run opportunistically while instances are awake serving user requests (or while SSE streams keep an instance active). Sandbox provisioning also happens on demand when the owner enters the sandbox.
+   - *Cost:* Lowest cost (~€0 when idle; pay only for request duration).
+   - *Trade-off:* Pending VERI*FACTU records created right before a quiet period wait until the next request arrives; multi-instance `VerifactuSubmissionJob` overlap remains possible if scale > 1.
+2. **Keep one warm instance with `--min-instances=1` (with request-only CPU):**
+   - *Behavior:* Eliminates cold starts, but under default `--cpu-throttling` an idle warm instance still has its CPU throttled when not processing a request, so `@Scheduled` timers still do not run reliably while idle.
+   - *Cost:* Idle warm instance billed at the reduced idle rate (~€3–5/month per service for 512 MiB), but does not by itself keep background timers ticking without active requests.
+3. **Instance-based billing (`--no-cpu-throttling`) with `--min-instances=1` (e.g. on production):**
+   - *Behavior:* CPU remains allocated 24/7 on at least one instance, so `@Scheduled` jobs fire on their exact schedule (`15s` / `1m`) regardless of incoming traffic.
+   - *Cost:* Highest cost—billed for full vCPU and 512 MiB memory continuously 24/7 (~€35–45/month per service after free tier).
+4. **Cloud Scheduler calling an authenticated internal HTTP endpoint (with `--cpu-throttling` and `--min-instances=0`):**
+   - *Behavior:* Disable in-process `@Scheduled` polling in Cloud Run and trigger a signed/authenticated internal endpoint (e.g. `POST /internal/jobs/tick`) from Google Cloud Scheduler (e.g. every 1–5 minutes). Cloud Run wakes one instance for the duration of the HTTP call, runs the job with full CPU while the request is open, and prevents multiple instances from running the timer simultaneously.
+   - *Cost:* Near zero (Cloud Scheduler includes 3 free jobs per billing account, then $0.10/job/month; Cloud Run bills only for the few seconds each HTTP invocation takes).
