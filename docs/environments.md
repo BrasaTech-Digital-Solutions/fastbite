@@ -162,6 +162,13 @@ docker compose up --build
   The local sandbox sends training records to the AEAT test environment when the certificate is placed in
   `docker/secrets/` (git-ignored; see the README there).
 - `docker compose down` stops everything; `docker compose down -v` also deletes both databases and storage.
+- **PostgreSQL 16 (`postgres:16.9` on `postgres16-environments`):** Local Compose runs PostgreSQL 16 to match the Cloud SQL instance. Data from the previous PostgreSQL 17 volume (`fastbite_postgres-environments`) is migrated once into `fastbite_postgres16-environments` with `bash scripts/migrate-local-postgres-16.sh`:
+  - The script copies `fastbite_postgres-environments` (mounted read-only) into a temporary volume, starts a temporary `postgres:17.11` container on that copy, dumps all databases (`pg_dumpall`), strips PostgreSQL 17-only settings (`SET transaction_timeout = 0;` and psql `\restrict`/`\unrestrict` meta-commands), loads the dump into `postgres:16.9`, and verifies that row counts match across both databases.
+  - It refuses to run if `fastbite_postgres16-environments` already contains location data, and leaves `fastbite_postgres-environments` untouched as a backup.
+  - Once satisfied that everything works on PostgreSQL 16, you can delete the old PostgreSQL 17 backup volume by hand:
+    ```bash
+    docker volume rm fastbite_postgres-environments
+    ```
 
 ### Trying a promotion
 
