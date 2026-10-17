@@ -64,4 +64,27 @@ class LinkedLocationServiceTest {
         assertThatThrownBy(() -> service.receive(LOCATION, "{bcrypt}unknown")).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("another owner");
     }
+
+    @Test
+    void concurrentSetupThatCompletedForSameOwnerSucceedsIdempotently() {
+        when(locations.getLocation("anacafe"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(new TenantLocation("1", "ana", "anacafe", "FREE", null)));
+        doThrow(new es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException("in progress"))
+                .when(signup).registerAdditionalLocation(anyString(), anyString(), anyString(), anyString());
+
+        service.receive(LOCATION, "{bcrypt}unknown");
+    }
+
+    @Test
+    void concurrentSetupStillInProgressPropagatesException() {
+        when(locations.getLocation("anacafe"))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.empty());
+        doThrow(new es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException("in progress"))
+                .when(signup).registerAdditionalLocation(anyString(), anyString(), anyString(), anyString());
+
+        assertThatThrownBy(() -> service.receive(LOCATION, "{bcrypt}unknown"))
+                .isInstanceOf(es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException.class);
+    }
 }

@@ -99,6 +99,18 @@ class LinkControllerTest {
 
             call(LinkSignature.header(SECRET, Instant.now(), BODY), "1.2.0").andExpect(status().isConflict());
         }
+
+        @Test
+        void aLocationBeingSetUpConcurrentlyReturnsServiceUnavailableWithRetryAfter() throws Exception {
+            doThrow(new es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException("Restaurant setup is currently in progress. Please retry."))
+                    .when(locations).receive(any(), any());
+
+            call(LinkSignature.header(SECRET, Instant.now(), BODY), "1.2.0")
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Retry-After", "5"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("in_progress"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value("Location setup is already in progress"));
+        }
     }
 
     @Nested

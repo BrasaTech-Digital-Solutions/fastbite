@@ -73,6 +73,11 @@ public class LinkController {
         } catch (IllegalArgumentException e) {
             log.warn("Refused to set up location {} in the sandbox: {}", location.tenantId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+        } catch (es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException e) {
+            log.info("Location {} setup is already in progress in the sandbox", location.tenantId());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header("Retry-After", "5")
+                    .body(Map.of("status", "in_progress", "message", "Location setup is already in progress"));
         }
         log.info("Location {} of {} is set up in the sandbox", location.tenantId(), location.ownerUsername());
         return ResponseEntity.ok(Map.of("status", "ready"));

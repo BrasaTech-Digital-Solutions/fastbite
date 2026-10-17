@@ -29,12 +29,21 @@ final class RegistrationJdbc {
             } catch (SQLException | RuntimeException e) {
                 connection.rollback();
                 if (e instanceof IllegalArgumentException invalid) throw invalid;
+                if (e instanceof es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException inProgress) throw inProgress;
+                if (e instanceof SQLException se && isLockConflict(se)) {
+                    throw new es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException(
+                            "Restaurant setup is currently in progress. Please retry.");
+                }
                 // SQL errors may contain passwords or customer details. Do not propagate their text.
                 throw new IllegalStateException("Restaurant registration could not be completed. Please retry.");
             } finally { connection.setAutoCommit(autoCommit); }
         } catch (SQLException e) {
             throw new IllegalStateException("Restaurant registration database unavailable.");
         }
+    }
+
+    private static boolean isLockConflict(SQLException se) {
+        return "55P03".equals(se.getSQLState()) || ("HYT00".equals(se.getSQLState()) && se.getErrorCode() == 50200);
     }
 
     interface Work<T> { T run(Connection connection) throws SQLException; }

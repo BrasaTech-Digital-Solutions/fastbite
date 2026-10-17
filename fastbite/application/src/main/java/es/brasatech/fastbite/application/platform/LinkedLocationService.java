@@ -45,11 +45,19 @@ public class LinkedLocationService {
             }
             return;
         }
-        if (ownerExists(owner)) {
-            signup.registerAdditionalLocation(tenant, owner, SANDBOX_PLAN, "link:" + tenant);
-        } else {
-            String name = location.ownerName() == null || location.ownerName().isBlank() ? owner : location.ownerName();
-            signup.registerTenant(tenant, owner, unusablePassword, name, SANDBOX_PLAN);
+        try {
+            if (ownerExists(owner)) {
+                signup.registerAdditionalLocation(tenant, owner, SANDBOX_PLAN, "link:" + tenant);
+            } else {
+                String name = location.ownerName() == null || location.ownerName().isBlank() ? owner : location.ownerName();
+                signup.registerTenant(tenant, owner, unusablePassword, name, SANDBOX_PLAN);
+            }
+        } catch (es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException e) {
+            var recheck = locations.getLocation(tenant);
+            if (recheck.isPresent() && owner.equals(recheck.get().ownerUsername())) {
+                return;
+            }
+            throw e;
         }
     }
 

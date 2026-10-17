@@ -90,7 +90,7 @@ class TenantLifecycleIntegrationTest {
             assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
             var second = executor.submit(() -> otherInstance.register("liferace", "signup:liferace", "liferaceowner", TenantLifecyclePort.State.ACTIVE, work));
             try { assertThatThrownBy(() -> second.get(5, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class)
-                    .hasCauseInstanceOf(IllegalStateException.class); }
+                    .hasCauseInstanceOf(es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException.class); }
             finally { release.countDown(); }
             first.get(10, TimeUnit.SECONDS);
             otherInstance.register("liferace", "signup:liferace", "liferaceowner", TenantLifecyclePort.State.ACTIVE, work);
