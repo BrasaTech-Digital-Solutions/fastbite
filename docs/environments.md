@@ -105,7 +105,9 @@ A bundle written by one version could break a location of another, so:
 ## Separate in everything else
 
 Each environment has its own database, file storage, Stripe keys and webhooks, `TABLE_QR_SECRET` and
-session cookie. Nothing fiscal crosses between them.
+session cookie. Nothing fiscal crosses between them. In the sandbox, a location without its own Stripe
+account takes payments into the platform's test connected account (`STRIPE_CONNECTED_ACCOUNT`; see
+`OrderCheckoutService.java`).
 
 Sessions are kept in each environment's database (`PUBLIC.SPRING_SESSION`, Spring Session JDBC), so any
 instance can serve any request and a restart signs no one out. The table is named with its schema because
@@ -181,8 +183,8 @@ bash scripts/release-check.sh
 The script:
 1. Provisions a throwaway tenant on `http://fastbite.localhost:8088`, enters the sandbox, sets up the cafe concept, and records a cash payment (verifying fiscal ticket creation).
 2. Creates a staff user with `CASHIER` role, signs in at `/{tenant}/login`, and tests cashier surfaces (`counter`, `tickets`, `day-report`, `api/cash`, `dashboard`).
-3. Sweeps guest pages (`menu`, `allergens`, `declaracion-responsable`), legal pages across all supported languages (`es`, `en`, `pt`), and the cart calculation endpoint.
-4. Sweeps owner pages across all setting sections (`legal`, `appearance`, `payments`, `backup`, `advanced`) and POST fragments (`image-gallery`).
+3. Sweeps guest pages (`menu`, `allergens`, `declaracion-responsable`), legal pages across all supported languages (`es`, `en`, `pt`), and the cart calculation endpoint. When `STRIPE_SECRET_KEY` is configured in the sandbox container, it also tests guest online payment by placing an order and verifying that `POST /{tenant}/api/stripe/create-checkout-session` returns HTTP 200 with a Stripe checkout URL (prints `SKIP` when unconfigured).
+4. Sweeps owner pages across all setting sections (`legal`, `appearance`, `payments`, `backup`, `advanced`) and POST fragments (`image-gallery`). Submits an invalid legal form to assert HTTP 302 and that the uncommitted draft (`INVALID_NIF_999`) is preserved across the redirect.
 5. Exercises promotion: exports the production promotion bundle from the sandbox and imports it into production.
 6. Verifies static assets and self-hosted fonts (`live-updates.js`, `fonts.css`, `.woff2` files, `qrcode.min.js`).
 7. Greps container logs for both `production` and `sandbox` since the run started for `TemplateProcessingException`, `SpelEvaluationException`, `MissingReflectionRegistrationError`, or `ERROR`.

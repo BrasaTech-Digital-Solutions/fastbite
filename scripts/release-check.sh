@@ -212,6 +212,36 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
   else
     record_match 0 "Cart calculation contains IVA/VAT"
   fi
+
+  # Guest online Stripe checkout (when STRIPE_SECRET_KEY is configured in sandbox container)
+  SANDBOX_ID=$($DC ps -q sandbox 2>/dev/null || true)
+  if [ -n "$SANDBOX_ID" ] && docker inspect "$SANDBOX_ID" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -qE '^STRIPE_SECRET_KEY=.+'; then
+    GUEST_ORDER_OUT="guest_order.json"
+    ORDER_PAYLOAD="{\"items\":[{\"id\":\"l1\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"price\":$PRICE}],\"customerName\":\"Release Check Guest\",\"paymentMethod\":\"stripe\"}"
+    GUEST_ORDER_CODE=$(curl -s -o "$GUEST_ORDER_OUT" -w '%{http_code}' -b "$G" -c "$G" \
+      -H 'Content-Type: application/json' \
+      -H "X-CSRF-TOKEN: $GT" \
+      -H "Referer: $S/$T/menu" \
+      -d "$ORDER_PAYLOAD" \
+      "$S/$T/api/create-order")
+    record "$GUEST_ORDER_CODE" 200 "POST $S/$T/api/create-order (guest takeaway order)"
+
+    CHECKOUT_OUT="checkout_session.json"
+    CHECKOUT_CODE=$(curl -s -o "$CHECKOUT_OUT" -w '%{http_code}' -b "$G" -c "$G" \
+      -H 'Content-Type: application/json' \
+      -H "X-CSRF-TOKEN: $GT" \
+      -H "Referer: $S/$T/select-payment" \
+      -d '{"tipPercent":10}' \
+      "$S/$T/api/stripe/create-checkout-session")
+    record "$CHECKOUT_CODE" 200 "POST $S/$T/api/stripe/create-checkout-session"
+    if grep -q "checkout.stripe.com" "$CHECKOUT_OUT" 2>/dev/null; then
+      record_match 1 "Stripe checkout URL returned (checkout.stripe.com)"
+    else
+      record_match 0 "Stripe checkout URL returned (expected checkout.stripe.com in response)"
+    fi
+  else
+    echo "SKIP Guest online Stripe checkout (STRIPE_SECRET_KEY not set in sandbox container)"
+  fi
 fi
 
 echo "== [4/6] Owner surfaces & Backoffice fragments"
@@ -227,6 +257,26 @@ fi
 for section in legal appearance payments backup advanced; do
   check "$J" "$S/owner/console?view=location-settings&section=$section&location=$T"
 done
+
+# Invalid legal form submission: assert 302 and flash draft preserved across redirect
+LEGAL_PAGE=$(curl -s -b "$J" -c "$J" "$S/owner/console?view=location-settings&section=legal&location=$T")
+LEGAL_CSRF=$(echo "$LEGAL_PAGE" | meta)
+LEGAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
+  -H "Referer: $S/owner/console?view=location-settings&section=legal&location=$T" \
+  --data-urlencode "_csrf=$LEGAL_CSRF" \
+  --data-urlencode "legalName=Test Invalid Cafe" \
+  --data-urlencode "taxId=INVALID_NIF_999" \
+  "$S/owner/workspace/$T/legal")
+LEGAL_CODE=$(echo "$LEGAL_RESP" | head -n 1 | awk '{print $2}')
+LEGAL_LOC=$(echo "$LEGAL_RESP" | loc)
+record "${LEGAL_CODE:-000}" 302 "POST $S/owner/workspace/$T/legal (invalid tax ID redirect)"
+
+LEGAL_REDIRECT_PAGE=$(curl -s -b "$J" -c "$J" "$LEGAL_LOC")
+if echo "$LEGAL_REDIRECT_PAGE" | grep -q "INVALID_NIF_999"; then
+  record_match 1 "Invalid legal form draft preserved on redirect (INVALID_NIF_999)"
+else
+  record_match 0 "Invalid legal form draft preserved on redirect (INVALID_NIF_999 not found)"
+fi
 
 # Backoffice image gallery fragment: verify 200 and 'burgers' folder name
 BT=$(curl -s -b "$J" -c "$J" "$S/$T/backoffice" | meta)
