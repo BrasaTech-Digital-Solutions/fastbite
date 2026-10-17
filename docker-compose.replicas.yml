@@ -1,0 +1,20 @@
+# Override file to run production and sandbox with 2 replicas each,
+# reproducing Cloud Run's multi-instance environment behind the local proxy.
+#
+# Direct host ports (8090 and 8091) are removed because multiple replicas
+# cannot bind to the same host port. All traffic is routed through the proxy
+# (http://fastbite.localhost:8088 and http://sandbox.fastbite.localhost:8088).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
+#
+services:
+  production:
+    ports: !reset []
+    deploy:
+      replicas: 2
+
+  sandbox:
+    ports: !reset []
+    deploy:
+      replicas: 2

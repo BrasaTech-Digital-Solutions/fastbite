@@ -269,3 +269,15 @@ Cloud SQL micro instances (e.g. `db-f1-micro`) support at most 25 database conne
   - Firebase Hosting terminates requests at 60 seconds with a 504 gateway timeout.
   - Live order tracking SSE streams (`/api/orders/live`, `/api/order-status/live`) close cleanly after 50 seconds (`SSE_TIMEOUT = 50s`) with a `retry: 2000` hint, allowing `EventSource` clients to reconnect seamlessly without triggering a 504.
   - The client helper (`/js/live-updates.js`) includes a 10-second watchdog: if stream buffering prevents the initial `connected` event from arriving within 10 seconds, or if repeated reconnections fail, clients fall back to polling every 5 seconds.
+
+### Multi-Instance Scaling (docker-compose.replicas.yml)
+
+To test multi-instance deployments locally matching Cloud Run's horizontal autoscaling (up to 3 instances per service):
+- An override file `docker-compose.replicas.yml` runs 2 replicas for `production` and `sandbox`.
+- Direct host ports (8090/8091) are dropped (`ports: !reset []`) so multiple container replicas do not clash on the host interface. All requests route through the nginx proxy (port 8088).
+- Start with replicas override:
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.replicas.yml up -d
+  ```
+- Normal single-instance development remains unchanged with `docker compose up -d`.
+- **Live updates across instances:** Live order tracking updates in `OrderLiveEventService` use in-memory SSE emitters on each JVM instance. Within the same instance, updates are pushed instantly via SSE. Across different instances, updates arrive within about 15 seconds via a safety poll in `live-updates.js` (`safetyIntervalMs = 15000`). This safety poll was Ricardo's choice over PostgreSQL LISTEN/NOTIFY, which could replace it later if instant cross-instance push is needed.

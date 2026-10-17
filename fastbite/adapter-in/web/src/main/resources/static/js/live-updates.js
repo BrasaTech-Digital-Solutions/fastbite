@@ -5,11 +5,15 @@
  * prevents the initial 'connected' handshake event from arriving within 10 seconds,
  * the stream is closed and polling is used for the rest of the page's life.
  *
+ * While the stream is healthy, a safety poll timer runs (default 15s) so updates
+ * handled by another backend instance in a multi-instance deployment are picked up.
+ *
  * @param {string} url - The SSE endpoint URL
  * @param {Object} options
  * @param {Function} [options.onUpdate] - Callback when an update event is received
- * @param {Function} [options.poll] - Callback to poll for data when falling back
- * @param {number} [options.intervalMs=5000] - Polling interval in milliseconds
+ * @param {Function} [options.poll] - Callback to poll for data when falling back or safety polling
+ * @param {number} [options.intervalMs=5000] - Polling interval in milliseconds for permanent fallback
+ * @param {number} [options.safetyIntervalMs=15000] - Safety polling interval in milliseconds while stream is healthy
  * @param {string} [options.eventName='order-update'] - SSE event name to listen for
  * @returns {{ close: Function }}
  */
@@ -18,18 +22,37 @@ function connectLiveUpdates(url, options) {
     const onUpdate = opts.onUpdate || function() {};
     const poll = opts.poll || function() {};
     const intervalMs = opts.intervalMs || 5000;
+    const safetyIntervalMs = opts.safetyIntervalMs || 15000;
     const eventName = opts.eventName || 'order-update';
 
     let sseSource = null;
     let pollInterval = null;
+    let safetyPollInterval = null;
     let watchdogTimer = null;
     let reconnectAttempts = 0;
+    let connectedCount = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
     let closed = false;
     let permanentlyPolling = false;
 
+    function stopSafetyPoll() {
+        if (safetyPollInterval) {
+            clearInterval(safetyPollInterval);
+            safetyPollInterval = null;
+        }
+    }
+
+    function startSafetyPoll() {
+        if (!safetyPollInterval && !closed && !permanentlyPolling) {
+            safetyPollInterval = setInterval(function() {
+                if (!closed && !permanentlyPolling) poll();
+            }, safetyIntervalMs);
+        }
+    }
+
     function startPolling() {
         permanentlyPolling = true;
+        stopSafetyPoll();
         if (sseSource) {
             try { sseSource.close(); } catch (e) {}
             sseSource = null;
@@ -71,6 +94,11 @@ function connectLiveUpdates(url, options) {
                     watchdogTimer = null;
                 }
                 reconnectAttempts = 0;
+                connectedCount++;
+                if (connectedCount > 1) {
+                    poll();
+                }
+                startSafetyPoll();
             });
 
             sseSource.addEventListener(eventName, function(event) {
@@ -114,6 +142,7 @@ function connectLiveUpdates(url, options) {
     return {
         close: function() {
             closed = true;
+            stopSafetyPoll();
             if (watchdogTimer) {
                 clearTimeout(watchdogTimer);
                 watchdogTimer = null;
