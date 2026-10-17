@@ -233,6 +233,21 @@ For each Cloud Run service:
 - `FASTBITE_SESSION_COOKIE=__session`: Firebase Hosting forwards only cookies named `__session`.
 - `FASTBITE_PUBLIC_URL` and `FASTBITE_LINK_URL`: the public HTTPS origins (each service's own URL, and the other's).
 - `FASTBITE_COOKIE_DOMAIN`: must **not** be set. Leaving it empty keeps cookies host-only, preventing session collision between `fastbite.brasatech.es` and `sandbox.fastbite.brasatech.es`.
+- `GCS_BUCKET`: must **not** be set on the server. FastBite writes media directly to disk under `/storage` (`IMAGE_UPLOAD_DIR=/storage/images`). Setting `GCS_BUCKET` activates `CloudFileStorageService`, whose uploader authenticates only through `GCS_OAUTH_TOKEN` (not ambient GCP instance credentials); without that token, it would fail uploads and silently fall back to local disk.
+
+### File Storage (GCS Volume Mount)
+
+Cloud Run instances have in-memory local filesystems that are ephemeral and lost on instance restart or scale-down. Persistent data must reside in `/storage`:
+- Each environment mounts a dedicated Google Cloud Storage bucket at `/storage` using Cloud Run's GCS volume mount (`gcsfuse`).
+- Configure the mount on the Cloud Run service via the Google Cloud CLI:
+  ```bash
+  gcloud run services update fastbite \
+    --region=europe-southwest1 \
+    --add-volume=name=storage-volume,type=cloud-storage,bucket=fastbite-production-storage \
+    --add-volume-mount=volume=storage-volume,mount-path=/storage
+  ```
+  (and similarly with `bucket=fastbite-sandbox-storage` for `fastbite-sandbox`).
+- **GCS FUSE directory semantics:** GCS FUSE does not support atomic directory moves (`rename-dir-limit` is 0 on flat buckets). Directory-level `Files.move()` throws `DirectoryNotEmptyException` or non-atomic directory move errors. Tenant backup/restore operations in `BackupMediaReplacement` operate file-by-file inside the tenant's media folder rather than renaming or deleting `/storage/images/{tenantId}` itself. Rollback on failure cleanly empties newly written files and restores original media files in place.
 
 ### Database Connection Pool Bounds (Cloud SQL Micro Tier)
 
