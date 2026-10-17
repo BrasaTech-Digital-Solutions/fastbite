@@ -41,11 +41,18 @@ if [ "$COLD" -eq 1 ]; then
   $DC up -d --force-recreate production sandbox
   echo "Waiting for production and sandbox to answer through proxy..."
   WAIT_DEADLINE=$((SECONDS + 60))
+  CONSECUTIVE=0
   while [ $SECONDS -lt $WAIT_DEADLINE ]; do
-    PROD_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/terms" || true)
-    SAND_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$S/legal/terms" || true)
-    if [ "${PROD_STATUS:-000}" = "200" ] && [ "${SAND_STATUS:-000}" = "200" ]; then
-      break
+    PROD_BODY=$(curl -s -f "$P/legal/terms" || true)
+    SAND_BODY=$(curl -s -f "$S/legal/terms" || true)
+    if [ -n "$PROD_BODY" ] && ! echo "$PROD_BODY" | grep -qF '[Sandbox]' \
+       && echo "$SAND_BODY" | grep -qF '[Sandbox]'; then
+      CONSECUTIVE=$((CONSECUTIVE + 1))
+      if [ "$CONSECUTIVE" -ge 3 ]; then
+        break
+      fi
+    else
+      CONSECUTIVE=0
     fi
     sleep 1
   done
