@@ -21,22 +21,47 @@ class SandboxProvisioningServiceTest {
     /** The queue in memory. */
     static class MemoryQueue implements SandboxProvisioningPort {
         final Map<String, Entry> entries = new LinkedHashMap<>();
+        final Map<String, Instant> claims = new LinkedHashMap<>();
         boolean broken;
 
         public void enqueue(String tenantId, String owner, String plan, Instant now) {
             if (broken) throw new IllegalStateException("database unavailable");
             entries.putIfAbsent(tenantId, new Entry(tenantId, owner, "Ana García", plan, State.PENDING, 0, null, now));
         }
+
+        public boolean claim(String tenantId, Instant now) {
+            Entry entry = entries.get(tenantId);
+            if (entry == null || entry.state() != State.PENDING) {
+                return false;
+            }
+            Instant claimed = claims.get(tenantId);
+            if (claimed != null && !now.isAfter(claimed.plus(CLAIM_LEASE))) {
+                return false;
+            }
+            claims.put(tenantId, now);
+            return true;
+        }
+
         public List<Entry> due(Instant now, int limit) {
-            return entries.values().stream().filter(e -> e.state() == State.PENDING && !e.nextAttempt().isAfter(now))
+            return entries.values().stream()
+                    .filter(e -> e.state() == State.PENDING && !e.nextAttempt().isAfter(now))
+                    .filter(e -> {
+                        Instant claimed = claims.get(e.tenantId());
+                        return claimed == null || now.isAfter(claimed.plus(CLAIM_LEASE));
+                    })
                     .limit(limit).toList();
         }
+
         public Optional<Entry> find(String tenantId) { return Optional.ofNullable(entries.get(tenantId)); }
+
         public void done(String tenantId, Instant now) {
+            claims.remove(tenantId);
             entries.computeIfPresent(tenantId, (k, e) -> new Entry(e.tenantId(), e.ownerUsername(), e.ownerName(), e.plan(),
                     State.DONE, e.attempts(), null, e.nextAttempt()));
         }
+
         public void failed(String tenantId, String error, Instant next) {
+            claims.remove(tenantId);
             entries.computeIfPresent(tenantId, (k, e) -> new Entry(e.tenantId(), e.ownerUsername(), e.ownerName(), e.plan(),
                     e.state(), e.attempts() + 1, error, next));
         }
@@ -157,5 +182,48 @@ class SandboxProvisioningServiceTest {
         assertThat(queue.entries).isEmpty();
         assertThat(standalone.sendDue()).isZero();
         assertThat(standalone.status("kebab")).isEmpty();
+    }
+
+    @Test
+    void sendDueSkipsEntriesCurrentlyClaimed() {
+        var service = linkedProduction();
+        service.locationCreated("kebab", "ana", "RESTAURANT");
+
+        assertThat(queue.claim("kebab", clock.now)).as("claimed by another process").isTrue();
+
+        assertThat(service.sendDue()).as("skipped because entry is claimed").isZero();
+        assertThat(sandbox.received).isEmpty();
+    }
+
+    @Test
+    void ensureWaitsForInFlightClaimAndSucceedsWhenDone() {
+        var service = linkedProduction();
+        service.locationCreated("kebab", "ana", "RESTAURANT");
+        assertThat(queue.claim("kebab", clock.now)).as("background job claimed it").isTrue();
+
+        List<Duration> slept = new ArrayList<>();
+        var serviceWithSleeper = new SandboxProvisioningService(queue, sandbox, production,
+                new PlatformLink(production, "http://sandbox", "", SECRET, false), clock, duration -> {
+            slept.add(duration);
+            queue.done("kebab", clock.now);
+        });
+
+        assertThat(serviceWithSleeper.ensure("kebab", "ana")).isTrue();
+        assertThat(slept).containsExactly(Duration.ofMillis(500));
+        assertThat(sandbox.received).as("ensure didn't need to call sandbox").isEmpty();
+    }
+
+    @Test
+    void ensureReturnsFalseIfWaitTimesOutWhileStillClaimedOrPending() {
+        var service = linkedProduction();
+        service.locationCreated("kebab", "ana", "RESTAURANT");
+        assertThat(queue.claim("kebab", clock.now)).as("held by slow worker").isTrue();
+
+        List<Duration> slept = new ArrayList<>();
+        var serviceWithSleeper = new SandboxProvisioningService(queue, sandbox, production,
+                new PlatformLink(production, "http://sandbox", "", SECRET, false), clock, slept::add);
+
+        assertThat(serviceWithSleeper.ensure("kebab", "ana")).isFalse();
+        assertThat(slept).hasSize(10).allMatch(d -> d.equals(Duration.ofMillis(500)));
     }
 }

@@ -48,4 +48,22 @@ class SandboxProvisioningJdbcAdapterTest {
                 .isEqualTo(SandboxProvisioningPort.State.DONE);
         assertThat(queue.due(NOW.plusSeconds(3600), 100)).noneMatch(e -> e.tenantId().equals(tenant));
     }
+
+    @Test
+    void atomicClaimGrantsLeaseAndExcludesFromDueUntilExpiredOrFinished() {
+        String tenant = tenant();
+        queue.enqueue(tenant, "ana", "RESTAURANT", NOW);
+
+        assertThat(queue.claim(tenant, NOW)).as("first worker claims the entry").isTrue();
+        assertThat(queue.claim(tenant, NOW.plusSeconds(10))).as("second worker cannot claim while active lease").isFalse();
+        assertThat(queue.due(NOW.plusSeconds(10), 100)).noneMatch(e -> e.tenantId().equals(tenant));
+
+        assertThat(queue.claim(tenant, NOW.plusSeconds(61))).as("claim succeeds after lease expiration").isTrue();
+
+        queue.failed(tenant, "temporary failure", NOW.plusSeconds(70));
+        assertThat(queue.claim(tenant, NOW.plusSeconds(71))).as("claim succeeds after failure clears claimed_at").isTrue();
+
+        queue.done(tenant, NOW.plusSeconds(72));
+        assertThat(queue.claim(tenant, NOW.plusSeconds(73))).as("cannot claim once done").isFalse();
+    }
 }

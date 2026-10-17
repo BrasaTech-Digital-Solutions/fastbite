@@ -43,11 +43,25 @@ public class SandboxProvisioningJdbcAdapter implements SandboxProvisioningPort {
     }
 
     @Override
+    public boolean claim(String tenantId, Instant now) {
+        long expiredBefore = now.minus(CLAIM_LEASE).toEpochMilli();
+        return transaction(dataSource, connection -> {
+            int updated = update(connection, "UPDATE public.sandbox_provisioning SET claimed_at = ? "
+                    + "WHERE tenant_id = ? AND state = ? AND (claimed_at IS NULL OR claimed_at < ?)",
+                    now.toEpochMilli(), tenantId, State.PENDING.name(), expiredBefore);
+            return updated > 0;
+        });
+    }
+
+    @Override
     public List<Entry> due(Instant now, int limit) {
         return transaction(dataSource, connection -> {
             List<Entry> due = new ArrayList<>();
+            long expiredBefore = now.minus(CLAIM_LEASE).toEpochMilli();
             try (var query = statement(connection, SELECT + "WHERE p.state = ? AND p.next_attempt_at <= ? "
-                    + "ORDER BY p.created_at LIMIT " + Math.max(1, limit), State.PENDING.name(), now.toEpochMilli());
+                    + "AND (p.claimed_at IS NULL OR p.claimed_at < ?) "
+                    + "ORDER BY p.created_at LIMIT " + Math.max(1, limit),
+                    State.PENDING.name(), now.toEpochMilli(), expiredBefore);
                  var rows = query.executeQuery()) {
                 while (rows.next()) {
                     due.add(entry(rows));
@@ -65,14 +79,14 @@ public class SandboxProvisioningJdbcAdapter implements SandboxProvisioningPort {
     @Override
     public void done(String tenantId, Instant now) {
         transaction(dataSource, connection -> update(connection, "UPDATE public.sandbox_provisioning SET state = ?, "
-                + "last_error = NULL, done_at = ? WHERE tenant_id = ?", State.DONE.name(), now.toEpochMilli(), tenantId));
+                + "last_error = NULL, done_at = ?, claimed_at = NULL WHERE tenant_id = ?", State.DONE.name(), now.toEpochMilli(), tenantId));
     }
 
     @Override
     public void failed(String tenantId, String error, Instant nextAttempt) {
         String reason = error == null ? null : error.substring(0, Math.min(500, error.length()));
         transaction(dataSource, connection -> update(connection, "UPDATE public.sandbox_provisioning SET attempts = attempts + 1, "
-                + "last_error = ?, next_attempt_at = ? WHERE tenant_id = ? AND state = ?", reason,
+                + "last_error = ?, next_attempt_at = ?, claimed_at = NULL WHERE tenant_id = ? AND state = ?", reason,
                 nextAttempt.toEpochMilli(), tenantId, State.PENDING.name()));
     }
 

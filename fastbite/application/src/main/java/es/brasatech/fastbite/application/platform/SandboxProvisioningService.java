@@ -27,26 +27,42 @@ public class SandboxProvisioningService implements NewLocationListener {
     static final int BATCH = 20;
     private static final Duration FIRST_RETRY = Duration.ofSeconds(30);
     private static final Duration LONGEST_WAIT = Duration.ofMinutes(30);
+    private static final Duration POLL_INTERVAL = Duration.ofMillis(500);
+    private static final int POLL_ATTEMPTS = 10;
+
+    @FunctionalInterface
+    public interface Sleeper {
+        void sleep(Duration duration) throws InterruptedException;
+
+        Sleeper SYSTEM = Thread::sleep;
+    }
 
     private final SandboxProvisioningPort queue;
     private final SandboxLinkPort sandbox;
     private final PlatformEnvironment environment;
     private final PlatformLink link;
     private final Clock clock;
+    private final Sleeper sleeper;
 
     @Autowired
     public SandboxProvisioningService(SandboxProvisioningPort queue, SandboxLinkPort sandbox,
             PlatformEnvironment environment, PlatformLink link) {
-        this(queue, sandbox, environment, link, Clock.systemUTC());
+        this(queue, sandbox, environment, link, Clock.systemUTC(), Sleeper.SYSTEM);
     }
 
     SandboxProvisioningService(SandboxProvisioningPort queue, SandboxLinkPort sandbox, PlatformEnvironment environment,
             PlatformLink link, Clock clock) {
+        this(queue, sandbox, environment, link, clock, Sleeper.SYSTEM);
+    }
+
+    SandboxProvisioningService(SandboxProvisioningPort queue, SandboxLinkPort sandbox, PlatformEnvironment environment,
+            PlatformLink link, Clock clock, Sleeper sleeper) {
         this.queue = queue;
         this.sandbox = sandbox;
         this.environment = environment;
         this.link = link;
         this.clock = clock;
+        this.sleeper = sleeper;
     }
 
     /** Whether this environment sets its locations up in a sandbox. */
@@ -78,11 +94,18 @@ public class SandboxProvisioningService implements NewLocationListener {
         }
         int done = 0;
         for (SandboxProvisioningPort.Entry entry : queue.due(clock.instant(), BATCH)) {
-            if (send(entry)) {
+            if (claimAndSend(entry)) {
                 done++;
             }
         }
         return done;
+    }
+
+    private boolean claimAndSend(SandboxProvisioningPort.Entry entry) {
+        if (!queue.claim(entry.tenantId(), clock.instant())) {
+            return false;
+        }
+        return send(entry);
     }
 
     /**
@@ -103,7 +126,25 @@ public class SandboxProvisioningService implements NewLocationListener {
         if (entry.isEmpty()) {
             return false;
         }
-        return entry.get().state() == SandboxProvisioningPort.State.DONE || send(entry.get());
+        if (entry.get().state() == SandboxProvisioningPort.State.DONE) {
+            return true;
+        }
+        if (queue.claim(tenantId, clock.instant())) {
+            return send(entry.get());
+        }
+        for (int i = 0; i < POLL_ATTEMPTS; i++) {
+            try {
+                sleeper.sleep(POLL_INTERVAL);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            entry = queue.find(tenantId);
+            if (entry.isPresent() && entry.get().state() == SandboxProvisioningPort.State.DONE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Where the location's practice space stands; empty when this environment has no sandbox or never listed it. */
