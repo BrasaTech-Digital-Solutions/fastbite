@@ -32,6 +32,9 @@ x-app: &app
   SMTP_PORT: "1025"
   SMTP_AUTH: "false"
   SMTP_STARTTLS: "false"
+  # Background jobs run through the scheduler service, as through Cloud Scheduler on Cloud Run
+  FASTBITE_JOBS_IN_PROCESS: "false"
+  FASTBITE_JOBS_SECRET: ${FASTBITE_JOBS_SECRET:-local-jobs-secret-for-docker-compose-only}
   # Stripe test mode in both: real payments never run on a laptop
   STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
   STRIPE_CONNECT_WEBHOOK_SECRET: ${STRIPE_CONNECT_WEBHOOK_SECRET:-}
@@ -176,6 +179,32 @@ services:
       migrate-sandbox:
         condition: service_completed_successfully
       mailpit:
+        condition: service_started
+
+  scheduler:
+    image: curlimages/curl:8.12.1
+    environment:
+      FASTBITE_JOBS_SECRET: ${FASTBITE_JOBS_SECRET:-local-jobs-secret-for-docker-compose-only}
+      FASTBITE_SCHEDULER_INTERVAL: ${FASTBITE_SCHEDULER_INTERVAL:-60}
+    command:
+      - sh
+      - -c
+      - |
+        sleep 15
+        while true; do
+          for target in production sandbox; do
+            rm -f /tmp/jobs.json
+            code=$$(curl -s -o /tmp/jobs.json -w '%{http_code}' -m 270 -X POST \
+              -H "X-FastBite-Jobs-Secret: $$FASTBITE_JOBS_SECRET" \
+              "http://$$target:8080/internal/jobs/run" || true)
+            echo "$$(date -u +%Y-%m-%dT%H:%M:%SZ) $$target /internal/jobs/run -> $${code:-000} $$(cat /tmp/jobs.json 2>/dev/null || true)"
+          done
+          sleep "$${FASTBITE_SCHEDULER_INTERVAL:-60}"
+        done
+    depends_on:
+      production:
+        condition: service_started
+      sandbox:
         condition: service_started
 
 volumes:

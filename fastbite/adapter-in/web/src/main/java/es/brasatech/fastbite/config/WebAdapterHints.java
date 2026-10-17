@@ -70,7 +70,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.domain.verifactu.VerifactuStatus.class,
                 es.brasatech.fastbite.application.verifactu.VerifactuService.Summary.class,
                 es.brasatech.fastbite.application.verifactu.VerifactuSystem.class,
-                es.brasatech.fastbite.application.verifactu.VerifactuDeclaration.class}) {
+                es.brasatech.fastbite.application.verifactu.VerifactuDeclaration.class,
+                es.brasatech.fastbite.controller.InternalJobsController.JobRunSummary.class}) {
             hints.reflection().registerType(type, MemberCategory.values());
         }
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class, org.springframework.aot.hint.MemberCategory.values());

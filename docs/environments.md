@@ -201,7 +201,7 @@ The script:
 3. Sweeps guest pages (`menu`, `allergens`, `declaracion-responsable`), legal pages across all supported languages (`es`, `en`, `pt`), and the cart calculation endpoint. When `STRIPE_SECRET_KEY` is configured in the sandbox container, it also tests guest online payment by placing an order and verifying that `POST /{tenant}/api/stripe/create-checkout-session` returns HTTP 200 with a Stripe checkout URL (prints `SKIP` when unconfigured).
 4. Sweeps owner pages across all setting sections (`legal`, `appearance`, `payments`, `backup`, `advanced`) and POST fragments (`image-gallery`). Submits an invalid legal form to assert HTTP 302 and that the uncommitted draft (`INVALID_NIF_999`) is preserved across the redirect.
 5. Exercises promotion: exports the production promotion bundle from the sandbox and imports it into production.
-6. Verifies static assets and self-hosted fonts (`live-updates.js`, `fonts.css`, `.woff2` files, `qrcode.min.js`).
+6. Verifies static assets and self-hosted fonts (`live-updates.js`, `fonts.css`, `.woff2` files, `qrcode.min.js`), and checks that `POST /internal/jobs/run` returns HTTP 401 without `X-FastBite-Jobs-Secret` and HTTP 200 with it in both environments.
 7. Greps container logs for both `production` and `sandbox` since the run started for `TemplateProcessingException`, `SpelEvaluationException`, `MissingReflectionRegistrationError`, or `ERROR`.
 8. Cleans up temporary files and cookies automatically on exit, outputs a single-line summary, and exits non-zero if any check fails or any error is logged.
 
@@ -240,6 +240,7 @@ For each Cloud Run service:
 - `FASTBITE_SESSION_COOKIE=__session`: Firebase Hosting forwards only cookies named `__session`.
 - `FASTBITE_PUBLIC_URL` and `FASTBITE_LINK_URL`: the public HTTPS origins (each service's own URL, and the other's).
 - `FASTBITE_COOKIE_DOMAIN`: must **not** be set. Leaving it empty keeps cookies host-only, preventing session collision between `fastbite.brasatech.es` and `sandbox.fastbite.brasatech.es`.
+- `FASTBITE_JOBS_IN_PROCESS=false` and `FASTBITE_JOBS_SECRET` (from Secret Manager, at least 32 characters): switches off in-process `@Scheduled` timers and enables `POST /internal/jobs/run` for Cloud Scheduler.
 - `GCS_BUCKET`: must **not** be set on the server. FastBite writes media directly to disk under `/storage` (`IMAGE_UPLOAD_DIR=/storage/images`). Setting `GCS_BUCKET` activates `CloudFileStorageService`, whose uploader authenticates only through `GCS_OAUTH_TOKEN` (not ambient GCP instance credentials); without that token, it would fail uploads and silently fall back to local disk.
 
 ### File Storage (GCS Volume Mount)
@@ -265,6 +266,7 @@ Cloud SQL micro instances (e.g. `db-f1-micro`) support at most 25 database conne
 - To prevent pool starvation and deadlocks under minimal pool sizes, all operations avoid holding outer database transactions while acquiring additional connections:
   - Tenant registration claims the lifecycle record with a short transaction (2-minute lease), executes schema migrations and owner creation sequentially, and finalizes the record in a second short transaction.
   - Concurrent tenant migrations within an instance are serialized to ensure Flyway's dual-connection requirement does not exhaust the 2-connection pool.
+  - VERI*FACTU submission (`VerifactuService.submitPending`) claims the restaurant's chain in a short transaction (5-minute lease in `verifactu_chain.claimed_at`, migration V19), reads pending records and installation metadata in a second short transaction, calls the AEAT SOAP endpoint with **no database transaction or connection held**, and records answers and releases the lease in short transactions.
 
 ### Caching and Timeouts
 
@@ -289,29 +291,74 @@ To test multi-instance deployments locally matching Cloud Run's horizontal autos
 - Normal single-instance development remains unchanged with `docker compose up -d`.
 - **Live updates across instances:** Live order tracking updates in `OrderLiveEventService` use in-memory SSE emitters on each JVM instance. Within the same instance, updates are pushed instantly via SSE. Across different instances, updates arrive within about 15 seconds via a safety poll in `live-updates.js` (`safetyIntervalMs = 15000`). This safety poll was Ricardo's choice over PostgreSQL LISTEN/NOTIFY, which could replace it later if instant cross-instance push is needed.
 
-### Scheduled Jobs Under Request-Only CPU
+### Scheduled Jobs Under Request-Only CPU (`POST /internal/jobs/run`)
 
-FastBite defines two `@Scheduled` background jobs in the web adapter:
-- **`SandboxProvisioningJob`** (`fastbite.link.provision-delay`, default `PT15S` initial and fixed delay): On a linked production environment, sends newly created locations (`public.sandbox_provisioning`) to the sandbox (`POST /internal/link/locations`), retrying failed entries with exponential backoff (30 s up to 30 min). Uses a database claim lease (`claimed_at`) so concurrent instances do not send the same location simultaneously. Also Note: if an owner clicks "Practise in the sandbox" before the background job runs, `SandboxProvisioningService.ensure(...)` provisions the location synchronously on the spot during that request.
-- **`VerifactuSubmissionJob`** (`fastbite.verifactu.submit-delay`, default `PT1M` initial and fixed delay): Iterates over all locations and submits pending VERI*FACTU billing records (`VerifactuStatus.PENDING`, oldest first) to the AEAT SOAP endpoint when a certificate/submitter is configured.
+On Cloud Run with request-based billing (`--cpu-throttling`) and scale-to-zero (`--min-instances=0`), CPU is allocated only while an instance is handling an HTTP request. In-process `@Scheduled` timers freeze when instances are idle and would fire across every active container when scaled out.
 
-**Impact of Cloud Run's default CPU allocation and horizontal scaling:**
-1. **Request-only CPU (CPU throttling):** By default on Cloud Run (request-based billing), CPU is allocated only while an instance is actively handling an HTTP request (plus a brief startup/shutdown window). Between requests, CPU is throttled to near zero, meaning in-process `@Scheduled` timers freeze or barely advance when the service is idle, and containers scale down to zero after ~15 minutes of inactivity. A record or sandbox provisioning queued just before traffic stops may sit untouched until the next incoming HTTP request wakes an instance.
-2. **Multiple instances:** Every running container instance starts its own `@Scheduled` scheduler.
-   - `SandboxProvisioningJob` coordinates via atomic row claims (`claimed_at` lease in `public.sandbox_provisioning`), so multiple instances are safe.
-   - `VerifactuSubmissionJob` queries `PENDING` records without a cross-instance claim lock (`VerifactuService.submitPending`), so if two instances run the timer at the same moment (e.g. while both are serving requests), both could read the same pending records and submit them concurrently to the AEAT.
+Therefore, background jobs run inside an authenticated HTTP request (`POST /internal/jobs/run`, handled by `InternalJobsController`):
 
-**Options for Ricardo (no option chosen yet):**
-1. **Keep request-only CPU (`--cpu-throttling`) and scale-to-zero (`--min-instances=0`):**
-   - *Behavior:* Jobs run opportunistically while instances are awake serving user requests (or while SSE streams keep an instance active). Sandbox provisioning also happens on demand when the owner enters the sandbox.
-   - *Cost:* Lowest cost (~€0 when idle; pay only for request duration).
-   - *Trade-off:* Pending VERI*FACTU records created right before a quiet period wait until the next request arrives; multi-instance `VerifactuSubmissionJob` overlap remains possible if scale > 1.
-2. **Keep one warm instance with `--min-instances=1` (with request-only CPU):**
-   - *Behavior:* Eliminates cold starts, but under default `--cpu-throttling` an idle warm instance still has its CPU throttled when not processing a request, so `@Scheduled` timers still do not run reliably while idle.
-   - *Cost:* Idle warm instance billed at the reduced idle rate (~€3–5/month per service for 512 MiB), but does not by itself keep background timers ticking without active requests.
-3. **Instance-based billing (`--no-cpu-throttling`) with `--min-instances=1` (e.g. on production):**
-   - *Behavior:* CPU remains allocated 24/7 on at least one instance, so `@Scheduled` jobs fire on their exact schedule (`15s` / `1m`) regardless of incoming traffic.
-   - *Cost:* Highest cost—billed for full vCPU and 512 MiB memory continuously 24/7 (~€35–45/month per service after free tier).
-4. **Cloud Scheduler calling an authenticated internal HTTP endpoint (with `--cpu-throttling` and `--min-instances=0`):**
-   - *Behavior:* Disable in-process `@Scheduled` polling in Cloud Run and trigger a signed/authenticated internal endpoint (e.g. `POST /internal/jobs/tick`) from Google Cloud Scheduler (e.g. every 1–5 minutes). Cloud Run wakes one instance for the duration of the HTTP call, runs the job with full CPU while the request is open, and prevents multiple instances from running the timer simultaneously.
-   - *Cost:* Near zero (Cloud Scheduler includes 3 free jobs per billing account, then $0.10/job/month; Cloud Run bills only for the few seconds each HTTP invocation takes).
+- **Jobs executed per run:**
+  1. **Sandbox provisioning (`SandboxProvisioningService.sendDue`):** Runs only where active (a linked production environment), sending newly created locations in `public.sandbox_provisioning` to the sandbox (`POST /internal/link/locations`) with a database claim lease (`claimed_at`, migration V18) and exponential backoff on failure (30 s up to 30 min). If an owner clicks "Practise in the sandbox" before the next scheduled run, `SandboxProvisioningService.ensure(...)` still provisions the location synchronously on demand.
+  2. **VERI*FACTU submission (`VerifactuSubmissionJob`):** Iterates over all locations and submits pending billing records (`VerifactuStatus.PENDING`, oldest first) when an AEAT certificate/submitter is configured. Each location's chain (`REAL` or `TRAINING`) is claimed in `verifactu_chain.claimed_at` (migration V19) with a 5-minute lease (`VerifactuService.SUBMISSION_LEASE`, exceeding `AeatVerifactuSubmitter`'s 30 s connect + 120 s request timeout) so two overlapping runs or instances never submit the same records twice.
+- **Time budget (4 minutes):**
+  - Each `POST /internal/jobs/run` invocation has a 4-minute time budget (`VerifactuSubmissionJob.TIME_BUDGET = Duration.ofMinutes(4)`). Once 4 minutes have elapsed, it stops starting new locations and leaves the rest for the next minute's run.
+  - Returns `200 OK` with a JSON summary:
+    ```json
+    {"sandboxProvisioned":1,"verifactuSubmitted":3,"verifactuLocationsChecked":12,"verifactuLocationsRemaining":0}
+    ```
+- **Authentication (`FASTBITE_JOBS_SECRET` / `fastbite.jobs.secret`):**
+  - Expects the `X-FastBite-Jobs-Secret` header and compares it in constant time (`MessageDigest.isEqual`) against `fastbite.jobs.secret` (`FASTBITE_JOBS_SECRET`).
+  - When `FASTBITE_JOBS_SECRET` is set, it **must be at least 32 characters**, or application startup fails (`IllegalStateException`).
+  - Returns `404 Not Found` when no secret is configured (so the endpoint does not exist), and `401 Unauthorized` when the header is missing or wrong.
+  - CSRF-exempt like `/internal/link/**`, never reachable by session or role, and never logs the secret.
+- **Switching off in-process timers (`FASTBITE_JOBS_IN_PROCESS` / `fastbite.jobs.in-process`):**
+  - Defaults to `true` (`fastbite.jobs.in-process: ${FASTBITE_JOBS_IN_PROCESS:true}`) so IDE runs and tests continue running `@Scheduled` timers out of the box.
+  - Set `FASTBITE_JOBS_IN_PROCESS=false` on Cloud Run and in `docker-compose.yml` so `@Scheduled` timers do not run in-process.
+- **Local Docker Compose (`scheduler` service):**
+  - In `docker-compose.yml`, both `production` and `sandbox` run with `FASTBITE_JOBS_IN_PROCESS=false` and `FASTBITE_JOBS_SECRET`.
+  - The `scheduler` service (`curlimages/curl:8.12.1`) waits 15 seconds after startup and then calls `http://production:8080/internal/jobs/run` and `http://sandbox:8080/internal/jobs/run` directly (not through the Firebase-like nginx proxy) every `FASTBITE_SCHEDULER_INTERVAL` seconds (default `60`), logging the HTTP status code and JSON summary without ever logging the secret.
+
+#### Cloud Run & Cloud Scheduler Setup (`gcloud`)
+
+Cloud Scheduler includes a **free tier of 3 jobs per billing account** ($0.10/job/month beyond 3), so running one job for production (`fastbite`) and one for the sandbox (`fastbite-sandbox`) stays within the free tier.
+
+ Cloud Scheduler must call each service's direct `.run.app` URL (not the Firebase Hosting domain, which has a hard 60-second edge timeout), with a **5-minute Cloud Run request timeout (`--timeout=300`)** and a **5-minute Cloud Scheduler attempt deadline (`--attempt-deadline=300s`)** to match the 4-minute job time budget:
+
+1. **Create the shared secret in Secret Manager (at least 32 characters) and configure both Cloud Run services:**
+   ```bash
+   # Create a 32+ byte random secret in Secret Manager
+   openssl rand -base64 36 | tr -d '\n' | gcloud secrets create fastbite-jobs-secret \
+     --replication-policy=automatic \
+     --data-file=-
+
+   # Update production and sandbox Cloud Run services with 5-minute timeout and jobs config
+   for SERVICE in fastbite fastbite-sandbox; do
+     gcloud run services update "$SERVICE" \
+       --region=europe-southwest1 \
+       --timeout=300 \
+       --update-env-vars=FASTBITE_JOBS_IN_PROCESS=false \
+       --update-secrets=FASTBITE_JOBS_SECRET=fastbite-jobs-secret:latest
+   done
+   ```
+2. **Create one Cloud Scheduler job per environment (`*/1 * * * *`, every minute):**
+   ```bash
+   JOBS_SECRET=$(gcloud secrets versions access latest --secret=fastbite-jobs-secret)
+   PROD_RUN_URL=$(gcloud run services describe fastbite --region=europe-southwest1 --format='value(status.url)')
+   SANDBOX_RUN_URL=$(gcloud run services describe fastbite-sandbox --region=europe-southwest1 --format='value(status.url)')
+
+   gcloud scheduler jobs create http fastbite-jobs \
+     --location=europe-southwest1 \
+     --schedule="*/1 * * * *" \
+     --uri="${PROD_RUN_URL}/internal/jobs/run" \
+     --http-method=POST \
+     --headers="X-FastBite-Jobs-Secret=${JOBS_SECRET}" \
+     --attempt-deadline=300s
+
+   gcloud scheduler jobs create http fastbite-sandbox-jobs \
+     --location=europe-southwest1 \
+     --schedule="*/1 * * * *" \
+     --uri="${SANDBOX_RUN_URL}/internal/jobs/run" \
+     --http-method=POST \
+     --headers="X-FastBite-Jobs-Secret=${JOBS_SECRET}" \
+     --attempt-deadline=300s
+   ```

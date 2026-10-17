@@ -43,6 +43,8 @@ public class SecurityConfig {
                                 "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/api/webhooks/stripe", "/api/stripe/**",
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",
+                                // Scheduled background jobs triggered with X-FastBite-Jobs-Secret (InternalJobsController)
+                                "/internal/jobs/run",
                                 // Production's single-use sign-in links into the sandbox (SandboxEntryController)
                                 "/link/enter",
                                 // Legal pages, and each restaurant's privacy notice for its guests (LegalController)
@@ -85,7 +87,7 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .permitAll())
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/webhooks/stripe", "/internal/link/**")
+                        .ignoringRequestMatchers("/api/webhooks/stripe", "/internal/link/**", "/internal/jobs/run")
                 )
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())

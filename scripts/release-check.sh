@@ -9,6 +9,7 @@ P="http://fastbite.localhost:8088"
 S="http://sandbox.fastbite.localhost:8088"
 T="check$RANDOM"
 PASS="a-long-test-password-123"
+JOBS_SECRET="${FASTBITE_JOBS_SECRET:-local-jobs-secret-for-docker-compose-only}"
 
 # Resolve repo root before changing directory
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -350,10 +351,20 @@ else
   record_match 0 "Production menu contains imported products"
 fi
 
-echo "== [6/6] Static assets & Self-hosted fonts"
+echo "== [6/6] Static assets, Self-hosted fonts & Scheduled jobs endpoint"
 for asset in "/js/live-updates.js" "/css/fonts.css" "/css/fonts/dm-sans-latin.woff2" "/css/fonts/manrope-latin.woff2" "/js/qrcode.min.js"; do
   check "$G" "$S$asset"
   check "$G" "$P$asset"
+done
+
+for base in "$P" "$S"; do
+  UNAUTH_JOBS_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/internal/jobs/run" || true)
+  record "${UNAUTH_JOBS_CODE:-000}" 401 "POST $base/internal/jobs/run (unauthorized without secret)"
+
+  AUTH_JOBS_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+    -H "X-FastBite-Jobs-Secret: $JOBS_SECRET" \
+    "$base/internal/jobs/run" || true)
+  record "${AUTH_JOBS_CODE:-000}" 200 "POST $base/internal/jobs/run (authenticated with secret)"
 done
 
 echo "== Checking logs for errors since run start ($SINCE)"

@@ -61,7 +61,7 @@ class WebAdapterHintsTest {
     @Test
     void theEndOfDayReportCanBeRead() {
         for (Class<?> type : new Class<?>[]{DayReport.class, DayReport.MethodTotal.class, DayReport.SeriesRange.class,
-                DayReport.Cancelled.class}) {
+                DayReport.Cancelled.class, es.brasatech.fastbite.controller.InternalJobsController.JobRunSummary.class}) {
             for (var method : type.getDeclaredMethods()) {
                 if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
                     assertThat(RuntimeHintsPredicates.reflection().onMethodInvocation(method))

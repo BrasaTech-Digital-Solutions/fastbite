@@ -138,6 +138,13 @@ fastbite:
     internal-url: ${FASTBITE_LINK_INTERNAL_URL:}
     secret: ${FASTBITE_LINK_SECRET:}
     standalone: ${FASTBITE_STANDALONE:false}
+  # Background jobs (sandbox provisioning and VERI*FACTU submission). In-process @Scheduled timers run by
+  # default for local IDE runs and tests; on Cloud Run and in Docker Compose they are switched off
+  # (FASTBITE_JOBS_IN_PROCESS=false) and Cloud Scheduler / the scheduler container calls POST /internal/jobs/run
+  # authenticated with X-FastBite-Jobs-Secret (at least 32 characters).
+  jobs:
+    in-process: ${FASTBITE_JOBS_IN_PROCESS:true}
+    secret: ${FASTBITE_JOBS_SECRET:}
   # The FastBite version running. Release images bake it in (FASTBITE_VERSION), so the sandbox and
   # production report the same one when they run the same image; production only imports promotion
   # bundles exported by the same version.
