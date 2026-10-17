@@ -14,6 +14,42 @@ PASS="a-long-test-password-123"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 DC="docker compose -f $ROOT/docker-compose.yml"
 
+COLD=0
+for arg in "$@"; do
+  case "$arg" in
+    --cold)
+      COLD=1
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--cold]"
+      echo "  --cold  Recreate production and sandbox containers to exercise cold starts before running check"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 [--cold]"
+      exit 1
+      ;;
+  esac
+done
+
+SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+if [ "$COLD" -eq 1 ]; then
+  echo "== Recreating production and sandbox containers (--cold)..."
+  $DC up -d --force-recreate production sandbox
+  echo "Waiting for production and sandbox to answer through proxy..."
+  WAIT_DEADLINE=$((SECONDS + 60))
+  while [ $SECONDS -lt $WAIT_DEADLINE ]; do
+    PROD_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/terms" || true)
+    SAND_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$S/legal/terms" || true)
+    if [ "${PROD_STATUS:-000}" = "200" ] && [ "${SAND_STATUS:-000}" = "200" ]; then
+      break
+    fi
+    sleep 1
+  done
+fi
+
 # Pre-flight check: ensure stack is running
 PROD_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/terms" || true)
 SAND_STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$S/legal/terms" || true)
@@ -79,8 +115,6 @@ check() {
   code=$(curl -s -o /dev/null -w '%{http_code}' -b "$cookie_jar" -c "$cookie_jar" "$url" || true)
   record "${code:-000}" 200 "$url"
 }
-
-SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 echo "== [1/6] Setting up $T: signup in production, cafe concept, cash payment in sandbox"
 SIGNUP_HTML=$(curl -s -c "$J" -b "$J" "$P/signup")

@@ -180,6 +180,14 @@ Before any release or deployment, ensure the stack is running with the current i
 bash scripts/release-check.sh
 ```
 
+To exercise cold starts (verifying that migrations, container startup, and initial concurrent provisioning between production and sandbox work cleanly without race conditions or errors), pass the `--cold` option:
+
+```bash
+bash scripts/release-check.sh --cold
+```
+
+This recreates the `production` and `sandbox` containers (`docker compose up -d --force-recreate production sandbox`), keeps the proxy and databases intact, waits for both services to answer through the proxy, and then executes the full check suite. `--cold` recreates the containers with the environment of the shell that runs it: run it where the `STRIPE_*` variables are set (or put them in `.env`), otherwise the containers come back without Stripe keys and the online payment checks print SKIP.
+
 The script:
 1. Provisions a throwaway tenant on `http://fastbite.localhost:8088`, enters the sandbox, sets up the cafe concept, and records a cash payment (verifying fiscal ticket creation).
 2. Creates a staff user with `CASHIER` role, signs in at `/{tenant}/login`, and tests cashier surfaces (`counter`, `tickets`, `day-report`, `api/cash`, `dashboard`).
