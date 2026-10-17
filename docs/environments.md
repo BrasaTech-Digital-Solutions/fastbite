@@ -234,6 +234,16 @@ For each Cloud Run service:
 - `FASTBITE_PUBLIC_URL` and `FASTBITE_LINK_URL`: the public HTTPS origins (each service's own URL, and the other's).
 - `FASTBITE_COOKIE_DOMAIN`: must **not** be set. Leaving it empty keeps cookies host-only, preventing session collision between `fastbite.brasatech.es` and `sandbox.fastbite.brasatech.es`.
 
+### Database Connection Pool Bounds (Cloud SQL Micro Tier)
+
+Cloud SQL micro instances (e.g. `db-f1-micro`) support at most 25 database connections. Allowing up to 3 instances per environment (2 environments × 3 instances × 2 connections = 12), plus the migration jobs, leaves the total well under 25. Application instances are configured with tight connection pool bounds:
+- `spring.datasource.hikari.maximum-pool-size=${DB_POOL_MAX_SIZE:2}`
+- `spring.datasource.hikari.minimum-idle=${DB_POOL_MIN_IDLE:1}`
+- In `docker-compose.yml`, PostgreSQL runs with `max_connections=25` to mirror the Cloud SQL micro tier locally.
+- To prevent pool starvation and deadlocks under minimal pool sizes, all operations avoid holding outer database transactions while acquiring additional connections:
+  - Tenant registration claims the lifecycle record with a short transaction (2-minute lease), executes schema migrations and owner creation sequentially, and finalizes the record in a second short transaction.
+  - Concurrent tenant migrations within an instance are serialized to ensure Flyway's dual-connection requirement does not exhaust the 2-connection pool.
+
 ### Caching and Timeouts
 
 - **Caching:**

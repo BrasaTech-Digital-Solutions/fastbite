@@ -17,7 +17,7 @@ spring:
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
     hikari:
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:2}
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
   sql:
     init:

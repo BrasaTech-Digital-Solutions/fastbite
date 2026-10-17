@@ -31,9 +31,13 @@ public class TenantMigrationService {
         }
     }
 
+    private static final Object PROVISION_LOCK = new Object();
+
     public void provision(String tenantId) {
         String tenant = TenantRegistrationRules.tenantId(tenantId);
-        flyway(databaseCase("tenant_" + tenant), false).migrate();
+        synchronized (PROVISION_LOCK) {
+            flyway(databaseCase("tenant_" + tenant), false).migrate();
+        }
     }
 
     private Flyway flyway(String schema, boolean adoptExisting) {
@@ -53,13 +57,26 @@ public class TenantMigrationService {
                 .ignoreMigrationPatterns(new String[0]).load();
     }
 
+    private volatile String databaseProduct;
+
     private String databaseCase(String schema) {
-        try (var connection = dataSource.getConnection()) {
-            String product = connection.getMetaData().getDatabaseProductName();
-            if ("H2".equals(product)) return schema.toUpperCase(Locale.ROOT);
-            if ("PostgreSQL".equals(product)) return schema.toLowerCase(Locale.ROOT);
-            throw new IllegalStateException("Migrations support H2 and PostgreSQL only");
-        } catch (SQLException e) { throw new IllegalStateException("Cannot inspect migration database"); }
+        String product = databaseProduct;
+        if (product == null) {
+            synchronized (this) {
+                product = databaseProduct;
+                if (product == null) {
+                    try (var connection = dataSource.getConnection()) {
+                        product = connection.getMetaData().getDatabaseProductName();
+                        databaseProduct = product;
+                    } catch (SQLException e) {
+                        throw new IllegalStateException("Cannot inspect migration database", e);
+                    }
+                }
+            }
+        }
+        if ("H2".equals(product)) return schema.toUpperCase(Locale.ROOT);
+        if ("PostgreSQL".equals(product)) return schema.toLowerCase(Locale.ROOT);
+        throw new IllegalStateException("Migrations support H2 and PostgreSQL only");
     }
 
     private List<String> schemas() {

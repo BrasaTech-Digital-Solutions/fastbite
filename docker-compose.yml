@@ -50,6 +50,7 @@ services:
 
   postgres:
     image: postgres:17
+    command: ["postgres", "-c", "max_connections=25"]
     environment:
       POSTGRES_USER: fastbite
       POSTGRES_PASSWORD: fastbite
