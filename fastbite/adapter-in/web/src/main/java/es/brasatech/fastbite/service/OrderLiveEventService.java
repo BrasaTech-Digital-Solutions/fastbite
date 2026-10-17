@@ -5,6 +5,7 @@ import es.brasatech.fastbite.domain.event.OrderStatusChangedEvent;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,48 @@ public class OrderLiveEventService {
 
     // Order ID -> List of SSE emitters (guests on order-confirmation page)
     private final Map<String, List<SseEmitter>> orderEmitters = new ConcurrentHashMap<>();
+
+    @EventListener(ContextClosedEvent.class)
+    public void onContextClosed(ContextClosedEvent event) {
+        closeAllEmitters();
+    }
+
+    /**
+     * Closes all active SSE emitters so Tomcat graceful shutdown does not wait
+     * for long-lived streaming connections to expire.
+     */
+    public void closeAllEmitters() {
+        log.info("Closing all active SSE order tracking emitters for shutdown");
+        for (List<SseEmitter> list : tenantEmitters.values()) {
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.complete();
+                } catch (Exception ignored) {
+                }
+            }
+            list.clear();
+        }
+        tenantEmitters.clear();
+
+        for (List<SseEmitter> list : orderEmitters.values()) {
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.complete();
+                } catch (Exception ignored) {
+                }
+            }
+            list.clear();
+        }
+        orderEmitters.clear();
+    }
+
+    int activeTenantEmittersCount() {
+        return tenantEmitters.values().stream().mapToInt(List::size).sum();
+    }
+
+    int activeOrderEmittersCount() {
+        return orderEmitters.values().stream().mapToInt(List::size).sum();
+    }
 
     /**
      * Subscribes a staff dashboard to live order updates for a given restaurant.

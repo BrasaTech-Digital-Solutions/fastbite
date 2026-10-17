@@ -26,6 +26,7 @@ x-app: &app
   # The migration job has run; the application only checks the schemas
   MIGRATION_MODE: validate
   H2_CONSOLE_ENABLED: "false"
+  PORT: "8080"
   IMAGE_UPLOAD_DIR: /storage/images
   SMTP_HOST: mailpit
   SMTP_PORT: "1025"
@@ -81,6 +82,11 @@ services:
     environment:
       <<: *database
       DB_URL: jdbc:postgresql://postgres:5432/fastbite_production
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
     restart: "no"
     depends_on:
       postgres:
@@ -93,6 +99,11 @@ services:
     environment:
       <<: *database
       DB_URL: jdbc:postgresql://postgres:5432/fastbite_sandbox
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
     restart: "no"
     depends_on:
       postgres:
@@ -103,6 +114,12 @@ services:
   production:
     <<: *image
     pull_policy: never
+    stop_grace_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
     ports:
       - "${FASTBITE_PRODUCTION_PORT:-8090}:8080"
     environment:
@@ -129,6 +146,12 @@ services:
   sandbox:
     <<: *image
     pull_policy: never
+    stop_grace_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
     ports:
       - "${FASTBITE_SANDBOX_PORT:-8091}:8080"
     environment:
