@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.EnumMap;
@@ -161,6 +162,41 @@ public class VerifactuRepositoryJpa implements VerifactuRepository {
             multiple = true;
         }
         return new VerifactuSubmitter.Installation(row[0].toString(), multiple);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean claimSubmission(String chain, Instant claimedAt) {
+        long nowMillis = claimedAt.toEpochMilli();
+        long expiredBefore = claimedAt.minus(CLAIM_LEASE).toEpochMilli();
+        int updated = entityManager.createNativeQuery("UPDATE verifactu_chain SET claimed_at = :now "
+                        + "WHERE chain = :chain AND (claimed_at IS NULL OR claimed_at < :expiredBefore)")
+                .setParameter("now", nowMillis)
+                .setParameter("chain", chain)
+                .setParameter("expiredBefore", expiredBefore)
+                .executeUpdate();
+        return updated == 1;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean holdsSubmissionLease(String chain, Instant claimedAt) {
+        List<?> rows = entityManager.createNativeQuery(
+                        "SELECT 1 FROM verifactu_chain WHERE chain = :chain AND claimed_at = :claimedAt")
+                .setParameter("chain", chain)
+                .setParameter("claimedAt", claimedAt.toEpochMilli())
+                .getResultList();
+        return !rows.isEmpty();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void releaseSubmission(String chain, Instant claimedAt) {
+        entityManager.createNativeQuery(
+                        "UPDATE verifactu_chain SET claimed_at = NULL WHERE chain = :chain AND claimed_at = :claimedAt")
+                .setParameter("chain", chain)
+                .setParameter("claimedAt", claimedAt.toEpochMilli())
+                .executeUpdate();
     }
 
     private VerifactuRecordEntity toEntity(VerifactuRecord record) {

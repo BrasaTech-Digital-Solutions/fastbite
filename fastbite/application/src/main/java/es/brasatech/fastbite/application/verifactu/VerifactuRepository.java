@@ -3,12 +3,21 @@ package es.brasatech.fastbite.application.verifactu;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /** The billing records of the restaurant the current request is for. */
 public interface VerifactuRepository {
+
+    /**
+     * How long a submitter holds a chain while sending its pending records to the AEAT. Must exceed
+     * {@code AeatVerifactuSubmitter}'s 30s connect timeout plus 120s request timeout (150s total) so a
+     * slow AEAT response never triggers a duplicate submission mid-flight.
+     */
+    Duration CLAIM_LEASE = Duration.ofMinutes(5);
 
     /**
      * Locks a chain until the surrounding transaction ends and returns its last record, so the
@@ -48,4 +57,18 @@ public interface VerifactuRepository {
      * changes afterwards; once {@code multipleBillings} is true it stays true.
      */
     VerifactuSubmitter.Installation installation(String chain, String newNumber, boolean multipleBillings);
+
+    /**
+     * Atomically claims a chain for submission, taking over an expired lease if a previous
+     * submitter crashed.
+     *
+     * @return true if claimed by this caller; false if another submitter holds an active lease
+     */
+    boolean claimSubmission(String chain, Instant claimedAt);
+
+    /** Whether the chain is still claimed by the given lease timestamp. */
+    boolean holdsSubmissionLease(String chain, Instant claimedAt);
+
+    /** Releases the submission lease on a chain if and only if it is still held by {@code claimedAt}. */
+    void releaseSubmission(String chain, Instant claimedAt);
 }

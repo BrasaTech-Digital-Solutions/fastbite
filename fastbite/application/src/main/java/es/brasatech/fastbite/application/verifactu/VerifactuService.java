@@ -11,9 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -76,20 +79,32 @@ public class VerifactuService {
     private final FiscalTicketRepository tickets;
     private final VerifactuSubmitter submitter;
     private final VerifactuSystem system;
+    private final TransactionOperations transactions;
     private final Clock clock;
 
     @Autowired
     public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
+            VerifactuSystem system, TransactionOperations transactions) {
+        this(records, tickets, submitter, system, transactions, Clock.systemDefaultZone());
+    }
+
+    public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
             VerifactuSystem system) {
-        this(records, tickets, submitter, system, Clock.systemDefaultZone());
+        this(records, tickets, submitter, system, TransactionOperations.withoutTransaction(), Clock.systemDefaultZone());
     }
 
     public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
             VerifactuSystem system, Clock clock) {
+        this(records, tickets, submitter, system, TransactionOperations.withoutTransaction(), clock);
+    }
+
+    public VerifactuService(VerifactuRepository records, FiscalTicketRepository tickets, VerifactuSubmitter submitter,
+            VerifactuSystem system, TransactionOperations transactions, Clock clock) {
         this.records = records;
         this.tickets = tickets;
         this.submitter = submitter;
         this.system = system;
+        this.transactions = transactions;
         this.clock = clock;
     }
 
@@ -246,44 +261,83 @@ public class VerifactuService {
     /**
      * Sends the current location's pending records, oldest first, and stores the answers.
      *
+     * <p>Runs without a surrounding transaction so no database connection is held during the AEAT
+     * network call; each database step runs in its own short transaction under a per-chain lease.
+     *
      * @param multipleBillings the location's owner has more than one location
      * @return how many records got an answer
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public int submitPending(boolean training, boolean multipleBillings) {
         if (!submitter.configured()) {
             return 0;
         }
         String chain = training ? VerifactuRecord.TRAINING_CHAIN : VerifactuRecord.REAL_CHAIN;
-        List<VerifactuRecord> pending = records.findPending(chain, BATCH);
-        if (pending.isEmpty()) {
+        Instant claimedAt = clock.instant();
+        if (!Boolean.TRUE.equals(transactions.execute(status -> records.claimSubmission(chain, claimedAt)))) {
             return 0;
         }
-        List<VerifactuSubmitter.Submission> batch = new ArrayList<>();
-        Set<String> invoices = new HashSet<>();
-        for (VerifactuRecord record : pending) {
-            // The agency answers per invoice: a second record of the same invoice, such as its
-            // cancellation, waits for the next submission, so the chain order holds
-            if (!invoices.add(record.issuerNif() + "|" + record.invoiceNumber())) {
-                break;
+        try {
+            OffsetDateTime now = OffsetDateTime.now(clock);
+            record BatchToSend(List<VerifactuRecord> pending, List<VerifactuSubmitter.Submission> batch,
+                    VerifactuSubmitter.Installation installation) {
             }
-            tickets.findById(record.ticketId())
-                    .ifPresent(ticket -> batch.add(new VerifactuSubmitter.Submission(record, ticket)));
-        }
-        OffsetDateTime now = OffsetDateTime.now(clock);
-        VerifactuSubmitter.Installation installation = records.installation(chain, installationNumber(chain, now),
-                multipleBillings);
-        int answered = 0;
-        for (VerifactuSubmitter.Result result : submitter.submit(system, installation, batch, !training)) {
-            VerifactuRecord sent = pending.stream().filter(record -> record.id().equals(result.recordId())).findFirst()
-                    .orElse(null);
-            if (sent == null) {
-                continue;
+            BatchToSend prepared = transactions.execute(status -> {
+                List<VerifactuRecord> pending = records.findPending(chain, BATCH);
+                if (pending.isEmpty()) {
+                    return null;
+                }
+                List<VerifactuSubmitter.Submission> batch = new ArrayList<>();
+                Set<String> invoices = new HashSet<>();
+                for (VerifactuRecord record : pending) {
+                    // The agency answers per invoice: a second record of the same invoice, such as its
+                    // cancellation, waits for the next submission, so the chain order holds
+                    if (!invoices.add(record.issuerNif() + "|" + record.invoiceNumber())) {
+                        break;
+                    }
+                    tickets.findById(record.ticketId())
+                            .ifPresent(ticket -> batch.add(new VerifactuSubmitter.Submission(record, ticket)));
+                }
+                if (batch.isEmpty()) {
+                    return null;
+                }
+                VerifactuSubmitter.Installation installation = records.installation(chain,
+                        installationNumber(chain, now), multipleBillings);
+                return new BatchToSend(pending, batch, installation);
+            });
+            if (prepared == null) {
+                return 0;
             }
-            records.updateSubmission(sent.id(), new VerifactuRecord.Submission(result.status(),
-                    sent.submission().attempts() + 1, result.error(), result.csv(), now));
-            answered++;
+            List<VerifactuSubmitter.Result> results = submitter.submit(
+                    system, prepared.installation(), prepared.batch(), !training);
+            Integer answered = transactions.execute(status -> {
+                int count = 0;
+                for (VerifactuSubmitter.Result result : results) {
+                    VerifactuRecord sent = prepared.pending().stream()
+                            .filter(record -> record.id().equals(result.recordId()))
+                            .findFirst()
+                            .orElse(null);
+                    if (sent == null) {
+                        continue;
+                    }
+                    // If this call overran its lease and another submitter took over, stop without
+                    // recording: the new holder will resend, and the AEAT answers a duplicate
+                    // submission deterministically.
+                    if (!records.holdsSubmissionLease(chain, claimedAt)) {
+                        log.warn("VERI*FACTU: submission lease for chain {} was taken over before recording answer for {}",
+                                chain, sent.invoiceNumber());
+                        break;
+                    }
+                    records.updateSubmission(sent.id(), new VerifactuRecord.Submission(result.status(),
+                            sent.submission().attempts() + 1, result.error(), result.csv(), now));
+                    count++;
+                }
+                return count;
+            });
+            return answered == null ? 0 : answered;
+        } finally {
+            transactions.executeWithoutResult(status -> records.releaseSubmission(chain, claimedAt));
         }
-        return answered;
     }
 
     public boolean configured() {

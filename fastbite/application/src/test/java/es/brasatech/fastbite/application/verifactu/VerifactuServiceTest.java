@@ -11,9 +11,11 @@ import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -35,6 +37,7 @@ class VerifactuServiceTest {
     /** Records kept in memory. */
     static class MemoryRecords implements VerifactuRepository {
         final List<VerifactuRecord> all = new ArrayList<>();
+        final Map<String, Long> claims = new java.util.HashMap<>();
 
         public Optional<VerifactuRecord> lockChain(String chain) { return findLast(chain); }
         public VerifactuRecord append(VerifactuRecord record) { all.add(record); return record; }
@@ -74,17 +77,37 @@ class VerifactuServiceTest {
             return all.stream().filter(r -> r.chain().equals(chain))
                     .collect(Collectors.groupingBy(r -> r.submission().status(), Collectors.counting()));
         }
+        public synchronized boolean claimSubmission(String chain, Instant claimedAt) {
+            long nowMillis = claimedAt.toEpochMilli();
+            long expiredBefore = claimedAt.minus(CLAIM_LEASE).toEpochMilli();
+            Long current = claims.get(chain);
+            if (current != null && current >= expiredBefore) {
+                return false;
+            }
+            claims.put(chain, nowMillis);
+            return true;
+        }
+        public synchronized boolean holdsSubmissionLease(String chain, Instant claimedAt) {
+            Long current = claims.get(chain);
+            return current != null && current == claimedAt.toEpochMilli();
+        }
+        public synchronized void releaseSubmission(String chain, Instant claimedAt) {
+            claims.remove(chain, claimedAt.toEpochMilli());
+        }
     }
 
     /** A submitter that accepts everything except the invoice numbers it is told to refuse. */
     static class FakeSubmitter implements VerifactuSubmitter {
         boolean configured = true;
+        Runnable onSubmit = () -> {};
         final List<List<Submission>> calls = new ArrayList<>();
         final List<Installation> installations = new ArrayList<>();
         public boolean configured() { return configured; }
         public String name() { return "Test provider"; }
         public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> records,
                 boolean production) {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            onSubmit.run();
             calls.add(records);
             installations.add(installation);
             return records.stream().map(s -> s.record().invoiceNumber().endsWith("2")
@@ -365,5 +388,53 @@ class VerifactuServiceTest {
         assertThat(submitter.calls).hasSize(2);
         assertThat(submitter.calls.get(0)).extracting(s -> s.record().cancels()).containsExactly(false);
         assertThat(submitter.calls.get(1)).extracting(s -> s.record().sequence()).containsExactly(2, 3);
+    }
+
+    @Test
+    void activeLeaseBlocksConcurrentSubmissionUntilLeaseExpires() {
+        service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        Instant activeClaim = NOON.instant().minus(VerifactuRepository.CLAIM_LEASE).plusSeconds(10);
+        records.claims.put(VerifactuRecord.REAL_CHAIN, activeClaim.toEpochMilli());
+
+        assertThat(service.submitPending(false, false)).isZero();
+        assertThat(submitter.calls).isEmpty();
+
+        Clock afterExpiry = Clock.offset(NOON, Duration.ofSeconds(15));
+        var nextRunner = new VerifactuService(records, tickets, submitter, SYSTEM, afterExpiry);
+        assertThat(nextRunner.submitPending(false, false)).isEqualTo(1);
+        assertThat(submitter.calls).hasSize(1);
+        assertThat(records.claims).doesNotContainKey(VerifactuRecord.REAL_CHAIN);
+    }
+
+    @Test
+    void failedSubmissionReleasesLeaseSoNextRunRetries() {
+        service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        submitter.onSubmit = () -> {
+            throw new IllegalStateException("AEAT network timeout");
+        };
+
+        assertThatThrownBy(() -> service.submitPending(false, false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AEAT network timeout");
+        assertThat(records.claims).doesNotContainKey(VerifactuRecord.REAL_CHAIN);
+
+        submitter.onSubmit = () -> {};
+        assertThat(service.submitPending(false, false)).isEqualTo(1);
+        assertThat(submitter.calls).hasSize(1);
+    }
+
+    @Test
+    void overrunSubmissionWhoseLeaseWasTakenOverDoesNotRecordAnswersOrReleaseNewLease() {
+        var created = service.record(ticket(TicketKind.SIMPLIFIED, 1, false, null));
+        Instant takeoverInstant = NOON.instant().plus(VerifactuRepository.CLAIM_LEASE).plusSeconds(1);
+        submitter.onSubmit = () -> records.claims.put(VerifactuRecord.REAL_CHAIN, takeoverInstant.toEpochMilli());
+
+        assertThat(service.submitPending(false, false)).isZero();
+        assertThat(records.findById(created.id()).orElseThrow().submission().status())
+                .as("left pending for the new lease holder to resend")
+                .isEqualTo(VerifactuStatus.PENDING);
+        assertThat(records.claims.get(VerifactuRecord.REAL_CHAIN))
+                .as("the new holder's lease is not released by the slow caller")
+                .isEqualTo(takeoverInstant.toEpochMilli());
     }
 }

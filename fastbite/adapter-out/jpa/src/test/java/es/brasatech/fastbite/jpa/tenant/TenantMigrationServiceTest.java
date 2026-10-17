@@ -35,9 +35,9 @@ class TenantMigrationServiceTest {
         migrations.migrateAll(false);
         migrations.provision("alpha");
         migrations.validateAll();
-        assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18");
-        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17");
-        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17");
+        assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19");
+        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19");
+        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19");
         assertThat(jdbc.queryForObject("SELECT price FROM tenant_alpha.products WHERE id = 'meal'", BigDecimal.class))
                 .isEqualByComparingTo("12.50");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_beta.products", Integer.class)).isZero();
@@ -59,7 +59,7 @@ class TenantMigrationServiceTest {
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         migrations.migrateAll(true);
         migrations.validateAll();
-        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17");
+        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19");
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         assertThat(jdbc.queryForObject("SELECT translations FROM tenant_legacy.groups WHERE id = 'food'", String.class)).contains("Comida");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'TENANT_LEGACY' AND table_name = 'GROUP_TRANSLATIONS'", Integer.class)).isZero();
@@ -101,7 +101,7 @@ class TenantMigrationServiceTest {
             first.get(15, TimeUnit.SECONDS);
             second.get(15, TimeUnit.SECONDS);
         }
-        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17");
+        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19");
     }
 
     private java.util.List<String> versions(String schema) {

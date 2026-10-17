@@ -2,7 +2,9 @@ package es.brasatech.fastbite.jpa.verifactu;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.application.verifactu.VerifactuRepository;
+import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.application.verifactu.VerifactuSubmitter;
+import es.brasatech.fastbite.application.verifactu.VerifactuSystem;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
@@ -17,15 +19,24 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -180,5 +191,141 @@ class VerifactuRepositoryIntegrationTest {
         assertThat(later).isEqualTo(new VerifactuSubmitter.Installation("loc-R-20261009110000", true));
         assertThat(after.multipleBillings()).as("stays true").isTrue();
         assertThat(training.number()).isEqualTo("loc-T-20261011130000");
+    }
+
+    @Test
+    void concurrentSubmitPendingCallsSendEachRecordExactlyOnceWithNoActiveTransaction() throws Exception {
+        String tenant = tenant();
+        var first = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        var second = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+
+        var submittedIds = new CopyOnWriteArrayList<String>();
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        var oneFinished = new CountDownLatch(1);
+
+        var submitter = new VerifactuSubmitter() {
+            @Override public boolean configured() { return true; }
+            @Override public String name() { return "Test AEAT"; }
+            @Override
+            public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> batch,
+                    boolean production) {
+                assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+                try {
+                    oneFinished.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                for (Submission submission : batch) {
+                    submittedIds.add(submission.record().id());
+                }
+                return batch.stream()
+                        .map(s -> new Result(s.record().id(), VerifactuStatus.ACCEPTED, null, "CSV-" + s.record().sequence()))
+                        .toList();
+            }
+        };
+
+        var system = new VerifactuSystem("Brasatech", "B12345674", "FastBite", "FB", "1.0", "Restauración");
+        var clock = Clock.fixed(Instant.parse("2026-10-09T11:05:00Z"), ZoneOffset.UTC);
+        var service = new VerifactuService(records, tickets, submitter, system, transactions, clock);
+
+        Callable<Integer> callSubmit = () -> {
+            TenantContext.setCurrentTenant(tenant);
+            ready.countDown();
+            start.await(5, TimeUnit.SECONDS);
+            try {
+                return service.submitPending(false, false);
+            } finally {
+                oneFinished.countDown();
+                TenantContext.clear();
+            }
+        };
+
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var f1 = pool.submit(callSubmit);
+            var f2 = pool.submit(callSubmit);
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            int r1 = f1.get(10, TimeUnit.SECONDS);
+            int r2 = f2.get(10, TimeUnit.SECONDS);
+            assertThat(List.of(r1, r2)).containsExactlyInAnyOrder(2, 0);
+        }
+
+        assertThat(submittedIds).containsExactly(first.id(), second.id());
+        assertThat(in(tenant, () -> records.countByStatus(VerifactuRecord.REAL_CHAIN)))
+                .containsEntry(VerifactuStatus.ACCEPTED, 2L)
+                .doesNotContainKey(VerifactuStatus.PENDING);
+    }
+
+    @Test
+    void expiredLeaseIsTakenOverAndReleaseOnlyClearsOwnLease() {
+        String tenant = tenant();
+        Instant firstClaim = Instant.parse("2026-10-09T11:00:00Z");
+        Instant beforeExpiry = firstClaim.plus(VerifactuRepository.CLAIM_LEASE).minusSeconds(1);
+        Instant afterExpiry = firstClaim.plus(VerifactuRepository.CLAIM_LEASE).plusSeconds(1);
+
+        assertThat(in(tenant, () -> records.claimSubmission(VerifactuRecord.REAL_CHAIN, firstClaim))).isTrue();
+        assertThat(in(tenant, () -> records.holdsSubmissionLease(VerifactuRecord.REAL_CHAIN, firstClaim))).isTrue();
+        assertThat(in(tenant, () -> records.claimSubmission(VerifactuRecord.REAL_CHAIN, beforeExpiry))).isFalse();
+
+        // Take over the expired lease
+        assertThat(in(tenant, () -> records.claimSubmission(VerifactuRecord.REAL_CHAIN, afterExpiry))).isTrue();
+        assertThat(in(tenant, () -> records.holdsSubmissionLease(VerifactuRecord.REAL_CHAIN, firstClaim))).isFalse();
+        assertThat(in(tenant, () -> records.holdsSubmissionLease(VerifactuRecord.REAL_CHAIN, afterExpiry))).isTrue();
+
+        // The previous holder releasing late must not release the new holder's lease
+        in(tenant, () -> {
+            records.releaseSubmission(VerifactuRecord.REAL_CHAIN, firstClaim);
+            return null;
+        });
+        assertThat(in(tenant, () -> records.holdsSubmissionLease(VerifactuRecord.REAL_CHAIN, afterExpiry))).isTrue();
+
+        // The new holder releases its own lease
+        in(tenant, () -> {
+            records.releaseSubmission(VerifactuRecord.REAL_CHAIN, afterExpiry);
+            return null;
+        });
+        assertThat(in(tenant, () -> records.holdsSubmissionLease(VerifactuRecord.REAL_CHAIN, afterExpiry))).isFalse();
+    }
+
+    @Test
+    void failedSubmissionReleasesLeaseSoNextRunRetries() {
+        String tenant = tenant();
+        var record = in(tenant, () -> issue(VerifactuRecord.REAL_CHAIN));
+        var failFirst = new AtomicBoolean(true);
+
+        var submitter = new VerifactuSubmitter() {
+            @Override public boolean configured() { return true; }
+            @Override public String name() { return "Test AEAT"; }
+            @Override
+            public List<Result> submit(VerifactuSystem system, Installation installation, List<Submission> batch,
+                    boolean production) {
+                assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+                if (failFirst.getAndSet(false)) {
+                    throw new IllegalStateException("Simulated AEAT failure");
+                }
+                return batch.stream()
+                        .map(s -> new Result(s.record().id(), VerifactuStatus.ACCEPTED, null, "CSV-RETRY"))
+                        .toList();
+            }
+        };
+
+        var system = new VerifactuSystem("Brasatech", "B12345674", "FastBite", "FB", "1.0", "Restauración");
+        var clock = Clock.fixed(Instant.parse("2026-10-09T11:05:00Z"), ZoneOffset.UTC);
+        var service = new VerifactuService(records, tickets, submitter, system, transactions, clock);
+
+        TenantContext.setCurrentTenant(tenant);
+        try {
+            assertThatThrownBy(() -> service.submitPending(false, false))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Simulated AEAT failure");
+
+            assertThat(service.submitPending(false, false)).isEqualTo(1);
+        } finally {
+            TenantContext.clear();
+        }
+
+        assertThat(in(tenant, () -> records.findById(record.id())).orElseThrow().submission().csv())
+                .isEqualTo("CSV-RETRY");
     }
 }
