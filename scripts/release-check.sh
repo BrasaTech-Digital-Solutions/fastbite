@@ -96,12 +96,59 @@ record() {
   local expected="$2"
   local desc="$3"
   TOTAL=$((TOTAL + 1))
-  if [ "$code" -eq "$expected" ]; then
+  local ok=0
+  if [ "$code" = "$expected" ]; then
+    ok=1
+  elif [ "$expected" = "302" ] && [ "$code" = "303" ]; then
+    ok=1
+  fi
+  if [ "$ok" -eq 1 ]; then
     printf '%-4s %s\n' "$code" "$desc"
   else
     printf '%-4s %s (FAILED, expected %s)\n' "$code" "$desc" "$expected"
     FAILED=$((FAILED + 1))
   fi
+}
+
+record_redirect() {
+  local code="$1"
+  local loc="$2"
+  local expected_proxy="$3"
+  local expected_path="$4"
+  local desc="$5"
+  TOTAL=$((TOTAL + 1))
+  local ok=1
+  if [ "$code" != "302" ] && [ "$code" != "303" ]; then
+    ok=0
+  fi
+  if echo "$loc" | grep -qE '^https?://(production|sandbox)(:[0-9]+)?(/|$)|\.run\.app|:8080(/|$)'; then
+    ok=0
+  fi
+  if ! [[ "$loc" =~ ^/ ]] && ! [[ "$loc" =~ ^$expected_proxy/ ]]; then
+    ok=0
+  fi
+  if [ -n "$expected_path" ] && ! echo "$loc" | grep -qF "$expected_path"; then
+    ok=0
+  fi
+  if [ "$ok" -eq 1 ]; then
+    printf '%-4s %s (Location: %s)\n' "$code" "$desc" "$loc"
+  else
+    printf '%-4s %s (FAILED, Location: %s)\n' "${code:-000}" "$desc" "${loc:-(none)}"
+    FAILED=$((FAILED + 1))
+  fi
+}
+
+check_redirect() {
+  local url="$1"
+  local expected_proxy="$2"
+  local expected_path="$3"
+  local headers
+  headers=$(curl -s -i "$url" | tr -d '\r')
+  local code
+  code=$(echo "$headers" | head -n 1 | awk '{print $2}')
+  local location
+  location=$(echo "$headers" | grep -i '^location:' | head -n 1 | sed 's/^[Ll]ocation: //')
+  record_redirect "$code" "$location" "$expected_proxy" "$expected_path" "GET $url"
 }
 
 record_match() {
@@ -124,6 +171,12 @@ check() {
   record "${code:-000}" 200 "$url"
 }
 
+echo "== [0/6] Host header & redirect isolation"
+check_redirect "$P/owner/console" "$P" "/login"
+check_redirect "$P/cake/counter" "$P" "/cake/login"
+check_redirect "$S/owner/console" "$S" "/login"
+check_redirect "$S/cake/counter" "$S" "/cake/login"
+
 echo "== [1/6] Setting up $T: signup in production, cafe concept, cash payment in sandbox"
 SIGNUP_HTML=$(curl -s -c "$J" -b "$J" "$P/signup")
 TOKEN=$(echo "$SIGNUP_HTML" | csrf)
@@ -143,11 +196,7 @@ LOGIN_RESP=$(curl -s -i -c "$J" -b "$J" "$P/login" \
   --data-urlencode "password=$PASS")
 LOGIN_CODE=$(echo "$LOGIN_RESP" | head -n 1 | awk '{print $2}')
 LOGIN_LOC=$(echo "$LOGIN_RESP" | loc)
-if [ "$LOGIN_CODE" = "302" ] && [[ "$LOGIN_LOC" =~ /owner/console ]]; then
-  record "302" 302 "POST $P/login (redirect to $LOGIN_LOC)"
-else
-  record "${LOGIN_CODE:-000}" 302 "POST $P/login (redirect to owner console, got $LOGIN_LOC)"
-fi
+record_redirect "$LOGIN_CODE" "$LOGIN_LOC" "$P" "/owner/console" "POST $P/login"
 
 LINK_RESP=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/sandbox?location=$T")
 LINK=$(echo "$LINK_RESP" | loc)
@@ -209,12 +258,14 @@ ADD_STAFF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
 record "$ADD_STAFF_CODE" 200 "POST $S/owner/locations/$T/users (add cashier)"
 
 CASHIER_LOGIN_CSRF=$(curl -s -c "$C" -b "$C" "$S/$T/login" | csrf)
-CASHIER_AUTH_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$C" -b "$C" \
+CASHIER_LOGIN_RESP=$(curl -s -i -c "$C" -b "$C" \
   --data-urlencode "_csrf=$CASHIER_LOGIN_CSRF" \
   --data-urlencode "username=${T}cashier" \
   --data-urlencode "password=$PASS" \
   "$S/login?tenantId=$T")
-record "$CASHIER_AUTH_CODE" 302 "POST $S/login?tenantId=$T (cashier login)"
+CASHIER_AUTH_CODE=$(echo "$CASHIER_LOGIN_RESP" | head -n 1 | awk '{print $2}')
+CASHIER_AUTH_LOC=$(echo "$CASHIER_LOGIN_RESP" | loc)
+record_redirect "$CASHIER_AUTH_CODE" "$CASHIER_AUTH_LOC" "$S" "" "POST $S/login?tenantId=$T (cashier login)"
 
 for path in "/$T/counter" "/$T/counter/tickets" "/$T/counter/day-report" "/$T/counter/api/cash" "/$T/dashboard"; do
   check "$C" "$S$path"
@@ -313,6 +364,9 @@ LEGAL_CODE=$(echo "$LEGAL_RESP" | head -n 1 | awk '{print $2}')
 LEGAL_LOC=$(echo "$LEGAL_RESP" | loc)
 record "${LEGAL_CODE:-000}" 302 "POST $S/owner/workspace/$T/legal (invalid tax ID redirect)"
 
+if [[ "$LEGAL_LOC" =~ ^/ ]]; then
+  LEGAL_LOC="$S$LEGAL_LOC"
+fi
 LEGAL_REDIRECT_PAGE=$(curl -s -b "$J" -c "$J" "$LEGAL_LOC")
 if echo "$LEGAL_REDIRECT_PAGE" | grep -q "INVALID_NIF_999"; then
   record_match 1 "Invalid legal form draft preserved on redirect (INVALID_NIF_999)"
