@@ -242,10 +242,10 @@ Both Cloud Run services (`fastbite` and `fastbite-sandbox` in `europe-southwest1
 
 1. **How a release is published:**
    - Ricardo builds the GraalVM native image on his machine, runs `bash scripts/release-check.sh --cold`, and pushes the image to Docker Hub as `ricardomaximino/fastbite-native:latest`.
-   - Pushing the commit to `main` (or `master`) triggers `.github/workflows/pipeline.yml` (pull requests run only the `test` job).
-2. **What the pipeline does on push to `main` or `master`:**
-   - **`test` job:** Runs `mvn test` on JVM (Java 25).
-   - **`deploy` job** (`needs: test`, serialized with `concurrency: { group: cloud-run-deploy, cancel-in-progress: false }` so two pushes never deploy at the same time and an active deploy is never cancelled mid-flight):
+   - Pushing a commit to any branch triggers the `test` job (`mvn test` on JVM); pull requests targeting `main` or `master` also run `test`. The `deploy` job runs **only** on push to `main` or `master` (on any other branch, `deploy` is skipped). Tag pushes do not trigger the workflow.
+2. **What the pipeline does on push:**
+   - **`test` job:** Runs `mvn test` on JVM (Java 25) for all branches and pull requests to `main`/`master`.
+   - **`deploy` job** (`needs: test`, runs only on `main` or `master`, serialized with `concurrency: { group: cloud-run-deploy, cancel-in-progress: false }` so two pushes never deploy at the same time and an active deploy is never cancelled mid-flight):
      1. Pulls `ricardomaximino/fastbite-native:latest` from Docker Hub once, tags it with `${{ github.sha }}` (`europe-southwest1-docker.pkg.dev/brasatech-digital-solutions/brasatech-images/fastbite:<sha>`), pushes it to Artifact Registry, and resolves the immutable Artifact Registry digest (`.../fastbite@sha256:...`).
      2. **Deploys `fastbite-sandbox` first** using that exact `@sha256:...` digest, passing only `--image`, `--region`, and `--project`.
      3. **Verifies `fastbite-sandbox`:** Confirms `spec.template.spec.containers[0].image` matches the deployed digest and that `https://fastbite-sandbox-786421195719.europe-southwest1.run.app/legal/terms` answers HTTP `200` with the `[Sandbox]` marker. If either deployment or verification fails, the job stops and `fastbite` (production) is untouched.
