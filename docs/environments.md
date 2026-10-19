@@ -220,6 +220,8 @@ to Cloud Run services in `europe-southwest1`:
 
 ### Setup and Deployment
 
+#### Firebase Hosting
+
 1. Configure project and targets in `.firebaserc`. Its `targets` block is keyed by project ID. Replace `"REPLACE-WITH-GCP-PROJECT-ID"` in both places, or run `firebase use --add` and `target:apply`, which write it under the real ID:
    ```bash
    firebase use --add <gcp-project-id>
@@ -233,6 +235,27 @@ to Cloud Run services in `europe-southwest1`:
    firebase deploy --only hosting:production
    firebase deploy --only hosting:sandbox
    ```
+
+#### Cloud Run Release Pipeline (`.github/workflows/pipeline.yml`)
+
+Both Cloud Run services (`fastbite` and `fastbite-sandbox` in `europe-southwest1`) are configured by hand (see `deploy/cloud-run-production.properties` and `deploy/cloud-run-sandbox.properties`). The CI/CD pipeline never builds the GraalVM native image and never modifies either service's configuration:
+
+1. **How a release is published:**
+   - Ricardo builds the GraalVM native image on his machine, runs `bash scripts/release-check.sh --cold`, and pushes the image to Docker Hub as `ricardomaximino/fastbite-native:latest`.
+   - Pushing the commit to `main` (or `master`) triggers `.github/workflows/pipeline.yml` (pull requests run only the `test` job).
+2. **What the pipeline does on push to `main` or `master`:**
+   - **`test` job:** Runs `mvn test` on JVM (Java 25).
+   - **`deploy` job** (`needs: test`, serialized with `concurrency: { group: cloud-run-deploy, cancel-in-progress: false }` so two pushes never deploy at the same time and an active deploy is never cancelled mid-flight):
+     1. Pulls `ricardomaximino/fastbite-native:latest` from Docker Hub once, tags it with `${{ github.sha }}` (`europe-southwest1-docker.pkg.dev/brasatech-digital-solutions/brasatech-images/fastbite:<sha>`), pushes it to Artifact Registry, and resolves the immutable Artifact Registry digest (`.../fastbite@sha256:...`).
+     2. **Deploys `fastbite-sandbox` first** using that exact `@sha256:...` digest, passing only `--image`, `--region`, and `--project`.
+     3. **Verifies `fastbite-sandbox`:** Confirms `spec.template.spec.containers[0].image` matches the deployed digest and that `https://fastbite-sandbox-786421195719.europe-southwest1.run.app/legal/terms` answers HTTP `200` with the `[Sandbox]` marker. If either deployment or verification fails, the job stops and `fastbite` (production) is untouched.
+     4. **Deploys `fastbite` (production) second** using the exact same `@sha256:...` digest (`--image`, `--region`, `--project`).
+     5. **Verifies `fastbite`:** Confirms `spec.template.spec.containers[0].image` matches the deployed digest and that `https://fastbite.brasatech.es/legal/terms` answers HTTP `200` without `[Sandbox]`.
+3. **Configuration preservation:**
+   - Because each `gcloud run deploy` passes only `--image`, `--region`, and `--project`, Cloud Run carries over all existing service settings unchanged: environment variables, Secret Manager references, GCS `/storage` volume mounts, the `gen2` execution environment, scaling (`min-instances`, `max-instances`, `cpu-boost`, `timeout`), the service account, and the IAM invoker policy.
+4. **If production's deploy fails after the sandbox succeeded:**
+   - `fastbite-sandbox` is now on the new release while `fastbite` is still on the previous one, so production will refuse promotion bundles (HTTP 409) until both services run the same release again.
+   - **Recovery:** Re-run the failed job in GitHub Actions (or push the next commit). Re-running the job is safe because the pipeline deploys by the resolved Artifact Registry `@sha256:...` digest rather than a mutable tag: it pulls Docker Hub's current `latest` once, pushes it, and deploys that single digest to both `fastbite-sandbox` and `fastbite` so both environments end up matching.
 
 ### Cloud Run Environment Settings
 

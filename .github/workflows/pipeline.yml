@@ -11,6 +11,9 @@ env:
   REGION: 'europe-southwest1'
   GAR_REPOSITORY: 'brasatech-images'
   SERVICE_NAME: 'fastbite'
+  SANDBOX_SERVICE_NAME: 'fastbite-sandbox'
+  PRODUCTION_URL: 'https://fastbite.brasatech.es'
+  SANDBOX_URL: 'https://fastbite-sandbox-786421195719.europe-southwest1.run.app'
   DOCKERHUB_USERNAME: 'ricardomaximino'
   DOCKERHUB_PROJECT_NAME: 'fastbite-native'
   DOCKERHUB_TAG: 'latest'
@@ -21,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 25
         uses: graalvm/setup-graalvm@v1
@@ -39,43 +42,110 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     environment: google_cloud_run
+    concurrency:
+      group: cloud-run-deploy
+      cancel-in-progress: false
 
     steps:
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Pull image from Docker Hub
-        run: docker pull ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }}
-
-      - uses: actions/checkout@v4
+        run: docker pull "${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }}"
 
       - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Authorize Docker
         run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
 
       - name: Tag & Push Native Image
         run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          docker tag ${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }} "$IMAGE"
+          REPO="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}"
+          IMAGE="${REPO}:${{ github.sha }}"
+          docker tag "${{ env.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_PROJECT_NAME }}:${{ env.DOCKERHUB_TAG }}" "$IMAGE"
           docker push "$IMAGE"
+          IMAGE_DIGEST=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE" | grep -F "${REPO}@sha256:" | head -n 1)
+          if [ -z "$IMAGE_DIGEST" ]; then
+            echo "ERROR: Could not resolve Artifact Registry digest for $IMAGE" >&2
+            exit 1
+          fi
+          echo "Pushed $IMAGE ($IMAGE_DIGEST)"
+          echo "IMAGE_DIGEST=$IMAGE_DIGEST" >> "$GITHUB_ENV"
 
-      - name: Deploy to Cloud Run (Madrid)
+      - name: Deploy Sandbox to Cloud Run (Madrid)
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}" \
+          gcloud run deploy "${{ env.SANDBOX_SERVICE_NAME }}" \
+            --image="$IMAGE_DIGEST" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}"
+
+      - name: Verify Sandbox Deployment
+        run: |
+          DEPLOYED_IMAGE=$(gcloud run services describe "${{ env.SANDBOX_SERVICE_NAME }}" \
             --region="${{ env.REGION }}" \
             --project="${{ env.PROJECT_ID }}" \
-            --max-instances=3 \
-            --cpu-boost \
-            --allow-unauthenticated
+            --format='value(spec.template.spec.containers[0].image)')
+          if [ "$DEPLOYED_IMAGE" != "$IMAGE_DIGEST" ]; then
+            echo "ERROR [${{ env.SANDBOX_SERVICE_NAME }}]: image check failed (expected $IMAGE_DIGEST, got $DEPLOYED_IMAGE)" >&2
+            exit 1
+          fi
+
+          BODY=$(mktemp)
+          STATUS=$(curl -sS --retry 3 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -o "$BODY" -w '%{http_code}' "${{ env.SANDBOX_URL }}/legal/terms" || true)
+          if [ "$STATUS" != "200" ]; then
+            echo "ERROR [${{ env.SANDBOX_SERVICE_NAME }}]: HTTP status check on ${{ env.SANDBOX_URL }}/legal/terms failed (expected 200, got ${STATUS:-000})" >&2
+            rm -f "$BODY"
+            exit 1
+          fi
+          if ! grep -qF '[Sandbox]' "$BODY"; then
+            echo "ERROR [${{ env.SANDBOX_SERVICE_NAME }}]: environment marker check failed ([Sandbox] marker missing on ${{ env.SANDBOX_URL }}/legal/terms)" >&2
+            rm -f "$BODY"
+            exit 1
+          fi
+          rm -f "$BODY"
+          echo "Verified ${{ env.SANDBOX_SERVICE_NAME }} running $IMAGE_DIGEST"
+
+      - name: Deploy Production to Cloud Run (Madrid)
+        run: |
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image="$IMAGE_DIGEST" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}"
+
+      - name: Verify Production Deployment
+        run: |
+          DEPLOYED_IMAGE=$(gcloud run services describe "${{ env.SERVICE_NAME }}" \
+            --region="${{ env.REGION }}" \
+            --project="${{ env.PROJECT_ID }}" \
+            --format='value(spec.template.spec.containers[0].image)')
+          if [ "$DEPLOYED_IMAGE" != "$IMAGE_DIGEST" ]; then
+            echo "ERROR [${{ env.SERVICE_NAME }}]: image check failed (expected $IMAGE_DIGEST, got $DEPLOYED_IMAGE)" >&2
+            exit 1
+          fi
+
+          BODY=$(mktemp)
+          STATUS=$(curl -sS --retry 3 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -o "$BODY" -w '%{http_code}' "${{ env.PRODUCTION_URL }}/legal/terms" || true)
+          if [ "$STATUS" != "200" ]; then
+            echo "ERROR [${{ env.SERVICE_NAME }}]: HTTP status check on ${{ env.PRODUCTION_URL }}/legal/terms failed (expected 200, got ${STATUS:-000})" >&2
+            rm -f "$BODY"
+            exit 1
+          fi
+          if grep -qF '[Sandbox]' "$BODY"; then
+            echo "ERROR [${{ env.SERVICE_NAME }}]: environment marker check failed ([Sandbox] marker unexpectedly present on ${{ env.PRODUCTION_URL }}/legal/terms)" >&2
+            rm -f "$BODY"
+            exit 1
+          fi
+          rm -f "$BODY"
+          echo "Verified ${{ env.SERVICE_NAME }} running $IMAGE_DIGEST"
