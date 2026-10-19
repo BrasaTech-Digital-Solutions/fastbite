@@ -23,10 +23,12 @@ public class TableQrController {
 
     private final TableService tableService;
     private final TableSignatureUtil tableSignatureUtil;
+    private final es.brasatech.fastbite.config.PublicOrigin publicOrigin;
 
-    public TableQrController(TableService tableService, TableSignatureUtil tableSignatureUtil) {
+    public TableQrController(TableService tableService, TableSignatureUtil tableSignatureUtil, es.brasatech.fastbite.config.PublicOrigin publicOrigin) {
         this.tableService = tableService;
         this.tableSignatureUtil = tableSignatureUtil;
+        this.publicOrigin = publicOrigin;
     }
 
     public record TableQr(String tableName, String url) {
@@ -36,7 +38,7 @@ public class TableQrController {
     @GetMapping({"/backoffice/tables/qr-codes", "/{tenantId}/backoffice/tables/qr-codes"})
     public String qrCodes(@RequestParam(required = false) String table, HttpServletRequest request, Model model) {
         String tenantId = TenantContext.getCurrentTenant();
-        String origin = ServletUriComponentsBuilder.fromContextPath(request).build().toUriString();
+        String origin = publicOrigin.resolve(request);
         Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
         String menuUrl = origin + (prefix != null ? prefix : "") + "/menu";
 
@@ -53,8 +55,7 @@ public class TableQrController {
 
         model.addAttribute("codes", codes);
         // Codes printed from a local or test address would send guests nowhere
-        String serverName = request.getServerName();
-        model.addAttribute("localAddress", serverName.startsWith("localhost") || serverName.startsWith("127.") || serverName.contains(".localhost"));
+        model.addAttribute("localAddress", publicOrigin.isLocal(request));
         return "fastfood/tableQrCodes";
     }
 }

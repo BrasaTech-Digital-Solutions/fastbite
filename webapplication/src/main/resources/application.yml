@@ -1,5 +1,6 @@
 server.port: ${PORT:8080}
 server.forward-headers-strategy: framework
+server.tomcat.use-relative-redirects: true
 server.shutdown: graceful
 
 spring:

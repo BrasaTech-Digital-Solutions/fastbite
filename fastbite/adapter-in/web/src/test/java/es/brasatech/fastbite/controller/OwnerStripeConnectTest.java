@@ -33,7 +33,8 @@ class OwnerStripeConnectTest {
     @BeforeEach
     void setUp() {
         OwnerConsoleController controller = new OwnerConsoleController(
-                tenantLocationService, tenantSignupService, tenantResolver, stripeService
+                tenantLocationService, tenantSignupService, tenantResolver, stripeService,
+                new es.brasatech.fastbite.config.PublicOrigin(null)
         );
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }

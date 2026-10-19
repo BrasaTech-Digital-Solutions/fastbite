@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = TableQrController.class)
 @ContextConfiguration(classes = {TestConfig.class, TableQrController.class, SecurityConfig.class,
-        TenantRoutingResolver.class, WebConfig.class})
+        TenantRoutingResolver.class, WebConfig.class, es.brasatech.fastbite.config.PublicOrigin.class})
 class TableQrEndpointTest {
 
     private final TableSignatureUtil signatures = new TableSignatureUtil("a-secret-for-tests");

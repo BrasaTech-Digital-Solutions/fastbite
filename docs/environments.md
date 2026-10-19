@@ -266,6 +266,24 @@ For each Cloud Run service:
 - `FASTBITE_JOBS_IN_PROCESS=false` and `FASTBITE_JOBS_SECRET` (from Secret Manager, at least 32 characters): switches off in-process `@Scheduled` timers and enables `POST /internal/jobs/run` for Cloud Scheduler.
 - `GCS_BUCKET`: must **not** be set on the server. FastBite writes media directly to disk under `/storage` (`IMAGE_UPLOAD_DIR=/storage/images`). Setting `GCS_BUCKET` activates `CloudFileStorageService`, whose uploader authenticates only through `GCS_OAUTH_TOKEN` (not ambient GCP instance credentials); without that token, it would fail uploads and silently fall back to local disk.
 
+### Host Headers, Relative Redirects, and Origin Resolution
+
+Behind Firebase Hosting, Cloud Run terminates incoming TLS and proxies HTTP requests to the container:
+- **Cloud Run strips `X-Forwarded-Host`:** Cloud Run delivers `X-Forwarded-Proto: https` to the container, but it never forwards `X-Forwarded-Host` or `X-Fh-Requested-Host`. The container receives an internal `Host` header pointing to its Cloud Run service address (e.g. `fastbite-xpbnjwdgda-no.a.run.app`).
+- **Relative Redirects:** Because the application cannot discover the public host from request headers, all HTTP redirects must be emitted as **relative paths** (`Location: /login`, etc.) rather than absolute URLs.
+  - Spring Framework's default `ForwardedHeaderFilter` wraps `HttpServletResponse` and rewrites relative redirects into absolute URLs using the incoming host (`adaptFromForwardedHeaders`), which on Cloud Run would redirect clients to the internal `*.run.app` hostname.
+  - Setting `server.tomcat.use-relative-redirects: true` in `webapplication/src/main/resources/application.yml` achieves this end-to-end:
+    - Spring Boot's `TomcatServletWebServerAutoConfiguration` automatically detects `server.tomcat.use-relative-redirects: true` and registers `tomcatForwardedHeaderFilterCustomizer`, which invokes `filter.setRelativeRedirects(true)` on `ForwardedHeaderFilter` (emitting RFC 7231 / RFC 9110 HTTP 303 See Other redirects with relative locations).
+    - Tomcat's connector context is configured with `useRelativeRedirects=true`, ensuring Tomcat itself does not expand relative redirects into absolute URLs.
+  - As a result, all redirects (authentication entry point, failure handlers, logout, controller redirects) stay relative, keeping browsers on `fastbite.brasatech.es` or `sandbox.fastbite.brasatech.es`.
+- **Absolute URLs and Public Origin (`PublicOrigin`):** Certain third-party integrations require absolute URLs (such as Stripe Checkout success/cancel return URLs and printed Table QR codes).
+  - The application resolves origins through `es.brasatech.fastbite.config.PublicOrigin`.
+  - On the server, `fastbite.public-url` (`FASTBITE_PUBLIC_URL`) is the single source of truth and is always used when present.
+  - When `fastbite.public-url` is unconfigured or blank, `PublicOrigin` falls back to the incoming request scheme and host (note that `application.yml` defaults `fastbite.public-url` to `http://localhost:8080`, so in the full app `PublicOrigin` always resolves a configured value; the request fallback applies in web slices and unit tests that do not load `application.yml`).
+- **Custom Restaurant Domains:**
+  - Restaurant custom domains routed directly through Firebase Hosting are not currently live.
+  - If custom restaurant domains are supported in the future, Firebase Hosting / the edge gateway would need to deliver the requested host via a header allowed through Cloud Run, or the backend gateway would need to look up custom domains from tenant settings to resolve the public origin per tenant.
+
 ### File Storage (GCS Volume Mount)
 
 Cloud Run instances have in-memory local filesystems that are ephemeral and lost on instance restart or scale-down. Persistent data must reside in `/storage`:

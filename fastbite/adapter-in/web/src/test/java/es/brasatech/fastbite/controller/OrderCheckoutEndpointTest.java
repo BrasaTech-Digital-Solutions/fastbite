@@ -44,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = StripeCheckoutController.class)
 @ContextConfiguration(classes = {TestConfig.class, StripeCheckoutController.class, SecurityConfig.class,
-        TenantRoutingResolver.class, WebConfig.class})
+        TenantRoutingResolver.class, WebConfig.class, es.brasatech.fastbite.config.PublicOrigin.class})
 class OrderCheckoutEndpointTest {
 
     private MockMvc mockMvc;

@@ -23,9 +23,7 @@ public class OwnerConsoleController {
     private final TenantSignupService tenantSignupService;
     private final es.brasatech.fastbite.config.TenantRoutingResolver tenantResolver;
     private final StripeService stripeService;
-
-    @Value("${fastbite.public-url:http://localhost:8080}")
-    private String publicUrl;
+    private final es.brasatech.fastbite.config.PublicOrigin publicOrigin;
 
     @ProductionOnly
     @PostMapping("/owner/add-location")
@@ -197,14 +195,6 @@ public class OwnerConsoleController {
     }
 
     private String resolveOrigin(jakarta.servlet.http.HttpServletRequest request) {
-        if (publicUrl != null && !publicUrl.isBlank()) {
-            return publicUrl.replaceAll("/+$", "");
-        }
-        String scheme = request.getScheme();
-        String serverName = request.getServerName();
-        int port = request.getServerPort();
-        boolean standardPort = ("http".equalsIgnoreCase(scheme) && port == 80)
-                || ("https".equalsIgnoreCase(scheme) && port == 443);
-        return standardPort ? (scheme + "://" + serverName) : (scheme + "://" + serverName + ":" + port);
+        return publicOrigin.resolve(request);
     }
 }

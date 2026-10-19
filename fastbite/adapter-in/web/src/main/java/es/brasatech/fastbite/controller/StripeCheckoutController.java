@@ -31,6 +31,7 @@ public class StripeCheckoutController {
     private final StripeService stripeService;
     private final OrderCheckoutService orderCheckoutService;
     private final OrderService orderService;
+    private final es.brasatech.fastbite.config.PublicOrigin publicOrigin;
 
     /**
      * Level 2: a guest pays the order they placed in this browser session. The order and its total
@@ -51,7 +52,7 @@ public class StripeCheckoutController {
         }
 
         try {
-            String origin = ServletUriComponentsBuilder.fromContextPath(httpRequest).build().toUriString();
+            String origin = publicOrigin.resolve(httpRequest);
             Object prefix = httpRequest.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
             String baseUrl = origin + (prefix != null ? prefix : "");
 
