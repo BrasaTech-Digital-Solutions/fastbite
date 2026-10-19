@@ -1,8 +1,8 @@
 {
   "hosting": [
     {
-      "target": "production",
-      "public": "firebase/public",
+      "site": "fastbite",
+      "public": "public",
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -19,8 +19,8 @@
       ]
     },
     {
-      "target": "sandbox",
-      "public": "firebase/public",
+      "site": "sandbox-fastbite",
+      "public": "public",
       "ignore": [
         "firebase.json",
         "**/.*",
