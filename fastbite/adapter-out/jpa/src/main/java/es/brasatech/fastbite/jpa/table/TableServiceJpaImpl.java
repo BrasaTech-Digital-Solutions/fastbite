@@ -39,6 +39,9 @@ public class TableServiceJpaImpl implements TableService {
         entity.setSeats(table.seats());
         entity.setStatus(table.status());
         entity.setActive(table.active());
+        entity.setQrTrusted(table.qrTrusted());
+        entity.setQrTrustedBy(table.qrTrustedBy());
+        entity.setQrTrustedAt(table.qrTrustedAt());
         return toDomain(repository.save(entity));
     }
 
@@ -50,6 +53,9 @@ public class TableServiceJpaImpl implements TableService {
             entity.setStatus(table.status());
             entity.setActive(table.active());
             entity.setOrderIds(new java.util.ArrayList<>(table.orderIds()));
+            entity.setQrTrusted(table.qrTrusted());
+            entity.setQrTrustedBy(table.qrTrustedBy());
+            entity.setQrTrustedAt(table.qrTrustedAt());
             repository.save(entity);
             return toDomain(entity);
         });
@@ -105,6 +111,9 @@ public class TableServiceJpaImpl implements TableService {
             if (allCleared && !entity.getOrderIds().isEmpty()) {
                 entity.setOrderIds(new java.util.ArrayList<>());
                 entity.setStatus(TableStatus.AVAILABLE);
+                entity.setQrTrusted(null);
+                entity.setQrTrustedBy(null);
+                entity.setQrTrustedAt(null);
                 repository.save(entity);
             }
         });
@@ -176,6 +185,22 @@ public class TableServiceJpaImpl implements TableService {
         return null;
     }
 
+    @Override
+    public Optional<Table> setQrTrustedOverride(String tableId, Boolean trusted, String staffUserId) {
+        return repository.findById(tableId).map(entity -> {
+            entity.setQrTrusted(trusted);
+            if (trusted != null) {
+                entity.setQrTrustedBy(staffUserId);
+                entity.setQrTrustedAt(java.time.LocalDateTime.now());
+            } else {
+                entity.setQrTrustedBy(null);
+                entity.setQrTrustedAt(null);
+            }
+            repository.save(entity);
+            return toDomain(entity);
+        });
+    }
+
     private Table toDomain(TableEntity entity) {
         return new Table(
                 entity.getId(),
@@ -183,6 +208,9 @@ public class TableServiceJpaImpl implements TableService {
                 entity.getSeats(),
                 entity.getStatus(),
                 entity.isActive(),
-                new java.util.ArrayList<>(entity.getOrderIds()));
+                new java.util.ArrayList<>(entity.getOrderIds()),
+                entity.getQrTrusted(),
+                entity.getQrTrustedBy(),
+                entity.getQrTrustedAt());
     }
 }

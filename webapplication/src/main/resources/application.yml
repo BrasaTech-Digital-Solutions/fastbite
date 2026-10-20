@@ -191,6 +191,10 @@ fastbite:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.
     secret: ${TABLE_QR_SECRET:local-development-only-table-secret}
+  tables:
+    qr:
+      brake-threshold: ${FASTBITE_TABLES_QR_BRAKE_THRESHOLD:3}
+      brake-window-minutes: ${FASTBITE_TABLES_QR_BRAKE_WINDOW_MINUTES:10}
   session:
     # Locally each environment has its own cookie name (FASTBITE_SESSION, FASTBITE_SANDBOX_SESSION); behind
     # Firebase Hosting both are __session and stay apart because cookies are host-only by default.

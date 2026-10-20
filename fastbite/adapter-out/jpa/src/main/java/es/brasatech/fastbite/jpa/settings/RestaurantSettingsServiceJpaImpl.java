@@ -18,7 +18,7 @@ public class RestaurantSettingsServiceJpaImpl implements RestaurantSettingsServi
     public RestaurantSettings get() {
         return repository.findById(RestaurantSettingsEntity.ID)
                 .map(entity -> new RestaurantSettings(entity.isDineIn(), entity.isTakeaway(),
-                        entity.getKdsYellowMinutes(), entity.getKdsRedMinutes()))
+                        entity.getKdsYellowMinutes(), entity.getKdsRedMinutes(), entity.isTableQrTrusted()))
                 .orElse(RestaurantSettings.DEFAULTS);
     }
 
@@ -30,6 +30,7 @@ public class RestaurantSettingsServiceJpaImpl implements RestaurantSettingsServi
         entity.setTakeaway(settings.takeaway());
         entity.setKdsYellowMinutes(settings.kdsYellowMinutes());
         entity.setKdsRedMinutes(settings.kdsRedMinutes());
+        entity.setTableQrTrusted(settings.tableQrTrusted());
         repository.save(entity);
         return settings;
     }
@@ -48,6 +49,7 @@ public class RestaurantSettingsServiceJpaImpl implements RestaurantSettingsServi
             RestaurantSettingsEntity fresh = new RestaurantSettingsEntity();
             fresh.setDineIn(RestaurantSettings.DEFAULTS.dineIn());
             fresh.setTakeaway(RestaurantSettings.DEFAULTS.takeaway());
+            fresh.setTableQrTrusted(RestaurantSettings.DEFAULTS.tableQrTrusted());
             return fresh;
         });
         entity.setCashFloat(cashFloat.setScale(2, java.math.RoundingMode.HALF_UP));

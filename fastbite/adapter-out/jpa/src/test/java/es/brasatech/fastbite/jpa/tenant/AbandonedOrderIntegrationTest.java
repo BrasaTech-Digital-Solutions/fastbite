@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
 @Import({OrderServiceJpaImpl.class, TableServiceJpaImpl.class, DiscountServiceJpaImpl.class,
+        es.brasatech.fastbite.jpa.settings.RestaurantSettingsServiceJpaImpl.class,
         TableSignatureUtil.class, ResultsOutliveTheirTransactionIntegrationTest.Beans.class})
 class AbandonedOrderIntegrationTest {
 

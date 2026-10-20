@@ -19,3 +19,9 @@ image:
     directory: target/test-uploads
 
 fastbite.migrations.mode: migrate
+
+fastbite:
+  tables:
+    qr:
+      brake-threshold: 3
+      brake-window-minutes: 10

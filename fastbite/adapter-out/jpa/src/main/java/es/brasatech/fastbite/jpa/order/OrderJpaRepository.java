@@ -27,4 +27,13 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, String> {
 
     List<OrderEntity> findByServiceTypeAndPaymentStatusAndStatusNotInOrderByCreatedAt(ServiceType serviceType,
             OrderPaymentStatus paymentStatus, Collection<OrderStatus> closed);
+
+    @org.springframework.data.jpa.repository.Query("""
+            select count(o) from DiningTable t join t.orderIds oid, Order o
+            where t.id = :tableId and o.id = oid
+            and o.orderChannel = es.brasatech.fastbite.domain.order.OrderChannel.TABLE
+            and o.createdAt >= :since
+            """)
+    long countRecentTableQrOrders(@org.springframework.data.repository.query.Param("tableId") String tableId,
+            @org.springframework.data.repository.query.Param("since") java.time.LocalDateTime since);
 }

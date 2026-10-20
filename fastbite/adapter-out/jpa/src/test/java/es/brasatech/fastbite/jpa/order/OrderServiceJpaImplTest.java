@@ -6,6 +6,8 @@ import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
+import es.brasatech.fastbite.domain.order.OrderStatus;
+import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.product.ProductCustomizer;
 import es.brasatech.fastbite.jpa.customization.CustomizationOptionEntity;
 import es.brasatech.fastbite.jpa.customization.CustomizationOptionJpaRepository;
@@ -43,6 +45,9 @@ class OrderServiceJpaImplTest {
 
     @Mock
     private es.brasatech.fastbite.application.discount.DiscountService discountService;
+
+    @Mock
+    private es.brasatech.fastbite.application.settings.RestaurantSettingsService restaurantSettingsService;
 
     @Mock
     private TableService tableService;
@@ -113,6 +118,84 @@ class OrderServiceJpaImplTest {
 
         // The result should have the Spanish translation
         assertThat(result.items().get(0).customizations().get(0).name()).isEqualTo("Queso");
+    }
+
+    @Test
+    void createOrderForTable_whenSupervised_routesToCreated() {
+        Table table = new Table("tbl-1", "Table 1", 4, es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE, true, List.of(), null, null, null);
+        when(tableService.findTableByNameOrId("tbl-1")).thenReturn(Optional.of(table));
+        when(restaurantSettingsService.get()).thenReturn(new es.brasatech.fastbite.domain.settings.RestaurantSettings(true, true, 0, 0, false));
+        when(repository.countRecentTableQrOrders(eq("tbl-1"), any())).thenReturn(0L);
+        when(repository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity e = inv.getArgument(0);
+            e.setId("ord-1");
+            return e;
+        });
+
+        Order created = service.createOrderForTable(List.of(), 101, "tbl-1", "en", "Guest");
+
+        assertThat(created.status()).isEqualTo(OrderStatus.CREATED);
+        assertThat(created.cancelReason()).isNull();
+        verify(tableService).assignOrder("tbl-1", "ord-1");
+    }
+
+    @Test
+    void createOrderForTable_whenTrusted_routesToAccepted() {
+        Table table = new Table("tbl-1", "Table 1", 4, es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE, true, List.of(), true, "staff", java.time.LocalDateTime.now());
+        when(tableService.findTableByNameOrId("tbl-1")).thenReturn(Optional.of(table));
+        when(restaurantSettingsService.get()).thenReturn(new es.brasatech.fastbite.domain.settings.RestaurantSettings(true, true, 0, 0, false));
+        when(repository.countRecentTableQrOrders(eq("tbl-1"), any())).thenReturn(1L);
+        when(repository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity e = inv.getArgument(0);
+            e.setId("ord-2");
+            return e;
+        });
+
+        Order created = service.createOrderForTable(List.of(), 102, "tbl-1", "en", "Guest");
+
+        assertThat(created.status()).isEqualTo(OrderStatus.ACCEPTED);
+        assertThat(created.cancelReason()).isNull();
+        verify(tableService).assignOrder("tbl-1", "ord-2");
+    }
+
+    @Test
+    void createOrderForTable_whenTrusted_andBrakeTripped_routesToCreatedWithApprovalNotice() {
+        Table table = new Table("tbl-1", "Table 1", 4, es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE, true, List.of(), true, "staff", java.time.LocalDateTime.now());
+        when(tableService.findTableByNameOrId("tbl-1")).thenReturn(Optional.of(table));
+        when(restaurantSettingsService.get()).thenReturn(new es.brasatech.fastbite.domain.settings.RestaurantSettings(true, true, 0, 0, false));
+        when(repository.countRecentTableQrOrders(eq("tbl-1"), any())).thenReturn(3L);
+        when(repository.save(any(OrderEntity.class))).thenAnswer(inv -> {
+            OrderEntity e = inv.getArgument(0);
+            e.setId("ord-3");
+            return e;
+        });
+
+        Order created = service.createOrderForTable(List.of(), 103, "tbl-1", "en", "Guest");
+
+        assertThat(created.status()).isEqualTo(OrderStatus.CREATED);
+        assertThat(created.cancelReason()).isEqualTo(Order.NEEDS_APPROVAL_TOO_MANY_ORDERS);
+        verify(tableService).assignOrder("tbl-1", "ord-3");
+    }
+
+    @Test
+    void setTableStatus_available_clearsQrTrustedOverride() {
+        Table table = new Table("tbl-1", "Table 1", 4, es.brasatech.fastbite.domain.table.TableStatus.OCCUPIED, true,
+                List.of("ord-1"), true, "staff", java.time.LocalDateTime.now());
+        when(tableService.findById("tbl-1")).thenReturn(Optional.of(table));
+
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setId("ord-1");
+        orderEntity.setStatus(OrderStatus.DELIVERED);
+        when(repository.findById("ord-1")).thenReturn(Optional.of(orderEntity));
+
+        service.setTableStatus("tbl-1", es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+
+        verify(tableService).update(eq("tbl-1"), argThat(t ->
+                t.status() == es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE
+                && t.orderIds().isEmpty()
+                && t.qrTrusted() == null
+                && t.qrTrustedBy() == null
+                && t.qrTrustedAt() == null));
     }
 
     @Test

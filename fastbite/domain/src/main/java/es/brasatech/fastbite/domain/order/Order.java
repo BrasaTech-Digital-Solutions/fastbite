@@ -10,6 +10,7 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
         OrderChannel orderChannel, String orderLanguage, String userId, String customerName, ServiceType serviceType) {
 
     public static final String PAYMENT_EXPIRED_REASON = "Online payment not received within one hour";
+    public static final String NEEDS_APPROVAL_TOO_MANY_ORDERS = "needs-approval:too-many-orders";
 
     public boolean paymentExpired(LocalDateTime now) {
         return heldUntilPaid() && status == OrderStatus.CREATED && createdAt != null
@@ -20,23 +21,29 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
     private static final List<OrderStatus> FLOW = List.of(OrderStatus.CREATED, OrderStatus.ACCEPTED,
             OrderStatus.PROCESSING, OrderStatus.DONE, OrderStatus.DELIVERED, OrderStatus.COMPLETE);
 
-    /** A new order. */
-    public Order(List<CartItem> cartItems, int orderNumber, OrderPaymentStatus paymentStatus, OrderChannel orderChannel,
-            String orderLanguage, String userId, String customerName, ServiceType serviceType) {
+    public Order(List<CartItem> cartItems, int orderNumber, OrderStatus initialStatus, String cancelReason,
+            OrderPaymentStatus paymentStatus, OrderChannel orderChannel, String orderLanguage, String userId,
+            String customerName, ServiceType serviceType) {
         this(cartItems,
              orderNumber,
              UUID.randomUUID().toString(),
              LocalDateTime.now(),
              LocalDateTime.now(),
-             OrderStatus.CREATED,
+             initialStatus,
              subtotal(cartItems),
-             null,
+             cancelReason,
              paymentStatus,
              orderChannel,
              orderLanguage,
              userId,
              customerName,
              serviceType);
+    }
+
+    /** A new order. */
+    public Order(List<CartItem> cartItems, int orderNumber, OrderPaymentStatus paymentStatus, OrderChannel orderChannel,
+            String orderLanguage, String userId, String customerName, ServiceType serviceType) {
+        this(cartItems, orderNumber, OrderStatus.CREATED, null, paymentStatus, orderChannel, orderLanguage, userId, customerName, serviceType);
     }
 
     public Order(List<CartItem> cartItems, int orderNumber, OrderPaymentStatus paymentStatus, OrderChannel orderChannel,

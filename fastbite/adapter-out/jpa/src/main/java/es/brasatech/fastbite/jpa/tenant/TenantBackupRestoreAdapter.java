@@ -127,6 +127,14 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 backupData.setUsers(java.util.List.of());
                 backupData.setPaymentConfigs(java.util.List.of());
                 backupData.setOrderCounter(null);
+                // Production bundles strip table overrides
+                if (backupData.getTables() != null) {
+                    for (TableEntity table : backupData.getTables()) {
+                        table.setQrTrusted(null);
+                        table.setQrTrustedBy(null);
+                        table.setQrTrustedAt(null);
+                    }
+                }
             } else {
                 backupData.setOrders(orderJpaRepository.findAll());
                 backupData.setUsers(userJpaRepository.findAll().stream()
@@ -239,6 +247,16 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 backupData.setUsers(java.util.List.of());
                 backupData.setOrders(java.util.List.of());
                 backupData.setOrderCounter(null);
+            }
+            if (bundle || templateOnly) {
+                // Strips table overrides when restoring bundles or templates
+                if (backupData.getTables() != null) {
+                    for (TableEntity table : backupData.getTables()) {
+                        table.setQrTrusted(null);
+                        table.setQrTrustedBy(null);
+                        table.setQrTrustedAt(null);
+                    }
+                }
             }
             inTenantTransaction(tenantId, false, () -> {
                 cleanDatabase(tenantId);

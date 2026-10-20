@@ -19,6 +19,15 @@ public class TableEntity implements Translatable {
     private TableStatus status;
     private boolean active;
 
+    @Column(name = "qr_trusted")
+    private Boolean qrTrusted;
+
+    @Column(name = "qr_trusted_by")
+    private String qrTrustedBy;
+
+    @Column(name = "qr_trusted_at")
+    private java.time.LocalDateTime qrTrustedAt;
+
     @ElementCollection
     @CollectionTable(name = "table_orders", joinColumns = @JoinColumn(name = "table_id"))
     @Column(name = "order_id")
@@ -67,6 +76,30 @@ public class TableEntity implements Translatable {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public Boolean getQrTrusted() {
+        return qrTrusted;
+    }
+
+    public void setQrTrusted(Boolean qrTrusted) {
+        this.qrTrusted = qrTrusted;
+    }
+
+    public String getQrTrustedBy() {
+        return qrTrustedBy;
+    }
+
+    public void setQrTrustedBy(String qrTrustedBy) {
+        this.qrTrustedBy = qrTrustedBy;
+    }
+
+    public java.time.LocalDateTime getQrTrustedAt() {
+        return qrTrustedAt;
+    }
+
+    public void setQrTrustedAt(java.time.LocalDateTime qrTrustedAt) {
+        this.qrTrustedAt = qrTrustedAt;
     }
 
     public java.util.List<String> getOrderIds() {

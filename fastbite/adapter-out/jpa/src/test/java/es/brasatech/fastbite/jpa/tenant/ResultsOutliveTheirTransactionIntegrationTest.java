@@ -40,7 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(classes = es.brasatech.fastbite.jpa.TestConfig.class)
 @Import({ProductServiceJpaImpl.class, GroupServiceJpaImpl.class, OrderServiceJpaImpl.class, TableServiceJpaImpl.class,
-        DiscountServiceJpaImpl.class, TableSignatureUtil.class, ResultsOutliveTheirTransactionIntegrationTest.Beans.class})
+        DiscountServiceJpaImpl.class, es.brasatech.fastbite.jpa.settings.RestaurantSettingsServiceJpaImpl.class,
+        TableSignatureUtil.class, ResultsOutliveTheirTransactionIntegrationTest.Beans.class})
 class ResultsOutliveTheirTransactionIntegrationTest {
 
     @TestConfiguration

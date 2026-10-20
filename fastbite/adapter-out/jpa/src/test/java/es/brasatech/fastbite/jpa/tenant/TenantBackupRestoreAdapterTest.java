@@ -7,6 +7,10 @@ import es.brasatech.fastbite.jpa.group.GroupEntity;
 import es.brasatech.fastbite.jpa.group.GroupJpaRepository;
 import es.brasatech.fastbite.jpa.product.ProductEntity;
 import es.brasatech.fastbite.jpa.product.ProductJpaRepository;
+import es.brasatech.fastbite.jpa.table.TableEntity;
+import es.brasatech.fastbite.jpa.table.TableJpaRepository;
+import es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity;
+import es.brasatech.fastbite.jpa.settings.RestaurantSettingsJpaRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +47,12 @@ class TenantBackupRestoreAdapterTest {
 
     @Autowired
     private TransactionTemplate transactionTemplate;
+
+    @Autowired
+    private TableJpaRepository tableRepository;
+
+    @Autowired
+    private RestaurantSettingsJpaRepository settingsRepository;
 
     @Autowired
     private AppearanceJdbcAdapter appearance;
@@ -271,7 +281,172 @@ class TenantBackupRestoreAdapterTest {
         assertEquals("cafe", appearance.locationTheme(production));
     }
 
+    @Test
+    void testTableOverridesPreservedInBackupAndStrippedInProductionBundle() {
+        String testTenant = "tableoverridestenant";
+        tenantProvisionerAdapter.provisionTenant(testTenant);
+        TenantContext.setCurrentTenant(testTenant);
+
+        transactionTemplate.execute(status -> {
+            RestaurantSettingsEntity settings = settingsRepository.findById(1).orElseGet(RestaurantSettingsEntity::new);
+            settings.setTableQrTrusted(true);
+            settingsRepository.save(settings);
+
+            TableEntity table = new TableEntity();
+            table.setName("Table 1");
+            table.setSeats(4);
+            table.setStatus(es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+            table.setActive(true);
+            table.setQrTrusted(true);
+            table.setQrTrustedBy("staff-test");
+            table.setQrTrustedAt(java.time.LocalDateTime.now());
+            tableRepository.save(table);
+            return null;
+        });
+
+        // 1. Export full backup and restore to a target tenant
+        ByteArrayOutputStream backupOut = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportBackup(testTenant, backupOut);
+        assertTrue(backupOut.size() > 0);
+
+        String restoreBackupTenant = "restorebackuptenant";
+        tenantProvisionerAdapter.provisionTenant(restoreBackupTenant);
+        backupRestoreAdapter.importRestore(restoreBackupTenant, new ByteArrayInputStream(backupOut.toByteArray()));
+
+        TenantContext.setCurrentTenant(restoreBackupTenant);
+        transactionTemplate.execute(status -> {
+            TableEntity restoredTable = tableRepository.findAll().stream()
+                    .filter(t -> "Table 1".equals(t.getName())).findFirst().orElseThrow();
+            assertTrue(restoredTable.getQrTrusted(), "Full backup must preserve table qrTrusted override");
+            assertEquals("staff-test", restoredTable.getQrTrustedBy());
+            org.junit.jupiter.api.Assertions.assertNotNull(restoredTable.getQrTrustedAt());
+
+            var restoredSettings = settingsRepository.findById(1).orElseThrow();
+            assertTrue(restoredSettings.isTableQrTrusted(), "Full backup must preserve restaurantSettings tableQrTrusted");
+            return null;
+        });
+
+        // 2. Export production bundle and restore to a bundle tenant
+        ByteArrayOutputStream bundleOut = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(testTenant, bundleOut);
+        assertTrue(bundleOut.size() > 0);
+
+        String restoreBundleTenant = "restorebundletenant";
+        tenantProvisionerAdapter.provisionTenant(restoreBundleTenant);
+        backupRestoreAdapter.importRestore(restoreBundleTenant, new ByteArrayInputStream(bundleOut.toByteArray()));
+
+        TenantContext.setCurrentTenant(restoreBundleTenant);
+        transactionTemplate.execute(status -> {
+            TableEntity restoredTable = tableRepository.findAll().stream()
+                    .filter(t -> "Table 1".equals(t.getName())).findFirst().orElseThrow();
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrusted(), "Production bundle must strip table qrTrusted override");
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedBy());
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedAt());
+
+            var restoredSettings = settingsRepository.findById(1).orElseThrow();
+            assertTrue(restoredSettings.isTableQrTrusted(), "Production bundle carries restaurant settings");
+            return null;
+        });
+    }
+
     /** The archive with data.json claiming another FastBite version. */
+    /** Strips tableQrTrusted from settings and qrTrusted/qrTrustedBy/qrTrustedAt from tables to simulate legacy archives. */
+    private static byte[] stripNewFields(byte[] archive) throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (var in = new java.util.zip.ZipInputStream(new ByteArrayInputStream(archive));
+             var zip = new java.util.zip.ZipOutputStream(out)) {
+            for (var entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                byte[] content = in.readAllBytes();
+                if (entry.getName().equals("data.json")) {
+                    String json = new String(content, java.nio.charset.StandardCharsets.UTF_8);
+                    json = json.replaceAll("\"tableQrTrusted\"\\s*:\\s*(true|false),?", "");
+                    json = json.replaceAll("\"qrTrusted\"\\s*:\\s*(true|false|null),?", "");
+                    json = json.replaceAll("\"qrTrustedBy\"\\s*:\\s*(\"[^\"]*\"|null),?", "");
+                    json = json.replaceAll("\"qrTrustedAt\"\\s*:\\s*(\"[^\"]*\"|null),?", "");
+                    // Clean trailing commas before closing braces if regex left any
+                    json = json.replaceAll(",\\s*\\}", "}");
+                    content = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                }
+                zip.putNextEntry(new java.util.zip.ZipEntry(entry.getName()));
+                zip.write(content);
+                zip.closeEntry();
+            }
+        }
+        return out.toByteArray();
+    }
+
+    @Test
+    void testLegacyArchiveWithoutNewFieldsImportsAsSupervised() throws Exception {
+        String testTenant = "legacysourcetenant";
+        tenantProvisionerAdapter.provisionTenant(testTenant);
+        TenantContext.setCurrentTenant(testTenant);
+
+        transactionTemplate.execute(status -> {
+            RestaurantSettingsEntity settings = settingsRepository.findById(1).orElseGet(RestaurantSettingsEntity::new);
+            settings.setTableQrTrusted(true);
+            settingsRepository.save(settings);
+
+            TableEntity table = new TableEntity();
+            table.setName("Legacy Table");
+            table.setSeats(4);
+            table.setStatus(es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+            table.setActive(true);
+            table.setQrTrusted(true);
+            table.setQrTrustedBy("staff-legacy");
+            table.setQrTrustedAt(java.time.LocalDateTime.now());
+            tableRepository.save(table);
+            return null;
+        });
+
+        // 1. Export full backup, strip new fields, restore to new tenant
+        ByteArrayOutputStream backupOut = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportBackup(testTenant, backupOut);
+        byte[] legacyBackup = stripNewFields(backupOut.toByteArray());
+
+        String legacyBackupTenant = "legacybackuptenant";
+        tenantProvisionerAdapter.provisionTenant(legacyBackupTenant);
+        backupRestoreAdapter.importRestore(legacyBackupTenant, new ByteArrayInputStream(legacyBackup));
+
+        TenantContext.setCurrentTenant(legacyBackupTenant);
+        transactionTemplate.execute(status -> {
+            var restoredSettings = settingsRepository.findById(1).orElseThrow();
+            org.junit.jupiter.api.Assertions.assertFalse(restoredSettings.isTableQrTrusted(),
+                    "Legacy backup without tableQrTrusted must default to supervised (false)");
+
+            TableEntity restoredTable = tableRepository.findAll().stream()
+                    .filter(t -> "Legacy Table".equals(t.getName())).findFirst().orElseThrow();
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrusted(),
+                    "Legacy backup without qrTrusted must have null override");
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedBy());
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedAt());
+            return null;
+        });
+
+        // 2. Export production bundle, strip new fields, restore to new tenant
+        ByteArrayOutputStream bundleOut = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(testTenant, bundleOut);
+        byte[] legacyBundle = stripNewFields(bundleOut.toByteArray());
+
+        String legacyBundleTenant = "legacybundletenant";
+        tenantProvisionerAdapter.provisionTenant(legacyBundleTenant);
+        backupRestoreAdapter.importRestore(legacyBundleTenant, new ByteArrayInputStream(legacyBundle));
+
+        TenantContext.setCurrentTenant(legacyBundleTenant);
+        transactionTemplate.execute(status -> {
+            var restoredSettings = settingsRepository.findById(1).orElseThrow();
+            org.junit.jupiter.api.Assertions.assertFalse(restoredSettings.isTableQrTrusted(),
+                    "Legacy bundle without tableQrTrusted must default to supervised (false)");
+
+            TableEntity restoredTable = tableRepository.findAll().stream()
+                    .filter(t -> "Legacy Table".equals(t.getName())).findFirst().orElseThrow();
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrusted(),
+                    "Legacy bundle without qrTrusted must have null override");
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedBy());
+            org.junit.jupiter.api.Assertions.assertNull(restoredTable.getQrTrustedAt());
+            return null;
+        });
+    }
+
     private static byte[] withVersion(byte[] archive, String version) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (var in = new java.util.zip.ZipInputStream(new ByteArrayInputStream(archive));

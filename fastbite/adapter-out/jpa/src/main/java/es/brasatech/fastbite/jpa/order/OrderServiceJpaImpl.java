@@ -31,12 +31,21 @@ import java.util.Optional;
 @Transactional
 public class OrderServiceJpaImpl implements OrderService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OrderServiceJpaImpl.class);
+
+    @org.springframework.beans.factory.annotation.Value("${fastbite.tables.qr.brake-threshold:3}")
+    private int brakeThreshold = es.brasatech.fastbite.domain.table.TableQrPolicy.DEFAULT_BRAKE_THRESHOLD;
+
+    @org.springframework.beans.factory.annotation.Value("${fastbite.tables.qr.brake-window-minutes:10}")
+    private int brakeWindowMinutes = es.brasatech.fastbite.domain.table.TableQrPolicy.DEFAULT_BRAKE_WINDOW_MINUTES;
+
     private final OrderJpaRepository repository;
     private final CustomizationOptionJpaRepository optionRepository;
     private final I18nConfig i18nConfig;
     private final TableService tableService;
     private final ApplicationEventPublisher eventPublisher;
     private final es.brasatech.fastbite.application.discount.DiscountService discountService;
+    private final es.brasatech.fastbite.application.settings.RestaurantSettingsService restaurantSettingsService;
 
     public OrderServiceJpaImpl(
             OrderJpaRepository repository,
@@ -44,13 +53,15 @@ public class OrderServiceJpaImpl implements OrderService {
             I18nConfig i18nConfig,
             TableService tableService,
             ApplicationEventPublisher eventPublisher,
-            @org.springframework.context.annotation.Lazy es.brasatech.fastbite.application.discount.DiscountService discountService) {
+            @org.springframework.context.annotation.Lazy es.brasatech.fastbite.application.discount.DiscountService discountService,
+            es.brasatech.fastbite.application.settings.RestaurantSettingsService restaurantSettingsService) {
         this.repository = repository;
         this.optionRepository = optionRepository;
         this.i18nConfig = i18nConfig;
         this.tableService = tableService;
         this.eventPublisher = eventPublisher;
         this.discountService = discountService;
+        this.restaurantSettingsService = restaurantSettingsService;
     }
 
     @Override
@@ -194,6 +205,9 @@ public class OrderServiceJpaImpl implements OrderService {
     public void setTableStatus(String tableId, TableStatus status) {
         tableService.findById(tableId).ifPresent(table -> {
             List<String> orderIds = table.orderIds();
+            Boolean qrTrusted = table.qrTrusted();
+            String qrTrustedBy = table.qrTrustedBy();
+            java.time.LocalDateTime qrTrustedAt = table.qrTrustedAt();
             if (status == TableStatus.AVAILABLE) {
                 if (orderIds != null) {
                     for (String orderId : orderIds) {
@@ -206,9 +220,12 @@ public class OrderServiceJpaImpl implements OrderService {
                     }
                 }
                 orderIds = List.of();
+                qrTrusted = null;
+                qrTrustedBy = null;
+                qrTrustedAt = null;
             }
             Table updatedTable = new Table(table.id(), table.name(), table.seats(), status, table.active(),
-                    orderIds);
+                    orderIds, qrTrusted, qrTrustedBy, qrTrustedAt);
             tableService.update(tableId, updatedTable);
         });
     }
@@ -220,27 +237,26 @@ public class OrderServiceJpaImpl implements OrderService {
 
     @Override
     public Order createOrderForTable(List<CartItem> cartItems, int orderNumber, String tableNumber, String orderLanguage, String customerName) {
-        String tableId = null;
-        var opt = tableService.findById(tableNumber);
-        if (opt.isPresent()) {
-            tableId = opt.get().id();
-        } else {
-            var tables = tableService.findAll();
-            for (var t : tables) {
-                if (t.name().equalsIgnoreCase(tableNumber) || 
-                    t.name().equalsIgnoreCase("Table " + tableNumber) || 
-                    t.id().equals(tableNumber)) {
-                    tableId = t.id();
-                    break;
-                }
-            }
+        Table table = tableService.findTableByNameOrId(tableNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Table does not exist"));
+        String tableId = table.id();
+
+        boolean defaultTrusted = restaurantSettingsService.get().tableQrTrusted();
+        var since = java.time.LocalDateTime.now().minusMinutes(brakeWindowMinutes);
+        // Note: Soft rate limit (no locking) - speed bump against abuse, concurrent requests may pass.
+        long recentQrOrders = repository.countRecentTableQrOrders(tableId, since);
+        es.brasatech.fastbite.domain.table.TableQrPolicy.Decision decision =
+                es.brasatech.fastbite.domain.table.TableQrPolicy.initialStatus(table, defaultTrusted, recentQrOrders, brakeThreshold);
+
+        if (es.brasatech.fastbite.domain.order.Order.NEEDS_APPROVAL_TOO_MANY_ORDERS.equals(decision.approvalNote())) {
+            log.info("Table QR brake tripped: table {} ('{}'), {} recent orders in {} minutes, routing order #{} to cashier approval",
+                    tableId, table.name(), recentQrOrders, brakeWindowMinutes, orderNumber);
         }
-        
-        if (tableId == null) {
-            throw new IllegalArgumentException("Table does not exist");
-        }
-        
-        var savedOrder = createOrder(cartItems, orderNumber, es.brasatech.fastbite.domain.order.OrderPaymentStatus.UNPAID, es.brasatech.fastbite.domain.order.OrderChannel.TABLE, orderLanguage, null, customerName, ServiceType.DINE_IN);
+
+        var savedOrder = createOrder(cartItems, orderNumber, decision.status(), decision.approvalNote(),
+                es.brasatech.fastbite.domain.order.OrderPaymentStatus.UNPAID,
+                es.brasatech.fastbite.domain.order.OrderChannel.TABLE,
+                orderLanguage, null, customerName, ServiceType.DINE_IN);
         tableService.assignOrder(tableId, savedOrder.id());
         return savedOrder;
     }

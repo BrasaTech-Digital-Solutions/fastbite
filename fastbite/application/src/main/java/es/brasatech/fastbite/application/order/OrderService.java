@@ -48,6 +48,16 @@ public interface OrderService {
         return savedOrder;
     }
 
+    default Order createOrder(List<CartItem> cartItems, int orderNumber, OrderStatus initialStatus, String cancelReason,
+            OrderPaymentStatus orderPaymentStatus, OrderChannel orderChannel, String orderLanguage, String userId,
+            String customerName, ServiceType serviceType) {
+        var order = new Order(cartItems, orderNumber, initialStatus, cancelReason, orderPaymentStatus, orderChannel,
+                orderLanguage, userId, customerName, serviceType);
+        var savedOrder = create(order);
+        publishEvent(new OrderStatusChangedEvent(savedOrder));
+        return savedOrder;
+    }
+
     default void moveToNextStatus(String id) {
         var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found"));
         var newOrder = order.next();

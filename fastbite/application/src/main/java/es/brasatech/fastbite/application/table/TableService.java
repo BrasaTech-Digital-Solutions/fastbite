@@ -29,5 +29,7 @@ public interface TableService {
     Optional<Table> findTableByNameOrId(String tableParam);
 
     String validateAndBindTableSession(String tableParam, String tokenParam, String existingTableNumber, List<?> cartItems);
+
+    Optional<Table> setQrTrustedOverride(String tableId, Boolean trusted, String staffUserId);
 }
 
