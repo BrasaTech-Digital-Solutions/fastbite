@@ -94,15 +94,11 @@ public class OrderServiceJpaImpl implements OrderService {
         if (entity.getPaymentStatus() == OrderPaymentStatus.PAID) {
             return;
         }
-        // Stripe may deliver a successful payment after on-access cleanup has run.
-        if (entity.getStatus() == OrderStatus.CANCELLED
-                && Order.PAYMENT_EXPIRED_REASON.equals(entity.getCancelReason())) {
-            entity.setStatus(OrderStatus.ACCEPTED);
-            entity.setCancelReason(null);
-        } else if (entity.getStatus() == OrderStatus.CREATED) {
-            entity.setStatus(OrderStatus.ACCEPTED);
-        }
-        entity.setPaymentStatus(OrderPaymentStatus.PAID);
+        Order order = toOrderWithTranslation(entity);
+        Order paidOrder = order.markPaid();
+        entity.setStatus(paidOrder.status());
+        entity.setPaymentStatus(paidOrder.paymentStatus());
+        entity.setCancelReason(paidOrder.cancelReason());
         entity.setUpdatedAt(java.time.LocalDateTime.now());
         tableService.findTableByOrderId(id).ifPresent(table -> tableService.resetTableSessionIfAllPaid(table.id()));
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
@@ -112,7 +108,10 @@ public class OrderServiceJpaImpl implements OrderService {
     @Override
     public void markOrderRefunded(String id) {
         var entity = repository.findForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        entity.setPaymentStatus(OrderPaymentStatus.REFUNDED);
+        Order order = toOrderWithTranslation(entity);
+        Order refundedOrder = order.markRefunded();
+        entity.setStatus(refundedOrder.status());
+        entity.setPaymentStatus(refundedOrder.paymentStatus());
         entity.setUpdatedAt(java.time.LocalDateTime.now());
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
     }
@@ -120,9 +119,13 @@ public class OrderServiceJpaImpl implements OrderService {
     @Override
     public void markOrderUnpaid(String id) {
         var entity = repository.findForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Order not found"));
-        entity.setPaymentStatus(OrderPaymentStatus.UNPAID);
+        Order order = toOrderWithTranslation(entity);
+        Order unpaidOrder = order.markUnpaid();
+        entity.setStatus(unpaidOrder.status());
+        entity.setPaymentStatus(unpaidOrder.paymentStatus());
         entity.setUpdatedAt(java.time.LocalDateTime.now());
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
+        publishEvent(new es.brasatech.fastbite.domain.event.OrderStatusChangedEvent(toOrderWithTranslation(entity)));
     }
 
     @Override

@@ -58,6 +58,23 @@ class AbandonedOrderIntegrationTest {
         assertThat(orders.findTakeawayAwaitingPayment()).extracting(Order::id).containsExactly(counter);
     }
 
+    @Test void markOrderPaidOnDeliveredOrderCompletesItAndOnAcceptedOrderKeepsItAccepted() {
+        tenant("paycompletion");
+        String deliveredId = create(10, OrderChannel.COUNTER, ServiceType.TAKEAWAY, OrderPaymentStatus.UNPAID);
+        orders.setOrderStatus(deliveredId, OrderStatus.DELIVERED);
+        orders.markOrderPaid(deliveredId);
+        var completed = orders.findById(deliveredId).orElseThrow();
+        assertThat(completed.status()).isEqualTo(OrderStatus.COMPLETE);
+        assertThat(completed.paymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
+
+        String acceptedId = create(10, OrderChannel.COUNTER, ServiceType.TAKEAWAY, OrderPaymentStatus.UNPAID);
+        orders.setOrderStatus(acceptedId, OrderStatus.ACCEPTED);
+        orders.markOrderPaid(acceptedId);
+        var accepted = orders.findById(acceptedId).orElseThrow();
+        assertThat(accepted.status()).isEqualTo(OrderStatus.ACCEPTED);
+        assertThat(accepted.paymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
+    }
+
     @Test void delayedPaymentRestoresExpiredOrderWithoutChangingItsPriceOrLines() {
         tenant("expirylate");
         String id = create(120, OrderChannel.ONLINE, ServiceType.TAKEAWAY, OrderPaymentStatus.UNPAID);

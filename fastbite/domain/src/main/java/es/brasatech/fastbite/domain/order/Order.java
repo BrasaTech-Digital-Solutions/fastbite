@@ -51,12 +51,26 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
 
     public Order next() {
         int step = FLOW.indexOf(status);
-        return setStatus(step < 0 ? OrderStatus.COMPLETE : FLOW.get(Math.min(step + 1, FLOW.size() - 1)));
+        if (step < 0) {
+            return setStatus(OrderStatus.COMPLETE);
+        }
+        if (status == OrderStatus.DELIVERED && paymentStatus != OrderPaymentStatus.PAID) {
+            return this;
+        }
+        return setStatus(FLOW.get(Math.min(step + 1, FLOW.size() - 1)));
     }
 
     public Order previous() {
         int step = FLOW.indexOf(status);
-        return step <= 0 ? this : setStatus(FLOW.get(step - 1));
+        if (step <= 0) {
+            return this;
+        }
+        if (status == OrderStatus.COMPLETE) {
+            // Staff correcting a mistake: step back to DELIVERED even if paid
+            return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), OrderStatus.DELIVERED, total,
+                    null, paymentStatus, orderChannel, orderLanguage, userId, customerName, serviceType);
+        }
+        return setStatus(FLOW.get(step - 1));
     }
 
     public Order cancel(String cancelReason) {
@@ -65,11 +79,59 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
     }
 
     public Order setStatus(OrderStatus status) {
-        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), status, total, null, paymentStatus,
+        OrderStatus effective = status;
+        if (status == OrderStatus.DELIVERED && paymentStatus == OrderPaymentStatus.PAID) {
+            effective = OrderStatus.COMPLETE;
+        } else if (this.status != OrderStatus.CANCELLED && status == OrderStatus.COMPLETE && paymentStatus != OrderPaymentStatus.PAID) {
+            effective = OrderStatus.DELIVERED;
+        }
+        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), effective, total, null, paymentStatus,
                 orderChannel, orderLanguage, userId, customerName, serviceType);
     }
 
+    public Order markPaid() {
+        if (paymentStatus == OrderPaymentStatus.PAID) {
+            return this;
+        }
+        OrderStatus newStatus = this.status;
+        String newCancelReason = this.cancelReason;
+        if (status == OrderStatus.CANCELLED && PAYMENT_EXPIRED_REASON.equals(cancelReason)) {
+            newStatus = OrderStatus.ACCEPTED;
+            newCancelReason = null;
+        } else if (status == OrderStatus.CREATED) {
+            newStatus = OrderStatus.ACCEPTED;
+        } else if (status == OrderStatus.DELIVERED) {
+            newStatus = OrderStatus.COMPLETE;
+        }
+        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), newStatus, total,
+                newCancelReason, OrderPaymentStatus.PAID, orderChannel, orderLanguage, userId, customerName, serviceType);
+    }
+
+    public Order markUnpaid() {
+        if (paymentStatus == OrderPaymentStatus.UNPAID) {
+            return this;
+        }
+        OrderStatus newStatus = this.status;
+        if (status == OrderStatus.COMPLETE) {
+            newStatus = OrderStatus.DELIVERED;
+        }
+        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), newStatus, total,
+                cancelReason, OrderPaymentStatus.UNPAID, orderChannel, orderLanguage, userId, customerName, serviceType);
+    }
+
+    public Order markRefunded() {
+        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), status, total,
+                cancelReason, OrderPaymentStatus.REFUNDED, orderChannel, orderLanguage, userId, customerName, serviceType);
+    }
+
     public Order setPaymentStatus(OrderPaymentStatus paymentStatus) {
+        if (paymentStatus == OrderPaymentStatus.PAID) {
+            return markPaid();
+        } else if (paymentStatus == OrderPaymentStatus.UNPAID) {
+            return markUnpaid();
+        } else if (paymentStatus == OrderPaymentStatus.REFUNDED) {
+            return markRefunded();
+        }
         return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), status, total, null, paymentStatus,
                 orderChannel, orderLanguage, userId, customerName, serviceType);
     }

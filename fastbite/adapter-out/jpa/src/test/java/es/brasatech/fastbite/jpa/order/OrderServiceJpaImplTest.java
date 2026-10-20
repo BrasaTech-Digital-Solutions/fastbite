@@ -47,6 +47,9 @@ class OrderServiceJpaImplTest {
     @Mock
     private TableService tableService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private OrderServiceJpaImpl service;
 
@@ -241,6 +244,75 @@ class OrderServiceJpaImplTest {
         // Then
         assertThat(result).isFalse();
         verify(repository, never()).deleteById(any());
+    }
+
+    @Test
+    void markOrderPaid_onDeliveredOrder_completesIt() {
+        OrderEntity entity = new OrderEntity();
+        entity.setId("o1");
+        entity.setStatus(es.brasatech.fastbite.domain.order.OrderStatus.DELIVERED);
+        entity.setPaymentStatus(OrderPaymentStatus.UNPAID);
+        entity.setOrderLanguage(DEFAULT_LANG);
+        when(repository.findForUpdate("o1")).thenReturn(Optional.of(entity));
+        when(tableService.findTableByOrderId("o1")).thenReturn(Optional.empty());
+
+        service.markOrderPaid("o1");
+
+        assertThat(entity.getStatus()).isEqualTo(es.brasatech.fastbite.domain.order.OrderStatus.COMPLETE);
+        assertThat(entity.getPaymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    void markOrderPaid_onAcceptedOrder_keepsItAccepted() {
+        OrderEntity entity = new OrderEntity();
+        entity.setId("o2");
+        entity.setStatus(es.brasatech.fastbite.domain.order.OrderStatus.ACCEPTED);
+        entity.setPaymentStatus(OrderPaymentStatus.UNPAID);
+        entity.setOrderLanguage(DEFAULT_LANG);
+        when(repository.findForUpdate("o2")).thenReturn(Optional.of(entity));
+        when(tableService.findTableByOrderId("o2")).thenReturn(Optional.empty());
+
+        service.markOrderPaid("o2");
+
+        assertThat(entity.getStatus()).isEqualTo(es.brasatech.fastbite.domain.order.OrderStatus.ACCEPTED);
+        assertThat(entity.getPaymentStatus()).isEqualTo(OrderPaymentStatus.PAID);
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    void markOrderUnpaid_onCompleteOrder_revertsToDelivered() {
+        OrderEntity entity = new OrderEntity();
+        entity.setId("o3");
+        entity.setStatus(es.brasatech.fastbite.domain.order.OrderStatus.COMPLETE);
+        entity.setPaymentStatus(OrderPaymentStatus.PAID);
+        entity.setOrderLanguage(DEFAULT_LANG);
+        when(repository.findForUpdate("o3")).thenReturn(Optional.of(entity));
+
+        service.markOrderUnpaid("o3");
+
+        assertThat(entity.getStatus()).isEqualTo(es.brasatech.fastbite.domain.order.OrderStatus.DELIVERED);
+        assertThat(entity.getPaymentStatus()).isEqualTo(OrderPaymentStatus.UNPAID);
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent.class));
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderStatusChangedEvent.class));
+    }
+
+    @Test
+    void markOrderRefunded_onCompleteOrder_leavesItComplete() {
+        OrderEntity entity = new OrderEntity();
+        entity.setId("o4");
+        entity.setStatus(es.brasatech.fastbite.domain.order.OrderStatus.COMPLETE);
+        entity.setPaymentStatus(OrderPaymentStatus.PAID);
+        entity.setOrderLanguage(DEFAULT_LANG);
+        when(repository.findForUpdate("o4")).thenReturn(Optional.of(entity));
+
+        service.markOrderRefunded("o4");
+
+        assertThat(entity.getStatus()).isEqualTo(es.brasatech.fastbite.domain.order.OrderStatus.COMPLETE);
+        assertThat(entity.getPaymentStatus()).isEqualTo(OrderPaymentStatus.REFUNDED);
+        verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent.class));
     }
 
     private OrderEntity createOrderEntity(Order order) {

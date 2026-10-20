@@ -88,10 +88,7 @@ public interface OrderService {
 
     default void markOrderPaid(String id) {
         var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found: " + id));
-        var paidOrder = order.setPaymentStatus(OrderPaymentStatus.PAID);
-        if (paidOrder.status() == OrderStatus.CREATED) {
-            paidOrder = paidOrder.setStatus(OrderStatus.ACCEPTED);
-        }
+        var paidOrder = order.markPaid();
         update(id, paidOrder);
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(paidOrder));
         publishEvent(new OrderStatusChangedEvent(paidOrder));
