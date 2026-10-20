@@ -195,6 +195,9 @@ function createOrderCard(order, role) {
     const takeaway = order.serviceType === 'TAKEAWAY'
         ? `<div class="small"><span class="badge bg-dark"><i class="fas fa-shopping-bag me-1"></i>${i18n.labelTakeaway}</span> ${escapeHtml(order.customerName)}</div>`
         : '';
+    const approvalNotice = order.cancelReason
+        ? `<div class="small text-danger fw-bold"><i class="fas fa-shield-alt me-1"></i>${escapeHtml(order.cancelReason === 'needs-approval:too-many-orders' ? (i18n.approvalTooManyOrders || 'needs approval: too many orders') : order.cancelReason)}</div>`
+        : '';
 
     return `
         <div class="cart-item mb-2">
@@ -202,6 +205,7 @@ function createOrderCard(order, role) {
                 <div>
                     <h6 class="mb-1 fw-bold">${i18n.labelOrder}${order.orderNumber}</h6>
                     ${takeaway}
+                    ${approvalNotice}
                     <small class="text-muted">${timeAgo}</small>
                 </div>
                 <span class="badge ${timerBadgeClass}">${getStatusLabel(order.status)}</span>

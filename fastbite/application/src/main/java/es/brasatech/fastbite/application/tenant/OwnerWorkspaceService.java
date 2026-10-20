@@ -43,12 +43,20 @@ public class OwnerWorkspaceService {
             default -> throw new IllegalArgumentException("Unknown setup action.");
         });
     }
+    public void saveService(String owner,String tenant,boolean dineIn,boolean takeaway,int yellow,int red,boolean tableQrTrusted) {
+        requireOwner(owner,tenant);
+        if (!dineIn && !takeaway) throw new IllegalArgumentException("Choose at least one way to serve your customers.");
+        if (yellow<0 || red<0 || (yellow>0 && red>0 && red<yellow)) throw new IllegalArgumentException("Kitchen warning times must be positive and in increasing order, or zero to disable.");
+        inTenant(tenant,()->settings.save(new RestaurantSettings(dineIn,takeaway,yellow,red,tableQrTrusted)));
+        progress.update(tenant,p->new SetupProgress(true,true,p.previewReviewed(),p.dismissed()));
+    }
     public void saveService(String owner,String tenant,boolean dineIn,boolean takeaway,int yellow,int red) {
         requireOwner(owner,tenant);
         if (!dineIn && !takeaway) throw new IllegalArgumentException("Choose at least one way to serve your customers.");
         if (yellow<0 || red<0 || (yellow>0 && red>0 && red<yellow)) throw new IllegalArgumentException("Kitchen warning times must be positive and in increasing order, or zero to disable.");
-        inTenant(tenant,()->settings.save(new RestaurantSettings(dineIn,takeaway,yellow,red)));
-        progress.update(tenant,p->new SetupProgress(true,true,p.previewReviewed(),p.dismissed()));
+        var current = inTenant(tenant,settings::get);
+        boolean trusted = current != null && current.tableQrTrusted();
+        saveService(owner,tenant,dineIn,takeaway,yellow,red,trusted);
     }
     /** The cash the location's drawer starts each day with, offered when the cash is checked. */
     public java.math.BigDecimal cashFloat(String owner, String tenant) {

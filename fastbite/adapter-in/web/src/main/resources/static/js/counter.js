@@ -150,6 +150,9 @@ function setupEventListeners() {
 
     // Tables grid click (inside modal)
     document.getElementById('tables-list').addEventListener('click', async (e) => {
+        if (e.target.closest('.qr-trust-toggle')) {
+            return;
+        }
         const btn = e.target.closest('.table-btn');
         if (!btn || btn.classList.contains('opacity-50')) return;
 
@@ -1025,6 +1028,23 @@ async function setTableStatus(tableId, status) {
     }
 }
 
+async function toggleTableQrTrust(tableId, targetTrusted) {
+    if (!tableId) return;
+    try {
+        const res = await fetch(`/counter/api/tables/${tableId}/qr-trusted?trusted=${targetTrusted}`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken }
+        });
+        if (res.ok) {
+            await renderTables();
+        } else {
+            console.error('Failed to update table QR trust setting');
+        }
+    } catch (err) {
+        console.error('Error updating table QR trust:', err);
+    }
+}
+
 function showToast(message) {
     const toastContainer = document.getElementById('toastContainer');
     if (!toastContainer) return;
@@ -1093,7 +1113,7 @@ function startRealtimeOrderUpdates() {
     const sseUrl = getTenantPrefix() + '/api/orders/live';
 
     function refreshCounterView() {
-        showTableCount();
+        renderTables();
         refreshPickupCount();
         if (selectedTable) {
             loadOrders();

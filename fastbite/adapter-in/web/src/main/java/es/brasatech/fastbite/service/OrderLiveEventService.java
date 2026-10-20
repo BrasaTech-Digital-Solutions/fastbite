@@ -184,6 +184,26 @@ public class OrderLiveEventService {
         }
     }
 
+    public void broadcastTableUpdated(String tableId) {
+        String currentTenant = normalize(TenantContext.getCurrentTenant());
+        List<SseEmitter> staffList = tenantEmitters.get(currentTenant);
+        if (staffList != null && !staffList.isEmpty()) {
+            Map<String, Object> payload = Map.of(
+                    "tableId", tableId,
+                    "eventType", "table-updated"
+            );
+            for (SseEmitter emitter : staffList) {
+                try {
+                    emitter.send(SseEmitter.event()
+                            .name("order-update")
+                            .data(payload, MediaType.APPLICATION_JSON));
+                } catch (Exception e) {
+                    staffList.remove(emitter);
+                }
+            }
+        }
+    }
+
     private String normalize(String tenantId) {
         return (tenantId == null || tenantId.isBlank()) ? "default" : tenantId.trim().toLowerCase();
     }

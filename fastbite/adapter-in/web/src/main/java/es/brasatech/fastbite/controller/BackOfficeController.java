@@ -46,13 +46,13 @@ public class BackOfficeController {
         return "fastfood/backOffice";
     }
 
-    @GetMapping("/api/backoffice/settings")
+    @GetMapping({"/{tenantId}/api/backoffice/settings", "/api/backoffice/settings"})
     @ResponseBody
     public RestaurantSettings getSettings() {
         return settingsService.get();
     }
 
-    @PutMapping("/api/backoffice/settings")
+    @PutMapping({"/{tenantId}/api/backoffice/settings", "/api/backoffice/settings"})
     @ResponseBody
     public RestaurantSettings saveSettings(@RequestBody RestaurantSettings settings) {
         return settingsService.save(settings);

@@ -166,6 +166,23 @@
                             <i class="fas fa-chair mb-1"></i><br>
                             <span th:text="${table.name}">T1</span>
                             <div class="table-status-label small" th:text="${table.status}">AVAILABLE</div>
+                            <div class="mt-2 table-qr-mode">
+                                <span class="badge" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'bg-success' : 'bg-secondary'"
+                                    th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{table.qr.trusted} : #{table.qr.supervised}">Supervised</span>
+                                <span th:if="${table.qrTrusted != null and table.qrTrusted != settings.tableQrTrusted}"
+                                    class="badge bg-warning text-dark ms-1" th:text="#{table.qr.override}">Override</span>
+                            </div>
+                            <div class="mt-2 qr-trust-toggle-container">
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 qr-trust-toggle"
+                                    style="font-size: 0.75rem;"
+                                    th:data-id="${table.id}"
+                                    th:data-target-trusted="${!table.effectiveQrTrusted(settings.tableQrTrusted)}"
+                                    th:title="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}"
+                                    onclick="event.stopPropagation(); toggleTableQrTrust(this.dataset.id, this.dataset.targetTrusted);">
+                                    <i class="fas" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'fa-toggle-on text-success' : 'fa-toggle-off text-muted'"></i>
+                                    <span class="ms-1" th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}">Switch</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -112,9 +112,9 @@ public class OwnerWorkspaceController {
     }
     @PostMapping("/owner/workspace/{tenant}/service")
     public String service(@PathVariable String tenant,@RequestParam(defaultValue="false") boolean dineIn,@RequestParam(defaultValue="false") boolean takeaway,
-            @RequestParam(defaultValue="0") int yellow,@RequestParam(defaultValue="0") int red,Principal owner,RedirectAttributes flash) {
+            @RequestParam(defaultValue="0") int yellow,@RequestParam(defaultValue="0") int red,@RequestParam(defaultValue="false") boolean tableQrTrusted,Principal owner,RedirectAttributes flash) {
         check(owner,tenant);
-        try { workspace.saveService(owner.getName(),tenant,dineIn,takeaway,yellow,red);flash.addFlashAttribute("notice","Service preferences saved. Your setup progress has been updated."); }
+        try { workspace.saveService(owner.getName(),tenant,dineIn,takeaway,yellow,red,tableQrTrusted);flash.addFlashAttribute("notice","Service preferences saved. Your setup progress has been updated."); }
         catch(IllegalArgumentException e) { flash.addFlashAttribute("error",e.getMessage()); }
         return "redirect:/owner/console?view=location-settings&location="+tenant;
     }

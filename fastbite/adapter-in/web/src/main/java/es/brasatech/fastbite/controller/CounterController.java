@@ -43,6 +43,7 @@ public class CounterController {
     private final RestaurantSettingsService settingsService;
     private final es.brasatech.fastbite.application.fiscal.FiscalTicketService fiscalTicketService;
     private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
+    private final es.brasatech.fastbite.service.OrderLiveEventService orderLiveEventService;
 
     @GetMapping({"/{tenantId}/counter", "/counter"})
     public String counter(Model model, org.springframework.security.core.Authentication user) {
@@ -147,6 +148,38 @@ public class CounterController {
     }
 
     @ResponseBody
+    @PostMapping({"/counter/api/tables/{tableId}/qr-trusted", "/{tenantId}/counter/api/tables/{tableId}/qr-trusted"})
+    public Map<String, Object> updateTableQrTrusted(
+            @PathVariable String tableId,
+            @RequestParam(required = false) Boolean trusted,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        var settings = settingsService.get();
+        boolean newTrusted;
+        if (trusted != null) {
+            newTrusted = trusted;
+        } else {
+            var currentTable = tableService.findById(tableId)
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.NOT_FOUND, "Table not found: " + tableId));
+            newTrusted = !currentTable.effectiveQrTrusted(settings.tableQrTrusted());
+        }
+
+        String username = userDetails != null ? userDetails.getUsername() : "staff";
+        var updated = tableService.setQrTrustedOverride(tableId, newTrusted, username)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Table not found: " + tableId));
+
+        orderLiveEventService.broadcastTableUpdated(tableId);
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("status", "success");
+        result.put("tableId", updated.id());
+        result.put("qrTrusted", updated.qrTrusted());
+        result.put("effectiveQrTrusted", updated.effectiveQrTrusted(settings.tableQrTrusted()));
+        return result;
+    }
+
+    @ResponseBody
     @PutMapping("/counter/api/orders/{orderId}")
     public Map<String, Object> updateOrder(
             @PathVariable String orderId,
@@ -244,6 +277,7 @@ public class CounterController {
     public String getTablesFragment(Model model, @RequestParam(required = false) String selectedTableId) {
         model.addAttribute("tables", tableService.findAll());
         model.addAttribute("selectedTableId", selectedTableId);
+        model.addAttribute("settings", settingsService.get());
         return "fastfood/fragments/counter :: tables";
     }
 

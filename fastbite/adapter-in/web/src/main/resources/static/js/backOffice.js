@@ -1657,6 +1657,7 @@ async function saveRestaurantSettings(event) {
     const settings = {
         dineIn: document.getElementById('dineInInput').checked,
         takeaway: document.getElementById('takeawayInput').checked,
+        tableQrTrusted: document.getElementById('tableQrTrustedInput') ? document.getElementById('tableQrTrustedInput').checked : false,
         kdsYellowMinutes: parseInt(document.getElementById('yellowTimerInput').value || '0'),
         kdsRedMinutes: parseInt(document.getElementById('redTimerInput').value || '0')
     };

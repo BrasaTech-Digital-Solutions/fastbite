@@ -94,6 +94,8 @@ class CounterTakeawayEndpointTest {
     private es.brasatech.fastbite.application.fiscal.FiscalTicketService fiscalTicketService;
     @MockitoBean
     private TenantLocationService tenantLocationService;
+    @MockitoBean
+    private es.brasatech.fastbite.service.OrderLiveEventService orderLiveEventService;
 
     @BeforeEach
     void setUp() {

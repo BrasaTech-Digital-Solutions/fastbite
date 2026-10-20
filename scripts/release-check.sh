@@ -359,6 +359,93 @@ fi
 QR_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" "$S/$T/backoffice/tables/qr-codes")
 record "$QR_CODE" 403 "GET $S/$T/backoffice/tables/qr-codes (cashier forbidden)"
 
+echo "== [2.5/6] Trusted & Supervised table QR orders, switch, settle reset"
+# 1. Get signed QR link as owner from backoffice QR codes page
+QR_PAGE=$(curl -s -b "$J" -c "$J" "$S/$T/backoffice/tables/qr-codes")
+QR_LINK=$(echo "$QR_PAGE" | grep -o 'data-url="[^"]*"' | head -1 | sed 's/data-url="//; s/"$//' | sed 's/&amp;/\&/g')
+TABLE_ID=$(echo "$QR_LINK" | grep -o 'table=[^&]*' | sed 's/table=//')
+if [ -n "$QR_LINK" ] && [ -n "$TABLE_ID" ]; then
+  record_match 1 "Found signed QR link for table $TABLE_ID from QR codes page"
+else
+  record_match 0 "Could not find signed QR link in $S/$T/backoffice/tables/qr-codes"
+fi
+
+# 2. Guest visits signed QR link to bind session to table
+QR_ENTER_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$G" -c "$G" "$QR_LINK")
+record "$QR_ENTER_CODE" 200 "GET $QR_LINK (guest binds session to table)"
+
+# 3. Table is supervised by default: guest places order -> status must be CREATED (0)
+GUEST_MENU_CSRF=$(curl -s -b "$G" -c "$G" "$S/$T/menu" | meta)
+ORDER1_OUT="table_order_1.json"
+ORDER1_PAYLOAD="{\"items\":[{\"id\":\"tq1\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"price\":$PRICE}],\"customerName\":\"Table Guest\"}"
+ORDER1_CODE=$(curl -s -o "$ORDER1_OUT" -w '%{http_code}' -b "$G" -c "$G" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $GUEST_MENU_CSRF" \
+  -H "Referer: $S/$T/menu" \
+  -d "$ORDER1_PAYLOAD" \
+  "$S/$T/api/create-order")
+record "$ORDER1_CODE" 200 "POST $S/$T/api/create-order (guest table order while supervised)"
+
+ORDER1_ID=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select id from tenant_$T.orders where order_channel = 2 order by created_at desc limit 1" 2>/dev/null | tr -d '\r')
+ORDER1_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select status from tenant_$T.orders where id = '$ORDER1_ID'" 2>/dev/null | tr -d '\r')
+if [ "$ORDER1_STATUS" = "0" ]; then
+  record_match 1 "Supervised table QR order starts CREATED (status=0, order $ORDER1_ID)"
+else
+  record_match 0 "Supervised table QR order starts CREATED (expected 0, got ${ORDER1_STATUS:-empty})"
+fi
+
+# 4. Cashier switches the table to trusted via counter API
+CASHIER_COUNTER_CSRF=$(curl -s -b "$C" -c "$C" "$S/$T/counter" | meta)
+SWITCH_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$C" -c "$C" \
+  -H "X-CSRF-TOKEN: $CASHIER_COUNTER_CSRF" \
+  -H "Referer: $S/$T/counter" \
+  "$S/counter/api/tables/$TABLE_ID/qr-trusted?trusted=true")
+record "$SWITCH_CODE" 200 "POST $S/counter/api/tables/$TABLE_ID/qr-trusted?trusted=true (cashier sets table trusted)"
+
+TABLE_TRUSTED_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select qr_trusted from tenant_$T.dining_tables where id = '$TABLE_ID'" 2>/dev/null | tr -d '\r')
+if [ "$TABLE_TRUSTED_DB" = "t" ]; then
+  record_match 1 "Table $TABLE_ID has qr_trusted=true in database"
+else
+  record_match 0 "Table $TABLE_ID has qr_trusted=true in database (got ${TABLE_TRUSTED_DB:-empty})"
+fi
+
+# 5. Guest places another QR order: while table is trusted -> status must be ACCEPTED (1)
+ORDER2_OUT="table_order_2.json"
+ORDER2_PAYLOAD="{\"items\":[{\"id\":\"tq2\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"price\":$PRICE}],\"customerName\":\"Table Guest\"}"
+ORDER2_CODE=$(curl -s -o "$ORDER2_OUT" -w '%{http_code}' -b "$G" -c "$G" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $GUEST_MENU_CSRF" \
+  -H "Referer: $S/$T/menu" \
+  -d "$ORDER2_PAYLOAD" \
+  "$S/$T/api/create-order")
+record "$ORDER2_CODE" 200 "POST $S/$T/api/create-order (guest table order while trusted)"
+
+ORDER2_ID=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select id from tenant_$T.orders where order_channel = 2 order by created_at desc limit 1" 2>/dev/null | tr -d '\r')
+ORDER2_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select status from tenant_$T.orders where id = '$ORDER2_ID'" 2>/dev/null | tr -d '\r')
+if [ "$ORDER2_STATUS" = "1" ]; then
+  record_match 1 "Trusted table QR order starts ACCEPTED (status=1, order $ORDER2_ID)"
+else
+  record_match 0 "Trusted table QR order starts ACCEPTED (expected 1, got ${ORDER2_STATUS:-empty})"
+fi
+
+# 6. Cashier charges the table at the counter: settles both orders
+SETTLE_PAYLOAD="{\"orderIds\":[\"$ORDER1_ID\",\"$ORDER2_ID\"],\"paymentMethod\":\"CASH\",\"cashReceived\":50,\"invoice\":null}"
+SETTLE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$C" -c "$C" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $CASHIER_COUNTER_CSRF" \
+  -H "Referer: $S/$T/counter" \
+  -d "$SETTLE_PAYLOAD" \
+  "$S/counter/api/settle")
+record "$SETTLE_CODE" 200 "POST $S/counter/api/settle (settle table orders)"
+
+# 7. Settle resets table override: qr_trusted must be null (back to restaurant default)
+TABLE_RESET_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select qr_trusted from tenant_$T.dining_tables where id = '$TABLE_ID'" 2>/dev/null | tr -d '\r')
+if [ -z "$TABLE_RESET_DB" ]; then
+  record_match 1 "Table override reset on settle (qr_trusted is null, back to default)"
+else
+  record_match 0 "Table override reset on settle (expected null/empty, got $TABLE_RESET_DB)"
+fi
+
 echo "== [3/6] Guest surfaces & Legal pages"
 for path in "/$T/menu" "/$T/allergens" "/cake/menu" "/cake/allergens" "/verifactu/declaracion-responsable"; do
   check "$G" "$S$path"
@@ -470,6 +557,15 @@ else
   record_match 0 "Image gallery fragment contains folder 'burgers'"
 fi
 
+# Save restaurant settings with tableQrTrusted in sandbox
+SETTINGS_SAVE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -b "$J" -c "$J" \
+  -H 'Content-Type: application/json' \
+  -H "X-CSRF-TOKEN: $BT" \
+  -H "Referer: $S/$T/backoffice" \
+  -d '{"dineIn":true,"takeaway":true,"kdsYellowMinutes":5,"kdsRedMinutes":10,"tableQrTrusted":true}' \
+  "$S/$T/api/backoffice/settings")
+record "$SETTINGS_SAVE_CODE" 200 "PUT $S/$T/api/backoffice/settings (sandbox owner saves settings)"
+
 echo "== [5/6] Production bundle export & import"
 EXPORT_CODE=$(curl -s -w '%{http_code}' -b "$J" -c "$J" \
   -o "$BUNDLE" \
@@ -491,6 +587,17 @@ if [ $(grep -c -i 'product' "$PROD_MENU_OUT" 2>/dev/null || echo 0) -gt 0 ]; the
   record_match 1 "Production menu contains imported products"
 else
   record_match 0 "Production menu contains imported products"
+fi
+
+# Verify @JsonCreator settings in the native image:
+PROD_SETTINGS_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" "$P/$T/api/backoffice/settings")
+record "$PROD_SETTINGS_CODE" 200 "GET $P/$T/api/backoffice/settings (production native image reads settings)"
+
+PROD_TRUSTED_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select table_qr_trusted from tenant_$T.restaurant_settings" 2>/dev/null | tr -d '\r')
+if [ "$PROD_TRUSTED_DB" = "f" ] || [ "$PROD_TRUSTED_DB" = "t" ]; then
+  record_match 1 "Production bundle restored RestaurantSettings via @JsonCreator into native image (table_qr_trusted=$PROD_TRUSTED_DB)"
+else
+  record_match 0 "Production bundle restored RestaurantSettings into native image (expected f or t, got ${PROD_TRUSTED_DB:-empty})"
 fi
 
 echo "== [6/6] Static assets, Self-hosted fonts & Scheduled jobs endpoint"

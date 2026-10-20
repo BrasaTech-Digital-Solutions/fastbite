@@ -455,19 +455,26 @@
                                     Choose how customers can order from this restaurant. A sale paid on the spot at the counter always works.
                                 </p>
                                 <form id="serviceTypesForm" onsubmit="saveRestaurantSettings(event)" class="row g-3 align-items-center">
-                                    <div class="col-md-5">
+                                    <div class="col-md-4">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="dineInInput" th:checked="${settings.dineIn}">
                                             <label class="form-check-label font-weight-bold" for="dineInInput">Table service</label>
                                         </div>
                                         <small class="text-muted">Orders for a table, taken at the counter or placed by guests from the table.</small>
                                     </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-3">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="takeawayInput" th:checked="${settings.takeaway}">
                                             <label class="form-check-label font-weight-bold" for="takeawayInput">Takeaway</label>
                                         </div>
                                         <small class="text-muted">Orders to collect. At the counter they can be paid at pickup.</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="tableQrTrustedInput" th:checked="${settings.tableQrTrusted}">
+                                            <label class="form-check-label font-weight-bold" for="tableQrTrustedInput" th:text="#{settings.tableQrTrusted}">Trusted table QR orders</label>
+                                        </div>
+                                        <small class="text-muted" th:text="#{settings.tableQrTrusted.hint}">Orders from table QR codes go straight to the kitchen / need the cashier's approval.</small>
                                     </div>
                                     <div class="col-md-2 align-self-end">
                                         <button type="submit" class="btn btn-primary w-100 font-weight-bold">
