@@ -140,8 +140,16 @@ public class OrderController {
 
     @ResponseBody
     @PostMapping({"/{tenantId}/api/order", "/api/order"})
-    public List<Order> postOrder() {
-        return orderService.getAllOrder();
+    public List<es.brasatech.fastbite.dto.order.DashboardOrder> postOrder() {
+        List<Order> orders = orderService.getAllOrder();
+        List<String> orderIds = orders.stream().map(Order::id).toList();
+        Map<String, Table> tablesByOrderId = tableService.findTablesByOrderIds(orderIds);
+        return orders.stream().map(order -> {
+            Table table = tablesByOrderId.get(order.id());
+            return es.brasatech.fastbite.dto.order.DashboardOrder.from(order,
+                    table != null ? table.id() : null,
+                    table != null ? table.name() : null);
+        }).toList();
     }
 
     @ResponseBody

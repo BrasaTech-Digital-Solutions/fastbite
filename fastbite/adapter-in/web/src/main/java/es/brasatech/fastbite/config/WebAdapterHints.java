@@ -176,6 +176,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(BackOfficeDto.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(OrderCancelReason.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(OrderStatusChange.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(es.brasatech.fastbite.dto.order.DashboardOrder.class), MemberCategory.values());
 
         // Domain objects used in templates or JSON serialization
         hints.reflection().registerType(TypeReference.of(ProductCustomizer.class), MemberCategory.values());

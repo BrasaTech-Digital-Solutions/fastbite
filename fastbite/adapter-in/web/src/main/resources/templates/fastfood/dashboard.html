@@ -182,6 +182,14 @@
                                         th:text="#{dashboard.manager.tab.completed}">Completed</span>
                                 </button>
                             </li>
+                            <li class="nav-item">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#unpaidOrders"
+                                    type="button">
+                                    <i class="fas fa-money-bill-wave"></i> <span
+                                        th:text="#{dashboard.manager.tab.unpaid}">Unpaid</span>
+                                    <span class="badge bg-danger ms-1" id="unpaidCount" style="display:none;">0</span>
+                                </button>
+                            </li>
                         </ul>
 
                         <!-- Tab Content -->
@@ -259,6 +267,16 @@
                                             </tr>
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+
+                            <!-- Unpaid Orders Tab -->
+                            <div class="tab-pane fade" id="unpaidOrders">
+                                <div id="unpaidOrdersContainer">
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <p th:text="#{dashboard.empty.unpaid}">No unpaid orders</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -360,14 +378,24 @@
     <div id="i18n-dashboard" style="display:none;" th:data-status-created="#{dashboard.status.created}"
         th:data-status-confirmed="#{dashboard.status.confirmed}"
         th:data-status-preparing="#{dashboard.status.preparing}" th:data-status-ready="#{dashboard.status.ready}"
+        th:data-status-done="#{dashboard.status.ready}"
         th:data-status-delivered="#{dashboard.status.delivered}"
+        th:data-status-completed="#{dashboard.status.completed}"
         th:data-status-cancelled="#{dashboard.status.cancelled}" th:data-empty-created="#{dashboard.empty.created}"
         th:data-empty-confirmed="#{dashboard.empty.confirmed}" th:data-empty-preparing="#{dashboard.empty.preparing}"
         th:data-empty-ready="#{dashboard.empty.ready}" th:data-empty-all="#{dashboard.empty.all}"
         th:data-empty-cancelled="#{dashboard.empty.cancelled}" th:data-empty-completed="#{dashboard.empty.completed}"
+        th:data-empty-unpaid="#{dashboard.empty.unpaid}"
+        th:data-tab-unpaid="#{dashboard.manager.tab.unpaid}"
+        th:data-unpaid-table-owes="#{dashboard.unpaid.table.owes}"
+        th:data-unpaid-table-owes-single="#{dashboard.unpaid.table.owes.single}"
+        th:data-unpaid-counter-group="#{dashboard.unpaid.counter.group}"
+        th:data-unpaid-charge-at-counter="#{dashboard.unpaid.charge.at.counter}"
+        th:data-unpaid-time-waiting="#{dashboard.unpaid.time.waiting}"
         th:data-time-just-now="#{dashboard.js.just.now}" th:data-time-min-ago="#{dashboard.js.min.ago}"
         th:data-time-hours-ago="#{dashboard.js.hours.ago}" th:data-time-days-ago="#{dashboard.js.days.ago}"
         th:data-label-total="#{dashboard.js.total}" th:data-label-order="#{dashboard.js.order.hash}"
+        th:data-label-food="#{label.food}" th:data-label-status="#{label.status}" th:data-label-actions="#{button.actions}"
         th:data-label-takeaway="#{label.takeaway}"
         th:data-action-accept="#{dashboard.js.actions.accept}"
         th:data-action-cook="#{dashboard.js.actions.start.cooking}"

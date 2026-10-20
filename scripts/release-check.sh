@@ -274,6 +274,87 @@ if [ -n "$TICKET" ]; then
   check "$C" "$S/$T/counter/tickets/$TICKET"
 fi
 
+# Order completion & unpaid workflow checks
+if [ -n "$PRODUCT" ]; then
+  CASHIER_CT=$(curl -s -b "$C" -c "$C" "$S/$T/counter" | meta)
+  DASH_CSRF=$(curl -s -b "$C" -c "$C" "$S/$T/dashboard" | meta)
+
+  # 1. Unpaid order: moves through kitchen to DELIVERED (stays unpaid/delivered), then charges to COMPLETE
+  UNPAID_ORDER_RESP=$(curl -s -b "$C" -c "$C" \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-TOKEN: $CASHIER_CT" \
+    -H "Referer: $S/$T/counter" \
+    -d "{\"items\":[{\"id\":\"l2\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"customizations\":[]}],\"paid\":false}" \
+    "$S/counter/api/order")
+  UNPAID_ORDER_ID=$(echo "$UNPAID_ORDER_RESP" | grep -o '"orderId":"[^"]*"' | sed 's/"orderId":"//; s/"$//')
+  if [ -n "$UNPAID_ORDER_ID" ]; then
+    record_match 1 "Counter unpaid order placed ($UNPAID_ORDER_ID)"
+    # Kitchen moves: CREATED -> ACCEPTED -> PROCESSING -> DONE -> DELIVERED
+    for step in 1 2 3 4; do
+      curl -s -o /dev/null -X POST -b "$C" -c "$C" -H "X-CSRF-TOKEN: $DASH_CSRF" -H "Referer: $S/$T/dashboard" "$S/api/order/$UNPAID_ORDER_ID/next"
+    done
+
+    SERVED_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select status from tenant_$T.orders where id='$UNPAID_ORDER_ID'" 2>/dev/null | tr -d '\r')
+    if [ "$SERVED_STATUS" = "4" ]; then
+      record_match 1 "Served unpaid order stays DELIVERED (status=4, awaiting payment)"
+    else
+      record_match 0 "Served unpaid order stays DELIVERED (expected status 4, got ${SERVED_STATUS:-empty})"
+    fi
+
+    # Cashier charges the served order via counter settle endpoint -> drops immediately into COMPLETE (status=5)
+    SETTLE_PAYLOAD="{\"orderIds\":[\"$UNPAID_ORDER_ID\"],\"paymentMethod\":\"CASH\",\"cashReceived\":50,\"invoice\":null}"
+    PAY_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$C" -c "$C" \
+      -H "Content-Type: application/json" \
+      -H "X-CSRF-TOKEN: $CASHIER_CT" \
+      -H "Referer: $S/$T/counter" \
+      -d "$SETTLE_PAYLOAD" \
+      "$S/counter/api/settle")
+    record "$PAY_CODE" 200 "POST $S/counter/api/settle (charge served unpaid order)"
+
+    FINAL_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select status from tenant_$T.orders where id='$UNPAID_ORDER_ID'" 2>/dev/null | tr -d '\r')
+    if [ "$FINAL_STATUS" = "5" ]; then
+      record_match 1 "Paid served order transitions to COMPLETE (status=5)"
+    else
+      record_match 0 "Paid served order transitions to COMPLETE (expected status 5, got ${FINAL_STATUS:-empty})"
+    fi
+  else
+    record_match 0 "Counter unpaid order placed (order ID was empty)"
+  fi
+
+  # 2. Paid order: kitchen moves through to DELIVERED -> directly completes (Rule 1)
+  PAID_ORDER_RESP=$(curl -s -b "$C" -c "$C" \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-TOKEN: $CASHIER_CT" \
+    -H "Referer: $S/$T/counter" \
+    -d "{\"items\":[{\"id\":\"l3\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"customizations\":[]}],\"paid\":true,\"paymentMethod\":\"CASH\",\"cashReceived\":50}" \
+    "$S/counter/api/order")
+  PAID_ORDER_ID=$(echo "$PAID_ORDER_RESP" | grep -o '"orderId":"[^"]*"' | sed 's/"orderId":"//; s/"$//')
+  if [ -n "$PAID_ORDER_ID" ]; then
+    record_match 1 "Counter paid order placed ($PAID_ORDER_ID)"
+    # Kitchen moves: ACCEPTED -> PROCESSING -> DONE -> COMPLETE (direct upon delivery)
+    for step in 1 2 3; do
+      curl -s -o /dev/null -X POST -b "$C" -c "$C" -H "X-CSRF-TOKEN: $DASH_CSRF" -H "Referer: $S/$T/dashboard" "$S/api/order/$PAID_ORDER_ID/next"
+    done
+
+    PAID_SERVED_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select status from tenant_$T.orders where id='$PAID_ORDER_ID'" 2>/dev/null | tr -d '\r')
+    if [ "$PAID_SERVED_STATUS" = "5" ]; then
+      record_match 1 "Paid order directly completes when marked served (status=5)"
+    else
+      record_match 0 "Paid order directly completes when marked served (expected status 5, got ${PAID_SERVED_STATUS:-empty})"
+    fi
+  else
+    record_match 0 "Counter paid order placed (order ID was empty)"
+  fi
+
+  # 3. Manager dashboard order list API responds with 200 and includes orders
+  DASH_LIST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-TOKEN: $DASH_CSRF" \
+    -H "Referer: $S/$T/dashboard" \
+    -X POST "$S/api/order")
+  record "$DASH_LIST_CODE" 200 "POST $S/api/order (dashboard order list with table batching)"
+fi
+
 # Cashier limits: 403 on table QR codes
 QR_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" "$S/$T/backoffice/tables/qr-codes")
 record "$QR_CODE" 403 "GET $S/$T/backoffice/tables/qr-codes (cashier forbidden)"

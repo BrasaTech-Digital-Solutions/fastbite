@@ -119,6 +119,22 @@ public class TableServiceJpaImpl implements TableService {
     }
 
     @Override
+    public java.util.Map<String, Table> findTablesByOrderIds(java.util.Collection<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        List<Object[]> rows = repository.findTableOrderPairs(orderIds);
+        java.util.Map<String, Table> result = new java.util.HashMap<>();
+        for (Object[] row : rows) {
+            String tableId = (String) row[0];
+            String tableName = (String) row[1];
+            String orderId = (String) row[2];
+            result.put(orderId, new Table(tableId, tableName, 0, TableStatus.AVAILABLE, true, List.of()));
+        }
+        return result;
+    }
+
+    @Override
     public Optional<Table> findTableByNameOrId(String tableParam) {
         if (tableParam == null || tableParam.trim().isEmpty()) {
             return Optional.empty();

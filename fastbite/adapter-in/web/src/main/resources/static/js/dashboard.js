@@ -149,6 +149,9 @@ function renderManagerDashboard() {
     } else {
         completedOrdersTable.innerHTML = completedOrders.map(order => createCompletedRow(order)).join('');
     }
+
+    // Unpaid Orders
+    renderUnpaidOrders();
 }
 
 function getKdsTimerBadgeClass(order) {
@@ -201,7 +204,7 @@ function createOrderCard(order, role) {
                     ${takeaway}
                     <small class="text-muted">${timeAgo}</small>
                 </div>
-                <span class="badge ${timerBadgeClass}">${i18n['status' + (order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase())] || order.status}</span>
+                <span class="badge ${timerBadgeClass}">${getStatusLabel(order.status)}</span>
             </div>
             <div class="mb-2">${items}</div>
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -284,7 +287,7 @@ function createManagerRow(order) {
             <td><strong>${order.orderNumber}</strong></td>
             <td>${items}</td>
             <td>${order.total.toFixed(2)}</td>
-            <td><span class="badge ${getStatusBadgeClass(order.status)}">${order.status}</span></td>
+            <td><span class="badge ${getStatusBadgeClass(order.status)}">${getStatusLabel(order.status)}</span></td>
             <td>${timeAgo}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" onclick="showStatusChangeModal('${order.id}')">
@@ -341,6 +344,164 @@ function getStatusBadgeClass(status) {
         'CANCELLED': 'bg-danger'
     };
     return classes[status] || 'bg-secondary';
+}
+
+function getStatusLabel(status) {
+    const map = {
+        'CREATED': i18n.statusCreated,
+        'ACCEPTED': i18n.statusConfirmed || i18n.statusAccepted,
+        'PROCESSING': i18n.statusPreparing || i18n.statusProcessing,
+        'DONE': i18n.statusDone || i18n.statusReady,
+        'DELIVERED': i18n.statusDelivered,
+        'COMPLETE': i18n.statusCompleted || i18n.statusComplete,
+        'CANCELLED': i18n.statusCancelled
+    };
+    return map[status] || status;
+}
+
+// Render Unpaid Orders Tab
+function renderUnpaidOrders() {
+    const container = document.getElementById('unpaidOrdersContainer');
+    const countEl = document.getElementById('unpaidCount');
+    if (!container) return;
+
+    // Filter unpaid active orders (exclude cancelled, paid, refunded, and held online orders)
+    const unpaid = orders.filter(o =>
+        o.paymentStatus === 'UNPAID' &&
+        o.status !== 'CANCELLED' &&
+        !(o.serviceType === 'TAKEAWAY' && o.orderChannel === 'ONLINE')
+    );
+
+    if (countEl) {
+        countEl.textContent = unpaid.length;
+        countEl.style.display = unpaid.length > 0 ? 'inline-block' : 'none';
+    }
+
+    if (unpaid.length === 0) {
+        container.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>${i18n.emptyUnpaid || 'No unpaid orders'}</p></div>`;
+        return;
+    }
+
+    // Group table orders by tableId/tableName, and takeaway/counter orders together
+    const tableGroups = new Map();
+    const counterOrders = [];
+
+    unpaid.forEach(order => {
+        if (order.tableName || order.tableId) {
+            const key = order.tableId || order.tableName;
+            if (!tableGroups.has(key)) {
+                tableGroups.set(key, {
+                    tableId: order.tableId,
+                    tableName: order.tableName || ('Table ' + order.tableId),
+                    orders: []
+                });
+            }
+            tableGroups.get(key).orders.push(order);
+        } else {
+            counterOrders.push(order);
+        }
+    });
+
+    let html = '';
+
+    // Render table groups
+    tableGroups.forEach(group => {
+        const total = group.orders.reduce((sum, o) => sum + (o.total || 0), 0);
+        const count = group.orders.length;
+        const summaryText = count === 1
+            ? format(i18n.unpaidTableOwesSingle || '{0} owes {1} across 1 order', group.tableName, total.toFixed(2))
+            : format(i18n.unpaidTableOwes || '{0} owes {1} across {2} orders', group.tableName, total.toFixed(2), count);
+
+        const counterUrl = getTenantPrefix() + '/counter';
+        const chargeBtn = `<a href="${counterUrl}" class="btn btn-sm btn-outline-primary"><i class="fas fa-cash-register me-1"></i>${escapeHtml(i18n.unpaidChargeAtCounter || 'Charge at counter')}</a>`;
+
+        const rows = group.orders.map(order => createUnpaidRow(order)).join('');
+
+        html += `
+            <div class="card mb-3 border-danger shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-5 fw-bold text-dark"><i class="fas fa-chair me-2 text-primary"></i>${escapeHtml(group.tableName)}</span>
+                        <span class="badge bg-danger fs-6">${summaryText}</span>
+                    </div>
+                    <div>${chargeBtn}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 15%;">${i18n.labelOrder || 'Order #'}</th>
+                                    <th style="width: 25%;">${i18n.labelStatus || 'Status'}</th>
+                                    <th style="width: 35%;">${i18n.labelFood || 'Items'}</th>
+                                    <th style="width: 12%;">${i18n.labelTotal || 'Total'}</th>
+                                    <th style="width: 13%;">${i18n.unpaidTimeWaiting || 'Waiting'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    // Render counter/takeaway group if present
+    if (counterOrders.length > 0) {
+        const total = counterOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+        const count = counterOrders.length;
+        const groupTitle = i18n.unpaidCounterGroup || 'Counter / Takeaway';
+        const summaryText = count === 1
+            ? format(i18n.unpaidTableOwesSingle || '{0} owes {1} across 1 order', groupTitle, total.toFixed(2))
+            : format(i18n.unpaidTableOwes || '{0} owes {1} across {2} orders', groupTitle, total.toFixed(2), count);
+
+        const rows = counterOrders.map(order => createUnpaidRow(order)).join('');
+
+        html += `
+            <div class="card mb-3 border-warning shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fs-5 fw-bold text-dark"><i class="fas fa-shopping-bag me-2 text-secondary"></i>${escapeHtml(groupTitle)}</span>
+                        <span class="badge bg-warning text-dark fs-6">${summaryText}</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 15%;">${i18n.labelOrder || 'Order #'}</th>
+                                    <th style="width: 25%;">${i18n.labelStatus || 'Status'}</th>
+                                    <th style="width: 35%;">${i18n.labelFood || 'Items'}</th>
+                                    <th style="width: 12%;">${i18n.labelTotal || 'Total'}</th>
+                                    <th style="width: 13%;">${i18n.unpaidTimeWaiting || 'Waiting'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function createUnpaidRow(order) {
+    const items = order.items.map(item => `${item.quantity}x ${escapeHtml(item.name)}`).join(', ');
+    const timeAgo = getTimeAgo(order.createdAt);
+    const customer = order.customerName ? ` <small class="text-muted">(${escapeHtml(order.customerName)})</small>` : '';
+
+    return `
+        <tr>
+            <td><strong>#${order.orderNumber}</strong>${customer}</td>
+            <td><span class="badge ${getStatusBadgeClass(order.status)}">${escapeHtml(getStatusLabel(order.status))}</span></td>
+            <td>${items}</td>
+            <td><strong class="text-danger">${order.total.toFixed(2)}</strong></td>
+            <td><small class="text-muted">${timeAgo}</small></td>
+        </tr>
+    `;
 }
 
 function getNextStatus(status) {

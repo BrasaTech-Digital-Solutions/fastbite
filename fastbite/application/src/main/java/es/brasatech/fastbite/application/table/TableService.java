@@ -24,7 +24,10 @@ public interface TableService {
 
     Optional<Table> findTableByOrderId(String orderId);
 
+    java.util.Map<String, Table> findTablesByOrderIds(java.util.Collection<String> orderIds);
+
     Optional<Table> findTableByNameOrId(String tableParam);
 
     String validateAndBindTableSession(String tableParam, String tokenParam, String existingTableNumber, List<?> cartItems);
 }
+
