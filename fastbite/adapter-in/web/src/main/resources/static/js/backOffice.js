@@ -88,7 +88,11 @@ async function handlePaymentConfigSubmit(e) {
             body: JSON.stringify({ activeModes: modes, moneyImages: images })
         });
         if (res.ok) {
-            alert('Payment configuration saved successfully!');
+            await fbNotice({
+                title: i18n.paymentTitle || 'Payment Configuration',
+                message: i18n.paymentSavedSuccess || 'Payment configuration saved successfully!',
+                okText: i18n.buttonOk || 'OK'
+            });
             loadData();
         }
     } catch (error) {
@@ -403,7 +407,12 @@ function editGroup(id) {
 }
 
 async function deleteGroup(id) {
-    if (confirm(i18n.groupsDeleteConfirm)) {
+    if (await fbConfirm({
+        message: i18n.groupsDeleteConfirm,
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const response = await fetch(`/api/backoffice/groups/${id}`, {
                 method: 'DELETE',
@@ -596,7 +605,12 @@ function editCustomization(id) {
 }
 
 async function deleteCustomization(id) {
-    if (confirm(i18n.customizationsDeleteConfirm)) {
+    if (await fbConfirm({
+        message: i18n.customizationsDeleteConfirm,
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const response = await fetch(`/api/backoffice/customizations/${id}`, {
                 method: 'DELETE',
@@ -720,7 +734,12 @@ function editProduct(id) {
 }
 
 async function deleteProduct(id) {
-    if (confirm(i18n.productsDeleteConfirm)) {
+    if (await fbConfirm({
+        message: i18n.productsDeleteConfirm,
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const response = await fetch(`/api/backoffice/products/${id}`, {
                 method: 'DELETE',
@@ -1190,7 +1209,12 @@ function editTable(id) {
 }
 
 async function deleteTable(id) {
-    if (confirm('Are you sure you want to delete this table?')) {
+    if (await fbConfirm({
+        message: i18n.tablesDeleteConfirm || 'Are you sure you want to delete this table?',
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const response = await fetch(`/api/backoffice/tables/${id}`, {
                 method: 'DELETE',
@@ -1301,7 +1325,13 @@ async function setPaymentConfigDefault(id) {
 
 async function deletePaymentConfig(id) {
     if (id === 'default') return;
-    if (!confirm(`Are you sure you want to delete the configuration "${id}"?`)) return;
+    const msg = (i18n.customcodesDeleteConfirm || 'Are you sure you want to delete the configuration "{0}"?').replace('{0}', id);
+    if (!await fbConfirm({
+        message: msg,
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) return;
 
     try {
         const response = await fetch(`/api/backoffice/payment/${id}`, {
@@ -1485,7 +1515,12 @@ function editDiscount(id) {
 }
 
 async function deleteDiscount(id) {
-    if (confirm(i18n.discountsDeleteConfirm || 'Are you sure you want to delete this discount?')) {
+    if (await fbConfirm({
+        message: i18n.discountsDeleteConfirm || 'Are you sure you want to delete this discount?',
+        confirmText: i18n.buttonDelete || 'Delete',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const response = await fetch(`/api/backoffice/discounts/${id}`, {
                 method: 'DELETE',
@@ -1519,7 +1554,12 @@ function triggerDownloadBackup() {
 }
 
 async function triggerCleanData() {
-    if (confirm('WARNING: Are you sure you want to completely reset the database? All categories, products, customizations, tables, discounts, and custom images will be permanently deleted!')) {
+    if (await fbConfirm({
+        message: i18n.maintenanceResetConfirm || 'WARNING: Are you sure you want to completely reset the database? All categories, products, customizations, tables, discounts, and custom images will be permanently deleted!',
+        confirmText: i18n.buttonResetDatabase || 'Reset Database',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         try {
             const tenantPrefix = getTenantPrefix();
             const response = await fetch(tenantPrefix + '/api/backoffice/maintenance/clean', {
@@ -1619,7 +1659,13 @@ async function triggerRestoreDemo() {
     const select = document.getElementById('demoTemplateSelect');
     const templateId = select ? select.value : 'kebab';
     const templateName = select && select.options[select.selectedIndex] ? select.options[select.selectedIndex].text : 'demo';
-    if (confirm(`Are you sure you want to load the ${templateName} template? This will overwrite all current configurations, categories, products, customizations, dining tables, and discounts.`)) {
+    const msg = (i18n.maintenanceTemplateLoadConfirm || 'Are you sure you want to load the {0} template? This will overwrite all current configurations, categories, products, customizations, dining tables, and discounts.').replace('{0}', templateName);
+    if (await fbConfirm({
+        message: msg,
+        confirmText: i18n.buttonLoadTemplate || 'Load Template',
+        cancelText: i18n.buttonCancel || 'Cancel',
+        danger: true
+    })) {
         const submitBtn = document.getElementById('restoreDemoBtn');
         const originalBtnHtml = submitBtn.innerHTML;
         submitBtn.disabled = true;

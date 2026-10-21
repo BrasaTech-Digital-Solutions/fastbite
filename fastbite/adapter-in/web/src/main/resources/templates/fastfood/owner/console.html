@@ -3,7 +3,7 @@
 <head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your workspace — FastBite</title><link rel="stylesheet" href="/css/platform.css"><link rel="stylesheet" href="/css/workspace.css">
 <meta name="csrf-token" th:content="${_csrf.token}"><meta name="csrf-header" th:content="${_csrf.headerName}">
-<script defer src="/js/workspace.js"></script><script defer src="/js/fiscal-profile.js"></script></head>
+<script defer src="/js/confirm-dialog.js"></script><script defer src="/js/workspace.js"></script><script defer src="/js/fiscal-profile.js"></script></head>
 <body class="workspace" th:with="linkedProduction=${platform != null && platform.practice()},linkedSandbox=${platform != null && platform.productionUrl() != null}">
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main">Skip to content</a>
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>

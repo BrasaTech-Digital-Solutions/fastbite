@@ -871,9 +871,21 @@
         th:data-products-delete-error="#{backoffice.products.delete.error}"
         th:data-discounts-delete-confirm="#{backoffice.discounts.delete.confirm}"
         th:data-discounts-save-success="#{backoffice.discounts.save.success}"
-        th:data-discounts-delete-success="#{backoffice.discounts.delete.success}"></div>
+        th:data-discounts-delete-success="#{backoffice.discounts.delete.success}"
+        th:data-tables-delete-confirm="#{backoffice.tables.delete.confirm}"
+        th:data-customcodes-delete-confirm="#{backoffice.customcodes.delete.confirm}"
+        th:data-maintenance-reset-confirm="#{backoffice.maintenance.reset.confirm}"
+        th:data-maintenance-template-load-confirm="#{backoffice.maintenance.template.load.confirm}"
+        th:data-payment-saved-success="#{backoffice.payment.saved.success}"
+        th:data-payment-title="#{backoffice.payment.title}"
+        th:data-button-delete="#{button.delete}"
+        th:data-button-cancel="#{button.cancel}"
+        th:data-button-ok="#{button.close}"
+        th:data-button-reset-database="#{button.reset.database}"
+        th:data-button-load-template="#{button.load.template}"></div>
 
     <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../../static/js/confirm-dialog.js" th:src="@{/js/confirm-dialog.js}" defer></script>
     <script src="../../static/js/backOffice.js" th:src="@{/js/backOffice.js}" defer></script>
 </body>
 

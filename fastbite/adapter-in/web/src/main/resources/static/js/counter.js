@@ -198,8 +198,13 @@ function setupEventListeners() {
     document.getElementById('btn-save-order').addEventListener('click', () => saveOrder());
     document.getElementById('btn-assign-table').addEventListener('click', () => submitOrder(false));
     document.getElementById('btn-billing').addEventListener('click', () => setTableStatus(selectedTable.id, 'BILLING'));
-    document.getElementById('btn-clear-cart').addEventListener('click', () => {
-        if (confirm(t('messageConfirmClearOrder'))) {
+    document.getElementById('btn-clear-cart').addEventListener('click', async () => {
+        if (await fbConfirm({
+            message: t('messageConfirmClearOrder'),
+            confirmText: t('buttonClearOrder'),
+            cancelText: t('buttonCancel'),
+            danger: true
+        })) {
             resetPOS();
         }
     });
@@ -480,7 +485,12 @@ async function payIndividualOrder(orderId) {
 }
 
 async function cancelOrderFromTable(orderId) {
-    if (!confirm(t('messageConfirmCancelOrder'))) return;
+    if (!await fbConfirm({
+        message: t('messageConfirmCancelOrder'),
+        confirmText: t('buttonCancelOrder'),
+        cancelText: t('buttonBack'),
+        danger: true
+    })) return;
     try {
         const res = await fetch(`/counter/api/orders/${orderId}/cancel`, {
             method: 'POST',

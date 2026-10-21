@@ -380,7 +380,8 @@
         th:data-label-order="#{dashboard.js.order.hash}" th:data-label-paid="#{label.order.status.paid}"
         th:data-label-unpaid="#{label.order.status.unpaid}" th:data-label-canceled="#{label.order.status.canceled}"
         th:data-message-confirm-cancel-order="#{message.confirm.cancel.order}" th:data-button-pay="#{button.pay.now}"
-        th:data-button-cancel="#{button.cancel}" th:data-label-assign-table="#{label.assign.table}"
+        th:data-button-cancel="#{button.cancel}" th:data-button-back="#{button.back}" th:data-label-assign-table="#{label.assign.table}"
+        th:data-button-clear-order="#{button.clear.order}" th:data-button-cancel-order="#{button.cancel.order}"
         th:data-label-table-name="#{label.table.name}" th:data-label-loading="#{label.loading}"
         th:data-message-no-pickup-orders="#{message.no.pickup.orders}">
     </div>
@@ -404,6 +405,7 @@
     </script>
     <script th:src="@{/js/kitchen-audio.js}"></script>
     <script th:src="@{/js/live-updates.js}"></script>
+    <script th:src="@{/js/confirm-dialog.js}"></script>
     <script th:src="@{/js/counter.js}"></script>
     <th:block th:if="${handlesTill}">
         <div th:replace="~{fastfood/fragments/cashCheck :: modal(${today})}"></div>

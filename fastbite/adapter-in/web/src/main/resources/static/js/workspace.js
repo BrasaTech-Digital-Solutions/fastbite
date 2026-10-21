@@ -18,7 +18,13 @@ document.addEventListener('submit',async event=>{
 });
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-delete-staff]');if(!button)return;
- if(!confirm('Remove this staff account from '+button.dataset.tenant+'? They will lose access to this location.'))return;
+ const msg=(button.dataset.confirmTemplate||'Remove this staff account from {0}? They will lose access to this location.').replace('{0}',button.dataset.tenant||'');
+ if(!await fbConfirm({
+  message: msg,
+  confirmText: button.dataset.confirmButton||'Remove staff',
+  cancelText: button.dataset.cancelButton||'Cancel',
+  danger: true
+ }))return;
  button.disabled=true;try{document.getElementById('staff-panel').innerHTML=await request('/owner/locations/'+encodeURIComponent(button.dataset.tenant)+'/users/delete',new URLSearchParams({userId:button.dataset.user}),true);}catch(e){message(e.message,true);button.disabled=false;}
 });
 const dialog=document.getElementById('maintenance-dialog');const confirmForm=document.getElementById('maintenance-confirm');const confirmName=document.getElementById('confirmation-name');
