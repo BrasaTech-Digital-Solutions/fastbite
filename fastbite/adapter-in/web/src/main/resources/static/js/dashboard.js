@@ -519,6 +519,17 @@ function getNextStatus(status) {
     return classes[status];
 }
 
+function getPreviousStatus(status) {
+    const classes = {
+        'ACCEPTED': 'CREATED',
+        'PROCESSING': 'ACCEPTED',
+        'DONE': 'PROCESSING',
+        'DELIVERED': 'DONE',
+        'COMPLETE': 'DELIVERED'
+    };
+    return classes[status];
+}
+
 // Get time ago
 function getTimeAgo(dateString) {
     // Parse the datetime string
@@ -565,8 +576,11 @@ function moveToNextStatus(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
+    const nextStatus = getNextStatus(order.status);
+    if (window.kitchenChime && nextStatus) {
+        window.kitchenChime.expectOwn(order.id, nextStatus);
+    }
     callAPI(moveToNextStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
-    const nextStatus = getNextStatus(order.status)
     showToast(format(i18n.toastUpdated, nextStatus));
 }
 
@@ -575,6 +589,10 @@ function moveToPreviousStatus(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
+    const prevStatus = getPreviousStatus(order.status);
+    if (window.kitchenChime && prevStatus) {
+        window.kitchenChime.expectOwn(order.id, prevStatus);
+    }
     callAPI(moveToPreviousStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
     showToast(`Order #${order.orderNumber} moved to previous status`);
 }
@@ -587,9 +605,15 @@ function moveAllToNext(role) {
         'waiter': 'DONE'
     };
     const targetStatus = statusMap[role];
-    const orderIds = orders.filter(o => o.status === targetStatus).map(o => o.id);
+    const ordersToMove = orders.filter(o => o.status === targetStatus);
+    const orderIds = ordersToMove.map(o => o.id);
     
     if (orderIds.length === 0) return;
+
+    const nextStatus = getNextStatus(targetStatus);
+    if (window.kitchenChime && nextStatus) {
+        ordersToMove.forEach(o => window.kitchenChime.expectOwn(o.id, nextStatus));
+    }
 
     fetch(batchNextStatusUrl(), {
         method: 'POST',
@@ -611,9 +635,15 @@ function moveAllToPrevious(role) {
         'waiter': 'DONE'
     };
     const targetStatus = statusMap[role];
-    const orderIds = orders.filter(o => o.status === targetStatus).map(o => o.id);
+    const ordersToMove = orders.filter(o => o.status === targetStatus);
+    const orderIds = ordersToMove.map(o => o.id);
     
     if (orderIds.length === 0) return;
+
+    const prevStatus = getPreviousStatus(targetStatus);
+    if (window.kitchenChime && prevStatus) {
+        ordersToMove.forEach(o => window.kitchenChime.expectOwn(o.id, prevStatus));
+    }
 
     fetch(batchPreviousStatusUrl(), {
         method: 'POST',
@@ -642,6 +672,9 @@ function confirmCancel() {
     const order = orders.find(o => o.id === currentCancelOrderId);
 
     if (order) {
+        if (window.kitchenChime) {
+            window.kitchenChime.expectOwn(order.id, 'CANCELLED');
+        }
         const cancelReason = document.getElementById('cancelReason').value;
         fetch(cancelOrderUrl(order.id), {
             method: 'POST',
@@ -677,6 +710,10 @@ function confirmStatusChange() {
     if (order) {
         const newStatus = document.getElementById('newStatus').value;
         const reason = document.getElementById('statusCancelReason').value;
+
+        if (window.kitchenChime && newStatus) {
+            window.kitchenChime.expectOwn(order.id, newStatus);
+        }
 
         if (newStatus === 'CANCELLED') {
             fetch(cancelOrderUrl(order.id), {
@@ -733,8 +770,8 @@ function startRealtimeUpdates() {
                 if (data && data.orderNumber) {
                     showToast(`Order #${data.orderNumber} status changed: ${data.status}`);
                 }
-                if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
-                    window.kitchenChime.play();
+                if (window.kitchenChime && data && data.id && data.status) {
+                    window.kitchenChime.observe([data]);
                 }
             } catch (e) {
                 console.debug('SSE event parse error', e);
@@ -761,6 +798,8 @@ function addDemoOrder() {
     showToast(`New order #${newOrder.orderNumber} received!`);
 }
 
+let isInitialOrdersLoad = true;
+
 // Add demo order (for testing)
 function updateOrders() {
     fetch(getOrderListUrl(), {
@@ -778,6 +817,10 @@ function updateOrders() {
         if (Array.isArray(data)) {
             orders = data;
             renderAllDashboards();
+            if (window.kitchenChime) {
+                window.kitchenChime.observe(orders, { initial: isInitialOrdersLoad });
+            }
+            isInitialOrdersLoad = false;
         }
     }).catch(error => console.error('Error fetching orders:', error));
 }

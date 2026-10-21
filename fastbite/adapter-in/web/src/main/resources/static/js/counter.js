@@ -615,6 +615,14 @@ async function submitTableBulkPayment() {
             ? [tableOrders.find(o => o.id === payingSingleOrderId)]
             : tableOrders.filter(o => o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED');
 
+        if (window.kitchenChime && ordersToPay.length > 0) {
+            ordersToPay.forEach(o => {
+                if (o && o.id) {
+                    window.kitchenChime.expectOwn(o.id, o.status);
+                }
+            });
+        }
+
         // One payment for all of them, and one ticket
         const method = document.querySelector('.payment-method-btn.active').dataset.method;
         const response = await fetch('/counter/api/settle', {
@@ -699,6 +707,9 @@ async function submitOrder(paid = true) {
         if (res.ok) {
             const data = await res.json();
             const orderId = editingOrderId || data.orderId;
+            if (window.kitchenChime && orderId) {
+                window.kitchenChime.expectOwn(orderId, ['CREATED', 'ACCEPTED']);
+            }
             
             if (paid) {
                 printTicket(data.ticketId);
@@ -1121,6 +1132,8 @@ function startRealtimeOrderUpdates() {
     }
 
     const sseUrl = getTenantPrefix() + '/api/orders/live';
+    const orderListUrl = getTenantPrefix() + '/api/order';
+    let isInitialChimeLoad = true;
 
     function refreshCounterView() {
         renderTables();
@@ -1130,8 +1143,29 @@ function startRealtimeOrderUpdates() {
         }
     }
 
+    function pollOrdersForCounter() {
+        refreshCounterView();
+        fetch(orderListUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        }).then(response => {
+            if (!response.ok) return null;
+            return response.json();
+        }).then(data => {
+            if (Array.isArray(data) && window.kitchenChime) {
+                window.kitchenChime.observe(data, { initial: isInitialChimeLoad });
+                isInitialChimeLoad = false;
+            }
+        }).catch(err => {
+            console.debug('Error polling orders on counter', err);
+        });
+    }
+
     connectLiveUpdates(sseUrl, {
-        poll: refreshCounterView,
+        poll: pollOrdersForCounter,
         intervalMs: 5000,
         onUpdate: function(event) {
             try {
@@ -1139,8 +1173,8 @@ function startRealtimeOrderUpdates() {
                 if (data && data.orderNumber) {
                     showToast(`Order #${data.orderNumber} updated: ${data.status}`);
                 }
-                if (window.kitchenChime && (!data || !data.status || data.status === 'CREATED' || data.status === 'ACCEPTED')) {
-                    window.kitchenChime.play();
+                if (window.kitchenChime && data && data.id && data.status) {
+                    window.kitchenChime.observe([data]);
                 }
             } catch (e) {
                 console.debug('SSE event parse error in counter', e);
@@ -1148,4 +1182,7 @@ function startRealtimeOrderUpdates() {
             refreshCounterView();
         }
     });
+
+    // Initial orders load to register existing statuses
+    pollOrdersForCounter();
 }
