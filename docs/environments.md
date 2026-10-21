@@ -320,6 +320,26 @@ Cloud SQL micro instances (e.g. `db-f1-micro`) support at most 25 database conne
   - Live order tracking SSE streams (`/api/orders/live`, `/api/order-status/live`) close cleanly after 50 seconds (`SSE_TIMEOUT = 50s`) with a `retry: 2000` hint, allowing `EventSource` clients to reconnect seamlessly without triggering a 504.
   - The client helper (`/js/live-updates.js`) includes a 10-second watchdog: if stream buffering prevents the initial `connected` event from arriving within 10 seconds, or if repeated reconnections fail, clients fall back to polling every 5 seconds.
 
+### Time Zone and Clock Management
+
+- **Container and Cloud Run Execution Environment:**
+  - Cloud Run instances and Docker containers run with their system clock and environment in **UTC**.
+  - Local `docker-compose.yml` intentionally does not set `TZ`, matching Cloud Run's UTC execution environment so local development does not mask timezone-handling discrepancies.
+- **Application Default Time Zone:**
+  - The application configures its default time zone early in `Application.main` (and in `MigrationJob.run`) before Spring Boot starts, reading `ORDERS_TIME_ZONE` (defaulting to `Europe/Madrid`), validating it with `ZoneId.of()`, and calling `TimeZone.setDefault(...)`.
+  - This ensures that all `LocalDateTime.now()` invocations across domain, application, and JPA entities produce restaurant-local timestamps consistently on any host.
+  - GraalVM native images retain zone rules at runtime for validated zones.
+  - Configuration property `fastbite.orders.time-zone` and the JVM default zone align on the same value (`Europe/Madrid`).
+- **Fiscal Inviolability and VERI*FACTU:**
+  - Fiscal ticket generation (`FiscalTicketService`), order numbering (`OrderNumberServiceJpaImpl`), and backup/restore (`TenantBackupRestoreAdapter`) explicitly configure and use `fastbite.orders.time-zone`. VERI*FACTU hashes, timestamps, and AEAT submission records are strictly formatted with explicit zone offsets and are completely unaffected by this change. No fiscal data migration is required.
+- **Pre-Existing Data Considerations:**
+  - Database rows written prior to this fix stored zone-naive timestamps produced under UTC.
+  - In local environments, volumes contain disposable test data.
+  - In production (live for 3 days), orders recorded before the fix were stamped with UTC times and will appear 2 hours earlier than actual local time when rendered on the frontend.
+- **KDS Timer Badge vs. "Time Ago" Semantics:**
+  - In `dashboard.js`, the KDS kitchen timer badge (`getKdsTimerBadgeClass`) measures elapsed time from `order.createdAt` to track preparation duration against urgency thresholds.
+  - In contrast, the card's relative time text ("x minutes ago") formats elapsed time from `order.updatedAt` to reflect recent status activity. Both rely on restaurant-local timestamps.
+
 ### Multi-Instance Scaling (docker-compose.replicas.yml)
 
 To test multi-instance deployments locally matching Cloud Run's horizontal autoscaling (up to 3 instances per service):

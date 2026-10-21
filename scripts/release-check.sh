@@ -394,6 +394,22 @@ else
   record_match 0 "Supervised table QR order starts CREATED (expected 0, got ${ORDER1_STATUS:-empty})"
 fi
 
+# Order createdAt must be in restaurant-local time (Europe/Madrid), within 2 minutes of Madrid now
+MADRID_TZ="Europe/Madrid"
+if [ "$(TZ="$MADRID_TZ" date +%Z 2>/dev/null)" = "GMT" ] && [ ! -f /usr/share/zoneinfo/Europe/Madrid ]; then
+  MADRID_TZ="CET-1CEST,M3.5.0,M10.5.0/3"
+fi
+ORDER1_CREATED_AT=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select created_at from tenant_$T.orders where id = '$ORDER1_ID'" 2>/dev/null | tr -d '\r')
+MADRID_NOW_SEC=$(TZ="$MADRID_TZ" date +%s)
+ORDER1_SEC=$(TZ="$MADRID_TZ" date -d "${ORDER1_CREATED_AT%.*}" +%s 2>/dev/null || date -d "${ORDER1_CREATED_AT%.*}" +%s 2>/dev/null || echo 0)
+CREATED_DIFF=$(( MADRID_NOW_SEC - ORDER1_SEC ))
+if [ "$CREATED_DIFF" -lt 0 ]; then CREATED_DIFF=$(( -CREATED_DIFF )); fi
+if [ "$ORDER1_SEC" -gt 0 ] && [ "$CREATED_DIFF" -le 120 ]; then
+  record_match 1 "Order createdAt ($ORDER1_CREATED_AT) is within 2 minutes of restaurant time (diff ${CREATED_DIFF}s)"
+else
+  record_match 0 "Order createdAt ($ORDER1_CREATED_AT) is within 2 minutes of restaurant time (diff ${CREATED_DIFF}s, now: $(TZ="$MADRID_TZ" date +'%Y-%m-%d %H:%M:%S'))"
+fi
+
 # 4. Cashier switches the table to trusted via counter API
 CASHIER_COUNTER_CSRF=$(curl -s -b "$C" -c "$C" "$S/$T/counter" | meta)
 SWITCH_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$C" -c "$C" \

@@ -12,6 +12,7 @@ final class MigrationJob {
     private MigrationJob() { }
 
     static int run(String[] args) {
+        Application.configureDefaultTimeZone();
         Set<String> allowed = Set.of("--migration-job", "--adopt-existing", "--validate-only");
         if (Arrays.stream(args).anyMatch(arg -> !allowed.contains(arg))) {
             System.err.println("Unknown migration job option.");
