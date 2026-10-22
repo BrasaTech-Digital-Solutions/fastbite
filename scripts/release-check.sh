@@ -523,7 +523,7 @@ fi
 
 echo "== [4/6] Owner surfaces & Backoffice fragments"
 for path in "/$T/counter" "/$T/counter/tickets" "/$T/counter/day-report" "/$T/counter/api/cash" \
-    "/$T/dashboard" "/$T/backoffice" "/counter/fragments/categories" "/counter/fragments/products" "/counter/fragments/tables" \
+    "/$T/dashboard" "/$T/backoffice" \
     "/owner/console?location=$T" "/owner/console?view=locations" "/owner/console?view=team&location=$T" \
     "/owner/console?view=settings" "/owner/console?view=location-settings&location=$T"; do
   check "$J" "$S$path"
@@ -531,6 +531,11 @@ done
 if [ -n "$TICKET" ]; then
   check "$J" "$S/$T/counter/tickets/$TICKET"
 fi
+# The counter page loads these without a restaurant in the URL; the browser's Referer names it
+for fragment in categories products tables; do
+  FRAGMENT_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" -H "Referer: $S/$T/counter" "$S/counter/fragments/$fragment" || true)
+  record "${FRAGMENT_CODE:-000}" 200 "$S/counter/fragments/$fragment (from $T's counter page)"
+done
 for section in legal appearance payments backup advanced; do
   check "$J" "$S/owner/console?view=location-settings&section=$section&location=$T"
 done
@@ -630,6 +635,17 @@ for base in "$P" "$S"; do
     -H "X-FastBite-Jobs-Secret: $JOBS_SECRET" \
     "$base/internal/jobs/run" || true)
   record "${AUTH_JOBS_CODE:-000}" 200 "POST $base/internal/jobs/run (authenticated with secret)"
+done
+
+# The public schema holds only platform tables (V22); restaurant data lives in tenant_* schemas.
+PLATFORM_TABLES="flyway_schema_history group_quote_requests location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+for db in fastbite_production fastbite_sandbox; do
+  PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
+  if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then
+    record_match 1 "$db: public holds only the platform tables"
+  else
+    record_match 0 "$db: public holds only the platform tables (got: ${PUBLIC_TABLES:-none})"
+  fi
 done
 
 echo "== Checking logs for errors since run start ($SINCE)"

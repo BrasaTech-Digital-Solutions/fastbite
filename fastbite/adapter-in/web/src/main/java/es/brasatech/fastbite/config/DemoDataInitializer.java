@@ -17,13 +17,16 @@ import java.nio.file.Paths;
 public class DemoDataInitializer implements CommandLineRunner {
 
     private final TenantBackupRestorePort tenantBackupRestorePort;
+    private final es.brasatech.fastbite.application.tenant.TenantProvisionerPort tenantProvisioner;
     private final String uploadDirectory;
     private final jakarta.persistence.EntityManager entityManager;
 
     public DemoDataInitializer(TenantBackupRestorePort tenantBackupRestorePort,
+                               es.brasatech.fastbite.application.tenant.TenantProvisionerPort tenantProvisioner,
                                @org.springframework.beans.factory.annotation.Value("${image.upload.directory}") String uploadDirectory,
                                jakarta.persistence.EntityManager entityManager) {
         this.tenantBackupRestorePort = tenantBackupRestorePort;
+        this.tenantProvisioner = tenantProvisioner;
         this.uploadDirectory = uploadDirectory;
         this.entityManager = entityManager;
     }
@@ -31,7 +34,8 @@ public class DemoDataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         log.info("Checking demo data initialization for default tenants...");
-        
+        // The demo restaurant has its own schema, like any restaurant
+        tenantProvisioner.provisionDemoTenant();
         initializeTenantDemo("kebab");
     }
 

@@ -21,6 +21,9 @@ class TenantIsolationIntegrationTest {
     private ProductJpaRepository productRepository;
 
     @Autowired
+    private es.brasatech.fastbite.jpa.user.UserJpaRepository userRepository;
+
+    @Autowired
     private TenantProvisionerAdapter tenantProvisionerAdapter;
 
     @Autowired
@@ -82,5 +85,14 @@ class TenantIsolationIntegrationTest {
             assertEquals(id2, list2.get(0).getId());
             return null;
         });
+    }
+
+    @Test
+    void restaurantDataWithoutARestaurantFailsInsteadOfUsingThePlatformSchema() {
+        TenantContext.clear();
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> transactionTemplate.execute(status -> productRepository.findAll()));
+        // Platform accounts still work without a restaurant
+        transactionTemplate.execute(status -> userRepository.findAll());
     }
 }

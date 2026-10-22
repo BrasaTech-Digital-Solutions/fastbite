@@ -3,6 +3,7 @@ package es.brasatech.fastbite.security;
 import es.brasatech.fastbite.application.office.UserService;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.application.tenant.TenantProvisionerPort;
 import es.brasatech.fastbite.config.DemoDataInitializer;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ class DemoInitializerProfileTest {
             .withBean(PasswordEncoder.class, () -> mock(PasswordEncoder.class))
             .withBean(TenantLocationService.class, () -> mock(TenantLocationService.class))
             .withBean(TenantBackupRestorePort.class, () -> mock(TenantBackupRestorePort.class))
+            .withBean(TenantProvisionerPort.class, () -> mock(TenantProvisionerPort.class))
             .withBean(EntityManager.class, () -> mock(EntityManager.class));
 
     @Test void defaultAndProductionProfilesNeverRegisterDemoInitializers() {

@@ -9,4 +9,6 @@ public class TenantProvisionerAdapter implements TenantProvisionerPort {
     public TenantProvisionerAdapter(TenantMigrationService migrations) { this.migrations = migrations; }
 
     @Override public void provisionTenant(String tenantId) { migrations.provision(tenantId); }
+
+    @Override public void provisionDemoTenant() { migrations.provisionDemo(); }
 }

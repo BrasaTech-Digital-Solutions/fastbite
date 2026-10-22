@@ -115,6 +115,22 @@ a connection handed back by a restaurant request can still point at that restaur
 a session is serialized, so the native image must have each class registered:
 `SessionSerializationHintsTest` signs in and fails if one is missing.
 
+Each database has one `public` schema for the platform and one `tenant_<id>` schema per restaurant:
+
+- `public` runs only the platform migrations (`db/migration/platform`). It holds the platform accounts (`users`,
+  `user_roles`), locations, billing, onboarding, appearance, sandbox provisioning and sign-in, and the sessions.
+- Each `tenant_<id>` schema runs only the restaurant migrations (`db/migration/restaurant`): products, orders,
+  tables, fiscal tickets, VERI\*FACTU records and the restaurant's staff. The local demo restaurant (`kebab`, IDE
+  profiles `local` and `demo`) has its own `tenant_kebab` schema like any other.
+- Until V21, `public` also ran the restaurant migrations and kept empty copies of every restaurant table. A query
+  made without a restaurant context silently used those copies. V22 (`V22__Platform_users_and_drop_restaurant_tables`)
+  drops them, so such a query now fails with "table not found" instead. Before dropping, it refuses to run if any
+  copy holds real data, naming the table and the row count; nothing is dropped then, and the rows must be moved by
+  hand.
+- `public`'s history still lists the restaurant versions it ran before V22. Flyway is told to ignore those, and
+  only those (`TenantMigrationService.RETIRED_PUBLIC_VERSIONS`); any other missing version stops startup.
+- The release check asserts that `public` holds exactly the platform tables in both databases.
+
 Each environment keeps its own sign-in. Locally both run on `localhost` and browsers share cookies across
 ports, so the cookies have different names: `FASTBITE_SESSION` in production and `FASTBITE_SANDBOX_SESSION`
 in the sandbox (`FASTBITE_SESSION_COOKIE` overrides the name). Behind Firebase Hosting, which forwards only

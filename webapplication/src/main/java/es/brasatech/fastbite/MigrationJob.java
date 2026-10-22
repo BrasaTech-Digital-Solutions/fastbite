@@ -41,7 +41,20 @@ final class MigrationJob {
         } catch (RuntimeException e) {
             // Do not expose connection properties or SQL parameter values in the job error.
             System.err.println("Database migration failed (" + e.getClass().getSimpleName() + "). Review migration history before retrying.");
+            String reason = ownReason(e);
+            if (reason != null) System.err.println(reason);
             return 1;
         }
+    }
+
+    /** A refusal raised by FastBite's own migration code (such as V22's guard), which names no secrets. */
+    private static String ownReason(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof IllegalStateException && cause.getStackTrace().length > 0
+                    && cause.getStackTrace()[0].getClassName().startsWith("es.brasatech.fastbite.")) {
+                return cause.getMessage();
+            }
+        }
+        return null;
     }
 }

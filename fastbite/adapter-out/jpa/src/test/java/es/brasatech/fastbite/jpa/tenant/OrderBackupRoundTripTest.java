@@ -172,6 +172,7 @@ class OrderBackupRoundTripTest {
     }
 
     @Test void demoRestoreAndCleanPreservePlatformOwnersIncludingThoseCreatedAfterBackup() throws Exception {
+        provisioner.provisionDemoTenant();
         String ownerId = UUID.randomUUID().toString(), staffId = UUID.randomUUID().toString();
         String username = "protected" + ownerId.replace("-", "");
         inTenant("kebab", () -> {

@@ -55,7 +55,7 @@ public final class TenantSchemaUtils {
      * Resolves the schema name for a given tenant identifier.
      */
     public static String resolveSchemaName(Connection connection, String tenantId) {
-        if (tenantId == null || tenantId.trim().isEmpty() || "default".equalsIgnoreCase(tenantId) || "kebab".equalsIgnoreCase(tenantId)) {
+        if (tenantId == null || tenantId.trim().isEmpty() || "default".equalsIgnoreCase(tenantId)) {
             return resolveDefaultSchemaName(connection);
         }
         return "tenant_" + tenantId.toLowerCase();

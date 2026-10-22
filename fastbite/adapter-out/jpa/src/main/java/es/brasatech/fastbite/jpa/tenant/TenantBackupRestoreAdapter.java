@@ -432,7 +432,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     }
 
     private static boolean isPlatformSchema(String tenantId) {
-        return "kebab".equalsIgnoreCase(tenantId) || "default".equalsIgnoreCase(tenantId);
+        return "default".equalsIgnoreCase(tenantId);
     }
 
     private static boolean isDemoStaff(UserEntity user) {
