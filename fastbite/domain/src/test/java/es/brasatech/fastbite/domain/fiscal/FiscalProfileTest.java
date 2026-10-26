@@ -56,6 +56,15 @@ class FiscalProfileTest {
     }
 
     @Test
+    void refusesForalTerritories() {
+        for (String pc : java.util.List.of("01001", "20001", "48001", "31001")) {
+            var foral = new FiscalProfile("Ana", null, "12345678Z", "Calle Mayor 1", pc, "Town",
+                    "Province", null, null, "K", null);
+            assertThat(foral.problems()).containsEntry("postalCode", "fiscal.error.postalCode.foral");
+        }
+    }
+
+    @Test
     void anUnknownVatRateFallsBackToTheRestaurantRate() {
         var profile = new FiscalProfile(null, null, null, null, null, null, null, null, null, null, new BigDecimal("7"));
 

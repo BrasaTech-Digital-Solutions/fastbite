@@ -25,7 +25,15 @@ Owners can save an unfinished profile; wrong values are refused field by field. 
 issue legal tickets once every required field is filled in, and the opening checklist shows this as its
 fourth step.
 
-The Canary Islands, Ceuta and Melilla use IGIC or IPSI instead of VAT and are refused for now.
+FastBite operates in Spain's common territory only. Places outside common VAT territory or outside AEAT VERI*FACTU
+are refused:
+- The Basque Country (Álava 01, Gipuzkoa 20, Bizkaia 48) and Navarra (31) use their own billing systems
+  (TicketBAI in the Basque Country), which FastBite does not support.
+- The Canary Islands (35, 38), Ceuta (51) and Melilla (52) use IGIC or IPSI instead of VAT and are refused.
+
+If an existing location was configured with a postal code from these territories, its fiscal profile problem is
+flagged in the opening checklist, preventing the location from issuing new tickets until a valid common-territory
+address is configured. Already issued tickets and records in the database remain untouched and valid.
 
 ## VAT
 

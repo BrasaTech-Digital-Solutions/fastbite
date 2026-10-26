@@ -42,4 +42,13 @@ public final class SpanishProvinces {
         return postalCode != null && (postalCode.startsWith("35") || postalCode.startsWith("38")
                 || postalCode.startsWith("51") || postalCode.startsWith("52"));
     }
+
+    /**
+     * Foral territories (Basque Country and Navarra) that use their own billing systems
+     * (TicketBAI in the Basque Country; Navarra's own rules) outside AEAT VERI*FACTU.
+     */
+    public static boolean isForalTerritory(String postalCode) {
+        return postalCode != null && (postalCode.startsWith("01") || postalCode.startsWith("20")
+                || postalCode.startsWith("48") || postalCode.startsWith("31"));
+    }
 }

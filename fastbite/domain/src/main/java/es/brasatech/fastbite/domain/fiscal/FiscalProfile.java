@@ -85,6 +85,8 @@ public record FiscalProfile(String legalName, String tradeName, String taxId, St
         if (addressLine != null && addressLine.length() > 160) problems.put("addressLine", "fiscal.error.addressLine.length");
         if (postalCode != null && !SpanishProvinces.isValidPostalCode(postalCode)) {
             problems.put("postalCode", "fiscal.error.postalCode");
+        } else if (SpanishProvinces.isForalTerritory(postalCode)) {
+            problems.put("postalCode", "fiscal.error.postalCode.foral");
         } else if (SpanishProvinces.outsideVatTerritory(postalCode)) {
             problems.put("postalCode", "fiscal.error.postalCode.territory");
         }

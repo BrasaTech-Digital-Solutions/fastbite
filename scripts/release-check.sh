@@ -576,6 +576,27 @@ else
   record_match 0 "Invalid legal form draft preserved on redirect (INVALID_NIF_999 not found)"
 fi
 
+# Refused foral postal code (Bilbao 48001): assert redirect and TicketBAI error message
+FORAL_CSRF=$(echo "$LEGAL_REDIRECT_PAGE" | meta)
+FORAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
+  -H "Referer: $S/owner/console?view=location-settings&section=legal&location=$T" \
+  --data-urlencode "_csrf=$FORAL_CSRF" \
+  --data-urlencode "postalCode=48001" \
+  "$S/owner/workspace/$T/legal")
+FORAL_CODE=$(echo "$FORAL_RESP" | head -n 1 | awk '{print $2}')
+FORAL_LOC=$(echo "$FORAL_RESP" | loc)
+record "${FORAL_CODE:-000}" 302 "POST $S/owner/workspace/$T/legal (refused foral postal code redirect)"
+
+if [[ "$FORAL_LOC" =~ ^/ ]]; then
+  FORAL_LOC="$S$FORAL_LOC"
+fi
+FORAL_PAGE=$(curl -s -b "$J" -c "$J" "$FORAL_LOC")
+if echo "$FORAL_PAGE" | grep -q "TicketBAI"; then
+  record_match 1 "Refused foral postal code shows TicketBAI explanation"
+else
+  record_match 0 "Refused foral postal code shows TicketBAI explanation"
+fi
+
 # Backoffice image gallery fragment: verify 200 and 'burgers' folder name
 BT=$(curl -s -b "$J" -c "$J" "$S/$T/backoffice" | meta)
 GALLERY_CODE=$(curl -s -o "$GALLERY_OUT" -w '%{http_code}' -b "$J" -c "$J" \
