@@ -78,7 +78,10 @@ document.getElementById('cancelForm').addEventListener('submit', async event => 
         { reason: document.getElementById('cancelReason').value.trim() });
     bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
     // Nothing to print: the orders are unpaid again and can be charged at the counter
-    sessionStorage.setItem('fastbite.ticketNotice', page.dataset.doneCancel.replace('{0}', cancelled.fullNumber || current.number));
+    const noticeTemplate = cancelled.ordersMissing && page.dataset.doneCancelNoOrders
+        ? page.dataset.doneCancelNoOrders
+        : page.dataset.doneCancel;
+    sessionStorage.setItem('fastbite.ticketNotice', noticeTemplate.replace('{0}', cancelled.fullNumber || current.number));
     location.reload();
   } catch (error) {
     failed(document.getElementById('cancelError'), error);

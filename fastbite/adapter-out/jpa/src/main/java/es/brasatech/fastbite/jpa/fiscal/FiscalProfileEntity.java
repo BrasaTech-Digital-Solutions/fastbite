@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @Setter
 public class FiscalProfileEntity {
 
-    static final int ID = 1;
+    public static final int ID = 1;
 
     @Id
     private int id = ID;

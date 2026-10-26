@@ -190,13 +190,26 @@ class TicketEndpointTest {
 
     @Test
     void managersCancelATicketIssuedByMistake() throws Exception {
-        when(tickets.cancel("t1", "Wrong table", "carla")).thenReturn(new es.brasatech.fastbite.domain.fiscal.TicketCancellation(
-                "t1", SALE.issuedAt().plusMinutes(2), "carla", "Wrong table"));
+        when(tickets.cancel("t1", "Wrong table", "carla")).thenReturn(new es.brasatech.fastbite.application.fiscal.FiscalTicketService.CancellationResult(
+                new es.brasatech.fastbite.domain.fiscal.TicketCancellation("t1", SALE.issuedAt().plusMinutes(2), "carla", "Wrong table"), false));
 
         mockMvc.perform(as("ROLE_MANAGER", post("/counter/api/tickets/t1/cancel")).content("{\"reason\":\"Wrong table\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticketId").value("t1"))
                 .andExpect(jsonPath("$.fullNumber").value("KH-T26-000007"));
+    }
+
+    @Test
+    void cancellingTicketWithMissingOrdersReturnsNotice() throws Exception {
+        when(tickets.cancel("t1", "Wrong table", "carla")).thenReturn(new es.brasatech.fastbite.application.fiscal.FiscalTicketService.CancellationResult(
+                new es.brasatech.fastbite.domain.fiscal.TicketCancellation("t1", SALE.issuedAt().plusMinutes(2), "carla", "Wrong table"), true));
+        when(tickets.findById("t1")).thenReturn(Optional.of(SALE));
+
+        mockMvc.perform(as("ROLE_MANAGER", post("/counter/api/tickets/t1/cancel")).content("{\"reason\":\"Wrong table\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticketId").value("t1"))
+                .andExpect(jsonPath("$.ordersMissing").value(true))
+                .andExpect(jsonPath("$.notice").value("Ticket KH-T26-000007 cancelled. Its orders no longer exist, so there is nothing to charge again."));
     }
 
     @Test

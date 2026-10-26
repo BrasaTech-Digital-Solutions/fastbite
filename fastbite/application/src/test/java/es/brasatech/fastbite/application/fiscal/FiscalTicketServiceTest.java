@@ -249,8 +249,10 @@ class FiscalTicketServiceTest {
         FiscalTicket wrong = production.settle(List.of(kebab.id(), beer.id()),
                 FiscalTicketService.Payment.of(PaymentMethod.CARD, null), null, "carla");
 
-        TicketCancellation cancellation = production.cancel(wrong.id(), "Settled the wrong table", "manager");
+        var result = production.cancel(wrong.id(), "Settled the wrong table", "manager");
+        TicketCancellation cancellation = result.cancellation();
 
+        assertThat(result.ordersMissing()).isFalse();
         assertThat(cancellation.reason()).isEqualTo("Settled the wrong table");
         assertThat(cancellation.by()).isEqualTo("manager");
         assertThat(production.cancellation(wrong.id())).hasValue(cancellation);
@@ -279,6 +281,19 @@ class FiscalTicketServiceTest {
         assertThatThrownBy(() -> production.replace(wrong.id(), new TicketRecipient("B12345674", "ES", "Acme", null), "carla"))
                 .isInstanceOf(LocalizedRejection.class).extracting(e -> ((LocalizedRejection) e).key())
                 .isEqualTo("ticket.error.cancelled");
+    }
+
+    @Test
+    void cancellingTicketWhenOrdersNoLongerExistReportsOrdersMissing() {
+        FiscalTicket wrong = production.settle(List.of(kebab.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CARD, null), null, "carla");
+        when(orders.findById(kebab.id())).thenReturn(Optional.empty());
+
+        var result = production.cancel(wrong.id(), "Settled the wrong table", "manager");
+
+        assertThat(result.ordersMissing()).isTrue();
+        assertThat(result.cancellation().reason()).isEqualTo("Settled the wrong table");
+        verify(orders).markOrderUnpaid(kebab.id());
     }
 
     @Test

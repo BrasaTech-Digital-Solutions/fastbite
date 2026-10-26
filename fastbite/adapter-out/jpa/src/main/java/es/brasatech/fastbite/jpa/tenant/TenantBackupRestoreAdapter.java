@@ -83,6 +83,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     private final PaymentConfigJpaRepository paymentConfigJpaRepository;
     private final DynamicDemoTemplateRegistry dynamicDemoTemplateRegistry;
     private final es.brasatech.fastbite.application.tenant.AppearancePort appearance;
+    private final es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets;
 
     /** A theme id as the theme catalog names them; anything else in an archive is ignored. */
     private static final java.util.regex.Pattern THEME_ID = java.util.regex.Pattern.compile("[a-z0-9-]{1,40}");
@@ -188,12 +189,12 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     }
 
     @Override
-    public void importDemoTemplate(String tenantId, String templateId) {
+    public RestoreResult importDemoTemplate(String tenantId, String templateId) {
         String effectiveId = (templateId == null || templateId.isBlank()) ? "kebab" : templateId.trim();
         java.io.InputStream is = dynamicDemoTemplateRegistry.openTemplateStream(effectiveId)
                 .orElseThrow(() -> new IllegalArgumentException("Requested demo template '" + effectiveId + "' not found."));
         try (is) {
-            importDemoTemplate(tenantId, is);
+            return importDemoTemplate(tenantId, is);
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Failed to read template: " + effectiveId, e);
         }
@@ -209,8 +210,8 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
 
     /** A backup of any version is restored; a production bundle restored this way is still checked. */
     @Override
-    public void importRestore(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, false, VersionCheck.BUNDLES);
+    public RestoreResult importRestore(String tenantId, InputStream inputStream) {
+        return restoreArchive(tenantId, inputStream, false, VersionCheck.BUNDLES);
     }
 
     /**
@@ -219,21 +220,21 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
      * could break the promoted location.
      */
     @Override
-    public void importProductionBundle(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, true, VersionCheck.BUNDLES, true);
+    public RestoreResult importProductionBundle(String tenantId, InputStream inputStream) {
+        return restoreArchive(tenantId, inputStream, true, VersionCheck.BUNDLES, true);
     }
 
     @Override
-    public void importDemoTemplate(String tenantId, InputStream inputStream) {
-        restoreArchive(tenantId, inputStream, true, VersionCheck.NEVER);
+    public RestoreResult importDemoTemplate(String tenantId, InputStream inputStream) {
+        return restoreArchive(tenantId, inputStream, true, VersionCheck.NEVER);
     }
 
-    private void restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check) {
-        restoreArchive(tenantId, inputStream, templateOnly, check, false);
+    private RestoreResult restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check) {
+        return restoreArchive(tenantId, inputStream, templateOnly, check, false);
     }
 
     /** @param bundleExpected the archive is imported as a production bundle, even if it is not marked as one */
-    private void restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check,
+    private RestoreResult restoreArchive(String tenantId, InputStream inputStream, boolean templateOnly, VersionCheck check,
             boolean bundleExpected) {
         Path destination = tenantMediaPath(tenantId);
         try (BackupMediaReplacement media = new BackupMediaReplacement(destination)) {
@@ -258,9 +259,11 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                     }
                 }
             }
+            java.util.concurrent.atomic.AtomicBoolean locked = new java.util.concurrent.atomic.AtomicBoolean(false);
             inTenantTransaction(tenantId, false, () -> {
                 cleanDatabase(tenantId);
-                restoreDatabase(tenantId, backupData);
+                boolean fiscalLocked = restoreDatabase(tenantId, backupData);
+                locked.set(fiscalLocked);
                 entityManager.flush();
                 media.install();
             });
@@ -271,6 +274,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 appearance.saveLocationTheme(tenantId, theme);
             }
             log.info("Successfully restored backup data for tenant: {}", tenantId);
+            return RestoreResult.of(locked.get());
         } catch (TenantBackupRestorePort.VersionMismatch e) {
             throw e;
         } catch (Exception e) {
@@ -287,7 +291,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         } catch (Exception e) { throw new IllegalArgumentException("This file is not a supported FastBite backup. Choose an exported ZIP and try again."); }
     }
 
-    private void restoreDatabase(String tenantId, TenantBackupData backupData) {
+    private boolean restoreDatabase(String tenantId, TenantBackupData backupData) {
         // Rewrite product image URLs to match the new tenant ID
         if (backupData.getProducts() != null) {
             for (var prod : backupData.getProducts()) {
@@ -348,11 +352,29 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         replicateAll(backupData.getPaymentConfigs());
         if (backupData.getFormatVersion() >= 2) entityManager.createNativeQuery("DELETE FROM restaurant_settings").executeUpdate();
         if (backupData.getRestaurantSettings() != null) entityManager.merge(backupData.getRestaurantSettings());
-        // Archives from before fiscal profiles leave the destination's profile as it is
-        if (backupData.getFormatVersion() >= 3) entityManager.createNativeQuery("DELETE FROM fiscal_profile").executeUpdate();
-        if (backupData.getFiscalProfile() != null) entityManager.merge(backupData.getFiscalProfile());
+        boolean fiscalProfileLocked = false;
+        boolean hasRealTickets = tickets.anyRealTicket();
+        if (hasRealTickets) {
+            FiscalProfileEntity existing = entityManager.find(FiscalProfileEntity.class, FiscalProfileEntity.ID);
+            if (existing != null && backupData.getFiscalProfile() != null) {
+                FiscalProfileEntity incoming = backupData.getFiscalProfile();
+                if (!java.util.Objects.equals(incoming.getTaxId(), existing.getTaxId())
+                        || !java.util.Objects.equals(incoming.getSeriesPrefix(), existing.getSeriesPrefix())) {
+                    fiscalProfileLocked = true;
+                }
+                incoming.setId(FiscalProfileEntity.ID);
+                incoming.setTaxId(existing.getTaxId());
+                incoming.setSeriesPrefix(existing.getSeriesPrefix());
+                entityManager.merge(incoming);
+            }
+        } else {
+            // Archives from before fiscal profiles leave the destination's profile as it is
+            if (backupData.getFormatVersion() >= 3) entityManager.createNativeQuery("DELETE FROM fiscal_profile").executeUpdate();
+            if (backupData.getFiscalProfile() != null) entityManager.merge(backupData.getFiscalProfile());
+        }
         entityManager.flush();
         restoreOrderCounter(backupData.getOrderCounter());
+        return fiscalProfileLocked;
 
     }
 

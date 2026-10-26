@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Controller
@@ -23,6 +24,7 @@ public class TenantMaintenanceController {
 
     private final TenantBackupRestorePort tenantBackupRestorePort;
     private final PlatformLink link;
+    private final org.springframework.context.MessageSource messageSource;
 
     @GetMapping("/backup")
     public void downloadBackup(@PathVariable String tenantId, HttpServletResponse response) {
@@ -86,15 +88,17 @@ public class TenantMaintenanceController {
     @ResponseBody
     public ResponseEntity<Map<String, String>> uploadProductionBundle(
             @PathVariable String tenantId,
-            @RequestParam("file") MultipartFile file) {
-        log.info("Requested production promotion bundle import for tenant: {}", tenantId);
+            @RequestParam("file") MultipartFile file,
+            org.springframework.security.core.Authentication user) {
+        String username = user != null ? user.getName() : "anonymous";
+        log.info("Requested production promotion bundle import by user {} for tenant: {}", username, tenantId);
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Uploaded bundle file is empty."));
         }
 
         try (InputStream is = file.getInputStream()) {
             tenantBackupRestorePort.importProductionBundle(tenantId, is);
-            log.info("Production bundle imported successfully for tenant: {}", tenantId);
+            log.info("Production bundle imported successfully by user {} for tenant: {}", username, tenantId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Production bundle successfully imported into location."));
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
@@ -110,16 +114,25 @@ public class TenantMaintenanceController {
     @ResponseBody
     public ResponseEntity<Map<String, String>> uploadRestore(
             @PathVariable String tenantId,
-            @RequestParam("file") MultipartFile file) {
-        log.info("Requested database and media restore for tenant: {}", tenantId);
+            @RequestParam("file") MultipartFile file,
+            org.springframework.security.core.Authentication user,
+            java.util.Locale locale) {
+        String username = user != null ? user.getName() : "anonymous";
+        log.info("Requested database and media restore by user {} for tenant: {}", username, tenantId);
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Uploaded backup file is empty."));
         }
 
         try (InputStream is = file.getInputStream()) {
-            tenantBackupRestorePort.importRestore(tenantId, is);
-            log.info("Restore completed successfully for tenant: {}", tenantId);
-            return ResponseEntity.ok(Map.of("status", "success", "message", "Database and files successfully restored."));
+            var result = tenantBackupRestorePort.importRestore(tenantId, is);
+            log.info("Restore completed successfully by user {} for tenant: {}", username, tenantId);
+            Map<String, String> response = new LinkedHashMap<>();
+            response.put("status", "success");
+            response.put("message", "Database and files successfully restored.");
+            if (result.fiscalProfileLocked()) {
+                response.put("notice", messageSource.getMessage("maintenance.restore.fiscalProfileLocked", null, locale));
+            }
+            return ResponseEntity.ok(response);
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
@@ -132,11 +145,14 @@ public class TenantMaintenanceController {
 
     @PostMapping("/clean")
     @ResponseBody
-    public ResponseEntity<Map<String, String>> cleanData(@PathVariable String tenantId) {
-        log.info("Requested database reset/clean for tenant: {}", tenantId);
+    public ResponseEntity<Map<String, String>> cleanData(
+            @PathVariable String tenantId,
+            org.springframework.security.core.Authentication user) {
+        String username = user != null ? user.getName() : "anonymous";
+        log.info("Requested database reset/clean by user {} for tenant: {}", username, tenantId);
         try {
             tenantBackupRestorePort.cleanTenantData(tenantId);
-            log.info("Tenant reset/clean completed successfully: {}", tenantId);
+            log.info("Tenant reset/clean completed successfully by user {} for tenant: {}", username, tenantId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Database and uploads successfully reset."));
         } catch (Exception e) {
             log.error("Failed to reset tenant data for: " + tenantId, e);
@@ -157,18 +173,27 @@ public class TenantMaintenanceController {
     @ResponseBody
     public ResponseEntity<Map<String, String>> restoreDemo(
             @PathVariable String tenantId,
-            @RequestParam(value = "template", required = false) String template) {
+            @RequestParam(value = "template", required = false) String template,
+            org.springframework.security.core.Authentication user,
+            java.util.Locale locale) {
         if (link.linkedProduction()) {
             // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
                     "Demo templates are loaded in the sandbox. Set up there, then restore your production bundle here."));
         }
         String templateName = (template != null && !template.isBlank()) ? template : "kebab";
-        log.info("Requested restore from demo package '{}' for tenant: {}", templateName, tenantId);
+        String username = user != null ? user.getName() : "anonymous";
+        log.info("Requested restore from demo package '{}' by user {} for tenant: {}", templateName, username, tenantId);
         try {
-            tenantBackupRestorePort.importDemoTemplate(tenantId, templateName);
-            log.info("Demo restore completed successfully for tenant: {} using template: {}", tenantId, templateName);
-            return ResponseEntity.ok(Map.of("status", "success", "message", "Restaurant template demo data successfully loaded."));
+            var result = tenantBackupRestorePort.importDemoTemplate(tenantId, templateName);
+            log.info("Demo restore completed successfully by user {} for tenant: {} using template: {}", username, tenantId, templateName);
+            Map<String, String> response = new LinkedHashMap<>();
+            response.put("status", "success");
+            response.put("message", "Restaurant template demo data successfully loaded.");
+            if (result.fiscalProfileLocked()) {
+                response.put("notice", messageSource.getMessage("maintenance.restore.fiscalProfileLocked", null, locale));
+            }
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             log.warn("Demo template not found for tenant: {}: {}", tenantId, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

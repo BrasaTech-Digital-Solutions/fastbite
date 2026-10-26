@@ -211,7 +211,9 @@ public class FiscalTicketService {
      * for a sale that did happen: that is refunded instead. Any money taken is given back on the
      * terminal or from the till, as with refunds.
      */
-    public TicketCancellation cancel(String ticketId, String reason, String cancelledBy) {
+    public record CancellationResult(TicketCancellation cancellation, boolean ordersMissing) {}
+
+    public CancellationResult cancel(String ticketId, String reason, String cancelledBy) {
         FiscalTicket ticket = find(ticketId);
         if (ticket.kind() != TicketKind.SIMPLIFIED && ticket.kind() != TicketKind.FULL) {
             throw new LocalizedRejection("ticket.error.cancelKind",
@@ -239,9 +241,11 @@ public class FiscalTicketService {
         TicketCancellation cancellation = new TicketCancellation(ticket.id(), OffsetDateTime.now(clock), cancelledBy,
                 reason.strip());
         tickets.cancel(cancellation);
+        boolean ordersMissing = ticket.orderIds().isEmpty()
+                || ticket.orderIds().stream().noneMatch(id -> orders.findById(id).isPresent());
         ticket.orderIds().forEach(orders::markOrderUnpaid);
         verifactu.cancel(ticket);
-        return cancellation;
+        return new CancellationResult(cancellation, ordersMissing);
     }
 
     /** The cancellation of a ticket issued by mistake, if it was cancelled. */

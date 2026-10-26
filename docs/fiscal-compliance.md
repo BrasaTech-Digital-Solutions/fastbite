@@ -193,6 +193,14 @@ details are missing. Production refuses payments until the location's business d
 Defaulting to the sandbox means a misconfigured deployment produces visibly invalid tickets rather than
 real invoices from test data.
 
+## Retention and preservation of fiscal records
+
+Under Spanish tax law (RD 1007/2023 art. 8, RD 1619/2012 art. 19.1, LGT art. 66, and AEAT developer FAQ 4-12-2025 section 13), billing records and issued tickets/invoices must be preserved intact and accessible for the 4-year limitation period:
+- **Clean and reset:** Resetting a location's data (`/clean`) removes operational business data (menu items, orders, tables, staff, and uploaded files), but **never deletes the fiscal block**. The tables `fiscal_tickets`, `fiscal_sale_orders`, `fiscal_ticket_cancellations`, `fiscal_series`, `verifactu_records`, `verifactu_chain`, `verifactu_installations`, and `fiscal_profile` are completely preserved.
+- **Restore:** Restoring from a backup or demo template replaces menu and operational state, but never overwrites or rewinds fiscal history. If the location has already issued real tickets (`tickets.anyRealTicket()`), its NIF (`taxId`) and series prefix (`seriesPrefix`) are permanently locked and cannot be overwritten by a restored archive; only complementary fields (legal name, trade name, address) may be updated.
+- **Refunds and cancellations after clean:** Tickets are self-contained snapshots of the fiscal event. A refund or cancellation remains valid even after operational orders have been cleared: missing orders are skipped without error, and cancellations without surviving orders notify the user.
+- **Location closure and data retention:** Closing a location or cancelling a subscription never drops the underlying database schema. Closed locations retain their fiscal tickets and VERI*FACTU records read-only for at least the 4-year statutory limitation period (Article 66 LGT). Full invoices must remain available because VERI*FACTU records do not store invoice item lines (AEAT FAQ section 13). Owners can inspect and export the full chained billing records (`/owner/console`) at any time.
+
 ## Backups and promotion
 
 Backups (format 3) carry the fiscal profile. Restoring an older archive leaves the destination's profile as

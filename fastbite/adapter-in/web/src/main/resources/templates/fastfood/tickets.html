@@ -20,7 +20,8 @@
 <main class="container py-4" id="tickets"
       th:data-prefix="${tenantPrefix}"
       th:data-done-invoice="#{tickets.done.invoice('{0}')}" th:data-done-refund="#{tickets.done.refund('{0}')}"
-      th:data-done-cancel="#{tickets.done.cancel('{0}')}">
+      th:data-done-cancel="#{tickets.done.cancel('{0}')}"
+      th:data-done-cancel-no-orders="#{tickets.done.cancel.noOrders('{0}')}">
 
     <div class="alert alert-warning d-flex align-items-center gap-2" th:if="${training}" role="note">
         <i class="fas fa-flask" aria-hidden="true"></i><span th:text="#{tickets.training.banner}">Sandbox: practice tickets.</span>

@@ -15,7 +15,8 @@ class TenantBackupDownloadTest {
     private final TenantBackupRestorePort backups = mock(TenantBackupRestorePort.class);
     private final TenantMaintenanceController controller = new TenantMaintenanceController(backups,
             new es.brasatech.fastbite.application.platform.PlatformLink(
-                    new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), "", "", "", false));
+                    new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), "", "", "", false),
+            mock(org.springframework.context.MessageSource.class));
 
     @Test void failedExportReturns500WithoutAPartialDownload() throws Exception {
         doAnswer(call -> {

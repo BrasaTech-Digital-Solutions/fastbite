@@ -9,13 +9,22 @@ import java.util.Optional;
 public interface TenantBackupRestorePort {
     void exportBackup(String tenantId, OutputStream outputStream);
     void exportProductionBundle(String tenantId, OutputStream outputStream);
-    void importRestore(String tenantId, InputStream inputStream);
-    void importProductionBundle(String tenantId, InputStream inputStream);
-    void importDemoTemplate(String tenantId, InputStream inputStream);
-    void importDemoTemplate(String tenantId, String templateId);
+    RestoreResult importRestore(String tenantId, InputStream inputStream);
+    RestoreResult importProductionBundle(String tenantId, InputStream inputStream);
+    RestoreResult importDemoTemplate(String tenantId, InputStream inputStream);
+    RestoreResult importDemoTemplate(String tenantId, String templateId);
     void cleanTenantData(String tenantId);
     BackupPreview previewBackup(String tenantId, InputStream inputStream);
     List<DemoTemplateDescriptor> getAvailableTemplates(Locale locale);
+
+    record RestoreResult(boolean fiscalProfileLocked) {
+        public static final RestoreResult UNLOCKED = new RestoreResult(false);
+        public static final RestoreResult LOCKED = new RestoreResult(true);
+
+        public static RestoreResult of(boolean locked) {
+            return locked ? LOCKED : UNLOCKED;
+        }
+    }
 
     record BackupPreview(int products, int orders, int accounts) {}
 

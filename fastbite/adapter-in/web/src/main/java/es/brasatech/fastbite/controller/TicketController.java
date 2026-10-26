@@ -40,6 +40,7 @@ public class TicketController {
 
     private final FiscalTicketService tickets;
     private final es.brasatech.fastbite.application.verifactu.VerifactuService verifactu;
+    private final org.springframework.context.MessageSource messageSource;
 
     /** Payment of one or more orders at the counter. */
     public record SettleRequest(List<String> orderIds, String paymentMethod, BigDecimal cashReceived,
@@ -85,15 +86,20 @@ public class TicketController {
     @ResponseBody
     @PostMapping("/counter/api/tickets/{ticketId}/cancel")
     public Map<String, Object> cancel(@PathVariable String ticketId, @RequestBody CancelRequest request,
-            Authentication user) {
+            Authentication user, java.util.Locale locale) {
         if (!mayRefund(user)) {
             throw new LocalizedRejection("ticket.error.cancelRole", "Only a manager can cancel tickets");
         }
-        var cancellation = tickets.cancel(ticketId, request.reason(), user.getName());
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("ticketId", cancellation.ticketId());
-        tickets.findById(ticketId).ifPresent(ticket -> result.put("fullNumber", ticket.fullNumber()));
-        return result;
+        var result = tickets.cancel(ticketId, request.reason(), user.getName());
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("ticketId", result.cancellation().ticketId());
+        response.put("ordersMissing", result.ordersMissing());
+        if (result.ordersMissing()) {
+            String fullNumber = tickets.findById(ticketId).map(FiscalTicket::fullNumber).orElse(ticketId);
+            response.put("notice", messageSource.getMessage("tickets.done.cancel.noOrders", new Object[]{fullNumber}, locale));
+        }
+        tickets.findById(ticketId).ifPresent(ticket -> response.put("fullNumber", ticket.fullNumber()));
+        return response;
     }
 
     /** The ticket as printed; the counter loads it into a hidden frame and prints it. */

@@ -688,6 +688,65 @@ else
   record_match 0 "fastbite_sandbox.public.fiscal_issuers does not contain B12345674 (got: $SAND_ISSUER_ROWS)"
 fi
 
+# Production location reset preserves fiscal tickets and VERI*FACTU records across sales
+PROD_CT=$(curl -s -b "$J" -c "$J" "$P/$T/counter" | meta)
+PROD_SALE1_RESP=$(curl -s -w '\n%{http_code}' -b "$J" -c "$J" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $PROD_CT" \
+  -H "Referer: $P/$T/counter" \
+  -d "{\"items\":[{\"id\":\"p1\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"customizations\":[]}],\"paid\":true,\"paymentMethod\":\"CASH\",\"cashReceived\":50}" \
+  "$P/counter/api/order")
+PROD_SALE1_CODE=$(echo "$PROD_SALE1_RESP" | tail -n 1)
+PROD_SALE1_JSON=$(echo "$PROD_SALE1_RESP" | head -n -1)
+record "$PROD_SALE1_CODE" 200 "POST $P/counter/api/order (production cash sale 1)"
+
+PROD_SALE1_TICKET=$(echo "$PROD_SALE1_JSON" | grep -o '"ticketId":"[^"]*"' | head -1 | sed 's/"ticketId":"//; s/"$//')
+PROD_SALE1_NUM=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select ticket_number from tenant_$T.fiscal_tickets where id='$PROD_SALE1_TICKET'" 2>/dev/null | tr -d '\r')
+PROD_TICKETS_BEFORE=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.fiscal_tickets" 2>/dev/null | tr -d '\r')
+
+PROD_MAINT_CSRF=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=advanced&location=$T" | meta)
+CLEAN_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$J" -c "$J" \
+  -H "X-CSRF-TOKEN: $PROD_MAINT_CSRF" \
+  -H "Referer: $P/owner/console?view=location-settings&section=advanced&location=$T" \
+  "$P/$T/api/backoffice/maintenance/clean")
+record "$CLEAN_CODE" 200 "POST $P/$T/api/backoffice/maintenance/clean (production location reset)"
+
+PROD_TICKETS_AFTER=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.fiscal_tickets" 2>/dev/null | tr -d '\r')
+PROD_VF_COUNT=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.verifactu_records where ticket_id='$PROD_SALE1_TICKET'" 2>/dev/null | tr -d '\r')
+if [ "$PROD_TICKETS_AFTER" = "$PROD_TICKETS_BEFORE" ] && [ "$PROD_VF_COUNT" -ge 1 ]; then
+  record_match 1 "Reset preserved fiscal tickets ($PROD_TICKETS_AFTER) and VERI*FACTU record for $PROD_SALE1_TICKET"
+else
+  record_match 0 "Reset preserved fiscal tickets ($PROD_TICKETS_BEFORE -> $PROD_TICKETS_AFTER, vf=$PROD_VF_COUNT)"
+fi
+
+# Re-import bundle so counter catalog has products for second sale
+PROD_BUNDLE_CSRF=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=backup&location=$T" | meta)
+curl -s -o /dev/null -b "$J" -c "$J" \
+  -H "X-CSRF-TOKEN: $PROD_BUNDLE_CSRF" \
+  -F "file=@$BUNDLE;type=application/zip" \
+  "$P/$T/api/backoffice/maintenance/import-production-bundle"
+
+PROD_CT2=$(curl -s -b "$J" -c "$J" "$P/$T/counter" | meta)
+PROD_SALE2_RESP=$(curl -s -w '\n%{http_code}' -b "$J" -c "$J" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $PROD_CT2" \
+  -H "Referer: $P/$T/counter" \
+  -d "{\"items\":[{\"id\":\"p2\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"customizations\":[]}],\"paid\":true,\"paymentMethod\":\"CASH\",\"cashReceived\":50}" \
+  "$P/counter/api/order")
+PROD_SALE2_CODE=$(echo "$PROD_SALE2_RESP" | tail -n 1)
+PROD_SALE2_JSON=$(echo "$PROD_SALE2_RESP" | head -n -1)
+record "$PROD_SALE2_CODE" 200 "POST $P/counter/api/order (production cash sale 2 after reset)"
+
+PROD_SALE2_TICKET=$(echo "$PROD_SALE2_JSON" | grep -o '"ticketId":"[^"]*"' | head -1 | sed 's/"ticketId":"//; s/"$//')
+PROD_SALE2_NUM=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select ticket_number from tenant_$T.fiscal_tickets where id='$PROD_SALE2_TICKET'" 2>/dev/null | tr -d '\r')
+
+EXPECTED_NUM=$((PROD_SALE1_NUM + 1))
+if [ "$PROD_SALE2_NUM" = "$EXPECTED_NUM" ]; then
+  record_match 1 "Second sale after reset got sequential ticket number ($PROD_SALE2_NUM = $EXPECTED_NUM in series RC)"
+else
+  record_match 0 "Second sale after reset got sequential ticket number (expected $EXPECTED_NUM, got ${PROD_SALE2_NUM:-none})"
+fi
+
 echo "== [6/6] Static assets, Self-hosted fonts & Scheduled jobs endpoint"
 for asset in "/js/live-updates.js" "/css/fonts.css" "/css/fonts/dm-sans-latin.woff2" "/css/fonts/manrope-latin.woff2" "/js/qrcode.min.js"; do
   check "$G" "$S$asset"

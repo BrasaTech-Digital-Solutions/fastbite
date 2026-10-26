@@ -33,7 +33,7 @@ let pending=null;let reviewedFile=null;
 async function review(tenant,action,file){
  pending={tenant,action,file};confirmForm.reset();confirmName.setCustomValidity('');document.getElementById('maintenance-error').textContent='';
  document.getElementById('maintenance-title').textContent=action==='clean'?'Reset this restaurant?':action==='restore-demo'?'Load the demo template?':'Restore your backup?';
- document.getElementById('maintenance-description').textContent=action==='clean'?'This permanently removes this location’s menu, orders, staff and uploaded files.':action==='restore-demo'?'This replaces this location’s menu, settings and files with the sample restaurant and clears existing orders and staff. No sample logins or historical orders are imported.':'This replaces this location’s menu, orders, staff, settings and uploaded files with the backup you checked.';
+ document.getElementById('maintenance-description').textContent=action==='clean'?'This permanently removes this location’s menu, orders, staff and uploaded files. Tickets and tax records are kept by law and won’t be deleted.':action==='restore-demo'?'This replaces this location’s menu, settings and files with the sample restaurant and clears existing orders and staff. No sample logins or historical orders are imported.':'This replaces this location’s menu, orders, staff, settings and uploaded files with the backup you checked.';
  document.getElementById('maintenance-location').textContent=tenant;document.getElementById('maintenance-export').href='/'+encodeURIComponent(tenant)+'/api/backoffice/maintenance/backup';
  if(tplGroup){
   tplGroup.hidden=(action!=='restore-demo');
@@ -68,8 +68,10 @@ confirmForm.addEventListener('submit',async event=>{
   }else if(pending.file){
    body=new FormData();body.append('file',pending.file);
   }
-  await request(endpoint,body);
-  dialog.close();window.location.assign('/owner/console?location='+encodeURIComponent(pending.tenant));
+  const res=await request(endpoint,body);
+  dialog.close();
+  if(res&&res.notice&&typeof fbNotice==='function'){await fbNotice({message:res.notice});}
+  window.location.assign('/owner/console?location='+encodeURIComponent(pending.tenant));
  }catch(e){document.getElementById('maintenance-error').textContent=e.message+' Your setup has not been marked complete.';}finally{busy(confirmForm,false);}
 });
 // Restore the exact File object reviewed, not a subsequently changed selection.

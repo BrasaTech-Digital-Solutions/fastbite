@@ -1615,6 +1615,9 @@ async function triggerRestoreBackup(event) {
             showToast(result.message || 'Backup successfully restored.');
             fileInput.value = '';
             await loadData();
+            if (result.notice) {
+                await fbNotice({ message: result.notice });
+            }
         } else {
             showToast(result.message || 'Error restoring backup.', 'error');
         }
@@ -1684,6 +1687,9 @@ async function triggerRestoreDemo() {
             if (response.ok && result.status === 'success') {
                 showToast(result.message || 'Demo data loaded successfully.');
                 await loadData();
+                if (result.notice) {
+                    await fbNotice({ message: result.notice });
+                }
             } else {
                 showToast(result.message || 'Error loading demo data.', 'error');
             }

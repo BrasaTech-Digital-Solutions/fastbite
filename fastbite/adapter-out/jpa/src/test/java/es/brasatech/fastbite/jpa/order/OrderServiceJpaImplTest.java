@@ -398,6 +398,20 @@ class OrderServiceJpaImplTest {
         verify(eventPublisher).publishEvent(any(es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent.class));
     }
 
+    @Test
+    void markOrderRefunded_missingOrder_doesNotThrow() {
+        when(repository.findForUpdate("o-missing")).thenReturn(Optional.empty());
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.markOrderRefunded("o-missing"));
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markOrderUnpaid_missingOrder_doesNotThrow() {
+        when(repository.findForUpdate("o-missing")).thenReturn(Optional.empty());
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.markOrderUnpaid("o-missing"));
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
     private OrderEntity createOrderEntity(Order order) {
         OrderEntity entity = new OrderEntity();
         entity.setId(order.id());

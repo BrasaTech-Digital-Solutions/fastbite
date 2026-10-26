@@ -118,7 +118,9 @@ public class OrderServiceJpaImpl implements OrderService {
 
     @Override
     public void markOrderRefunded(String id) {
-        var entity = repository.findForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        var entityOpt = repository.findForUpdate(id);
+        if (entityOpt.isEmpty()) return;
+        var entity = entityOpt.get();
         Order order = toOrderWithTranslation(entity);
         Order refundedOrder = order.markRefunded();
         entity.setStatus(refundedOrder.status());
@@ -129,7 +131,9 @@ public class OrderServiceJpaImpl implements OrderService {
 
     @Override
     public void markOrderUnpaid(String id) {
-        var entity = repository.findForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Order not found"));
+        var entityOpt = repository.findForUpdate(id);
+        if (entityOpt.isEmpty()) return;
+        var entity = entityOpt.get();
         Order order = toOrderWithTranslation(entity);
         Order unpaidOrder = order.markUnpaid();
         entity.setStatus(unpaidOrder.status());
