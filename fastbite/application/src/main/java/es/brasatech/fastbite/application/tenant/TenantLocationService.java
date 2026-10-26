@@ -104,4 +104,12 @@ public class TenantLocationService {
     public void removeLocation(String tenantId) {
         tenantLocationPort.delete(tenantId);
     }
+
+    /**
+     * Map from owner username to the count of every location that owner has ever created
+     * (including closed or deleted locations), for AEAT VERI*FACTU IndicadorMultiplesOT.
+     */
+    public java.util.Map<String, Long> countLocationsEverCreatedByOwner() {
+        return tenantLocationPort.countLocationsEverCreatedByOwner();
+    }
 }

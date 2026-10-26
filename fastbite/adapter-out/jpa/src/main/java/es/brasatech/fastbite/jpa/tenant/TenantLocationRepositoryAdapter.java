@@ -85,6 +85,24 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
                 .ifPresent(entity -> repository.deleteById(entity.getId()));
     }
 
+    @Override
+    public java.util.Map<String, Long> countLocationsEverCreatedByOwner() {
+        String sql = """
+            SELECT owner_username, COUNT(DISTINCT tenant_id) AS cnt
+            FROM (
+                SELECT owner_username, tenant_id FROM public.tenant_locations WHERE owner_username IS NOT NULL
+                UNION
+                SELECT owner_username, tenant_id FROM public.tenant_lifecycle WHERE state = 'ACTIVE' AND owner_username IS NOT NULL
+            ) combined
+            GROUP BY owner_username
+            """;
+        java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        jdbc.query(sql, rs -> {
+            counts.put(rs.getString("owner_username"), rs.getLong("cnt"));
+        });
+        return counts;
+    }
+
     private TenantLocation toDomain(TenantLocationEntity entity) {
         return new TenantLocation(entity.getId(), entity.getOwnerUsername(), entity.getTenantId(), entity.getPlan(),
                 entity.getCustomDomain(), entity.getStripeAccountId(),

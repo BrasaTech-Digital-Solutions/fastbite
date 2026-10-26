@@ -75,9 +75,8 @@ public class VerifactuSubmissionJob {
             return new Summary(0, 0, 0);
         }
         var all = locations.getAllLocations();
-        // IndicadorMultiplesOT is worked out per owner: more than one location in FastBite
-        Map<String, Long> perOwner = all.stream().filter(location -> location.ownerUsername() != null)
-                .collect(Collectors.groupingBy(location -> location.ownerUsername(), Collectors.counting()));
+        // IndicadorMultiplesOT is worked out per owner, counting every location ever created (see TenantLocationPort)
+        Map<String, Long> perOwner = locations.countLocationsEverCreatedByOwner();
         int submitted = 0;
         int checked = 0;
         for (var location : all) {
@@ -90,7 +89,9 @@ public class VerifactuSubmissionJob {
             checked++;
             try {
                 TenantContext.setCurrentTenant(location.tenantId());
-                boolean multiple = perOwner.getOrDefault(Objects.toString(location.ownerUsername(), ""), 0L) > 1;
+                boolean multiple = location.ownerUsername() != null
+                        && perOwner != null
+                        && perOwner.getOrDefault(location.ownerUsername(), 0L) > 1;
                 int answered = verifactu.submitPending(environment.sandbox(), multiple);
                 submitted += answered;
                 if (answered > 0) {
