@@ -65,6 +65,7 @@ class OrderCheckoutEndpointTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         mockMvc = MockMvcBuilders
                 .webAppContextSetup(webApplicationContext)
                 .addFilters(new ForwardedHeaderFilter(),

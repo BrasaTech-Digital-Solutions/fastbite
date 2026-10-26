@@ -116,10 +116,10 @@ async function fetchItems(url) {
 async function loadInitialData() {
     try {
         [products, categories, allCustomizations, allTables] = await Promise.all([
-            fetchItems('/api/backoffice/products'),
-            fetchItems('/api/backoffice/groups'),
-            fetchItems('/api/backoffice/customizations'),
-            fetchItems('/api/backoffice/tables')
+            fetchItems('/counter/api/catalog/products'),
+            fetchItems('/counter/api/catalog/groups'),
+            fetchItems('/counter/api/catalog/customizations'),
+            fetchItems('/counter/api/catalog/tables')
         ]);
     } catch (error) {
         console.error('Error loading data:', error);
@@ -782,7 +782,7 @@ async function refreshPickupCount() {
 async function refreshTables() {
     refreshPickupCount(); // both change whenever an order is placed, paid or cancelled
     try {
-        const tableRes = await fetch('/api/backoffice/tables');
+        const tableRes = await fetch('/counter/api/catalog/tables');
         if (tableRes.ok) {
             const data = await tableRes.json();
             allTables = data.map(d => ({

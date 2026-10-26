@@ -79,6 +79,7 @@ class SsoSubdomainIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         HashMap<String, String> dictionary = new HashMap<>();
         dictionary.put("cartEmpty", "Cart empty");
         dictionary.put("confirmAndSubmitBtn", "Confirm and Submit Order");

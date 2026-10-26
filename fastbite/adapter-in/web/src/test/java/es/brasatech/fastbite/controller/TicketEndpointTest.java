@@ -74,6 +74,7 @@ class TicketEndpointTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(tickets.findById("t1")).thenReturn(Optional.of(SALE));
         when(tickets.today()).thenReturn(LocalDate.of(2026, 10, 9));

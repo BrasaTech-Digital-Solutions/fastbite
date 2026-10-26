@@ -58,6 +58,7 @@ class AllergenChartEndpointTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Ana García", "Kebab House", "12345678Z",
                 "Calle Mayor 1", "28013", "Madrid", "Madrid", null, null, "KH", null));

@@ -47,6 +47,10 @@ public class TenantRoutingResolver {
     private final ConcurrentLruCache<String, String> customDomainCache;
     /** Platform hosts from public-url and link.url that must never resolve as tenant subdomains. */
     private final Set<String> platformHosts;
+    /** Restaurants seen to exist, with when they were checked. Unknown ones are never cached: one may be created any moment. */
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> knownTenants = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long KNOWN_TENANT_TTL_MS = 5 * 60 * 1000;
+    private static final int KNOWN_TENANT_LIMIT = 10_000;
 
     public TenantRoutingResolver(TenantLocationService tenantLocationService) {
         this(tenantLocationService, null, null);
@@ -139,6 +143,23 @@ public class TenantRoutingResolver {
         if (customDomain != null) {
             customDomainCache.remove(customDomain.trim().toLowerCase());
         }
+    }
+
+    /** True if a restaurant with this id is registered in this environment. */
+    public boolean exists(String tenantId) {
+        long now = System.currentTimeMillis();
+        Long checked = knownTenants.get(tenantId);
+        if (checked != null && now - checked < KNOWN_TENANT_TTL_MS) {
+            return true;
+        }
+        boolean exists = tenantLocationService.getLocation(tenantId).isPresent();
+        if (exists) {
+            if (knownTenants.size() >= KNOWN_TENANT_LIMIT) knownTenants.clear();
+            knownTenants.put(tenantId, now);
+        } else {
+            knownTenants.remove(tenantId);
+        }
+        return exists;
     }
 
     /** True if the path segment is a tenant prefix rather than a platform path. */

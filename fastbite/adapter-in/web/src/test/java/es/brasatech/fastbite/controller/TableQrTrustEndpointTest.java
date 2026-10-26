@@ -88,6 +88,7 @@ class TableQrTrustEndpointTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
     }

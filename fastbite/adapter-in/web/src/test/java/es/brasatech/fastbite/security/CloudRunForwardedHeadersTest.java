@@ -72,6 +72,7 @@ class CloudRunForwardedHeadersTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         ForwardedHeaderFilter forwardedHeaderFilter = new ForwardedHeaderFilter();
         forwardedHeaderFilter.setRelativeRedirects(true);
 

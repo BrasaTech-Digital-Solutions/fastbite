@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!-- One page for every error status (templates/error/*.html). Shows no error details: they stay in the server log. -->
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="page(code)" th:lang="${#locale.language}"
+      th:with="unknown=${unknownRestaurant != null},
+               home=${tenantId != null && unknownRestaurant == null ? '/' + tenantId + '/menu' : '/'},
+               login=${tenantId != null && unknownRestaurant == null ? '/' + tenantId + '/login' : '/login'}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="#{error.page.title}">Something went wrong - FastBite</title>
+    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/menu.css">
+</head>
+<body>
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
+<nav class="navbar navbar-dark">
+    <div class="container">
+        <a class="navbar-brand" th:href="${home}"><i class="fas fa-hamburger"></i> FastBite</a>
+    </div>
+</nav>
+<main class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="confirmation-card text-center">
+                <th:block th:if="${code == 404 && unknown}">
+                    <i class="fas fa-store-slash text-secondary mb-4" style="font-size: 4.5rem;" aria-hidden="true"></i>
+                    <h1 class="h2 mb-3" th:text="#{error.restaurant.title}">We couldn't find this restaurant</h1>
+                    <p class="text-muted mb-4" th:text="#{error.restaurant.text}">Check the address, or ask the restaurant for its link.</p>
+                </th:block>
+                <th:block th:if="${code == 404 && !unknown}">
+                    <i class="fas fa-map-signs text-secondary mb-4" style="font-size: 4.5rem;" aria-hidden="true"></i>
+                    <h1 class="h2 mb-3" th:text="#{error.404.title}">We couldn't find this page</h1>
+                    <p class="text-muted mb-4" th:text="#{error.404.text}">The link may be old or mistyped.</p>
+                </th:block>
+                <th:block th:if="${code == 403}">
+                    <i class="fas fa-lock text-secondary mb-4" style="font-size: 4.5rem;" aria-hidden="true"></i>
+                    <h1 class="h2 mb-3" th:text="#{error.403.title}">This page isn't available to you</h1>
+                    <p class="text-muted mb-4" th:text="#{error.403.text}">Sign in with an account that has access, or ask your manager.</p>
+                </th:block>
+                <th:block th:if="${code == 500}">
+                    <i class="fas fa-tools text-secondary mb-4" style="font-size: 4.5rem;" aria-hidden="true"></i>
+                    <h1 class="h2 mb-3" th:text="#{error.500.title}">Something went wrong on our side</h1>
+                    <p class="text-muted mb-4" th:text="#{error.500.text}">Please try again in a moment. If it keeps happening, tell us when it happened.</p>
+                    <p class="small text-muted" th:if="${timestamp != null}">
+                        <span th:text="#{error.reference}">Time</span>:
+                        <span th:text="${timestamp}">2026-10-26 15:00:00</span>
+                    </p>
+                </th:block>
+                <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
+                    <a th:href="${home}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-home" aria-hidden="true"></i> <span th:text="#{error.action.home}">Go to the start</span>
+                    </a>
+                    <a th:if="${code == 403}" th:href="${login}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-sign-in-alt" aria-hidden="true"></i> <span th:text="#{error.action.login}">Sign in</span>
+                    </a>
+                </div>
+                <p class="text-muted small mt-4 pt-3 border-top">
+                    <span th:text="#{error.help}">Need help?</span>
+                    <a href="mailto:info@brasatech.es">info@brasatech.es</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

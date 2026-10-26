@@ -274,6 +274,19 @@ if [ -n "$TICKET" ]; then
   check "$C" "$S/$T/counter/tickets/$TICKET"
 fi
 
+# The counter page loads its menu and tables from the counter catalog, which cashiers may read
+for kind in products groups customizations tables; do
+  CATALOG_OUT=$(curl -s -w '\n%{http_code}' -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/counter/api/catalog/$kind" || true)
+  record "$(echo "$CATALOG_OUT" | tail -n 1)" 200 "$S/counter/api/catalog/$kind (cashier, from $T's counter page)"
+done
+if echo "$(curl -s -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/counter/api/catalog/products")" | grep -q '"id"'; then
+  record_match 1 "Cashier's counter catalog lists $T's products"
+else
+  record_match 0 "Cashier's counter catalog lists $T's products"
+fi
+CASHIER_BO_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/api/backoffice/products" || true)
+record "${CASHIER_BO_CODE:-000}" 403 "$S/api/backoffice/products (cashier still kept out of the back office)"
+
 # Order completion & unpaid workflow checks
 if [ -n "$PRODUCT" ]; then
   CASHIER_CT=$(curl -s -b "$C" -c "$C" "$S/$T/counter" | meta)
@@ -635,6 +648,27 @@ for base in "$P" "$S"; do
     -H "X-FastBite-Jobs-Secret: $JOBS_SECRET" \
     "$base/internal/jobs/run" || true)
   record "${AUTH_JOBS_CODE:-000}" 200 "POST $base/internal/jobs/run (authenticated with secret)"
+done
+
+# A Spanish browser gets Spanish: the native image must contain every language of the messages
+SPANISH_MENU=$(curl -s -H 'Accept-Language: es' "$P/$T/menu" || true)
+if [[ "$SPANISH_MENU" == *"Pedir en L"* ]]; then
+  record_match 1 "$P/$T/menu answers in Spanish to a Spanish browser"
+else
+  record_match 0 "$P/$T/menu answers in Spanish to a Spanish browser"
+fi
+
+# A restaurant that doesn't exist gets the branded 404, never Spring's Whitelabel page or a 500
+for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-such-page"; do
+  # As a browser asks: API callers (no text/html) get the JSON error instead
+  NOT_FOUND_OUT=$(curl -s -H 'Accept: text/html' -w '\n%{http_code}' "$url" || true)
+  NOT_FOUND_CODE=$(echo "$NOT_FOUND_OUT" | tail -n 1)
+  record "$NOT_FOUND_CODE" 404 "GET $url"
+  if [[ "$NOT_FOUND_OUT" == *confirmation-card* && "$NOT_FOUND_OUT" != *[Ww]hitelabel* ]]; then
+    record_match 1 "$url shows the FastBite error page"
+  else
+    record_match 0 "$url shows the FastBite error page"
+  fi
 done
 
 # The public schema holds only platform tables (V22); restaurant data lives in tenant_* schemas.

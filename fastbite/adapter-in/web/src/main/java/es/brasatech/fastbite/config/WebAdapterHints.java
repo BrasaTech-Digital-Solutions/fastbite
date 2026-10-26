@@ -94,6 +94,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of("es.brasatech.fastbite.storage.DiskFileStorageService"), MemberCategory.values());
         hints.resources().registerPattern("*.zip");
         hints.resources().registerResourceBundle("i18n/messages");
+        // Spring reads each language's file as a plain resource: without them every page is in English
+        hints.resources().registerPattern("i18n/messages*.properties");
 
         // Serialization hints for session-stored objects
         hints.serialization().registerType(java.math.BigDecimal.class);

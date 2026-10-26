@@ -68,6 +68,11 @@ class DashboardOrderEndpointTest {
     private OrderCheckoutService orderCheckoutService;
     @MockitoBean
     private TenantLocationService tenantLocationService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void restaurantsExist() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
+    }
     @MockitoBean
     private OrderLiveEventService orderLiveEventService;
 

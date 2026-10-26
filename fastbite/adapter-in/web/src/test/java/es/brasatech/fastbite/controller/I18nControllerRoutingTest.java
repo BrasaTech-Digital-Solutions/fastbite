@@ -58,6 +58,7 @@ class I18nControllerRoutingTest {
 
     @BeforeEach
     void setUp() {
+        es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
         when(i18nConfig.getDefaultLanguage()).thenReturn("en");
         when(i18nConfig.getSupportedLocales()).thenReturn(List.of("en", "es"));
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());

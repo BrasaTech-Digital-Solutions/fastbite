@@ -29,6 +29,15 @@ class WebAdapterHintsTest {
         new WebAdapterHints().registerHints(hints, getClass().getClassLoader());
     }
 
+    @Test
+    void everyLanguageOfTheMessagesIsInTheNativeImage() {
+        for (String file : new String[]{"i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties"}) {
+            org.assertj.core.api.Assertions.assertThat(
+                    org.springframework.aot.hint.predicate.RuntimeHintsPredicates.resource().forResource(file))
+                    .as(file).accepts(hints);
+        }
+    }
+
     /**
      * Lists, sets, maps and strings are often JDK classes the native image cannot call through
      * reflection (List.of, toList(), EnumSet, reversed views). Registering those classes is no way out:
