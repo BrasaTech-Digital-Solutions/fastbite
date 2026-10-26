@@ -35,7 +35,7 @@ class TenantMigrationServiceTest {
         migrations.migrateAll(false);
         migrations.provision("alpha");
         migrations.validateAll();
-        assertThat(versions("PUBLIC")).containsExactly("2", "4", "5", "6", "7", "15", "16", "18", "22");
+        assertThat(versions("PUBLIC")).containsExactly("2", "4", "5", "6", "7", "15", "16", "18", "22", "23");
         assertThat(tables("PUBLIC")).containsExactlyInAnyOrderElementsOf(PLATFORM_TABLES);
         assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
         assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
@@ -117,7 +117,7 @@ class TenantMigrationServiceTest {
 
         assertThat(tables("PUBLIC")).containsExactlyInAnyOrderElementsOf(PLATFORM_TABLES);
         assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
-                "15", "16", "17", "18", "19", "20", "21", "22");
+                "15", "16", "17", "18", "19", "20", "21", "22", "23");
         assertThat(jdbc.queryForObject("SELECT role FROM public.user_roles WHERE user_id = 'owner'", String.class)).isEqualTo("OWNER");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_alpha.products", Integer.class)).isEqualTo(1);
         assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
@@ -171,7 +171,7 @@ class TenantMigrationServiceTest {
     private static final java.util.List<String> PLATFORM_TABLES = java.util.List.of("flyway_schema_history",
             "SPRING_SESSION", "SPRING_SESSION_ATTRIBUTES", "USERS", "USER_ROLES", "TENANT_LOCATIONS", "OWNER_SETUP_TOKENS",
             "TENANT_LIFECYCLE", "TENANT_BILLING", "GROUP_QUOTE_REQUESTS", "OWNER_ONBOARDING", "OWNER_APPEARANCE",
-            "LOCATION_APPEARANCE", "SANDBOX_PROVISIONING", "SANDBOX_SIGN_IN");
+            "LOCATION_APPEARANCE", "SANDBOX_PROVISIONING", "SANDBOX_SIGN_IN", "FISCAL_ISSUERS");
 
     /** PUBLIC as every release before V22 left it: platform and restaurant migrations together. */
     private void migratePublicAsBeforeV22() {

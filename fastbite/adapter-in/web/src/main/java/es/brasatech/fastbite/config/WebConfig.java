@@ -57,4 +57,10 @@ public class WebConfig implements WebMvcConfigurer {
     public com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper() {
         return new com.fasterxml.jackson.databind.ObjectMapper();
     }
+
+    @org.springframework.context.annotation.Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+    public java.time.Clock clock() {
+        return java.time.Clock.systemUTC();
+    }
 }

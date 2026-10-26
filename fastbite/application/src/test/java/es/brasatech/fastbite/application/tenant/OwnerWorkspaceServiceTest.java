@@ -16,8 +16,10 @@ class OwnerWorkspaceServiceTest {
     RestaurantSettingsService settings=mock(RestaurantSettingsService.class);
     FiscalProfileService fiscal=mock(FiscalProfileService.class);
     es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets=mock(es.brasatech.fastbite.application.fiscal.FiscalTicketRepository.class);
+    es.brasatech.fastbite.application.fiscal.FiscalIssuerPort issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
     OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
-            mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class));
+            mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+            issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), java.time.Clock.systemUTC());
     static final FiscalProfile COMPLETE=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Mayor 1","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
     @AfterEach void clear(){TenantContext.clear();}
     @Test void deniesForeignLocationBeforeReadingOrWriting(){
@@ -75,5 +77,36 @@ class OwnerWorkspaceServiceTest {
         assertTrue(service.saveFiscalProfile("owner","cafe",moved).isEmpty());
         verify(fiscal).save(moved);
         verify(fiscal,never()).save(otherNif);
+    }
+    @Test void recordsValidNifInProductionOnly(){
+        var issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
+        var prodService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), java.time.Clock.systemUTC());
+        when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
+
+        assertTrue(prodService.saveFiscalProfile("owner","cafe",COMPLETE).isEmpty());
+        verify(issuers).recordIfAbsent(eq("12345678Z"),eq("cafe"),any());
+
+        // In sandbox:
+        var sandboxIssuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
+        var sandboxService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                sandboxIssuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), java.time.Clock.systemUTC());
+        assertTrue(sandboxService.saveFiscalProfile("owner","cafe",COMPLETE).isEmpty());
+        verifyNoInteractions(sandboxIssuers);
+    }
+    @Test void priorNifUsageFindsDateForSameOwner(){
+        var issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
+        var instant=java.time.Instant.parse("2026-01-15T10:00:00Z");
+        when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
+        when(issuers.findPriorUsageByOwner("owner","12345678Z","cafe")).thenReturn(java.util.Optional.of(instant));
+
+        var prodService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), java.time.Clock.systemUTC());
+
+        assertEquals(java.util.Optional.of(instant), prodService.priorNifUsage("owner","12345678Z","cafe"));
+        assertEquals(java.util.Optional.empty(), prodService.priorNifUsage("owner","invalid-nif","cafe"));
     }
 }

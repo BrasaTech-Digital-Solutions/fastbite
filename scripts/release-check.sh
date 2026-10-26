@@ -655,6 +655,39 @@ else
   record_match 0 "Production bundle restored RestaurantSettings into native image (expected f or t, got ${PROD_TRUSTED_DB:-empty})"
 fi
 
+# Production fiscal issuer registration: saving a valid NIF records in production only
+PROD_LEGAL_PAGE=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=legal&location=$T")
+PROD_LEGAL_CSRF=$(echo "$PROD_LEGAL_PAGE" | meta)
+PROD_LEGAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
+  -H "Referer: $P/owner/console?view=location-settings&section=legal&location=$T" \
+  --data-urlencode "_csrf=$PROD_LEGAL_CSRF" \
+  --data-urlencode "legalName=Test Release Cafe S.L." \
+  --data-urlencode "tradeName=Release Cafe" \
+  --data-urlencode "taxId=B12345674" \
+  --data-urlencode "addressLine=Calle Mayor 1" \
+  --data-urlencode "postalCode=28013" \
+  --data-urlencode "city=Madrid" \
+  --data-urlencode "province=Madrid" \
+  --data-urlencode "seriesPrefix=RC" \
+  --data-urlencode "defaultVatRate=10" \
+  "$P/owner/workspace/$T/legal")
+PROD_LEGAL_CODE=$(echo "$PROD_LEGAL_RESP" | head -n 1 | awk '{print $2}')
+record "${PROD_LEGAL_CODE:-000}" 302 "POST $P/owner/workspace/$T/legal (production valid fiscal profile save)"
+
+PROD_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.fiscal_issuers where tenant_id='$T' and tax_id='B12345674'" 2>/dev/null | tr -d '\r')
+if [ "$PROD_ISSUER_ROWS" = "1" ]; then
+  record_match 1 "fastbite_production.public.fiscal_issuers recorded B12345674 for $T"
+else
+  record_match 0 "fastbite_production.public.fiscal_issuers recorded B12345674 for $T (got: $PROD_ISSUER_ROWS)"
+fi
+
+SAND_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select count(*) from public.fiscal_issuers where tax_id='B12345674'" 2>/dev/null | tr -d '\r')
+if [ "$SAND_ISSUER_ROWS" = "0" ]; then
+  record_match 1 "fastbite_sandbox.public.fiscal_issuers does not contain B12345674"
+else
+  record_match 0 "fastbite_sandbox.public.fiscal_issuers does not contain B12345674 (got: $SAND_ISSUER_ROWS)"
+fi
+
 echo "== [6/6] Static assets, Self-hosted fonts & Scheduled jobs endpoint"
 for asset in "/js/live-updates.js" "/css/fonts.css" "/css/fonts/dm-sans-latin.woff2" "/css/fonts/manrope-latin.woff2" "/js/qrcode.min.js"; do
   check "$G" "$S$asset"
@@ -692,8 +725,8 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
   fi
 done
 
-# The public schema holds only platform tables (V22); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="flyway_schema_history group_quote_requests location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+# The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
+PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

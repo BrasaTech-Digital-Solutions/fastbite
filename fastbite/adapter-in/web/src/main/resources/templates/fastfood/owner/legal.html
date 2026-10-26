@@ -35,6 +35,7 @@
     </div>
     <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
     <p class="fine" id="taxId-hint" th:text="${fiscalLocked}?#{owner.legal.locked}:#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
+    <p class="fine" id="taxId-prior" th:if="${priorNifSeenAt!=null}" th:text="#{owner.legal.taxId.reused(${priorNifSeenAt})}"></p>
 
     <label for="legalName" id="legalName-label"
            th:text="${kind==null}?#{owner.legal.legalName}:(${kind.name()=='COMPANY'}?#{owner.legal.legalName.company}:#{owner.legal.legalName.person})">Legal name</label>

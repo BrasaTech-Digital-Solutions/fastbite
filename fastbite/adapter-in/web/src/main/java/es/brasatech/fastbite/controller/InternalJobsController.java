@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
 import es.brasatech.fastbite.service.VerifactuSubmissionJob;
 import lombok.extern.slf4j.Slf4j;
@@ -32,26 +33,31 @@ public class InternalJobsController {
             int sandboxProvisioned,
             int verifactuSubmitted,
             int verifactuLocationsChecked,
-            int verifactuLocationsRemaining) {
+            int verifactuLocationsRemaining,
+            int fiscalIssuersBackfilled) {
     }
 
     private final SandboxProvisioningJob sandboxProvisioning;
     private final VerifactuSubmissionJob verifactuSubmission;
+    private final FiscalIssuerBackfillJob fiscalIssuerBackfill;
     private final String secret;
     private final Clock clock;
 
     @Autowired
     public InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
+            FiscalIssuerBackfillJob fiscalIssuerBackfill,
             @Value("${fastbite.jobs.secret:}") String secret) {
-        this(sandboxProvisioning, verifactuSubmission, secret, Clock.systemUTC());
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, secret, Clock.systemUTC());
     }
 
     InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
+            FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret, Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
         this.verifactuSubmission = verifactuSubmission;
+        this.fiscalIssuerBackfill = fiscalIssuerBackfill;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
@@ -73,11 +79,13 @@ public class InternalJobsController {
         Instant deadline = clock.instant().plus(VerifactuSubmissionJob.TIME_BUDGET);
         int provisioned = sandboxProvisioning.run();
         VerifactuSubmissionJob.Summary verifactu = verifactuSubmission.run(deadline);
+        int backfilled = fiscalIssuerBackfill.run(deadline);
         return ResponseEntity.ok(new JobRunSummary(
                 provisioned,
                 verifactu.submitted(),
                 verifactu.locationsChecked(),
-                verifactu.locationsRemaining()));
+                verifactu.locationsRemaining(),
+                backfilled));
     }
 
     private boolean authorized(String header) {

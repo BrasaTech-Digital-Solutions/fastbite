@@ -9,6 +9,7 @@ import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.security.SecurityConfig;
+import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
 import es.brasatech.fastbite.service.VerifactuSubmissionJob;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ class InternalJobsControllerTest {
         @Autowired MockMvc mockMvc;
         @MockitoBean SandboxProvisioningJob sandboxProvisioning;
         @MockitoBean VerifactuSubmissionJob verifactuSubmission;
+        @MockitoBean FiscalIssuerBackfillJob fiscalIssuerBackfill;
         @MockitoBean TenantLocationService tenantLocationService;
 
         @BeforeEach
@@ -71,6 +73,7 @@ class InternalJobsControllerTest {
         void runsJobsAndReturnsSummaryWhenSecretMatches() throws Exception {
             when(sandboxProvisioning.run()).thenReturn(2);
             when(verifactuSubmission.run(any())).thenReturn(new VerifactuSubmissionJob.Summary(5, 3, 1));
+            when(fiscalIssuerBackfill.run(any())).thenReturn(4);
 
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, SECRET))
@@ -78,7 +81,8 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.sandboxProvisioned").value(2))
                     .andExpect(jsonPath("$.verifactuSubmitted").value(5))
                     .andExpect(jsonPath("$.verifactuLocationsChecked").value(3))
-                    .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1));
+                    .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1))
+                    .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4));
         }
 
         @Test
@@ -91,6 +95,7 @@ class InternalJobsControllerTest {
 
             verify(sandboxProvisioning, never()).run();
             verify(verifactuSubmission, never()).run(any());
+            verify(fiscalIssuerBackfill, never()).run(any());
         }
 
         @Test
@@ -101,6 +106,7 @@ class InternalJobsControllerTest {
 
             verify(sandboxProvisioning, never()).run();
             verify(verifactuSubmission, never()).run(any());
+            verify(fiscalIssuerBackfill, never()).run(any());
         }
     }
 
@@ -118,6 +124,7 @@ class InternalJobsControllerTest {
 
             verify(sandboxProvisioning, never()).run();
             verify(verifactuSubmission, never()).run(any());
+            verify(fiscalIssuerBackfill, never()).run(any());
         }
     }
 
@@ -126,7 +133,9 @@ class InternalJobsControllerTest {
         var sandboxJob = mock(SandboxProvisioningJob.class);
         var verifactuJob = mock(VerifactuSubmissionJob.class);
 
-        assertThatThrownBy(() -> new InternalJobsController(sandboxJob, verifactuJob, "too-short"))
+        var backfillJob = mock(FiscalIssuerBackfillJob.class);
+
+        assertThatThrownBy(() -> new InternalJobsController(sandboxJob, verifactuJob, backfillJob, "too-short"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("at least 32");
     }

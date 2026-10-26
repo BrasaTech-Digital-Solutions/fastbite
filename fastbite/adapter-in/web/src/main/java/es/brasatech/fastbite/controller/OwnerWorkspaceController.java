@@ -57,7 +57,7 @@ public class OwnerWorkspaceController {
                 model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
             }
             if(section.equals("legal")) {
-                addLegal(model,setup.fiscal(),selected.tenantId());
+                addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
                 model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
                 model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
             }
@@ -119,13 +119,20 @@ public class OwnerWorkspaceController {
         return "redirect:/owner/console?view=location-settings&location="+tenant;
     }
     /** A draft the owner just tried to save wins over the saved profile, so nothing typed is lost. */
-    private void addLegal(Model model, FiscalProfile saved, String tenant) {
+    private void addLegal(Model model, FiscalProfile saved, String tenant, String owner) {
         FiscalProfile fiscal = model.containsAttribute("fiscalDraft") ? (FiscalProfile) model.getAttribute("fiscalDraft") : saved;
         model.addAttribute("fiscal", fiscal);
         model.addAttribute("provinces", SpanishProvinces.NAMES);
         model.addAttribute("vatRates", VatRates.ALL.stream().sorted(Comparator.comparing((BigDecimal rate) -> rate.compareTo(VatRates.DEFAULT) != 0)).toList());
         model.addAttribute("suggestedPrefix", FiscalProfile.suggestPrefix(fiscal.displayName() != null ? fiscal.displayName() : tenant));
         model.addAttribute("ticketYear", String.format("%02d", Year.now().getValue() % 100));
+        if (owner != null && fiscal != null && fiscal.taxId() != null) {
+            workspace.priorNifUsage(owner, fiscal.taxId(), tenant).ifPresent(seenAt -> {
+                String formatted = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                        .withZone(java.time.ZoneId.of("Europe/Madrid")).format(seenAt);
+                model.addAttribute("priorNifSeenAt", formatted);
+            });
+        }
     }
 
     @PostMapping("/owner/workspace/{tenant}/legal")

@@ -1,17 +1,29 @@
 package es.brasatech.fastbite.application.tenant;
+
+import es.brasatech.fastbite.application.fiscal.FiscalIssuerPort;
 import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
-import es.brasatech.fastbite.application.verifactu.VerifactuService;
-import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.application.office.ProductService;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
+import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
+import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
-import es.brasatech.fastbite.domain.tenant.*;
+import es.brasatech.fastbite.domain.tenant.SetupProgress;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Supplier;
+
 @Service
 public class OwnerWorkspaceService {
     private final TenantLocationService locations;
@@ -21,11 +33,25 @@ public class OwnerWorkspaceService {
     private final FiscalProfileService fiscalProfiles;
     private final FiscalTicketRepository tickets;
     private final VerifactuService verifactu;
+    private final FiscalIssuerPort fiscalIssuers;
+    private final PlatformEnvironment environment;
+    private final Clock clock;
+
     public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
-            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu) {
-        this.locations=locations; this.progress=progress; this.products=products; this.settings=settings; this.fiscalProfiles=fiscalProfiles;
-        this.tickets=tickets; this.verifactu=verifactu;
+            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu,
+            FiscalIssuerPort fiscalIssuers, PlatformEnvironment environment, Clock clock) {
+        this.locations = locations;
+        this.progress = progress;
+        this.products = products;
+        this.settings = settings;
+        this.fiscalProfiles = fiscalProfiles;
+        this.tickets = tickets;
+        this.verifactu = verifactu;
+        this.fiscalIssuers = fiscalIssuers;
+        this.environment = environment;
+        this.clock = clock;
     }
+
     public void requireOwner(String owner, String tenant) {
         if (owner == null || !locations.isOwnerOf(owner,tenant)) throw new IllegalArgumentException("You do not own this location.");
     }
@@ -88,13 +114,18 @@ public class OwnerWorkspaceService {
             if (tickets.anyRealTicket()) {
                 // Issued tickets carry this NIF and series: they stay, and the details stay complete
                 FiscalProfile saved = fiscalProfiles.get();
-                if (!java.util.Objects.equals(saved.taxId(), profile.taxId())) wrong.put("taxId", "fiscal.error.taxId.locked");
-                if (!java.util.Objects.equals(saved.seriesPrefix(), profile.seriesPrefix())) wrong.put("seriesPrefix", "fiscal.error.seriesPrefix.locked");
+                if (!Objects.equals(saved.taxId(), profile.taxId())) wrong.put("taxId", "fiscal.error.taxId.locked");
+                if (!Objects.equals(saved.seriesPrefix(), profile.seriesPrefix())) wrong.put("seriesPrefix", "fiscal.error.seriesPrefix.locked");
             } else {
                 wrong.values().removeIf("fiscal.error.required"::equals);
             }
             if (wrong.isEmpty()) {
                 fiscalProfiles.save(profile);
+                if (environment.production()
+                        && profile.taxId() != null && SpanishTaxId.isValid(profile.taxId())) {
+                    SpanishTaxId.parse(profile.taxId()).ifPresent(taxId ->
+                            fiscalIssuers.recordIfAbsent(taxId.value(), tenant, clock.instant()));
+                }
             }
             return wrong;
         });
@@ -107,7 +138,7 @@ public class OwnerWorkspaceService {
     }
 
     /** Every billing record of the location, in chain order, for the owner to keep. */
-    public java.util.List<VerifactuRecord> verifactuRecords(String owner, String tenant, boolean training) {
+    public List<VerifactuRecord> verifactuRecords(String owner, String tenant, boolean training) {
         requireOwner(owner, tenant);
         return inTenant(tenant, () -> verifactu.chain(training));
     }
@@ -125,6 +156,19 @@ public class OwnerWorkspaceService {
     public boolean fiscalLocked(String owner, String tenant) {
         requireOwner(owner, tenant);
         return inTenant(tenant, tickets::anyRealTicket);
+    }
+
+    /**
+     * Checks if this same owner has previously used this NIF on another location in FastBite,
+     * returning the earliest first_seen_at date. Never leaks anything about other owners.
+     */
+    public Optional<Instant> priorNifUsage(String owner, String taxId, String tenant) {
+        requireOwner(owner, tenant);
+        if (taxId == null || !SpanishTaxId.isValid(taxId)) {
+            return Optional.empty();
+        }
+        return SpanishTaxId.parse(taxId).flatMap(parsed ->
+                fiscalIssuers.findPriorUsageByOwner(owner, parsed.value(), tenant));
     }
 
     private <T> T inTenant(String tenant,Supplier<T> work) {
