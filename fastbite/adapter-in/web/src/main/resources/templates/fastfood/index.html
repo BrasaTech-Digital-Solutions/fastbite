@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org">
 <head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FastBite — Less admin. More hospitality.</title>
-<meta name="description" content="QR ordering, takeaway, counter and kitchen tools for cafés and restaurants. €49 per location per month. Try FastBite free for 30 days.">
+<title th:if="${declaration.signed()}" th:text="#{home.title.compliant}">FastBite — TPV de hostelería que cumple VERI*FACTU</title>
+<title th:unless="${declaration.signed()}" th:text="#{home.title.ready}">FastBite — TPV de hostelería preparado para VERI*FACTU</title>
+<meta th:if="${declaration.signed()}" name="description" th:content="#{home.description.compliant}" content="TPV para restaurantes, cafeterías y bares en España: pedidos con código QR, comida para llevar, cobro en barra y cocina, que cumple la normativa VERI*FACTU. 49 € al mes por local.">
+<meta th:unless="${declaration.signed()}" name="description" th:content="#{home.description.ready}" content="TPV para restaurantes, cafeterías y bares en España: pedidos con código QR, comida para llevar, cobro en barra y cocina, preparado para VERI*FACTU. 49 € al mes por local.">
 <link rel="stylesheet" href="/css/platform.css">
 <script defer src="/js/platform.js">
 </script>
@@ -16,252 +18,295 @@
 <a class="brand" href="/">
 <span class="brand-mark">f.</span>fastbite</a>
 <nav aria-label="Main navigation">
-<a href="#how-it-works">How it works</a>
-<a href="#for-you">For your business</a>
-<a href="#pricing">Pricing</a>
+<a href="#verifactu" th:text="#{home.nav.verifactu}">VERI*FACTU</a>
+<a href="#how-it-works" th:text="#{home.nav.howItWorks}">Cómo funciona</a>
+<a href="#for-you" th:text="#{home.nav.forYou}">Para tu negocio</a>
+<a href="#pricing" th:text="#{home.nav.pricing}">Precios</a>
 </nav>
 <div class="header-actions">
-<a href="/login" th:href="${ownerUsername != null ? '/owner/console' : '/login'}" th:text="${ownerUsername != null ? 'Your locations' : 'Log in'}">Log in</a>
-<a class="button small" href="/signup">Start free trial ↗</a>
+<a th:if="${ownerUsername != null}" href="/owner/console" th:text="#{home.nav.locations}">Tus locales</a>
+<a th:unless="${ownerUsername != null}" href="/login" th:text="#{home.nav.login}">Iniciar sesión</a>
+<a class="button small" href="/signup" th:text="#{home.nav.trial}">Prueba gratis ↗</a>
 </div>
 </header>
 <main id="main">
 <section class="hero wrap">
 <div>
-<p class="eyebrow">● FOR THE PEOPLE WHO FEED THEIR NEIGHBOURHOOD</p>
-<h1>Less admin.<br>More <em>hospitality.</em>
+<p class="eyebrow" th:if="${declaration.signed()}" th:text="#{home.hero.eyebrow.compliant}">● SISTEMA DE FACTURACIÓN QUE CUMPLE VERI*FACTU</p>
+<p class="eyebrow" th:unless="${declaration.signed()}" th:text="#{home.hero.eyebrow.ready}">● SISTEMA DE FACTURACIÓN PREPARADO PARA VERI*FACTU</p>
+<h1 th:utext="#{home.hero.title}">Menos papeleo.<br>Más <em>hostelería.</em>
 </h1>
-<p class="hero-description">From the first coffee to the last table. Bring your menu, orders and kitchen together—so your team can focus on the people in front of them.</p>
+<p class="hero-description" th:text="#{home.hero.description}">El TPV moderno para bares, cafeterías y restaurantes en España. Barra, pedidos en mesa por QR y cocina integrados, con tickets que se registran y envían a la AEAT automáticamente.</p>
 <div class="hero-actions">
-<a class="button" href="/signup">Start your 30-day trial ↗</a>
-<a class="text-link" href="#preview">Take a look around ↓</a>
+<a class="button" href="/signup" th:text="#{home.hero.cta}">Empieza tu prueba de 30 días ↗</a>
+<a class="text-link" href="#preview" th:text="#{home.hero.previewLink}">Echa un vistazo ↓</a>
 </div>
-<p class="reassurance">No card required · €<span th:text="${monthlyPrice}">49</span>/month per location after your trial</p>
-<div class="audience-line">THE CORNER CAFÉ. &nbsp; THE BUSY BISTRO. &nbsp; YOUR NEXT LOCATION.</div>
+<p class="reassurance" th:utext="#{home.hero.reassurance(${monthlyPrice})}">Sin tarjeta · <span th:text="${monthlyPrice}">49</span> €/mes por local tras la prueba</p>
+<div class="audience-line" th:utext="#{home.hero.audience}">EL CAFÉ DE BARRIO. &nbsp; EL RESTAURANTE LLENO. &nbsp; TU PRÓXIMO LOCAL.</div>
 </div>
 <div class="hero-scene" aria-label="Illustrative café menu and kitchen order">
-<div class="scene-label">A LITTLE MORE FLOW.<br>A LOT LESS BACK AND FORTH.</div>
+<div class="scene-label" th:utext="#{home.scene.label}">MÁS FLUIDEZ.<br>MENOS VUELTAS.</div>
 <div class="coffee-art" aria-hidden="true">
 <div class="saucer">
 <div class="cup">
 <div class="coffee">♥</div>
 </div>
 </div>
-<span>Made for your daily rhythm.</span>
+<span th:text="#{home.scene.rhythm}">Hecho para el ritmo de tu día a día.</span>
 </div>
 <div class="menu-preview">
-<div class="mini-brand">GOOD MORNING CAFÉ ☀</div>
-<h2>A good day<br>starts here.</h2>
-<div class="menu-label">COFFEE & SMALL PLEASURES</div>
+<div class="mini-brand" th:text="#{home.scene.brand}">BUENOS DÍAS CAFÉ ☀</div>
+<h2 th:utext="#{home.scene.menuTitle}">Un buen día<br>empieza aquí.</h2>
+<div class="menu-label" th:text="#{home.scene.menuLabel}">CAFÉ Y BOCADOS</div>
 <div class="preview-row">
 <div>
-<strong>Flat white</strong>
-<small>Your daily favourite</small>
+<strong th:text="#{home.scene.item1.name}">Café con leche</strong>
+<small th:text="#{home.scene.item1.desc}">Tu preferido de cada día</small>
 </div>
 <span>€3.20</span>
 </div>
 <div class="preview-row">
 <div>
-<strong>Butter croissant</strong>
-<small>Fresh from the oven</small>
+<strong th:text="#{home.scene.item2.name}">Croissant de mantequilla</strong>
+<small th:text="#{home.scene.item2.desc}">Recién horneado</small>
 </div>
 <span>€2.80</span>
 </div>
-<div class="preview-total">Your morning, sorted <strong>€6.00</strong>
+<div class="preview-total" th:utext="#{home.scene.total}">Tu mañana, resuelta <strong>6,00 €</strong>
 </div>
 </div>
 <div class="kitchen-preview">
 <span class="order-dot">
 </span>
 <div>
-<strong>Order #024 · Table 6</strong>
-<small>1 flat white · 1 croissant</small>
+<strong th:text="#{home.scene.kitchen.order}">Pedido #024 · Mesa 6</strong>
+<small th:text="#{home.scene.kitchen.items}">1 café con leche · 1 croissant</small>
 </div>
-<span class="status-pill">Preparing</span>
+<span class="status-pill" th:text="#{home.scene.kitchen.status}">En preparación</span>
 </div>
-<p class="scene-footnote">Sample menu and order · illustrative preview</p>
+<p class="scene-footnote" th:text="#{home.scene.footnote}">Menú y pedido de ejemplo · vista previa ilustrativa</p>
 </div>
 </section>
 <div class="value-strip">
 <div class="wrap">
-<span>One menu. Every way to order.</span>
-<span>QR at the table</span>
-<span>Takeaway online</span>
-<span>At the counter</span>
-<span>Through to the kitchen</span>
+<span th:text="#{home.strip.title}">Una sola carta. Todas las formas de pedir.</span>
+<span th:text="#{home.strip.qr}">QR en la mesa</span>
+<span th:text="#{home.strip.takeaway}">Comida para llevar online</span>
+<span th:text="#{home.strip.counter}">Cobro en barra</span>
+<span th:text="#{home.strip.kitchen}">Directo a cocina</span>
 </div>
 </div>
-<section class="section wrap" id="how-it-works">
-<p class="eyebrow">FROM ORDER TO “ENJOY!”</p>
-<h2>A smoother service,<br>from front to back.</h2>
-<p>You bring the food and the welcome. FastBite helps keep the details moving.</p>
+<section class="section wrap" id="verifactu">
+<div>
+<p class="eyebrow" th:text="#{home.verifactu.eyebrow}">NORMATIVA FISCAL EN ESPAÑA</p>
+<h2 th:utext="#{home.verifactu.title}">Diseñado para VERI*FACTU.<br>Tranquilidad en cada ticket.</h2>
+<p th:text="#{home.verifactu.description}">La ley antifraude y el Real Decreto 1007/2023 establecen nuevos requisitos para los sistemas de facturación en España. FastBite registra cada ticket, lo encadena y lo envía a la AEAT por ti.</p>
+<div class="verifactu-badge-bar">
+<span class="status-pill done" th:if="${declaration.signed()}">🟢 <span th:text="#{home.verifactu.badge.compliant}">Cumple la normativa VERI*FACTU</span></span>
+<span class="status-pill pending" th:unless="${declaration.signed()}">🟡 <span th:text="#{home.verifactu.badge.ready}">Preparado para VERI*FACTU</span></span>
+<a class="text-link" th:if="${declaration.signed()}" th:href="@{/verifactu/declaracion-responsable}" th:text="#{home.verifactu.declaration.link}">Consulta nuestra Declaración responsable ↗</a>
+<a class="text-link" th:unless="${declaration.signed()}" th:href="@{/verifactu/declaracion-responsable}" th:text="#{home.verifactu.declaration.draft}">Borrador de la declaración responsable ↗</a>
+</div>
+</div>
 <div class="steps-grid">
 <article>
-<span class="step-number">01 / SET THE TABLE</span>
+<span class="step-number" th:text="#{home.verifactu.point1.num}">01 / HACIENDA AL DÍA</span>
+<div class="step-icon">⚡</div>
+<h3 th:text="#{home.verifactu.point1.title}">Envío automático a la AEAT</h3>
+<p th:text="#{home.verifactu.point1.desc}">Cada ticket se registra y se envía a la AEAT automáticamente con los requisitos técnicos exigidos.</p>
+</article>
+<article>
+<span class="step-number" th:text="#{home.verifactu.point2.num}">02 / REGISTROS SEGUROS</span>
+<div class="step-icon">🔗</div>
+<h3 th:text="#{home.verifactu.point2.title}">Registros encadenados e inalterables</h3>
+<p th:text="#{home.verifactu.point2.desc}">Encadenamiento criptográfico con huella hash para garantizar la trazabilidad, integridad e inalterabilidad de tus ventas.</p>
+</article>
+<article>
+<span class="step-number" th:text="#{home.verifactu.point3.num}">03 / TICKET LEGAL</span>
+<div class="step-icon">▣</div>
+<h3 th:text="#{home.verifactu.point3.title}">Código QR tributario</h3>
+<p th:text="#{home.verifactu.point3.desc}">Tus tickets simplificados y facturas completas incluyen el código QR legal para que tus clientes puedan verificar el registro ante Hacienda.</p>
+</article>
+</div>
+<div class="verifactu-details">
+<div class="verifactu-note">
+<strong th:text="#{home.verifactu.deadlines.title}">Plazos legales (Real Decreto-ley 15/2025):</strong>
+<span th:text="#{home.verifactu.deadlines.desc}">1 de enero de 2027 para los contribuyentes del Impuesto sobre Sociedades; 1 de julio de 2027 para el resto (autónomos incluidos).</span>
+</div>
+<p class="fine" th:text="#{home.verifactu.territory}">Ámbito territorial: válido para el territorio común de España. No disponible para País Vasco (TicketBAI), Navarra, Canarias (IGIC), Ceuta ni Melilla.</p>
+</div>
+</section>
+<section class="section wrap" id="how-it-works">
+<p class="eyebrow" th:text="#{home.how.eyebrow}">DEL PEDIDO AL «¡QUE APROVECHE!»</p>
+<h2 th:utext="#{home.how.title}">Un servicio más fluido,<br>de la sala a la cocina.</h2>
+<p th:text="#{home.how.desc}">Tú pones la comida y la bienvenida. FastBite se encarga de que todo ruede sin esfuerzo.</p>
+<div class="steps-grid">
+<article>
+<span class="step-number" th:text="#{home.how.step1.num}">01 / PREPARA TU CARTA</span>
 <div class="step-icon">≡</div>
-<h3>Your menu, ready to share.</h3>
-<p>Add dishes, prices and options. Share your menu online and print signed QR codes for your tables.</p>
+<h3 th:text="#{home.how.step1.title}">Tu carta, lista para compartir.</h3>
+<p th:text="#{home.how.step1.desc}">Añade platos, precios y opciones. Comparte tu carta online e imprime códigos QR firmados para tus mesas.</p>
 </article>
 <article>
-<span class="step-number">02 / TAKE THE ORDER</span>
+<span class="step-number" th:text="#{home.how.step2.num}">02 / RECIBE PEDIDOS</span>
 <div class="step-icon">↗</div>
-<h3>Meet customers their way.</h3>
-<p>Let guests order at the table or prepay for takeaway. Keep counter ordering in the same workflow.</p>
+<h3 th:text="#{home.how.step2.title}">Atiende a cada cliente como prefiera.</h3>
+<p th:text="#{home.how.step2.desc}">Permite pedir en mesa o pagar por adelantado para llevar. Con cobro rápido en barra en el mismo flujo.</p>
 </article>
 <article>
-<span class="step-number">03 / KEEP SERVICE MOVING</span>
+<span class="step-number" th:text="#{home.how.step3.num}">03 / MANTÉN EL RITMO</span>
 <div class="step-icon">✓</div>
-<h3>Give the kitchen a clear view.</h3>
-<p>Follow orders through preparation and collection. Keep staff roles and restaurant settings in one place.</p>
+<h3 th:text="#{home.how.step3.title}">Cocina con visibilidad total.</h3>
+<p th:text="#{home.how.step3.desc}">Sigue los pedidos desde la comanda hasta la entrega. Gestiona permisos del equipo y opciones de local en un solo lugar.</p>
 </article>
 </div>
 </section>
 <section class="preview-section" id="preview">
 <div class="wrap preview-layout">
 <div>
-<p class="eyebrow">TRY THE FLOW, WITHOUT THE SETUP</p>
-<h2>A small taste<br>of your next service.</h2>
-<p>Choose a sample order and see how it reaches the kitchen. This preview uses sample data; it won’t place or charge an order.</p>
-<a class="text-link" href="/signup">Try it with your own menu ↗</a>
+<p class="eyebrow" th:text="#{home.demo.eyebrow}">PRUEBA EL FLUJO, SIN CONFIGURAR NADA</p>
+<h2 th:utext="#{home.demo.title}">Una muestra de tu<br>próximo servicio.</h2>
+<p th:text="#{home.demo.desc}">Elige un pedido de ejemplo y comprueba cómo llega a la pantalla de cocina. Esta demostración usa datos de prueba; no cobrará nada.</p>
+<a class="text-link" href="/signup" th:text="#{home.demo.cta}">Pruébalo con tu propia carta ↗</a>
 </div>
-<div class="interactive-demo">
-<div class="demo-heading">THE NEIGHBOURHOOD CAFÉ <span>Interactive preview</span>
+<div class="interactive-demo" th:data-msg-sent="#{home.demo.sent}" th:data-msg-placeholder="#{home.demo.result}">
+<div class="demo-heading"><span th:text="#{home.demo.sampleTitle}">EL CAFÉ DE BARRIO</span> <span th:text="#{home.demo.interactive}">Vista interactiva</span>
 </div>
 <div class="demo-options" role="group" aria-label="Choose a sample order">
-<button type="button" data-demo="coffee" aria-pressed="true">Coffee & pastry</button>
-<button type="button" data-demo="lunch" aria-pressed="false">Lunch to go</button>
+<button type="button" data-demo="coffee" aria-pressed="true" th:text="#{home.demo.btn.coffee}" th:data-service="#{home.demo.coffee.service}" th:data-title="#{home.demo.coffee.title}" th:data-items="#{home.demo.coffee.items}" th:data-total="'€6.00'">Café y bollería</button>
+<button type="button" data-demo="lunch" aria-pressed="false" th:text="#{home.demo.btn.lunch}" th:data-service="#{home.demo.lunch.service}" th:data-title="#{home.demo.lunch.title}" th:data-items="#{home.demo.lunch.items}" th:data-total="'€10.50'">Almuerzo para llevar</button>
 </div>
 <div class="demo-order">
 <div>
-<span class="menu-label" id="demo-service">TABLE 6</span>
-<h3 id="demo-title">One lovely coffee break.</h3>
-<p id="demo-items">1 flat white + 1 butter croissant</p>
+<span class="menu-label" id="demo-service" th:text="#{home.demo.coffee.service}">MESA 6</span>
+<h3 id="demo-title" th:text="#{home.demo.coffee.title}">Una pausa para el café.</h3>
+<p id="demo-items" th:text="#{home.demo.coffee.items}">1 café con leche + 1 croissant de mantequilla</p>
 </div>
 <strong id="demo-total">€6.00</strong>
 </div>
-<button type="button" class="button demo-send" id="demo-send">Send sample to kitchen →</button>
-<div id="demo-result" class="demo-result" role="status" aria-live="polite">Your kitchen ticket will appear here.</div>
+<button type="button" class="button demo-send" id="demo-send" th:text="#{home.demo.send}">Enviar a cocina →</button>
+<div id="demo-result" class="demo-result" role="status" aria-live="polite" th:text="#{home.demo.result}">Tu comanda aparecerá aquí.</div>
 </div>
 </div>
 </section>
 <section class="section wrap" id="for-you">
-<p class="eyebrow">SMALL STARTS. ROOM TO GROW.</p>
-<h2>Built around your business.<br>Whatever’s on the menu.</h2>
+<p class="eyebrow" th:text="#{home.business.eyebrow}">EMPIEZA FÁCIL. CRECE A TU RITMO.</p>
+<h2 th:utext="#{home.business.title}">Hecho para tu negocio.<br>Sea cual sea tu carta.</h2>
 <div class="business-grid">
 <article class="business-card">
 <div class="business-symbol">☕</div>
-<p class="eyebrow">CAFÉS & COFFEE SHOPS</p>
-<h3>Keep the morning moving.</h3>
-<p>A clear menu, simple customisations and counter ordering for your everyday rush.</p>
-<a href="/signup">Start with your café ↗</a>
+<p class="eyebrow" th:text="#{home.business.cafe.eyebrow}">CAFETERÍAS Y BARES</p>
+<h3 th:text="#{home.business.cafe.title}">Agiliza la hora punta.</h3>
+<p th:text="#{home.business.cafe.desc}">Carta clara, combinaciones fáciles y cobro en barra para el ritmo de cada mañana.</p>
+<a href="/signup" th:text="#{home.business.cafe.cta}">Empieza con tu cafetería ↗</a>
 </article>
 <article class="business-card restaurant">
 <div class="business-symbol">◎</div>
-<p class="eyebrow">INDEPENDENT RESTAURANTS</p>
-<h3>Bring every order together.</h3>
-<p>Table QR codes, prepaid takeaway and a kitchen view to help your team stay organised.</p>
-<a href="/signup">Start with your restaurant ↗</a>
+<p class="eyebrow" th:text="#{home.business.rest.eyebrow}">RESTAURANTES INDEPENDIENTES</p>
+<h3 th:text="#{home.business.rest.title}">Todos los pedidos coordinados.</h3>
+<p th:text="#{home.business.rest.desc}">Códigos QR en mesa, comida para llevar y pantalla de cocina para mantener a tu equipo sincronizado.</p>
+<a href="/signup" th:text="#{home.business.rest.cta}">Empieza con tu restaurante ↗</a>
 </article>
 <article class="business-card group">
 <div class="business-symbol">▤</div>
-<p class="eyebrow">GROWING RESTAURANT GROUPS</p>
-<h3>Your locations. One login.</h3>
-<p>Manage each location’s menu, staff and settings from a central owner console.</p>
-<a href="/signup?group=true">Start with your first location ↗</a>
+<p class="eyebrow" th:text="#{home.business.group.eyebrow}">GRUPOS DE RESTAURACIÓN</p>
+<h3 th:text="#{home.business.group.title}">Tus locales. Un único acceso.</h3>
+<p th:text="#{home.business.group.desc}">Gestiona la carta, el equipo y la configuración de cada local desde la consola central de propietario.</p>
+<a href="/signup?group=true" th:text="#{home.business.group.cta}">Empieza con tu primer local ↗</a>
 </article>
 </div>
 </section>
 <section class="pricing-section" id="pricing">
 <div class="wrap pricing-layout">
 <div>
-<p class="eyebrow">GOOD FOOD. SIMPLE PRICING.</p>
-<h2>One plan.<br>Your whole team.</h2>
-<p>Start with 30 days on us. Keep going when you’re ready. No per-employee charges and no additional FastBite commission on orders.</p>
+<p class="eyebrow" th:text="#{home.pricing.eyebrow}">BUENA COMIDA. PRECIOS TRANSPARENTES.</p>
+<h2 th:utext="#{home.pricing.title}">Una tarifa única.<br>Todo tu equipo.</h2>
+<p th:text="#{home.pricing.desc}">Empieza con 30 días de prueba. Continúa cuando estés listo. Sin coste por empleado y sin comisiones adicionales por pedido.</p>
 <div class="group-note">
-<h3>Three locations or more?</h3>
-<p>Start a trial for your first location, then request volume pricing in your owner console. Agree the offer before you subscribe.</p>
-<a class="text-link" href="/signup?group=true">Start your group’s trial ↗</a>
+<h3 th:text="#{home.pricing.group.title}">¿Tres o más locales?</h3>
+<p th:text="#{home.pricing.group.desc}">Inicia la prueba en tu primer local y solicita precio especial por volumen desde la consola de propietario.</p>
+<a class="text-link" href="/signup?group=true" th:text="#{home.pricing.group.cta}">Inicia la prueba para tu grupo ↗</a>
 </div>
 </div>
 <article class="price-card">
 <div class="price-card-top">
-<span class="eyebrow">RESTAURANT</span>
-<span class="trial-tag">30 days free</span>
+<span class="eyebrow" th:text="#{home.pricing.card.plan}">RESTAURANTE</span>
+<span class="trial-tag" th:text="#{home.pricing.card.trial}">30 días gratis</span>
 </div>
 <p class="price">€<span th:text="${monthlyPrice}">49</span>
-<span class="price-unit">/month</span>
+<span class="price-unit" th:text="#{home.pricing.card.unit}">/mes</span>
 </p>
-<p class="price-caption">Per location, excluding VAT</p>
+<p class="price-caption" th:text="#{home.pricing.card.caption}">Por local, IVA no incluido</p>
 <ul class="feature-list">
-<li>Digital menu & table QR ordering</li>
-<li>Online takeaway & counter orders</li>
-<li>Kitchen display & order tracking</li>
-<li>Staff accounts & roles included</li>
-<li>Restaurant settings & data export</li>
-<li>Central console for your locations</li>
+<li th:text="#{home.pricing.f1}">Carta digital y pedidos por QR en mesa</li>
+<li th:text="#{home.pricing.f2}">Comida para llevar online y cobro en barra</li>
+<li th:text="#{home.pricing.f3}">Pantalla de cocina y seguimiento de comandas</li>
+<li th:text="#{home.pricing.f4}">Cuentas y permisos de equipo incluidos</li>
+<li th:text="#{home.pricing.f5}">Facturación y emisión de tickets VERI*FACTU</li>
+<li th:text="#{home.pricing.f6}">Consola central de gestión para tus locales</li>
 </ul>
-<a class="button" href="/signup">Start your free trial ↗</a>
-<p class="fine">No card required for the trial. Payment-processing fees are separate. Monthly subscription; cancel future renewals through billing.</p>
+<a class="button" href="/signup" th:text="#{home.pricing.cta}">Empieza tu prueba gratis ↗</a>
+<p class="fine" th:text="#{home.pricing.fine}">Sin tarjeta para la prueba. Comisiones de procesamiento de pago independientes. Suscripción mensual; cancela en cualquier momento.</p>
 </article>
 </div>
 </section>
 <section class="section wrap faq-section" id="questions">
 <div>
-<p class="eyebrow">A FEW THINGS YOU MIGHT WONDER</p>
-<h2>Before you<br>open the doors.</h2>
+<p class="eyebrow" th:text="#{home.faq.eyebrow}">RESOLVEMOS TUS DUDAS</p>
+<h2 th:utext="#{home.faq.title}">Antes de abrir<br>las puertas.</h2>
 </div>
 <div class="faq-list">
 <details>
-<summary>What happens after the free trial?</summary>
-<p>Your trial lasts 30 days from registration. You won’t be charged automatically. Subscribe to continue taking new orders. Otherwise, you can still manage existing orders and export your data.</p>
+<summary th:text="#{home.faq.q1}">¿Qué pasa al terminar la prueba gratuita?</summary>
+<p th:text="#{home.faq.a1}">La prueba dura 30 días desde el registro. No se te cobrará automáticamente. Si decides suscribirte, podrás seguir atendiendo nuevos pedidos. Si no, podrás seguir consultando y exportando tus datos.</p>
 </details>
 <details>
-<summary>Do I need a card to get started?</summary>
-<p>No. Try the full workflow first. Activating a paid subscription before the trial ends starts billing immediately; checkout shows what you’ll pay.</p>
+<summary th:text="#{home.faq.q2}">¿Necesito tarjeta de crédito para empezar?</summary>
+<p th:text="#{home.faq.a2}">No. Puedes probar todas las funciones libremente. Si decides activar la suscripción antes de que acabe la prueba, el cobro empezará entonces.</p>
 </details>
 <details>
-<summary>Are payment fees included?</summary>
-<p>Payment-processing fees and applicable taxes are separate. FastBite does not add its own per-order commission.</p>
+<summary th:text="#{home.faq.q3}">¿Están incluidas las comisiones de pago?</summary>
+<p th:text="#{home.faq.a3}">Las comisiones bancarias y de pasarelas de pago se pagan directamente a los proveedores correspondientes. FastBite no añade ninguna comisión por pedido.</p>
 </details>
 <details>
-<summary>Can I use my existing tablet or computer?</summary>
-<p>FastBite runs in a web browser on a connected device. Test your devices during the trial. Dedicated receipt printers, cash drawers and offline operation are not included.</p>
+<summary th:text="#{home.faq.q4}">¿Puedo usar mis tablets o pantallas actuales?</summary>
+<p th:text="#{home.faq.a4}">FastBite funciona directamente en cualquier navegador web en ordenadores, tabletas y móviles. Puedes probar tus propios dispositivos durante los 30 días gratuitos.</p>
 </details>
 <details>
-<summary>Can I add more locations?</summary>
-<p>Yes. Each has its own menu, team, trial and subscription, managed from one owner console. For three or more locations, request a volume quote before subscribing. Billing is currently per location.</p>
+<summary th:text="#{home.faq.q5}">¿Puedo gestionar varios locales?</summary>
+<p th:text="#{home.faq.a5}">Sí. Cada local tiene su propia carta, equipo, prueba y suscripción independiente, accesibles desde una misma cuenta. Para 3 o más locales, solicita presupuesto de grupo.</p>
 </details>
 <details>
-<summary>Can I take my data with me?</summary>
-<p>Yes. Data export is included, even after your trial or subscription ends. Download your restaurant backup from the owner console.</p>
+<summary th:text="#{home.faq.q6}">¿Puedo llevarme mis datos si decido marcharme?</summary>
+<p th:text="#{home.faq.a6}">Sí. Puedes descargar una copia de seguridad completa con todos tus datos en cualquier momento desde la consola de propietario.</p>
 </details>
 </div>
 </section>
 <section class="closing-cta wrap">
 <div>
-<p class="eyebrow">YOUR NEXT GREAT SERVICE STARTS HERE</p>
-<h2>More time for<br>what you do best.</h2>
+<p class="eyebrow" th:text="#{home.cta.eyebrow}">TU PRÓXIMO GRAN SERVICIO EMPIEZA AQUÍ</p>
+<h2 th:utext="#{home.cta.title}">Más tiempo para lo que<br>mejor sabes hacer.</h2>
 </div>
 <div>
-<a class="button light" href="/signup">Let’s get your restaurant ready ↗</a>
-<p>30 days free. No card. Your menu, your business.</p>
+<a class="button light" href="/signup" th:text="#{home.cta.button}">Prepara tu restaurante ↗</a>
+<p th:text="#{home.cta.reassurance}">30 días gratis. Sin tarjeta. Tu carta, tu negocio.</p>
 </div>
 </section>
 </main>
 <footer class="site-footer wrap">
 <a class="brand" href="/">
 <span class="brand-mark">f.</span>fastbite</a>
-<p>Made for independent hospitality.</p>
+<p th:text="#{home.footer.tagline}">Creado para la hostelería independiente.</p>
 <div>
-<a href="#pricing">Pricing</a>
-<a href="#questions">Questions</a>
-<a href="/login">Owner login</a>
+<a href="#pricing" th:text="#{home.footer.pricing}">Precios</a>
+<a href="#questions" th:text="#{home.footer.faq}">Preguntas</a>
+<a href="/login" th:text="#{home.footer.login}">Acceso propietarios</a>
 </div>
 <nav class="legal-links" aria-label="Legal">
-<a href="/legal/notice">Legal notice</a>
-<a href="/legal/privacy">Privacy</a>
-<a href="/legal/cookies">Cookies</a>
-<a href="/legal/terms">Terms</a>
+<a href="/legal/notice" th:text="#{home.footer.legal.notice}">Aviso legal</a>
+<a href="/legal/privacy" th:text="#{home.footer.legal.privacy}">Privacidad</a>
+<a href="/legal/cookies" th:text="#{home.footer.legal.cookies}">Cookies</a>
+<a href="/legal/terms" th:text="#{home.footer.legal.terms}">Condiciones</a>
 </nav>
 </footer>
 </body>

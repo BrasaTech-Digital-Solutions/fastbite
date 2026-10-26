@@ -771,6 +771,13 @@ else
   record_match 0 "$P/$T/menu answers in Spanish to a Spanish browser"
 fi
 
+SPANISH_HOME=$(curl -s -H 'Accept-Language: es' "$P/" || true)
+if [[ "$SPANISH_HOME" == *"preparado para VERI*FACTU"* ]]; then
+  record_match 1 "$P/ answers in Spanish to a Spanish browser"
+else
+  record_match 0 "$P/ answers in Spanish to a Spanish browser"
+fi
+
 # A restaurant that doesn't exist gets the branded 404, never Spring's Whitelabel page or a 500
 for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-such-page"; do
   # As a browser asks: API callers (no text/html) get the JSON error instead
