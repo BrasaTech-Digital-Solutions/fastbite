@@ -12,7 +12,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
@@ -80,30 +79,37 @@ public class GuestPrivacyNoticeServiceJpaImpl implements GuestPrivacyNoticeServi
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<GuestPrivacyNotice> findActive() {
-        List<GuestPrivacyNoticeEntity> rows = entityManager.createQuery(
+        currentTenant();
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.setReadOnly(true);
+        List<GuestPrivacyNoticeEntity> rows = tx.execute(status -> entityManager.createQuery(
                         "SELECT n FROM GuestPrivacyNotice n WHERE n.active = true ORDER BY n.version DESC",
                         GuestPrivacyNoticeEntity.class)
                 .setMaxResults(1)
-                .getResultList();
-        return rows.stream().findFirst().map(GuestPrivacyNoticeServiceJpaImpl::toDomain);
+                .getResultList());
+        return (rows == null ? List.<GuestPrivacyNoticeEntity>of() : rows)
+                .stream().findFirst().map(GuestPrivacyNoticeServiceJpaImpl::toDomain);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<GuestPrivacyNotice> history() {
-        return entityManager.createQuery(
+        currentTenant();
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.setReadOnly(true);
+        List<GuestPrivacyNoticeEntity> rows = tx.execute(status -> entityManager.createQuery(
                         "SELECT n FROM GuestPrivacyNotice n ORDER BY n.version DESC",
                         GuestPrivacyNoticeEntity.class)
-                .getResultList()
+                .getResultList());
+        return (rows == null ? List.<GuestPrivacyNoticeEntity>of() : rows)
                 .stream()
                 .map(GuestPrivacyNoticeServiceJpaImpl::toDomain)
                 .toList();
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Optional<byte[]> readActiveBytes() {
         Optional<GuestPrivacyNotice> active = findActive();
         if (active.isEmpty()) {
@@ -196,10 +202,13 @@ public class GuestPrivacyNoticeServiceJpaImpl implements GuestPrivacyNoticeServi
     }
 
     @Override
-    @Transactional
     public void useGeneratedNotice() {
-        entityManager.createNativeQuery("UPDATE guest_privacy_notices SET active = FALSE WHERE active = TRUE")
-                .executeUpdate();
+        currentTenant();
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.executeWithoutResult(status -> entityManager
+                .createNativeQuery("UPDATE guest_privacy_notices SET active = FALSE WHERE active = TRUE")
+                .executeUpdate());
     }
 
     public static GuestPrivacyNotice toDomain(GuestPrivacyNoticeEntity entity) {

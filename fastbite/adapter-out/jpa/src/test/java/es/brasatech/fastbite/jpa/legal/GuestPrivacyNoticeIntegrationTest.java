@@ -41,7 +41,7 @@ class GuestPrivacyNoticeIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         TenantContext.clear();
-        for (String tenant : List.of("privacyreject", "privacyversions", "privacysource", "privacydest")) {
+        for (String tenant : List.of("privacyreject", "privacyversions", "privacysource", "privacydest", "privacytx")) {
             Path dir = GuestPrivacyNoticeServiceJpaImpl.resolveTenantDocumentsPath(uploadDirectory, tenant);
             if (Files.exists(dir)) {
                 try (var walk = Files.walk(dir)) {
@@ -183,5 +183,40 @@ class GuestPrivacyNoticeIntegrationTest {
         assertEquals(1, destHistory.get(1).version());
         assertFalse(destHistory.get(1).active());
         assertArrayEquals(pdfB, privacyNotices.readActiveBytes().orElseThrow());
+    }
+
+    @Test
+    void useGeneratedNoticeWorksOutsideTransactionForOwnerConsoleAndBackOfficePaths() {
+        String tenant = "privacytx";
+        provisioner.provisionTenant(tenant);
+        TenantContext.clear();
+
+        byte[] pdf1 = "%PDF-1.4\nOwner console upload\n%%EOF\n".getBytes(StandardCharsets.UTF_8);
+        byte[] pdf2 = "%PDF-1.4\nBack office upload\n%%EOF\n".getBytes(StandardCharsets.UTF_8);
+
+        // 1. Owner console path: no TenantContext set on caller thread, no surrounding transaction
+        GuestPrivacyNotice v1 = privacyNotices.upload(tenant, "owner.pdf", pdf1, "owner");
+        assertEquals(1, v1.version());
+        assertNull(TenantContext.getCurrentTenant());
+        assertTrue(privacyNotices.findActive(tenant).isPresent());
+        assertEquals(1, privacyNotices.history(tenant).size());
+
+        privacyNotices.useGeneratedNotice(tenant);
+        assertNull(TenantContext.getCurrentTenant());
+        assertTrue(privacyNotices.findActive(tenant).isEmpty());
+        assertEquals(1, privacyNotices.history(tenant).size());
+        assertFalse(privacyNotices.history(tenant).getFirst().active());
+
+        // 2. Back office path: TenantContext set by filter, no surrounding transaction
+        TenantContext.setCurrentTenant(tenant);
+        GuestPrivacyNotice v2 = privacyNotices.upload("backoffice.pdf", pdf2, "manager");
+        assertEquals(2, v2.version());
+        assertTrue(privacyNotices.findActive().isPresent());
+
+        privacyNotices.useGeneratedNotice();
+        assertTrue(privacyNotices.findActive().isEmpty());
+        assertTrue(privacyNotices.readActiveBytes().isEmpty());
+        assertEquals(2, privacyNotices.history().size());
+        assertTrue(privacyNotices.history().stream().noneMatch(GuestPrivacyNotice::active));
     }
 }
