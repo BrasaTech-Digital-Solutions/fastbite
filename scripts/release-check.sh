@@ -751,6 +751,124 @@ else
   record_match 0 "Second sale after reset got sequential ticket number (expected $EXPECTED_NUM, got ${PROD_SALE2_NUM:-none})"
 fi
 
+echo "== [5.5/6] Free plan pause, one-click unsubscribe & restaurant privacy PDFs"
+# 1. Free plan: signup with plan=FREE (and marketing=true for the unsubscribe check below);
+#    a guest order on its menu gets 402 (no Stripe Connect), and its location settings show takeaway locked.
+TF="free$RANDOM"
+JF="free_owner.cookies"
+GF="free_guest.cookies"
+FREE_SIGNUP_HTML=$(curl -s -c "$JF" -b "$JF" "$P/signup")
+FREE_CSRF=$(echo "$FREE_SIGNUP_HTML" | csrf)
+FREE_SIGNUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$JF" -b "$JF" "$P/signup"   --data-urlencode "_csrf=$FREE_CSRF"   --data-urlencode "tenantId=$TF"   --data-urlencode "username=${TF}owner"   --data-urlencode "password=$PASS"   --data-urlencode "fullName=Free Plan Owner"   --data-urlencode "plan=FREE"   --data-urlencode "acceptTerms=true"   --data-urlencode "marketing=true")
+record "$FREE_SIGNUP_CODE" 200 "POST $P/signup (plan=FREE, marketing=true)"
+
+FREE_MENU_CSRF=$(curl -s -b "$GF" -c "$GF" "$P/$TF/menu" | meta)
+FREE_ORDER_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$GF" -c "$GF"   -H "Content-Type: application/json"   -H "X-CSRF-TOKEN: $FREE_MENU_CSRF"   -H "Referer: $P/$TF/menu"   -d '{"items":[{"id":"f1","itemId":"1","quantity":1,"price":5.00}],"customerName":"Free Guest"}'   "$P/$TF/api/create-order")
+record "$FREE_ORDER_CODE" 402 "POST $P/$TF/api/create-order (Free plan without Stripe Connect gets 402)"
+
+FREE_LOGIN_HTML=$(curl -s -c "$JF" -b "$JF" "$P/login")
+FREE_LOGIN_CSRF=$(echo "$FREE_LOGIN_HTML" | csrf)
+FREE_LOGIN_RESP=$(curl -s -i -c "$JF" -b "$JF" "$P/login"   --data-urlencode "_csrf=$FREE_LOGIN_CSRF"   --data-urlencode "username=${TF}owner"   --data-urlencode "password=$PASS")
+FREE_LOGIN_CODE=$(echo "$FREE_LOGIN_RESP" | head -n 1 | awk '{print $2}')
+FREE_LOGIN_LOC=$(echo "$FREE_LOGIN_RESP" | loc)
+record_redirect "$FREE_LOGIN_CODE" "$FREE_LOGIN_LOC" "$P" "/owner/console" "POST $P/login (Free plan owner)"
+
+FREE_SETTINGS_OUT="free_settings.html"
+FREE_SETTINGS_CODE=$(curl -s -o "$FREE_SETTINGS_OUT" -w '%{http_code}' -b "$JF" -c "$JF"   "$P/owner/console?view=location-settings&section=general&location=$TF")
+record "$FREE_SETTINGS_CODE" 200 "GET $P/owner/console?view=location-settings&section=general&location=$TF"
+if grep -q "Locked on the Free Plan" "$FREE_SETTINGS_OUT" 2>/dev/null; then
+  record_match 1 "Free plan location settings show takeaway locked"
+else
+  record_match 0 "Free plan location settings show takeaway locked"
+fi
+
+# 2. Unsubscribe: issue token for ${TF}owner, GET (200, nothing withdrawn), POST (200, withdrawn_at set), tampered token (400)
+UNSUB_RESP=$(curl -s -w '
+%{http_code}' -H "X-FastBite-Jobs-Secret: $JOBS_SECRET"   "$P/internal/jobs/unsubscribe-token?username=${TF}owner" || true)
+UNSUB_ISSUE_CODE=$(echo "$UNSUB_RESP" | tail -n 1)
+UNSUB_TOKEN=$(echo "$UNSUB_RESP" | head -n -1 | tr -d '
+')
+record "${UNSUB_ISSUE_CODE:-000}" 200 "GET $P/internal/jobs/unsubscribe-token (authenticated with secret)"
+
+UNSUB_GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/unsubscribe?token=$UNSUB_TOKEN" || true)
+record "${UNSUB_GET_CODE:-000}" 200 "GET $P/legal/unsubscribe?token=... (confirmation page)"
+
+MKT_ACTIVE_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is null" 2>/dev/null | tr -d '')
+[[ "$MKT_ACTIVE_ROWS" == "1" ]] && MKT_STILL_ACTIVE=1 || MKT_STILL_ACTIVE=0
+record_match "$MKT_STILL_ACTIVE" "GET unsubscribe link does not withdraw consent"
+
+UNSUB_POST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST   --data-urlencode "token=$UNSUB_TOKEN"   "$P/legal/unsubscribe" || true)
+record "${UNSUB_POST_CODE:-000}" 200 "POST $P/legal/unsubscribe (withdraw consent)"
+
+MKT_WITHDRAWN_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is not null" 2>/dev/null | tr -d '')
+[[ "$MKT_WITHDRAWN_ROWS" == "1" ]] && MKT_WITHDRAWN=1 || MKT_WITHDRAWN=0
+record_match "$MKT_WITHDRAWN" "POST unsubscribe link sets withdrawn_at in fastbite_production"
+
+BAD_UNSUB_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/unsubscribe?token=${UNSUB_TOKEN}tampered" || true)
+record "${BAD_UNSUB_CODE:-000}" 400 "GET $P/legal/unsubscribe (tampered token gets 400)"
+
+# 3. Privacy PDF: upload valid PDF as release owner ($J), check /$T/privacy and /$T/privacy/pdf, refuse non-PDF, restore generated
+PDF_FILE="valid_privacy.pdf"
+PDF_DOWN="downloaded_privacy.pdf"
+BAD_PDF_FILE="not_a_pdf.txt"
+printf '%%PDF-1.4
+1 0 obj << /Type /Catalog >> endobj
+trailer << /Root 1 0 R >>
+%%%%EOF
+' > "$PDF_FILE"
+printf 'plain text not a pdf
+' > "$BAD_PDF_FILE"
+
+PDF_CSRF=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=legal&location=$T" | meta)
+PDF_UPLOAD_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J"   -H "X-CSRF-TOKEN: $PDF_CSRF"   -F "file=@$PDF_FILE;type=application/pdf"   "$P/owner/workspace/$T/privacy-notice")
+record "${PDF_UPLOAD_CODE:-000}" 302 "POST $P/owner/workspace/$T/privacy-notice (valid PDF upload)"
+
+PRIVACY_PAGE_OUT="privacy_pdf_page.html"
+PRIVACY_PAGE_CODE=$(curl -s -o "$PRIVACY_PAGE_OUT" -w '%{http_code}' "$P/$T/privacy" || true)
+record "${PRIVACY_PAGE_CODE:-000}" 200 "GET $P/$T/privacy (with active PDF)"
+if grep -q "/$T/privacy/pdf" "$PRIVACY_PAGE_OUT" 2>/dev/null && grep -q "privacy-pdf-frame" "$PRIVACY_PAGE_OUT" 2>/dev/null; then
+  record_match 1 "GET $P/$T/privacy shows the restaurant PDF page"
+else
+  record_match 0 "GET $P/$T/privacy shows the restaurant PDF page"
+fi
+
+PRIVACY_PDF_HEADERS="privacy_pdf_headers.txt"
+PRIVACY_PDF_CODE=$(curl -s -D "$PRIVACY_PDF_HEADERS" -o "$PDF_DOWN" -w '%{http_code}' "$P/$T/privacy/pdf" || true)
+record "${PRIVACY_PDF_CODE:-000}" 200 "GET $P/$T/privacy/pdf (serves active PDF)"
+if grep -qi '^content-type: application/pdf' "$PRIVACY_PDF_HEADERS" 2>/dev/null && cmp -s "$PDF_FILE" "$PDF_DOWN"; then
+  record_match 1 "GET $P/$T/privacy/pdf returns application/pdf with the uploaded bytes"
+else
+  record_match 0 "GET $P/$T/privacy/pdf returns application/pdf with the uploaded bytes"
+fi
+
+BAD_PDF_CSRF=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=legal&location=$T" | meta)
+BAD_PDF_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J"   -H "X-CSRF-TOKEN: $BAD_PDF_CSRF"   -F "file=@$BAD_PDF_FILE;type=text/plain"   "$P/owner/workspace/$T/privacy-notice")
+BAD_PDF_CODE=$(echo "$BAD_PDF_RESP" | head -n 1 | awk '{print $2}')
+BAD_PDF_LOC=$(echo "$BAD_PDF_RESP" | loc)
+record "${BAD_PDF_CODE:-000}" 302 "POST $P/owner/workspace/$T/privacy-notice (non-PDF upload redirect)"
+if [[ "$BAD_PDF_LOC" =~ ^/ ]]; then
+  BAD_PDF_LOC="$P$BAD_PDF_LOC"
+fi
+BAD_PDF_PAGE=$(curl -s -b "$J" -c "$J" "$BAD_PDF_LOC")
+PDF_COUNT_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.guest_privacy_notices" 2>/dev/null | tr -d '')
+if echo "$BAD_PDF_PAGE" | grep -q "%PDF-" && [ "$PDF_COUNT_DB" = "1" ]; then
+  record_match 1 "Non-PDF upload is refused and keeps active PDF unchanged"
+else
+  record_match 0 "Non-PDF upload is refused and keeps active PDF unchanged (count=$PDF_COUNT_DB)"
+fi
+
+GEN_CSRF=$(echo "$BAD_PDF_PAGE" | meta)
+USE_GEN_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -b "$J" -c "$J"   -H "X-CSRF-TOKEN: $GEN_CSRF"   "$P/owner/workspace/$T/privacy-notice/generated")
+record "${USE_GEN_CODE:-000}" 302 "POST $P/owner/workspace/$T/privacy-notice/generated (use generated notice)"
+
+GEN_PAGE=$(curl -s "$P/$T/privacy" || true)
+GEN_PDF_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/$T/privacy/pdf" || true)
+if ! echo "$GEN_PAGE" | grep -q "privacy-pdf-frame" && [ "$GEN_PDF_CODE" = "404" ]; then
+  record_match 1 "GET $P/$T/privacy restores the generated privacy notice"
+else
+  record_match 0 "GET $P/$T/privacy restores the generated privacy notice (pdf_code=$GEN_PDF_CODE)"
+fi
+
 echo "== [6/6] Static assets, Self-hosted fonts & Scheduled jobs endpoint"
 for asset in "/js/live-updates.js" "/css/fonts.css" "/css/fonts/dm-sans-latin.woff2" "/css/fonts/manrope-latin.woff2" "/js/qrcode.min.js"; do
   check "$G" "$S$asset"

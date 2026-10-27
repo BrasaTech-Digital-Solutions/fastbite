@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink;
 import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
@@ -8,9 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
@@ -110,6 +114,26 @@ public class InternalJobsController {
                 verifactu.locationsRemaining(),
                 backfilled,
                 contractActions));
+    }
+
+    @GetMapping(value = "/internal/jobs/unsubscribe-token", produces = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<String> issueUnsubscribeToken(
+            @RequestHeader(value = SECRET_HEADER, required = false) String header,
+            @RequestParam(value = "username", required = false) String username) {
+        if (secret == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!authorized(header)) {
+            log.warn("Refused an unsubscribe-token call without a valid {}", SECRET_HEADER);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return new MarketingUnsubscribeLink(secret, "http://localhost:8080")
+                .issueToken(username.trim())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private boolean authorized(String header) {

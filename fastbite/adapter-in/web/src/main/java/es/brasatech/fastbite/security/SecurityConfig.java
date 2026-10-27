@@ -44,7 +44,7 @@ public class SecurityConfig {
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",
                                 // Scheduled background jobs triggered with X-FastBite-Jobs-Secret (InternalJobsController)
-                                "/internal/jobs/run",
+                                "/internal/jobs/run", "/internal/jobs/unsubscribe-token",
                                 // Production's single-use sign-in links into the sandbox (SandboxEntryController)
                                 "/link/enter",
                                 // Legal pages, and each restaurant's privacy notice for its guests (LegalController)

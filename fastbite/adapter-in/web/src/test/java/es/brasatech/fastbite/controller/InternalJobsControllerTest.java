@@ -41,7 +41,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -87,6 +89,14 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1))
                     .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4))
                     .andExpect(jsonPath("$.contractLifecycleActions").value(2));
+
+            String expectedToken = new es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink(SECRET, "http://localhost:8080")
+                    .issueToken("ana").orElseThrow();
+            mockMvc.perform(get("/internal/jobs/unsubscribe-token")
+                            .header(InternalJobsController.SECRET_HEADER, SECRET)
+                            .param("username", "ana"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(expectedToken));
         }
 
         @Test
@@ -95,6 +105,8 @@ class InternalJobsControllerTest {
                     .andExpect(status().isUnauthorized());
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, "another-secret-of-at-least-thirty-two-chars"))
+                    .andExpect(status().isUnauthorized());
+            mockMvc.perform(get("/internal/jobs/unsubscribe-token").param("username", "ana"))
                     .andExpect(status().isUnauthorized());
 
             verify(sandboxProvisioning, never()).run();
