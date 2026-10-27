@@ -16,8 +16,8 @@
 
     <div class="draft" role="note" th:unless="${declaration.signed()}">
         <strong>Borrador</strong>
-        Este texto está pendiente de revisión por un asesor y de firma por el productor. No tiene validez
-        hasta que se firme y publique.
+        La versión <span th:text="${system.version()}">1.0.0</span> todavía no tiene su declaración responsable
+        firmada por el productor. Este texto no tiene validez hasta que se firme.
         <ul th:if="${!#lists.isEmpty(declaration.missing())}">
             <li th:each="key : ${declaration.missing()}">Falta configurar <code th:text="${key}">fastbite.verifactu.producer-nif</code></li>
         </ul>
@@ -97,6 +97,10 @@
               th:classappend="${#strings.isEmpty(declaration.signatory())} ? 'missing'">p.p. Ana García, administradora única</span>
     </div>
 
+    <div class="actions" th:if="${signedPdf != null}">
+        <a class="button" th:href="${signedPdf}">Descargar la declaración firmada (PDF)</a>
+    </div>
+
     <h2>Anexo: información adicional (art. 15.2)</h2>
     <dl class="facts">
         <dt>Otros medios de contacto</dt>
@@ -104,6 +108,17 @@
         <dt>Dirección de internet con información sobre el sistema</dt>
         <dd><a th:href="${producerWebsite}" th:text="${producerWebsite}">https://fastbite.brasatech.es</a></dd>
     </dl>
+
+    <section class="actions-print-hidden" th:if="${previousDeclarations != null && !#lists.isEmpty(previousDeclarations)}">
+        <h2>Declaraciones de versiones anteriores</h2>
+        <p class="lead">Las facturas emitidas con una versión anterior se rigen por la declaración de esa versión.</p>
+        <ul>
+            <li th:each="previous : ${previousDeclarations}">
+                <a th:href="@{/verifactu/declaracion-responsable/{file}(file=${previous.fileName()})}"
+                   th:text="'Versión ' + ${previous.version()} + ', firmada el ' + ${previous.date()}">Versión 1.0.0, firmada el 3 de noviembre de 2026</a>
+            </li>
+        </ul>
+    </section>
 </main>
 </body>
 </html>

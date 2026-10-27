@@ -39,7 +39,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
-                        .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
+                        .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/verifactu/declaracion-responsable/*.pdf", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
                                 "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/api/webhooks/stripe", "/api/stripe/**",
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",

@@ -17,11 +17,10 @@ the software itself. It shows a "Borrador" banner until it is signed and every d
 | Producer's legal name | `VERIFACTU_PRODUCER_NAME` | BRASATECH DIGITAL SOLUTIONS S.L. (also sent in every billing record) |
 | Producer's NIF | `VERIFACTU_PRODUCER_NIF` | B09767898 |
 | Producer's full postal address | `VERIFACTU_PRODUCER_ADDRESS` | Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España |
-| Version | `VERIFACTU_SYSTEM_VERSION` (default `1.0`) | Decide the versioning; a new declaration is needed per version |
+| Version | the Maven project version (`VERIFACTU_SYSTEM_VERSION` overrides it) | One signed declaration per release version |
 | Place of signature | `VERIFACTU_DECLARATION_PLACE` | Santa Pola (Alicante) |
 | Who signs | `VERIFACTU_DECLARATION_SIGNATORY` | Ricardo Maximino Gonçalves de Moraes, administrador único |
-| Date of signature | `VERIFACTU_DECLARATION_DATE` | **Missing**: fill in when signing, e.g. `15 de noviembre de 2026` |
-| Signed | `VERIFACTU_DECLARATION_SIGNED=true` | Only after review and signature |
+| Date of signature and signature | `scripts/sign-declaration.sh x.y.z` | Set by the signing: the PDF in `declarations/` is signed (PAdES) with Brasatech's certificate during each release |
 
 Questions for the adviser:
 

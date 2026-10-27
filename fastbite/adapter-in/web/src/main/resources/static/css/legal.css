@@ -18,12 +18,12 @@ body.legal{margin:0;background:var(--soft);color:var(--ink);font:16px/1.65 Georg
 .legal .missing{color:var(--accent);font-style:italic}
 .legal ol li,.legal ul li{margin-bottom:8px}
 .legal .signature{margin-top:36px;padding-top:18px;border-top:1px solid var(--line)}
-.legal .signature .line{display:block;margin-top:44px;width:260px;border-top:1px solid var(--ink);padding-top:4px;font-size:13px;color:var(--muted)}
-.legal .actions{display:flex;justify-content:flex-end;margin-bottom:12px}
+.legal .signature .line{display:block;margin-top:44px;width:fit-content;min-width:260px;border-top:1px solid var(--ink);padding-top:4px;font-size:13px;color:var(--muted)}
+.legal .actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:12px}.legal .actions .button{font:600 14px system-ui,-apple-system,"Segoe UI",sans-serif;padding:11px 18px;border-radius:999px;background:var(--ink);color:#fff;text-decoration:none;min-height:44px}
 .legal .actions button{font:600 14px system-ui,-apple-system,"Segoe UI",sans-serif;padding:9px 18px;border-radius:999px;border:0;background:var(--ink);color:#fff;cursor:pointer;min-height:44px}
 .legal :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 @media(max-width:640px){.legal main{margin:0;border-radius:0;padding:28px 18px}.legal dl.facts{grid-template-columns:1fr}.legal dl.facts dt{border-bottom:0;padding-bottom:0}}
-@media print{body.legal{background:#fff;font-size:12pt}.legal main{margin:0;border:0;padding:0;max-width:none}.legal .actions{display:none}}
+@media print{body.legal{background:#fff;font-size:12pt}.legal main{margin:0;border:0;padding:0;max-width:none;background:none}.legal .actions,.legal .actions-print-hidden{display:none}.legal .signature,.legal dl.facts dt,.legal dl.facts dd{break-inside:avoid}}
 
 /* Legal pages: a bar with the brand and the languages, and links between the documents */
 .legal .legal-bar{max-width:820px;margin:20px auto 0;padding:0 8px;display:flex;justify-content:space-between;align-items:center;font:600 14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}

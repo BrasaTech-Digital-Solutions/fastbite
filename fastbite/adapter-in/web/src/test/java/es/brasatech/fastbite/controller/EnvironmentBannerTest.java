@@ -35,7 +35,7 @@ class EnvironmentBannerTest {
             "FB", "1.0", "Servicios de restauración");
 
     @WebMvcTest(controllers = DeclarationController.class)
-    @ContextConfiguration(classes = {TestConfig.class, DeclarationController.class, EnvironmentAdvice.class,
+    @ContextConfiguration(classes = {TestConfig.class, DeclarationController.class, es.brasatech.fastbite.service.ClasspathDeclarationArchive.class, EnvironmentAdvice.class,
             SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
     abstract static class Page {
         @Autowired MockMvc mockMvc;

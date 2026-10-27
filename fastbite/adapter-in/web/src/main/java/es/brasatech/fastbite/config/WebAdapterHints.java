@@ -71,6 +71,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
                 es.brasatech.fastbite.application.verifactu.VerifactuService.Summary.class,
                 es.brasatech.fastbite.application.verifactu.VerifactuSystem.class,
                 es.brasatech.fastbite.application.verifactu.VerifactuDeclaration.class,
+                es.brasatech.fastbite.application.verifactu.DeclarationArchive.SignedDeclaration.class,
                 es.brasatech.fastbite.controller.InternalJobsController.JobRunSummary.class}) {
             hints.reflection().registerType(type, MemberCategory.values());
         }
@@ -96,6 +97,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.resources().registerResourceBundle("i18n/messages");
         // Spring reads each language's file as a plain resource: without them every page is in English
         hints.resources().registerPattern("i18n/messages*.properties");
+        // The signed declaraciones responsables, one per version (scripts/sign-declaration.sh)
+        hints.resources().registerPattern("declarations/*");
 
         // Serialization hints for session-stored objects
         hints.serialization().registerType(java.math.BigDecimal.class);
