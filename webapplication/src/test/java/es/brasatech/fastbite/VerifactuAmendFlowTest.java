@@ -102,7 +102,7 @@ class VerifactuAmendFlowTest {
     @Test
     void anOwnerSendsARefusedRecordAgainAsASubsanacion() throws Exception {
         var owner = client();
-        post(owner, "/signup", "tenantId=amendcafe&username=amendowner&fullName=Test+Owner&password=local-test-password&_csrf="
+        post(owner, "/signup", "acceptTerms=true&tenantId=amendcafe&username=amendowner&fullName=Test+Owner&password=local-test-password&_csrf="
                 + csrf(get(owner, "/signup").body()));
         post(owner, "/login", "username=amendowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
         var refused = refusedRecord("amendcafe");

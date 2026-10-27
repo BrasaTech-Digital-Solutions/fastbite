@@ -21,17 +21,20 @@ public class VerifactuDeclaration {
     private final String producerAddress;
     private final String place;
     private final String date;
+    private final String signatory;
     private final boolean signed;
 
     public VerifactuDeclaration(VerifactuSystem system,
             @Value("${fastbite.verifactu.producer-address:}") String producerAddress,
             @Value("${fastbite.verifactu.declaration-place:}") String place,
             @Value("${fastbite.verifactu.declaration-date:}") String date,
+            @Value("${fastbite.verifactu.declaration-signatory:}") String signatory,
             @Value("${fastbite.verifactu.declaration-signed:false}") boolean signed) {
         this.system = system;
         this.producerAddress = producerAddress;
         this.place = place;
         this.date = date;
+        this.signatory = signatory;
         this.signed = signed;
     }
 
@@ -42,6 +45,9 @@ public class VerifactuDeclaration {
     public String place() { return place; }
 
     public String date() { return date; }
+
+    /** Who signs for the producer: name and position, e.g. "Ana García, administradora única". */
+    public String signatory() { return signatory; }
 
     /** FastBite only works in VERI*FACTU mode: every record is sent to the tax agency. */
     public boolean onlyVerifactu() { return true; }
@@ -60,6 +66,7 @@ public class VerifactuDeclaration {
         if (blank(producerAddress)) missing.add("fastbite.verifactu.producer-address");
         if (blank(place)) missing.add("fastbite.verifactu.declaration-place");
         if (blank(date)) missing.add("fastbite.verifactu.declaration-date");
+        if (blank(signatory)) missing.add("fastbite.verifactu.declaration-signatory");
         return missing;
     }
 

@@ -60,7 +60,7 @@ class LinkedProductionFlowTest {
     @Test
     void theOwnerIsSentToTheSandboxToSetUpAndDemoConceptsStayThere() throws Exception {
         var owner = client();
-        post(owner, "/signup", "tenantId=linkedcafe&username=linkedowner&fullName=Linked+Owner&password=local-test-password&_csrf="
+        post(owner, "/signup", "acceptTerms=true&tenantId=linkedcafe&username=linkedowner&fullName=Linked+Owner&password=local-test-password&_csrf="
                 + csrf(get(owner, "/signup").body()));
         post(owner, "/login", "username=linkedowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
 

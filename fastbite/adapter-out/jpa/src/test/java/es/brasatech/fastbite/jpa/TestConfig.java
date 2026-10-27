@@ -12,6 +12,7 @@ import org.springframework.context.annotation.ComponentScan;
     "es.brasatech.fastbite.jpa.tenant",
     "es.brasatech.fastbite.jpa.user",
     "es.brasatech.fastbite.jpa.fiscal",
+    "es.brasatech.fastbite.jpa.legal",
     "es.brasatech.fastbite.jpa.verifactu",
     "es.brasatech.fastbite.application.tenant"
 })

@@ -57,7 +57,8 @@ class DeclarationEndpointTest {
                 .andExpect(content().string(allOf(
                         containsString("Borrador"),
                         containsString("fastbite.verifactu.producer-address"),
-                        containsString("[dirección postal completa]"),
+                        containsString("[pendiente]"),
+                        containsString("DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN"),
                         containsString("FastBite"),
                         containsString("B12345674"),
                         containsString("Real Decreto 1007/2023"))));
@@ -75,7 +76,9 @@ class DeclarationEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(allOf(
                         not(containsString("class=\"draft\"")),
-                        containsString("En <span>Madrid</span>"),
+                        containsString("en <span>Madrid</span>"),
+                        containsString("l) Fecha y lugar de suscripción"),
+                        containsString("Anexo: información adicional"),
                         containsString("15 de noviembre de 2026"),
                         containsString("Calle Mayor 1, 28013 Madrid"))));
     }

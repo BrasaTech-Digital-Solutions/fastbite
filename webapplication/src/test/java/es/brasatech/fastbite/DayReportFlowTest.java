@@ -102,7 +102,7 @@ class DayReportFlowTest {
     @Test
     void theDayIsWorkedOutFromItsTicketsAndTheCashCheckStartsFromTheOwnersFloat() throws Exception {
         var owner = client();
-        post(owner, "/signup", "tenantId=daycafe&username=dayowner&fullName=Test+Owner&password=local-test-password&_csrf="
+        post(owner, "/signup", "acceptTerms=true&tenantId=daycafe&username=dayowner&fullName=Test+Owner&password=local-test-password&_csrf="
                 + csrf(get(owner, "/signup").body()));
         post(owner, "/login", "username=dayowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
 

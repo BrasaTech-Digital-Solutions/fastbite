@@ -69,16 +69,17 @@ class LegalPagesTest {
     void theContractualPagesNameTheCompany(String page) throws Exception {
         for (String lang : new String[]{"es", "en", "pt"}) {
             mockMvc.perform(get("/legal/" + page).param("lang", lang))
-                    .andExpect(content().string(allOf(containsString("BRASATECH DIGITAL SOLUTIONS S.L."),
+                    .andExpect(content().string(allOf(containsString("BRASATECH DIGITAL SOLUTIONS, S.L.U."),
                             containsString("B09767898"))));
         }
     }
 
     @Test
-    void theLegalNoticeHasTheRequiredDetailsAndSaysWhatIsStillMissing() throws Exception {
+    void theLegalNoticeHasTheRequiredDetails() throws Exception {
         mockMvc.perform(get("/legal/notice").param("lang", "es"))
-                .andExpect(content().string(allOf(containsString("B09767898"), containsString("Calle Ganaderos, 24"),
-                        containsString("info@brasatech.es"), containsString("[Pendiente: Registro Mercantil"))));
+                .andExpect(content().string(allOf(containsString("B09767898"), containsString("Calle Ganaderos, 24, bajo"),
+                        containsString("info@brasatech.es"), containsString("tomo 4454, folio 21"),
+                        not(containsString("[Pendiente")))));
     }
 
     @Test
@@ -93,6 +94,27 @@ class LegalPagesTest {
         mockMvc.perform(get("/legal/cookies").param("lang", "es"))
                 .andExpect(content().string(allOf(containsString("<code>FASTBITE_SANDBOX_SESSION</code>"),
                         containsString("fastbite.allergens"))));
+    }
+
+    @Test
+    void thePrivacyPolicyOnlySendsOffersToThoseWhoOptedIn() throws Exception {
+        mockMvc.perform(get("/legal/privacy").param("lang", "es"))
+                .andExpect(content().string(allOf(containsString("art. 21.1 LSSI-CE"), not(containsString("21.2")),
+                        containsString("Puede retirar su consentimiento"), containsString("privacidad@brasatech.es"),
+                        containsString("Nunca enviamos ofertas a los clientes de los restaurantes"),
+                        containsString("Registros técnicos de seguridad: 30 días"), containsString("tomo 4454"),
+                        not(containsString("90 días")))));
+    }
+
+    @Test
+    void theTermsAreForBusinessesAndTheSelfEmployedAndEndAfterThirtyUnpaidDays() throws Exception {
+        mockMvc.perform(get("/legal/terms").param("lang", "es"))
+                .andExpect(content().string(allOf(containsString("incluidos los autónomos"),
+                        containsString("No pueden contratarlo quienes actúen como consumidores"),
+                        containsString("la fecha y la versión aceptada"),
+                        containsString("el contrato de ese local termina"),
+                        containsString("Exige tener activados los pagos en línea"),
+                        containsString("Registro de apoderamientos"))));
     }
 
     @Test

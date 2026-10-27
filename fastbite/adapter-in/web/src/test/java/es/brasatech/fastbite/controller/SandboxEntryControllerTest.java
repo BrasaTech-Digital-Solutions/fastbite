@@ -35,7 +35,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -234,7 +237,7 @@ class SandboxEntryControllerTest {
             mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
                             .param("password", "a-long-password").param("fullName", "Ana"))
                     .andExpect(redirectedUrl("https://fastbite.example/signup"));
-            verify(signup, never()).registerTenant(anyString(), anyString(), anyString(), anyString(), anyString());
+            verify(signup, never()).registerTenant(anyString(), anyString(), anyString(), anyString(), anyString(), any());
         }
 
         @Test
@@ -253,6 +256,33 @@ class SandboxEntryControllerTest {
             mockMvc.perform(get("/login")).andExpect(status().isOk()).andExpect(view().name("fastfood/login"));
             mockMvc.perform(get("/signup")).andExpect(status().isOk()).andExpect(view().name("fastfood/signup"));
             mockMvc.perform(get("/link/enter").param("token", "abc.def")).andExpect(status().isNotFound());
+        }
+
+        @Test
+        void signupNeedsTheTermsAccepted() throws Exception {
+            mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
+                            .param("password", "a-long-password").param("fullName", "Ana"))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("error",
+                            "Accept the terms of service and the data processing agreement to create your restaurant."));
+            verify(signup, never()).registerTenant(anyString(), anyString(), anyString(), anyString(), anyString(), any());
+        }
+
+        @Test
+        void signupRecordsTheVersionAcceptedAndWhetherTheOwnerOptedIn() throws Exception {
+            mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
+                            .param("password", "a-long-password").param("fullName", "Ana")
+                            .param("acceptTerms", "true").param("marketing", "true"))
+                    .andExpect(model().attributeDoesNotExist("error"));
+            verify(signup).registerTenant(eq("anacafe"), eq("ana"), anyString(), eq("Ana"), eq("RESTAURANT"),
+                    argThat(consents -> "27/10/2026".equals(consents.termsVersion()) && consents.marketing()
+                            && consents.at() != null));
+
+            mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "bencafe").param("username", "ben")
+                            .param("password", "a-long-password").param("fullName", "Ben").param("acceptTerms", "true"))
+                    .andExpect(model().attributeDoesNotExist("error"));
+            verify(signup).registerTenant(eq("bencafe"), eq("ben"), anyString(), eq("Ben"), eq("RESTAURANT"),
+                    argThat(consents -> !consents.marketing()));
         }
     }
 }

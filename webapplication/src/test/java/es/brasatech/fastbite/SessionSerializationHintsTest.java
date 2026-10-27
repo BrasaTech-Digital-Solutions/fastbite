@@ -68,7 +68,7 @@ class SessionSerializationHintsTest {
         var owner = HttpClient.newBuilder().cookieHandler(new CookieManager()).build();
         // A protected page first, so a saved request is kept in the session
         get(owner, "/owner/console");
-        post(owner, "/signup", "tenantId=probecafe&username=probeowner&fullName=Probe&password=local-probe-password&_csrf="
+        post(owner, "/signup", "acceptTerms=true&tenantId=probecafe&username=probeowner&fullName=Probe&password=local-probe-password&_csrf="
                 + csrf(get(owner, "/signup").body()));
         get(owner, "/owner/console");
         post(owner, "/login", "username=probeowner&password=local-probe-password&_csrf=" + csrf(get(owner, "/login").body()));

@@ -20,7 +20,7 @@
 <div th:if="${param.checkout != null}" class="alert success" role="status">Back from checkout? Use “Refresh status” to check Stripe’s confirmation. Returning here does not itself activate a subscription.</div>
 <section class="billing-card">
 <h2 style="font-size:30px" th:text="${billing.tenantId}">Restaurant</h2>
-<p th:if="${billing.status == 'FREE' || billing.status == 'free'}">Free Plan · 0€/month · 2.5% platform fee on takeaway card payments</p>
+<p th:if="${billing.status == 'FREE' || billing.status == 'free'}">Free Plan · 0€/month · online payments stay on, with a 2.5% platform fee on every order paid online</p>
 <p th:unless="${billing.status == 'FREE' || billing.status == 'free'}">Restaurant · €<span th:text="${monthlyPrice}">49</span> per month, per location, excluding VAT</p>
 <dl class="billing-meta">
 <div>

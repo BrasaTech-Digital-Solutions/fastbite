@@ -7,18 +7,20 @@
 <article th:fragment="es">
     <p class="eyebrow">Contrato de servicio para empresas</p>
     <h1>Condiciones del servicio</h1>
-    <p class="lead">Las condiciones entre <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+    <p class="lead">Las condiciones entre <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span>,
         NIF <span th:text="${company.taxId()}">B09767898</span>, con domicilio en <span th:text="${company.address()}">Santa Pola</span>
         («FastBite», «nosotros») y la empresa o profesional que contrata FastBite para su restaurante («el Cliente»).</p>
 
     <h2>1. Objeto y aceptación</h2>
     <p>FastBite es un servicio en la nube (software como servicio) para gestionar restaurantes: carta digital y pedidos
         por QR, punto de venta, pantalla de cocina, pedidos para llevar, información de alérgenos y emisión de facturas.
-        Al crear una cuenta, el Cliente acepta estas condiciones, el
+        Para crear una cuenta, el Cliente marca una casilla con la que acepta estas condiciones y el
         <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>, que forma parte de
-        ellas, y declara haber leído la <a th:href="@{/legal/privacy(lang='es')}">Política de privacidad</a>.</p>
-    <p>FastBite se ofrece solo a empresas y profesionales que actúan en el marco de su actividad, no a consumidores.
-        Quien acepta declara tener facultades para obligar al Cliente.</p>
+        ellas, y declara haber leído la <a th:href="@{/legal/privacy(lang='es')}">Política de privacidad</a>. Guardamos
+        la fecha y la versión aceptada.</p>
+    <p>FastBite se ofrece solo a empresas y a profesionales, incluidos los autónomos, que actúan en el marco de su
+        actividad empresarial o profesional. No pueden contratarlo quienes actúen como consumidores. Al aceptar, quien da
+        de alta la cuenta declara que contrata en esa condición y que tiene facultades para obligar al Cliente.</p>
 
     <h2>2. Cuenta, locales y personal</h2>
     <ul>
@@ -41,9 +43,9 @@
     <ul>
         <li><strong>Plan Restaurante</strong>: <span th:text="${plans.monthlyPrice()}">49</span> € al mes por local, más
             IVA. Incluye <span th:text="${plans.trialDays()}">30</span> días de prueba gratuita sin tarjeta.</li>
-        <li><strong>Plan Gratuito</strong>: 0 € al mes. Sobre los pedidos para llevar pagados en línea con tarjeta se
-            aplica una comisión de plataforma del <span th:text="${plans.freeFee()}">2,5</span> % de su importe, que se
-            retiene en el propio pago.</li>
+        <li><strong>Plan Gratuito</strong>: 0 € al mes. Exige tener activados los pagos en línea en todos los canales en
+            que FastBite los ofrezca. Sobre cada pedido pagado en línea se aplica una comisión de plataforma del
+            <span th:text="${plans.freeFee()}">2,5</span> % de su importe, que se retiene en el propio pago.</li>
         <li>Para tres locales o más puede solicitarse un precio por volumen.</li>
         <li>Las comisiones del proveedor de pagos (Stripe) son independientes de estos precios.</li>
     </ul>
@@ -55,8 +57,10 @@
         <li>La suscripción se paga por meses anticipados, mediante Stripe, con el medio de pago que el Cliente registre.
             Emitimos factura de cada cobro.</li>
         <li>Al terminar la prueba o la suscripción, o si un cobro no se atiende, se <strong>pausan los pedidos nuevos</strong>
-            del local. El acceso, la facturación, los pedidos existentes y la exportación de datos siguen disponibles
-            para que el Cliente pueda regularizar la situación o llevarse sus datos.</li>
+            del local durante 30 días. En ese plazo, el acceso, la facturación, los pedidos existentes y la exportación de
+            datos siguen disponibles para que el Cliente pueda regularizar la situación o llevarse sus datos. Si no la
+            regulariza, al cabo de esos 30 días el contrato de ese local termina y se aplica lo previsto en el
+            apartado 13.</li>
         <li>El Cliente puede cancelar en cualquier momento desde la facturación del local; la cancelación tiene efecto al
             final del periodo ya pagado. No se reembolsan periodos parciales salvo que la ley lo exija.</li>
     </ul>
@@ -75,8 +79,10 @@
         <li>El Cliente es el obligado tributario: responde de la exactitud de sus datos fiscales, de los tipos de IVA que
             aplica y del contenido de sus facturas.</li>
         <li>Para que FastBite remita los registros a la Agencia Tributaria en su nombre, el Cliente otorga la
-            representación necesaria (apoderamiento o el mecanismo de colaboración social que corresponda). Sin ella, el
-            envío no puede realizarse.</li>
+            representación necesaria. Mientras Brasatech no actúe como colaborador social, se otorga mediante
+            apoderamiento en el Registro de apoderamientos de la Agencia Tributaria; cuando lo sea, bastará con que el
+            Cliente firme el documento de representación que le facilitaremos. Sin representación, el envío no puede
+            realizarse.</li>
     </ul>
 
     <h2>8. Obligaciones del Cliente</h2>
@@ -117,8 +123,9 @@
         <li>El contrato dura mientras el Cliente mantenga su cuenta. Puede darla de baja en cualquier momento.</li>
         <li>Podemos suspender o resolver el contrato si el Cliente incumple gravemente estas condiciones, en particular
             por impago o uso ilícito, tras avisarle cuando sea posible.</li>
-        <li>Al terminar, el Cliente dispone de 30 días para exportar sus datos. Después los suprimimos, salvo lo que la ley
-            obligue a conservar, como las facturas y los registros de facturación.</li>
+        <li>Al terminar el contrato, por baja o por el impago descrito en el apartado 5, el Cliente dispone de 30 días
+            para exportar sus datos. Después los suprimimos, salvo lo que la ley obligue a conservar, como las facturas y
+            los registros de facturación.</li>
     </ul>
 
     <h2>14. Cambios en estas condiciones</h2>
@@ -133,18 +140,21 @@
 <article th:fragment="en">
     <p class="eyebrow">Service contract for businesses</p>
     <h1>Terms of service</h1>
-    <p class="lead">The terms between <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+    <p class="lead">The terms between <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span>,
         tax ID <span th:text="${company.taxId()}">B09767898</span>, of <span th:text="${company.address()}">Santa Pola</span>
         ("FastBite", "we") and the business or professional that uses FastBite for its restaurant ("the Customer"). This is
         a translation: the Spanish version prevails.</p>
 
     <h2>1. Purpose and acceptance</h2>
     <p>FastBite is a cloud service (software as a service) for running restaurants: digital menus and QR ordering, point
-        of sale, kitchen display, takeaway orders, allergen information and invoicing. By creating an account, the
-        Customer accepts these terms and the <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>,
-        which is part of them, and confirms having read the <a th:href="@{/legal/privacy(lang='en')}">Privacy policy</a>.</p>
-    <p>FastBite is offered only to businesses and professionals acting in the course of their business, not to
-        consumers. Whoever accepts confirms they have authority to bind the Customer.</p>
+        of sale, kitchen display, takeaway orders, allergen information and invoicing. To create an account, the Customer
+        ticks a box accepting these terms and the <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>,
+        which is part of them, and confirming having read the <a th:href="@{/legal/privacy(lang='en')}">Privacy policy</a>.
+        We record the date and the version accepted.</p>
+    <p>FastBite is offered only to businesses and professionals, including the self-employed (autónomos), acting in the
+        course of their trade or profession. It cannot be contracted by anyone acting as a consumer. By accepting, the
+        person creating the account declares that they contract in that capacity and have authority to bind the
+        Customer.</p>
 
     <h2>2. Account, locations and staff</h2>
     <ul>
@@ -166,8 +176,9 @@
     <ul>
         <li><strong>Restaurant plan</strong>: €<span th:text="${plans.monthlyPrice()}">49</span> per month per location,
             plus VAT, including a <span th:text="${plans.trialDays()}">30</span>-day free trial with no card required.</li>
-        <li><strong>Free plan</strong>: €0 per month. Takeaway orders paid online by card carry a platform fee of
-            <span th:text="${plans.freeFee()}">2,5</span>% of their amount, withheld from the payment itself.</li>
+        <li><strong>Free plan</strong>: €0 per month. Online payments must be enabled on every channel where FastBite
+            offers them. Each order paid online carries a platform fee of <span th:text="${plans.freeFee()}">2,5</span>%
+            of its amount, withheld from the payment itself.</li>
         <li>Volume pricing can be requested for three or more locations.</li>
         <li>The payment provider's (Stripe's) fees are separate from these prices.</li>
     </ul>
@@ -179,8 +190,9 @@
         <li>The subscription is paid monthly in advance through Stripe, with the payment method the Customer registers. We
             issue an invoice for each charge.</li>
         <li>When the trial or the subscription ends, or a charge fails, <strong>new orders are paused</strong> for that
-            location. Sign-in, billing, existing orders and data export stay available so the Customer can put things
-            right or take its data.</li>
+            location for 30 days. During that time, sign-in, billing, existing orders and data export stay available so
+            the Customer can put things right or take its data. If it does not, after those 30 days the contract for that
+            location ends and section 13 applies.</li>
         <li>The Customer can cancel at any time from the location's billing page; cancellation takes effect at the end of
             the period already paid. Partial periods are not refunded unless the law requires it.</li>
     </ul>
@@ -198,9 +210,10 @@
             <a href="/verifactu/declaracion-responsable">/verifactu/declaracion-responsable</a>.</li>
         <li>The Customer is the taxpayer: it is responsible for the accuracy of its tax details, the VAT rates it applies
             and the content of its invoices.</li>
-        <li>For FastBite to send records to the Tax Agency on its behalf, the Customer grants the necessary authorisation
-            (a power of representation or the applicable social collaboration arrangement). Without it, records cannot be
-            sent.</li>
+        <li>For FastBite to send records to the Tax Agency on its behalf, the Customer grants the necessary authorisation.
+            Until Brasatech acts as a social collaborator (colaborador social), it is granted as a power of
+            representation in the Tax Agency's register (Registro de apoderamientos); once it does, the Customer only
+            needs to sign the authorisation document we provide. Without authorisation, records cannot be sent.</li>
     </ul>
 
     <h2>8. The Customer's obligations</h2>
@@ -239,8 +252,9 @@
         <li>The contract lasts while the Customer keeps its account. It can close the account at any time.</li>
         <li>We may suspend or end the contract if the Customer seriously breaches these terms, in particular by not paying
             or by unlawful use, after notice where possible.</li>
-        <li>When the contract ends, the Customer has 30 days to export its data. We then delete it, except what the law
-            requires us to keep, such as invoices and billing records.</li>
+        <li>When the contract ends, by cancellation or by the non-payment described in section 5, the Customer has
+            30 days to export its data. We then delete it, except what the law requires us to keep, such as invoices and
+            billing records.</li>
     </ul>
 
     <h2>14. Changes to these terms</h2>
@@ -255,18 +269,22 @@
 <article th:fragment="pt">
     <p class="eyebrow">Contrato de serviço para empresas</p>
     <h1>Termos de serviço</h1>
-    <p class="lead">Os termos entre a <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</span>,
+    <p class="lead">Os termos entre a <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span>,
         NIF <span th:text="${company.taxId()}">B09767898</span>, com sede em <span th:text="${company.address()}">Santa Pola</span>
         («FastBite», «nós») e a empresa ou profissional que contrata a FastBite para o seu restaurante («o Cliente»). Esta é
         uma tradução: prevalece a versão em espanhol.</p>
 
     <h2>1. Objeto e aceitação</h2>
     <p>A FastBite é um serviço na nuvem (software como serviço) para gerir restaurantes: menu digital e pedidos por QR,
-        ponto de venda, ecrã de cozinha, pedidos para levar, informação de alergénios e emissão de faturas. Ao criar uma
-        conta, o Cliente aceita estes termos e o <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>,
-        que deles faz parte, e declara ter lido a <a th:href="@{/legal/privacy(lang='pt')}">Política de privacidade</a>.</p>
-    <p>A FastBite é oferecida apenas a empresas e profissionais que atuam no âmbito da sua atividade, não a
-        consumidores. Quem aceita declara ter poderes para vincular o Cliente.</p>
+        ponto de venda, ecrã de cozinha, pedidos para levar, informação de alergénios e emissão de faturas. Para criar uma
+        conta, o Cliente marca uma caixa com a qual aceita estes termos e o
+        <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>, que deles faz parte, e declara
+        ter lido a <a th:href="@{/legal/privacy(lang='pt')}">Política de privacidade</a>. Guardamos a data e a versão
+        aceite.</p>
+    <p>A FastBite é oferecida apenas a empresas e a profissionais, incluindo trabalhadores independentes (autónomos), que
+        atuam no âmbito da sua atividade empresarial ou profissional. Não pode ser contratada por quem atue como
+        consumidor. Ao aceitar, quem cria a conta declara que contrata nessa qualidade e que tem poderes para vincular o
+        Cliente.</p>
 
     <h2>2. Conta, locais e pessoal</h2>
     <ul>
@@ -289,8 +307,9 @@
     <ul>
         <li><strong>Plano Restaurante</strong>: <span th:text="${plans.monthlyPrice()}">49</span> € por mês por local, mais
             IVA, com <span th:text="${plans.trialDays()}">30</span> dias de experiência gratuita sem cartão.</li>
-        <li><strong>Plano Gratuito</strong>: 0 € por mês. Os pedidos para levar pagos online com cartão têm uma comissão de
-            plataforma de <span th:text="${plans.freeFee()}">2,5</span> % do seu valor, retida no próprio pagamento.</li>
+        <li><strong>Plano Gratuito</strong>: 0 € por mês. Exige ter os pagamentos online ativados em todos os canais em que
+            a FastBite os ofereça. Cada pedido pago online tem uma comissão de plataforma de
+            <span th:text="${plans.freeFee()}">2,5</span> % do seu valor, retida no próprio pagamento.</li>
         <li>Para três ou mais locais pode pedir-se um preço por volume.</li>
         <li>As comissões do fornecedor de pagamentos (Stripe) são independentes destes preços.</li>
     </ul>
@@ -302,8 +321,9 @@
         <li>A subscrição paga-se mensalmente e de forma antecipada, através da Stripe, com o meio de pagamento que o Cliente
             registar. Emitimos fatura de cada cobrança.</li>
         <li>Quando termina a experiência ou a subscrição, ou uma cobrança falha, <strong>os novos pedidos ficam em pausa</strong>
-            nesse local. O acesso, a faturação, os pedidos existentes e a exportação de dados continuam disponíveis para
-            que o Cliente possa regularizar a situação ou levar os seus dados.</li>
+            nesse local durante 30 dias. Nesse prazo, o acesso, a faturação, os pedidos existentes e a exportação de dados
+            continuam disponíveis para que o Cliente possa regularizar a situação ou levar os seus dados. Se não a
+            regularizar, ao fim desses 30 dias o contrato desse local termina e aplica-se o previsto no ponto 13.</li>
         <li>O Cliente pode cancelar a qualquer momento na faturação do local; o cancelamento produz efeito no fim do período
             já pago. Não se reembolsam períodos parciais, salvo quando a lei o exija.</li>
     </ul>
@@ -322,7 +342,9 @@
         <li>O Cliente é o sujeito passivo: responde pela exatidão dos seus dados fiscais, pelas taxas de IVA que aplica e
             pelo conteúdo das suas faturas.</li>
         <li>Para que a FastBite envie os registos à Agência Tributária em seu nome, o Cliente concede a representação
-            necessária (procuração ou o mecanismo de colaboração social aplicável). Sem ela, o envio não é possível.</li>
+            necessária. Enquanto a Brasatech não atuar como colaborador social, é concedida por procuração no Registro de
+            apoderamientos da Agência Tributária; quando atuar, bastará que o Cliente assine o documento de representação
+            que lhe facultaremos. Sem representação, o envio não é possível.</li>
     </ul>
 
     <h2>8. Obrigações do Cliente</h2>
@@ -362,8 +384,9 @@
         <li>O contrato dura enquanto o Cliente mantiver a conta. Pode encerrá-la a qualquer momento.</li>
         <li>Podemos suspender ou resolver o contrato se o Cliente violar gravemente estes termos, em especial por falta de
             pagamento ou uso ilícito, após aviso sempre que possível.</li>
-        <li>No fim do contrato, o Cliente tem 30 dias para exportar os seus dados. Depois apagamo-los, exceto o que a lei
-            obrigue a conservar, como as faturas e os registos de faturação.</li>
+        <li>No fim do contrato, por cancelamento ou pela falta de pagamento descrita no ponto 5, o Cliente tem 30 dias
+            para exportar os seus dados. Depois apagamo-los, exceto o que a lei obrigue a conservar, como as faturas e os
+            registos de faturação.</li>
     </ul>
 
     <h2>14. Alterações a estes termos</h2>

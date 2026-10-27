@@ -151,15 +151,16 @@ fastbite:
   # bundles exported by the same version.
   version: ${FASTBITE_VERSION:@project.version@}
   # Who provides FastBite, as the legal pages show it (/legal/notice and the others; see docs/legal/README.md).
-  # The registry entry (Registro Mercantil: tomo, folio, hoja, inscripción) must be filled in before going live.
+  # Brasatech is a sole-member company: LSC art. 13.2 asks every document to say so, hence "S.L.U.".
   legal:
-    company-name: ${LEGAL_COMPANY_NAME:BRASATECH DIGITAL SOLUTIONS S.L.}
+    company-name: ${LEGAL_COMPANY_NAME:BRASATECH DIGITAL SOLUTIONS, S.L.U.}
     tax-id: ${LEGAL_TAX_ID:B09767898}
-    address: ${LEGAL_ADDRESS:Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España}
+    address: ${LEGAL_ADDRESS:Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España}
     email: ${LEGAL_EMAIL:info@brasatech.es}
-    registry: ${LEGAL_REGISTRY:}
+    privacy-email: ${LEGAL_PRIVACY_EMAIL:privacidad@brasatech.es}
+    registry: ${LEGAL_REGISTRY:Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª}
     website: ${LEGAL_WEBSITE:https://fastbite.brasatech.es}
-    updated: ${LEGAL_UPDATED:16/10/2026}
+    updated: ${LEGAL_UPDATED:27/10/2026}
   # The billing software as VERI*FACTU records name it (SistemaInformatico). The producer signs the
   # declaración responsable of each version.
   verifactu:
@@ -171,8 +172,9 @@ fastbite:
     operation-description: Servicios de restauración
     # The declaración responsable shown at /verifactu/declaracion-responsable. It reads as a draft
     # until it is marked signed and every detail is filled in.
-    producer-address: ${VERIFACTU_PRODUCER_ADDRESS:Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España}
-    declaration-place: ${VERIFACTU_DECLARATION_PLACE:Santa Pola - Alicante}
+    producer-address: ${VERIFACTU_PRODUCER_ADDRESS:Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España}
+    declaration-place: ${VERIFACTU_DECLARATION_PLACE:Santa Pola (Alicante), España}
+    declaration-signatory: ${VERIFACTU_DECLARATION_SIGNATORY:Ricardo Maximino Gonçalves de Moraes, administrador único}
     declaration-date: ${VERIFACTU_DECLARATION_DATE:}
     declaration-signed: ${VERIFACTU_DECLARATION_SIGNED:false}
     # How often pending billing records are sent once a submitter is configured

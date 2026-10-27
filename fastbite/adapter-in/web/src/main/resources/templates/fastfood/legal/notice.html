@@ -10,9 +10,9 @@
 
     <h2>1. Titular del sitio web</h2>
     <dl class="facts">
-        <dt>Denominación social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>Denominación social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</dd>
         <dt>NIF</dt><dd th:text="${company.taxId()}">B09767898</dd>
-        <dt>Domicilio social</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España</dd>
+        <dt>Domicilio social</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España</dd>
         <dt>Correo electrónico</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
         <dt>Datos registrales</dt>
         <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Registro Mercantil de Alicante</span>
@@ -68,9 +68,9 @@
 
     <h2>1. Owner of the website</h2>
     <dl class="facts">
-        <dt>Company name</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>Company name</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</dd>
         <dt>Tax ID (NIF)</dt><dd th:text="${company.taxId()}">B09767898</dd>
-        <dt>Registered office</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Spain</dd>
+        <dt>Registered office</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), Spain</dd>
         <dt>Email</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
         <dt>Registry details</dt>
         <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Mercantile Registry of Alicante</span>
@@ -123,9 +123,9 @@
 
     <h2>1. Titular do site</h2>
     <dl class="facts">
-        <dt>Denominação social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>Denominação social</dt><dd th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</dd>
         <dt>NIF</dt><dd th:text="${company.taxId()}">B09767898</dd>
-        <dt>Sede</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Espanha</dd>
+        <dt>Sede</dt><dd th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), Espanha</dd>
         <dt>Email</dt><dd><a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a></dd>
         <dt>Dados de registo</dt>
         <dd><span th:if="${!#strings.isEmpty(company.registry())}" th:text="${company.registry()}">Registo Comercial de Alicante</span>

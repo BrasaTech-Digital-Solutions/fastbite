@@ -44,7 +44,7 @@
   <label style="flex:1; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:12px; cursor:pointer; background:#fff; display:block;">
     <input type="radio" name="plan" value="FREE" th:checked="${plan == 'FREE'}" style="margin-right:6px;">
     <strong>Free Plan (0€/mo)</strong>
-    <p style="font-size:13px; color:#555; margin:6px 0 0 0;">Zero monthly fee. Accept card payments with a small 2.5% platform fee on takeaway orders.</p>
+    <p style="font-size:13px; color:#555; margin:6px 0 0 0;">Zero monthly fee. Online payments stay on, with a small 2.5% platform fee on every order paid online.</p>
   </label>
   <label style="flex:1; min-width:180px; border:1px solid #ddd; border-radius:8px; padding:12px; cursor:pointer; background:#fff; display:block;">
     <input type="radio" name="plan" value="RESTAURANT" th:checked="${plan == null || plan == 'RESTAURANT'}" style="margin-right:6px;">
@@ -71,9 +71,23 @@
 <input id="password" name="password" type="password" minlength="10" maxlength="72" autocomplete="new-password" required aria-describedby="password-help">
 <small id="password-help">Use at least 10 characters.</small>
 </div>
-<p class="form-note">By creating your restaurant you accept the <a href="/legal/terms" target="_blank" rel="noopener">Terms of service</a>
-and the <a href="/legal/data-processing" target="_blank" rel="noopener">Data processing agreement</a>, and confirm you have read the
-<a href="/legal/privacy" target="_blank" rel="noopener">Privacy policy</a>.</p>
+<div class="field">
+<label style="display:flex; gap:10px; align-items:flex-start; font-weight:400; cursor:pointer;">
+<input type="checkbox" name="acceptTerms" value="true" required style="margin-top:4px; flex:none;">
+<span>I sign up as a business or self-employed professional, not as a consumer, and I accept the
+<a href="/legal/terms" target="_blank" rel="noopener">Terms of service</a> and the
+<a href="/legal/data-processing" target="_blank" rel="noopener">Data processing agreement</a>. I have read the
+<a href="/legal/privacy" target="_blank" rel="noopener">Privacy policy</a> and the
+<a href="/verifactu/declaracion-responsable" target="_blank" rel="noopener">VERI*FACTU declaration</a>.</span>
+</label>
+</div>
+<div class="field">
+<label style="display:flex; gap:10px; align-items:flex-start; font-weight:400; cursor:pointer;">
+<input type="checkbox" name="marketing" value="true" th:checked="${marketing}" style="margin-top:4px; flex:none;">
+<span>Optional: email me offers about Brasatech products and services. You can withdraw at any time by writing to
+<a href="mailto:privacidad@brasatech.es">privacidad@brasatech.es</a> or with the link in any of those emails.</span>
+</label>
+</div>
 <button class="button" type="submit">Get started ↗</button>
 <p class="form-note">Activate or change your plan at any time from your owner console. VAT and payment-processing fees are separate.</p>
 </form>

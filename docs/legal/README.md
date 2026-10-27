@@ -28,21 +28,21 @@ They are linked from:
 
 | Setting | Variable | Current value |
 |---|---|---|
-| company-name | `LEGAL_COMPANY_NAME` | BRASATECH DIGITAL SOLUTIONS S.L. |
+| company-name | `LEGAL_COMPANY_NAME` | BRASATECH DIGITAL SOLUTIONS, S.L.U. (sole-member company: LSC art. 13.2) |
 | tax-id | `LEGAL_TAX_ID` | B09767898 |
-| address | `LEGAL_ADDRESS` | Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España |
+| address | `LEGAL_ADDRESS` | Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España (domicilio social as registered) |
 | email | `LEGAL_EMAIL` | info@brasatech.es |
-| registry | `LEGAL_REGISTRY` | **empty**: the notice shows "[Pendiente: Registro Mercantil…]" |
+| registry | `LEGAL_REGISTRY` | Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª |
 | website | `LEGAL_WEBSITE` | https://fastbite.brasatech.es |
-| updated | `LEGAL_UPDATED` | 16/10/2026 (change it whenever a text changes) |
+| updated | `LEGAL_UPDATED` | 27/10/2026 (change it whenever a text changes) |
 
 The plan prices in the terms (49 €/month per location, 30-day trial, 2.5% Free-plan fee) come from `SubscriptionPlan`,
 so they always match what the app charges. The cookie policy shows the session cookie name as configured.
 
 ## Before going live: to fill in or confirm
 
-1. **Registry data** (`LEGAL_REGISTRY`): Registro Mercantil de Alicante, tomo, folio, hoja e inscripción. LSSI-CE art. 10
-   requires it.
+1. **Registry data: done** (27/10/2026), from the Registro Mercantil's listing of the constitution (inscripción 1.ª,
+   08/03/2022): Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766.
 2. **Contact email** for legal and privacy requests: `info@brasatech.es` is assumed. A dedicated address
    (privacidad@…) is common.
 3. **Firebase Hosting and the session cookie.** Firebase Hosting forwards only a cookie named `__session` to Cloud Run.
@@ -53,32 +53,35 @@ so they always match what the app charges. The cookie policy shows the session c
    without consent, since they receive visitors' IP addresses. FastBite now serves its fonts, icons and libraries
    itself (see `docs/third-party-assets.md`), and the privacy and cookie policies say so. Keep it that way: a new
    page must not load anything from a third-party host.
-5. **Log retention.** The privacy policy says technical logs are kept up to 90 days. Check the Cloud Logging retention
-   configured in GCP and align either side.
+5. **Log retention: done** (27/10/2026). Cloud Logging keeps request logs 30 days, and the policy now says 30 days.
+   The log buckets are in the `global` location, not Madrid, so the policy lists Cloud Logging among the services that
+   may handle data outside the EEA. Routing the logs to a bucket in `europe-southwest1` would let it say Madrid.
+6. **Commercial communications: opt-in** (advisor, 27/10/2026). Offers are sent only to owners who ticked the
+   optional, unticked signup box; the consent's date and version are stored in `public.legal_acceptances`. Data stays
+   within Brasatech, for its own products. Every offer email must carry an unsubscribe link, and withdrawals sent to
+   privacidad@brasatech.es must be honoured. Guests' data is never used for offers.
+7. **Privacy mailbox.** The policy sends people to `privacidad@brasatech.es` (`LEGAL_PRIVACY_EMAIL`). It must exist.
 
-## Points for the lawyer
+## The advisor's answers (27/10/2026)
 
-- **Acceptance.** Signup states that creating a restaurant accepts the terms and the processing agreement (no tick
-  box). Is that enough evidence for a B2B contract, or should we add a mandatory tick box and store the date and
-  version accepted?
-- **Businesses only.** The terms exclude consumers. Confirm, including sole traders (autónomos).
-- **Liability.** The cap is the fees paid in the last 12 months, excluding wilful misconduct and gross negligence.
-- **Jurisdiction.** The courts of Alicante, B2B only.
-- **Price and terms changes:** 30 days' notice, with the right to cancel.
-- **The end of the contract:** 30 days to export data, then deletion except what the law requires to be kept. The
-  owner console's backup export is the export mechanism.
-- **Trial and non-payment:** new orders pause while sign-in, billing, existing orders and export keep working, as the
-  app behaves today.
-- **VERI*FACTU.** The customer is the taxpayer. FastBite sends records only with representation (apoderamiento or
-  colaborador social). The system's declaración responsable is a separate page, `/verifactu/declaracion-responsable`,
-  with its own draft notice.
-- **Stripe.** The Free plan's fee is an application fee withheld from the payment. Restaurants contract Stripe directly
-  (Stripe Connect); Stripe is described as an independent controller for payments.
-- **The guest notice.** The restaurant is the controller, and each location gets a generated notice from its business
-  details. Confirm the legal bases (sale contract; invoicing obligations) and the retention periods (4 years tax,
-  6 years Código de Comercio).
-- **Sub-processors:** Google Ireland (Cloud Run, Cloud SQL, Cloud Storage, Firebase Hosting, Madrid region) and
-  Microsoft Ireland (Microsoft 365 email), general authorisation with 30 days' notice of changes. Confirm the list is
-  complete before going live, and keep it current.
-- **No DPO.** None is appointed, on the basis that one isn't required. Confirm, given that we process diners' data for
-  many restaurants.
+The dossier `FastBite-documentacion-legal-2026-10-27.pdf` asked numbered questions; what was not commented on was
+accepted as written. The answers:
+
+| Id | Answer | Where it lives |
+|---|---|---|
+| A1 | VERI*FACTU keeps "BRASATECH DIGITAL SOLUTIONS S.L."; the legal texts say S.L.U. | `VERIFACTU_PRODUCER_NAME`, `LEGAL_COMPANY_NAME` |
+| A2 | Privacy contact: privacidad@brasatech.es | `LEGAL_PRIVACY_EMAIL`, privacy policy |
+| B1 | A terms checkbox at signup; store date and version | signup, `public.legal_acceptances` (version = `LEGAL_UPDATED`) |
+| B2 | Businesses and autónomos only; no consumers | terms §1, signup checkbox |
+| B7 | Unpaid: new orders paused 30 days, then the location's contract ends (§13 applies) | terms §5 and §13 |
+| B8 | Free plan: online payments enabled on every channel offered; 2.5% on every online order | terms §4, signup |
+| C4 | Each location can add and update its own guest privacy PDF | to build |
+| D1 | Follow Orden HAC/1177/2024 art. 15 exactly | declaration page (items a–l, annex) |
+| D2 | In the app, easy to find | links in the home footer, legal pages, owner console, signup |
+| D3 | One signed declaration per software version | to build |
+| D4 | Colaborador social; pilots may start with apoderamiento | terms §7 |
+| D5 | R1 vs R4 for refunds: open | — |
+| D6 | IndicadorMultiplesOT counts closed locations too | as built |
+| E2, E4 | Marketing is opt-in; saying that offers are tailored is enough | privacy policy §5, signup |
+
+Any change to a legal text must bump `LEGAL_UPDATED`: it is the version owners accept, and the date the pages show.

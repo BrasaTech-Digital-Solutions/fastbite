@@ -14,11 +14,13 @@ the software itself. It shows a "Borrador" banner until it is signed and every d
 
 | Detail | Setting | Status |
 |---|---|---|
-| Producer's legal name | `VERIFACTU_PRODUCER_NAME` (default `Brasatech`) | Check it is the exact legal name (razón social) |
-| Producer's NIF | `VERIFACTU_PRODUCER_NIF` | **Missing** — also sent in every billing record |
-| Producer's full postal address | `VERIFACTU_PRODUCER_ADDRESS` | **Missing** |
+| Producer's legal name | `VERIFACTU_PRODUCER_NAME` | BRASATECH DIGITAL SOLUTIONS S.L. (also sent in every billing record) |
+| Producer's NIF | `VERIFACTU_PRODUCER_NIF` | B09767898 |
+| Producer's full postal address | `VERIFACTU_PRODUCER_ADDRESS` | Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España |
 | Version | `VERIFACTU_SYSTEM_VERSION` (default `1.0`) | Decide the versioning; a new declaration is needed per version |
-| Place and date of signature | `VERIFACTU_DECLARATION_PLACE`, `VERIFACTU_DECLARATION_DATE` | Fill in when signing, e.g. `Madrid`, `15 de noviembre de 2026` |
+| Place of signature | `VERIFACTU_DECLARATION_PLACE` | Santa Pola (Alicante) |
+| Who signs | `VERIFACTU_DECLARATION_SIGNATORY` | Ricardo Maximino Gonçalves de Moraes, administrador único |
+| Date of signature | `VERIFACTU_DECLARATION_DATE` | **Missing**: fill in when signing, e.g. `15 de noviembre de 2026` |
 | Signed | `VERIFACTU_DECLARATION_SIGNED=true` | Only after review and signature |
 
 Questions for the adviser:
@@ -97,9 +99,11 @@ Firmado: **[razón social del productor]**
 
 ## Before signing, make sure the software matches the text
 
-The declaration states facts about FastBite. Two of them depend on work that is not finished yet:
+The declaration states facts about FastBite. Check them against the software before signing:
 
-- **"Remisión de los registros … a la Agencia Tributaria"**: records are generated and kept, but nothing is
-  sent until the provider (or direct AEAT connection) is added. Sign only once sending works.
+- **"Remisión de los registros … a la Agencia Tributaria"**: done. FastBite connects directly to the AEAT with
+  Brasatech's certificate; records were accepted by the AEAT test environment (12/10/2026), and both servers load
+  the certificate since 27/10/2026. Production sending stays off (`VERIFACTU_PRODUCTION_ENABLED=false`) until
+  go-live, and a restaurant's records are sent only once it has authorised Brasatech (`VERIFACTU_ISSUERS`).
 - **Refund codes**: refunds of full invoices are reported as R1; confirm with the adviser whether some should
   be R4 (corrections of mistakes).

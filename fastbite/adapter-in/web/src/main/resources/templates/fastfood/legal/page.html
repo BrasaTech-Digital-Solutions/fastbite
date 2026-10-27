@@ -29,6 +29,8 @@
     <nav class="legal-pages" th:unless="${page == 'guests'}" aria-label="FastBite">
         <a th:each="link : ${navigation}" th:href="@{/legal/{p}(p=${link.page()},lang=${language})}" th:text="${link.title()}"
            th:classappend="${link.current()} ? 'current'" th:attr="aria-current=${link.current() ? 'page' : null}">Aviso legal</a>
+        <a href="/verifactu/declaracion-responsable"
+           th:text="${language == 'en' ? 'VERI*FACTU declaration' : language == 'pt' ? 'Declaração responsável VERI*FACTU' : 'Declaración responsable VERI*FACTU'}">Declaración responsable VERI*FACTU</a>
     </nav>
     <p class="lead legal-updated"
        th:text="${language == 'en' ? 'Last updated: ' : language == 'pt' ? 'Última atualização: ' : 'Última actualización: '} + ${company.updated()}">

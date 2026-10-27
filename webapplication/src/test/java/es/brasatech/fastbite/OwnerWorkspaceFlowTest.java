@@ -35,7 +35,7 @@ class OwnerWorkspaceFlowTest {
     }
     @Test void workspacePersistsScopedProgressAndPreviewsBackupsWithoutChangingData()throws Exception {
         var owner=client();
-        var created=post(owner,"/signup","tenantId=workspacecafe&username=workspaceowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
+        var created=post(owner,"/signup","acceptTerms=true&tenantId=workspacecafe&username=workspaceowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
         assertTrue(created.body().contains("successfully registered"));
         post(owner,"/login","username=workspaceowner&password=local-test-password&_csrf="+csrf(get(owner,"/login").body()));
         var overview=get(owner,"/owner/console");assertEquals(200,overview.statusCode());assertTrue(overview.body().contains("What kind of restaurant are you running?"));

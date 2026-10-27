@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- The declaración responsable in the order and with the labels of Orden HAC/1177/2024, art. 15.1 (items a to l),
+     followed by the optional annex of art. 15.2. -->
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
@@ -10,7 +12,7 @@
 <body class="legal">
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
 <main>
-    <div class="actions"><button type="button" onclick="window.print()">Imprimir</button></div>
+    <div class="actions"><button type="button" onclick="window.print()">Imprimir o guardar en PDF</button></div>
 
     <div class="draft" role="note" th:unless="${declaration.signed()}">
         <strong>Borrador</strong>
@@ -21,50 +23,43 @@
         </ul>
     </div>
 
-    <p class="eyebrow">VERI*FACTU · Real Decreto 1007/2023</p>
-    <h1>Declaración responsable del sistema informático de facturación</h1>
-    <p class="lead" th:text="${system.systemName()} + ', versión ' + ${system.version()}">FastBite, versión 1.0</p>
+    <p class="eyebrow">VERI*FACTU · Orden HAC/1177/2024, art. 15</p>
+    <h1>DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN</h1>
 
-    <p>
-        <strong th:text="${system.producerName()}">Brasatech</strong>,
-        con NIF <span th:text="${#strings.isEmpty(system.producerNif()) ? '[NIF del productor]' : system.producerNif()}"
-                      th:classappend="${#strings.isEmpty(system.producerNif())} ? 'missing'">B00000000</span>
-        y domicilio en <span th:text="${#strings.isEmpty(declaration.producerAddress()) ? '[dirección postal completa]' : declaration.producerAddress()}"
-                             th:classappend="${#strings.isEmpty(declaration.producerAddress())} ? 'missing'">Calle …</span>,
-        en su condición de productora del sistema informático de facturación que se identifica a continuación,
-        <strong>DECLARA BAJO SU RESPONSABILIDAD:</strong>
-    </p>
-
-    <h2>1. Identificación del sistema informático</h2>
     <dl class="facts">
-        <dt>Nombre del sistema informático</dt><dd th:text="${system.systemName()}">FastBite</dd>
-        <dt>Código identificador del sistema</dt><dd th:text="${system.systemId()}">FB</dd>
-        <dt>Identificador completo de la versión</dt><dd th:text="${system.version()}">1.0</dd>
-        <dt>Productor</dt><dd th:text="${system.producerName()}">Brasatech</dd>
-        <dt>NIF del productor</dt>
+        <dt>a) Nombre del sistema informático</dt><dd th:text="${system.systemName()}">FastBite</dd>
+        <dt>b) Código identificador del sistema</dt><dd th:text="${system.systemId()}">FB</dd>
+        <dt>c) Identificador completo de la versión</dt><dd th:text="${system.version()}">1.0</dd>
+        <dt>d) Componentes hardware y software, descripción y funcionalidades principales</dt>
+        <dd>Véase el apartado d) a continuación.</dd>
+        <dt>e) Funciona exclusivamente como «VERI*FACTU»</dt><dd th:text="${declaration.onlyVerifactu()} ? 'Sí' : 'No'">Sí</dd>
+        <dt>f) Permite su uso por varios obligados tributarios, o por un usuario que da soporte a varios</dt>
+        <dd th:text="${declaration.multipleTaxpayers()} ? 'Sí' : 'No'">Sí</dd>
+        <dt>g) Tipos de firma de los registros de facturación y de evento cuando no se usa como «VERI*FACTU»</dt>
+        <dd>No aplica: el sistema funciona exclusivamente como «VERI*FACTU».</dd>
+        <dt>h) Razón social del productor</dt><dd th:text="${system.producerName()}">BRASATECH DIGITAL SOLUTIONS S.L.</dd>
+        <dt>i) NIF del productor</dt>
         <dd th:text="${#strings.isEmpty(system.producerNif()) ? '[pendiente]' : system.producerNif()}"
-            th:classappend="${#strings.isEmpty(system.producerNif())} ? 'missing'">B00000000</dd>
-        <dt>Dirección de contacto del productor</dt>
+            th:classappend="${#strings.isEmpty(system.producerNif())} ? 'missing'">B09767898</dd>
+        <dt>j) Dirección postal completa de contacto del productor</dt>
         <dd th:text="${#strings.isEmpty(declaration.producerAddress()) ? '[pendiente]' : declaration.producerAddress()}"
             th:classappend="${#strings.isEmpty(declaration.producerAddress())} ? 'missing'">Calle …</dd>
-        <dt>Funciona exclusivamente como VERI*FACTU</dt><dd th:text="${declaration.onlyVerifactu()} ? 'Sí' : 'No'">Sí</dd>
-        <dt>Permite su uso por varios obligados tributarios</dt><dd th:text="${declaration.multipleTaxpayers()} ? 'Sí' : 'No'">Sí</dd>
-        <dt>Tipo de firma de los registros</dt><dd>No aplica: los registros se remiten a la Agencia Tributaria (modalidad VERI*FACTU)</dd>
     </dl>
 
-    <h2>2. Componentes y funcionalidades</h2>
-    <p>
-        <span th:text="${system.systemName()}">FastBite</span> es una aplicación web que el productor presta como servicio
-        desde sus servidores en la nube, con una base de datos relacional. Se utiliza a través de un navegador web en
-        ordenadores, tabletas o teléfonos, y los tickets se imprimen en las impresoras conectadas a esos dispositivos.
-        No requiere instalar software en los equipos del usuario.
-    </p>
-    <p>Sus funcionalidades de facturación son:</p>
+    <h2>d) Componentes hardware y software, descripción y funcionalidades principales</h2>
+    <p><strong>Hardware.</strong> Servidores en la nube de Google Cloud, en la región de Madrid: Cloud Run para la
+        aplicación y Cloud SQL para la base de datos. En las instalaciones del usuario, cualquier ordenador, tableta o
+        teléfono con un navegador web actual, y las impresoras de tickets conectadas a esos dispositivos.</p>
+    <p><strong>Software.</strong> La aplicación web <span th:text="${system.systemName()}">FastBite</span>, en la versión
+        indicada, que el productor presta como servicio (SaaS), con una base de datos relacional PostgreSQL. No requiere
+        instalar software en los equipos del usuario.</p>
+    <p><strong>Funcionalidades principales de facturación:</strong></p>
     <ul>
         <li>Emisión de facturas simplificadas, facturas completas, facturas emitidas en sustitución de facturas
             simplificadas y facturas rectificativas, cada tipo en su propia serie y con numeración correlativa sin saltos.</li>
         <li>Generación, en el mismo momento de la expedición de cada factura, de su registro de facturación de alta,
-            encadenado al registro anterior mediante la huella calculada con el algoritmo SHA-256.</li>
+            encadenado al registro anterior mediante la huella calculada con el algoritmo SHA-256, y de los registros de
+            anulación cuando proceden.</li>
         <li>Impresión del código QR tributario y de la leyenda «VERI*FACTU» en cada factura.</li>
         <li>Remisión de los registros de facturación a la sede electrónica de la Agencia Estatal de Administración Tributaria.</li>
         <li>Conservación de las facturas y registros, que no pueden modificarse ni eliminarse: las correcciones se
@@ -74,29 +69,41 @@
             sus propias series y su propia cadena de registros.</li>
     </ul>
 
-    <h2>3. Declaración de cumplimiento</h2>
+    <h2>k) Declaración de cumplimiento</h2>
     <p>
-        Que el sistema informático de facturación identificado en esta declaración, en la versión indicada, cumple
-        lo dispuesto en el artículo 29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria; en el Reglamento
-        que establece los requisitos que deben adoptar los sistemas y programas informáticos o electrónicos que soporten
-        los procesos de facturación de empresarios y profesionales, y la estandarización de formatos de los registros de
-        facturación, aprobado por el Real Decreto 1007/2023, de 5 de diciembre; en la Orden HAC/1177/2024, de 17 de
-        octubre; y en la demás normativa que los desarrolla.
+        El productor declara bajo su responsabilidad que el sistema informático de facturación identificado en esta
+        declaración, en la versión indicada, cumple lo dispuesto en el artículo 29.2.j) de la Ley 58/2003, de 17 de
+        diciembre, General Tributaria; en el Reglamento que establece los requisitos que deben adoptar los sistemas y
+        programas informáticos o electrónicos que soporten los procesos de facturación de empresarios y profesionales, y
+        la estandarización de formatos de los registros de facturación, aprobado por el Real Decreto 1007/2023, de 5 de
+        diciembre; en la Orden HAC/1177/2024, de 17 de octubre; y en las especificaciones publicadas en la sede
+        electrónica de la Agencia Estatal de Administración Tributaria para lo que dicha orden remite a ella.
     </p>
     <p>
-        Que, en particular, garantiza la integridad, conservación, accesibilidad, legibilidad, trazabilidad e
+        En particular, garantiza la integridad, conservación, accesibilidad, legibilidad, trazabilidad e
         inalterabilidad de los registros de facturación.
     </p>
 
     <div class="signature">
         <p>
-            En <span th:text="${#strings.isEmpty(declaration.place()) ? '[lugar]' : declaration.place()}"
-                     th:classappend="${#strings.isEmpty(declaration.place())} ? 'missing'">Madrid</span>,
+            <strong>l) Fecha y lugar de suscripción:</strong>
+            en <span th:text="${#strings.isEmpty(declaration.place()) ? '[lugar]' : declaration.place()}"
+                     th:classappend="${#strings.isEmpty(declaration.place())} ? 'missing'">Santa Pola (Alicante), España</span>,
             a <span th:text="${#strings.isEmpty(declaration.date()) ? '[fecha de firma]' : declaration.date()}"
                     th:classappend="${#strings.isEmpty(declaration.date())} ? 'missing'">1 de enero de 2027</span>.
         </p>
-        <span class="line" th:text="'Firmado: ' + ${system.producerName()}">Firmado: Brasatech</span>
+        <span class="line" th:text="'Firmado: ' + ${system.producerName()}">Firmado: BRASATECH DIGITAL SOLUTIONS S.L.</span>
+        <span th:text="${#strings.isEmpty(declaration.signatory()) ? '[nombre y cargo de quien firma]' : 'p.p. ' + declaration.signatory()}"
+              th:classappend="${#strings.isEmpty(declaration.signatory())} ? 'missing'">p.p. Ana García, administradora única</span>
     </div>
+
+    <h2>Anexo: información adicional (art. 15.2)</h2>
+    <dl class="facts">
+        <dt>Otros medios de contacto</dt>
+        <dd><a th:href="'mailto:' + ${producerEmail}" th:text="${producerEmail}">info@brasatech.es</a></dd>
+        <dt>Dirección de internet con información sobre el sistema</dt>
+        <dd><a th:href="${producerWebsite}" th:text="${producerWebsite}">https://fastbite.brasatech.es</a></dd>
+    </dl>
 </main>
 </body>
 </html>

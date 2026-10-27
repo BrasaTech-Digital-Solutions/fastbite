@@ -1,314 +1,486 @@
 <!DOCTYPE html>
-<!-- Política de privacidad (RGPD 2016/679, LOPDGDD 3/2018). DRAFT pending legal review: see docs/legal/README.md. -->
+<!-- Política de privacidad (RGPD 2016/679, LOPDGDD 3/2018, LSSI-CE 34/2002). DRAFT pending legal review: see docs/legal/README.md. -->
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
 <article th:fragment="es">
-    <p class="eyebrow">RGPD · LOPDGDD</p>
+    <p class="eyebrow">RGPD · LOPDGDD · LSSI-CE</p>
     <h1>Política de privacidad</h1>
     <p class="lead">Cómo tratamos los datos personales de quienes visitan FastBite y de los restaurantes que lo
-        contratan.</p>
+        contratan: qué datos, para qué, durante cuánto tiempo y qué derechos tiene.</p>
 
     <h2>1. Responsable del tratamiento</h2>
-    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, NIF <span th:text="${company.taxId()}">B09767898</span>,
-        <span th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España</span>.
-        Contacto para privacidad: <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>.
+    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</strong> («Brasatech»), NIF
+        <span th:text="${company.taxId()}">B09767898</span>, con domicilio en
+        <span th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España</span>, inscrita en el
+        <span th:text="${company.registry()}">Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª</span>.
+        Contacto para privacidad: <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.
         No hemos designado delegado de protección de datos porque no estamos obligados a ello; cualquier consulta se
         atiende en esa dirección.</p>
 
-    <h2>2. Dos papeles distintos</h2>
+    <h2>2. A quién se aplica</h2>
     <p>Esta política cubre los datos que tratamos <strong>por nuestra cuenta</strong>: los de las personas que
-        visitan el sitio y los de los restaurantes clientes y sus representantes.</p>
+        visitan el sitio y los de los restaurantes clientes y las personas que los representan.</p>
     <p>Los datos de los <strong>clientes de cada restaurante</strong> (sus pedidos, su nombre para recoger un
         pedido o sus datos para una factura) y de su <strong>personal</strong> los decide el restaurante, que es el
-        responsable. Nosotros los tratamos solo por su cuenta, como encargado del tratamiento, según el
-        <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>. Cada restaurante
-        informa a sus clientes en su propia página de privacidad, enlazada desde su carta.</p>
+        responsable. Nosotros los tratamos solo por su cuenta y siguiendo sus instrucciones, como encargado del
+        tratamiento, según el <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>.
+        Nunca los usamos para fines propios ni para enviar ofertas. Cada restaurante informa a sus clientes en su propia
+        página de privacidad, enlazada desde su carta.</p>
 
-    <h2>3. Qué datos tratamos, para qué y con qué base</h2>
+    <h2>3. Qué datos tratamos y de dónde proceden</h2>
+    <ul>
+        <li><strong>Cuenta del titular:</strong> usuario, nombre completo y contraseña (guardada cifrada de forma
+            irreversible).</li>
+        <li><strong>Datos de cada local:</strong> nombre comercial, razón social o nombre, NIF/NIE, dirección,
+            teléfono y correo electrónico.</li>
+        <li><strong>Suscripción:</strong> plan, estado, fechas e identificadores de cliente y de suscripción en Stripe.
+            No vemos ni guardamos los datos de tarjeta.</li>
+        <li><strong>Contacto:</strong> el correo y el número de locales de una solicitud de presupuesto, y lo que nos
+            escriba al pedir ayuda.</li>
+        <li><strong>Aceptaciones:</strong> la fecha y la versión de las condiciones aceptadas y, si lo da, del
+            consentimiento para recibir comunicaciones comerciales.</li>
+        <li><strong>Datos técnicos:</strong> dirección IP, fecha y hora, páginas solicitadas y la cookie de sesión
+            (ver la <a th:href="@{/legal/cookies(lang='es')}">Política de cookies</a>).</li>
+    </ul>
+    <p>Los datos los facilita usted al registrarse y usar el servicio, o se generan al usarlo; el estado de los pagos
+        nos lo comunica Stripe. No tratamos categorías especiales de datos: el filtro de alérgenos de la carta se guarda
+        solo en el navegador de quien lo usa.</p>
+
+    <h2>4. Para qué los usamos y con qué base jurídica</h2>
     <table>
-        <thead><tr><th>Datos</th><th>Finalidad</th><th>Base jurídica</th></tr></thead>
+        <thead><tr><th>Finalidad</th><th>Base jurídica</th></tr></thead>
         <tbody>
-        <tr><td>Cuenta del titular: usuario, nombre completo, contraseña (guardada cifrada de forma irreversible)</td>
-            <td>Dar de alta y gestionar la cuenta y sus locales; permitir el acceso</td>
+        <tr><td>Dar de alta y gestionar la cuenta y sus locales, y permitir el acceso</td>
             <td>Ejecución del contrato (art. 6.1.b RGPD)</td></tr>
-        <tr><td>Datos fiscales de cada local: razón social o nombre, NIF/NIE, dirección, teléfono, correo</td>
-            <td>Emitir las facturas del restaurante y remitir los registros VERI*FACTU a la Agencia Tributaria en su nombre</td>
-            <td>Ejecución del contrato; cumplimiento de obligaciones legales del restaurante (art. 6.1.c)</td></tr>
-        <tr><td>Suscripción y facturación del servicio: plan, estado, identificadores de cliente y suscripción en Stripe</td>
-            <td>Cobrar la suscripción y emitir nuestras facturas</td>
-            <td>Ejecución del contrato; obligaciones fiscales y contables (art. 6.1.c)</td></tr>
-        <tr><td>Solicitudes de precio para varios locales: correo electrónico y número de locales</td>
-            <td>Responder a la solicitud y preparar una oferta</td>
-            <td>Medidas precontractuales a petición del interesado (art. 6.1.b)</td></tr>
-        <tr><td>Comunicaciones de soporte</td>
-            <td>Atender consultas e incidencias</td>
-            <td>Ejecución del contrato; interés legítimo en dar un buen servicio (art. 6.1.f)</td></tr>
-        <tr><td>Datos técnicos: dirección IP, fecha y hora, páginas solicitadas, cookie de sesión</td>
-            <td>Prestar el servicio de forma segura, prevenir abusos y resolver errores</td>
-            <td>Interés legítimo en la seguridad del servicio (art. 6.1.f)</td></tr>
+        <tr><td>Emitir las facturas del restaurante y remitir los registros VERI*FACTU a la Agencia Tributaria en su
+            nombre</td>
+            <td>Ejecución del contrato; obligaciones legales del restaurante (art. 6.1.c RGPD)</td></tr>
+        <tr><td>Cobrar la suscripción y emitir nuestras facturas</td>
+            <td>Ejecución del contrato; obligaciones fiscales y contables (art. 6.1.c RGPD)</td></tr>
+        <tr><td>Enviar las comunicaciones propias del servicio: avisos de seguridad, fin de la prueba, facturas,
+            cambios en las condiciones</td>
+            <td>Ejecución del contrato (art. 6.1.b RGPD)</td></tr>
+        <tr><td>Atender consultas e incidencias y mejorar el servicio a partir de ellas</td>
+            <td>Ejecución del contrato; interés legítimo en dar el mejor servicio posible (art. 6.1.f RGPD)</td></tr>
+        <tr><td>Responder a solicitudes de presupuesto</td>
+            <td>Medidas precontractuales a petición del interesado (art. 6.1.b RGPD)</td></tr>
+        <tr><td>Enviar ofertas e información de productos y servicios de Brasatech, si lo ha aceptado</td>
+            <td>Consentimiento (art. 6.1.a RGPD y art. 21.1 LSSI-CE), que puede retirar en cualquier momento</td></tr>
+        <tr><td>Proteger el servicio, prevenir abusos y resolver errores</td>
+            <td>Interés legítimo en la seguridad del servicio (art. 6.1.f RGPD)</td></tr>
+        <tr><td>Cumplir obligaciones legales y atender o defender reclamaciones</td>
+            <td>Obligación legal (art. 6.1.c RGPD); interés legítimo (art. 6.1.f RGPD)</td></tr>
         </tbody>
     </table>
-    <p>No tomamos decisiones automatizadas que produzcan efectos jurídicos sobre nadie ni elaboramos perfiles con fines
-        comerciales. No vendemos datos personales.</p>
+    <p>No tomamos decisiones basadas únicamente en tratamientos automatizados que produzcan efectos jurídicos sobre
+        usted o le afecten de forma significativa.</p>
 
-    <h2>4. Plazos de conservación</h2>
+    <h2>5. Comunicaciones comerciales</h2>
+    <p>Solo le enviaremos ofertas de <strong>Brasatech</strong> sobre sus propios productos y servicios, nunca
+        publicidad de terceros, y solo si lo ha aceptado marcando la casilla que le ofrecemos al darse de alta, que no
+        viene marcada. Guardamos la fecha y la versión de su consentimiento. Para que le resulten útiles, podemos
+        elegirlas según los servicios que tiene contratados (por ejemplo, el plan o el número de locales).</p>
+    <p>Puede retirar su consentimiento, gratis y en cualquier momento, escribiendo a
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> o con el enlace de
+        baja que incluye cada comunicación. Hacerlo no afecta al servicio.</p>
+    <p>Nunca enviamos ofertas a los clientes de los restaurantes ni usamos para ello los datos que tratamos por cuenta
+        de un restaurante.</p>
+
+    <h2>6. Datos obligatorios</h2>
+    <p>Los datos de la cuenta, de cada local y de la suscripción son necesarios para prestar el servicio y emitir
+        facturas válidas: sin ellos no podemos darle de alta ni facturar. Aceptar comunicaciones comerciales es
+        voluntario.</p>
+
+    <h2>7. Plazos de conservación</h2>
     <ul>
         <li>Datos de cuenta y de los locales: mientras dure el contrato. Al terminar, el restaurante puede exportar sus
             datos durante 30 días; después se suprimen, salvo lo que debamos conservar por ley.</li>
-        <li>Facturas y documentación contable: seis años (art. 30 del Código de Comercio) y, en lo fiscal, mientras
-            puedan comprobarse (cuatro años según la Ley General Tributaria).</li>
-        <li>Solicitudes de precio sin contratación posterior: un año.</li>
-        <li>Registros técnicos de seguridad: hasta 90 días, salvo que se necesiten para investigar un incidente.</li>
+        <li>Facturas, registros de facturación y documentación contable: seis años (art. 30 del Código de Comercio) y,
+            en lo fiscal, mientras puedan comprobarse (cuatro años, art. 66 de la Ley General Tributaria).</li>
+        <li>Solicitudes de presupuesto sin contratación posterior: un año.</li>
+        <li>Comunicaciones comerciales: hasta que retire su consentimiento.</li>
+        <li>Prueba de las aceptaciones y del consentimiento: mientras dure el contrato y, después, mientras puedan
+            exigirse responsabilidades.</li>
+        <li>Registros técnicos de seguridad: 30 días, salvo que se necesiten para investigar un incidente.</li>
     </ul>
+    <p>Pasados estos plazos, los datos se suprimen o se bloquean durante el tiempo en que puedan exigirse
+        responsabilidades, como establece el art. 32 de la LOPDGDD.</p>
 
-    <h2>5. Destinatarios y proveedores</h2>
+    <h2>8. Destinatarios</h2>
+    <p>Los datos se quedan en Brasatech: solo los usamos para nuestros propios productos y servicios. No los
+        vendemos ni los cedemos a otras empresas para sus propios fines.</p>
     <p>Usamos proveedores que tratan datos por nuestra cuenta, con contrato de encargo del tratamiento y garantías
         adecuadas:</p>
     <ul>
-        <li><strong>Google Cloud y Firebase</strong> (Google Ireland Ltd.): alojamiento de la aplicación, la base de datos
-            y los archivos, en centros de datos de la Unión Europea (Madrid).</li>
+        <li><strong>Google Cloud y Firebase</strong> (Google Ireland Ltd.): la aplicación, la base de datos y los
+            archivos se alojan en la región de Madrid; Firebase Hosting entrega las páginas a través de la red de
+            Google, y Cloud Logging guarda los registros técnicos.</li>
         <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): envío de correos del servicio, como la
             creación de contraseñas.</li>
     </ul>
     <p>Otros destinatarios, que actúan por su propia cuenta:</p>
     <ul>
         <li><strong>Stripe</strong> (Stripe Payments Europe Ltd.): procesa los pagos de la suscripción y, si el
-            restaurante lo activa, los pagos de sus clientes. Los datos de tarjeta se introducen en las páginas de Stripe;
-            nosotros no los vemos ni los guardamos.</li>
-        <li><strong>Agencia Estatal de Administración Tributaria</strong>: recibe los registros de facturación VERI*FACTU
-            que la ley exige al restaurante.</li>
+            restaurante lo activa, los pagos de sus clientes. Los datos de tarjeta se introducen en las páginas de
+            Stripe.</li>
+        <li><strong>Agencia Estatal de Administración Tributaria</strong>: recibe los registros de facturación
+            VERI*FACTU que la ley exige al restaurante.</li>
         <li>Autoridades y tribunales, cuando una ley nos obligue.</li>
     </ul>
     <p>Los tipos de letra, iconos y bibliotecas de las páginas se sirven desde nuestros propios servidores: al
         visitarlas, su navegador no se conecta a servicios de terceros.</p>
 
-    <h2>6. Transferencias internacionales</h2>
-    <p>Alojamos los datos en la Unión Europea. Si algún proveedor accede a ellos desde fuera del Espacio Económico
-        Europeo, lo hace con las garantías del RGPD: decisión de adecuación (como el Marco de Privacidad de Datos UE-EE.
-        UU.) o cláusulas contractuales tipo de la Comisión Europea.</p>
+    <h2>9. Transferencias internacionales</h2>
+    <p>La aplicación, la base de datos y los archivos están en la Unión Europea (Madrid). Algunos servicios de
+        nuestros proveedores pueden tratar datos fuera del Espacio Económico Europeo: la red de entrega de Firebase
+        Hosting y los registros técnicos de Cloud Logging (Google), el correo (Microsoft) y los pagos (Stripe). Lo hacen
+        con las garantías del RGPD: la decisión de adecuación del Marco de Privacidad de Datos UE-EE. UU. o las
+        cláusulas contractuales tipo de la Comisión Europea.</p>
 
-    <h2>7. Seguridad</h2>
+    <h2>10. Seguridad</h2>
     <p>Aplicamos medidas técnicas y organizativas adecuadas: conexiones cifradas, contraseñas guardadas con
         algoritmos de resumen irreversibles, datos de cada restaurante separados del resto, control de acceso por
         funciones, copias de seguridad y registro de la actividad relevante.</p>
 
-    <h2>8. Sus derechos</h2>
-    <p>Puede ejercer los derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y
-        portabilidad, y retirar en cualquier momento el consentimiento que haya dado, escribiendo a
-        <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>. Si no queda
-        satisfecho, puede reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+    <h2>11. Sus derechos</h2>
+    <p>Puede ejercer los derechos de acceso, rectificación, supresión, oposición (también a las comunicaciones
+        comerciales), limitación del tratamiento y portabilidad, y retirar en cualquier momento el consentimiento que
+        haya dado, sin que ello afecte a la licitud del tratamiento anterior. Escriba a
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> indicando qué
+        derecho ejerce. Le responderemos en el plazo de un mes, prorrogable dos meses más en casos complejos; solo le
+        pediremos que acredite su identidad si tenemos dudas razonables sobre ella.</p>
+    <p>Si no queda satisfecho, puede reclamar ante la Agencia Española de Protección de Datos
+        (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
     <p>Si es cliente de un restaurante, diríjase primero al restaurante: es quien decide sobre sus datos. Le ayudaremos
         a atenderle.</p>
 
-    <h2>9. Cambios</h2>
+    <h2>12. Menores</h2>
+    <p>FastBite se dirige a empresas y profesionales. No recogemos a sabiendas, para nuestros propios fines, datos de
+        menores de 14 años.</p>
+
+    <h2>13. Cambios</h2>
     <p>Podemos actualizar esta política. Cuando el cambio sea relevante lo avisaremos en el servicio o por correo a los
         titulares de cuenta.</p>
 </article>
 
 <article th:fragment="en">
-    <p class="eyebrow">GDPR · Spanish LOPDGDD</p>
+    <p class="eyebrow">GDPR · LOPDGDD · LSSI-CE</p>
     <h1>Privacy policy</h1>
-    <p class="lead">How we handle the personal data of FastBite visitors and of the restaurants that use it. This is a
-        translation: the Spanish version prevails.</p>
+    <p class="lead">How we handle the personal data of FastBite's visitors and of the restaurants that subscribe to it:
+        what data, why, for how long, and your rights. This is a translation; the Spanish version prevails.</p>
 
     <h2>1. Controller</h2>
-    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, tax ID <span th:text="${company.taxId()}">B09767898</span>,
-        <span th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Spain</span>.
-        Privacy contact: <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>.
+    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</strong> ("Brasatech"), tax ID
+        <span th:text="${company.taxId()}">B09767898</span>, registered office at
+        <span th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España</span>, registered in the
+        <span th:text="${company.registry()}">Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª</span>.
+        Privacy contact: <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.
         We have not appointed a data protection officer because we are not required to; that address handles any
-        request.</p>
+        question.</p>
 
-    <h2>2. Two different roles</h2>
-    <p>This policy covers the data we handle <strong>on our own account</strong>: that of website visitors and of our
-        restaurant customers and their representatives.</p>
-    <p>The data of <strong>each restaurant's guests</strong> (their orders, their name to collect an order, their
-        details for an invoice) and of its <strong>staff</strong> is decided by the restaurant, which is the controller.
-        We handle it only on the restaurant's behalf, as a processor, under the
-        <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>. Each restaurant informs its
-        guests on its own privacy page, linked from its menu.</p>
+    <h2>2. Who this covers</h2>
+    <p>This policy covers the data we handle <strong>on our own behalf</strong>: that of the people who visit the site,
+        and of our restaurant customers and the people who represent them.</p>
+    <p>The data of each <strong>restaurant's guests</strong> (their orders, the name they collect an order under, or
+        their invoice details) and of its <strong>staff</strong> is decided by the restaurant, which is the controller.
+        We handle it only on its behalf and on its instructions, as processor, under the
+        <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>. We never use it for our own
+        purposes or to send offers. Each restaurant informs its guests on its own privacy page, linked from its menu.</p>
 
-    <h2>3. What data we use, why, and on what basis</h2>
+    <h2>3. What data we handle and where it comes from</h2>
+    <ul>
+        <li><strong>Owner account:</strong> username, full name and password (stored with irreversible hashing).</li>
+        <li><strong>Each location's details:</strong> trading name, legal name or name, tax ID (NIF/NIE), address,
+            phone and email.</li>
+        <li><strong>Subscription:</strong> plan, status, dates, and the customer and subscription IDs at Stripe. We
+            never see or store card details.</li>
+        <li><strong>Contact:</strong> the email and number of locations in a quote request, and whatever you write to
+            us when asking for help.</li>
+        <li><strong>Acceptances:</strong> the date and version of the terms you accepted and, if you give it, of your
+            consent to commercial communications.</li>
+        <li><strong>Technical data:</strong> IP address, date and time, pages requested and the session cookie (see the
+            <a th:href="@{/legal/cookies(lang='en')}">Cookie policy</a>).</li>
+    </ul>
+    <p>You provide this data when you sign up and use the service, or it is generated as you use it; Stripe tells us the
+        status of payments. We do not handle special categories of data: the menu's allergen filter is kept only in the
+        browser of whoever uses it.</p>
+
+    <h2>4. What we use it for, and on what legal basis</h2>
     <table>
-        <thead><tr><th>Data</th><th>Purpose</th><th>Legal basis</th></tr></thead>
+        <thead><tr><th>Purpose</th><th>Legal basis</th></tr></thead>
         <tbody>
-        <tr><td>Owner account: username, full name, password (stored with irreversible hashing)</td>
-            <td>Create and manage the account and its locations; sign-in</td>
-            <td>Performance of the contract (Art. 6(1)(b) GDPR)</td></tr>
-        <tr><td>Each location's tax details: legal name, tax ID, address, phone, email</td>
-            <td>Issue the restaurant's invoices and send VERI*FACTU records to the Spanish Tax Agency on its behalf</td>
-            <td>Performance of the contract; the restaurant's legal obligations (Art. 6(1)(c))</td></tr>
-        <tr><td>Service subscription and billing: plan, status, Stripe customer and subscription IDs</td>
-            <td>Charge the subscription and issue our invoices</td>
-            <td>Performance of the contract; tax and accounting obligations (Art. 6(1)(c))</td></tr>
-        <tr><td>Multi-location pricing requests: email and number of locations</td>
-            <td>Answer the request and prepare an offer</td>
-            <td>Pre-contractual steps at the person's request (Art. 6(1)(b))</td></tr>
-        <tr><td>Support communications</td>
-            <td>Answer questions and fix problems</td>
-            <td>Performance of the contract; legitimate interest in good service (Art. 6(1)(f))</td></tr>
-        <tr><td>Technical data: IP address, date and time, pages requested, session cookie</td>
-            <td>Run the service securely, prevent abuse and fix errors</td>
-            <td>Legitimate interest in the security of the service (Art. 6(1)(f))</td></tr>
+        <tr><td>Creating and managing the account and its locations, and signing in</td>
+            <td>Performance of the contract (art. 6.1.b GDPR)</td></tr>
+        <tr><td>Issuing the restaurant's invoices and sending VERI*FACTU records to the Spanish tax agency on its
+            behalf</td>
+            <td>Performance of the contract; the restaurant's legal obligations (art. 6.1.c GDPR)</td></tr>
+        <tr><td>Charging the subscription and issuing our invoices</td>
+            <td>Performance of the contract; tax and accounting obligations (art. 6.1.c GDPR)</td></tr>
+        <tr><td>Sending service messages: security notices, end of trial, invoices, changes to the terms</td>
+            <td>Performance of the contract (art. 6.1.b GDPR)</td></tr>
+        <tr><td>Answering questions and incidents, and improving the service from them</td>
+            <td>Performance of the contract; legitimate interest in providing the best possible service (art. 6.1.f
+            GDPR)</td></tr>
+        <tr><td>Answering quote requests</td>
+            <td>Pre-contractual steps at your request (art. 6.1.b GDPR)</td></tr>
+        <tr><td>Sending offers and news about Brasatech products and services, if you have agreed to it</td>
+            <td>Consent (art. 6.1.a GDPR and art. 21.1 LSSI-CE), which you can withdraw at any time</td></tr>
+        <tr><td>Protecting the service, preventing abuse and fixing errors</td>
+            <td>Legitimate interest in the security of the service (art. 6.1.f GDPR)</td></tr>
+        <tr><td>Meeting legal obligations and handling or defending claims</td>
+            <td>Legal obligation (art. 6.1.c GDPR); legitimate interest (art. 6.1.f GDPR)</td></tr>
         </tbody>
     </table>
-    <p>We make no automated decisions with legal effects on anyone and build no marketing profiles. We do not sell
-        personal data.</p>
+    <p>We make no decisions based solely on automated processing that have legal effects on you or similarly
+        significantly affect you.</p>
 
-    <h2>4. How long we keep it</h2>
+    <h2>5. Commercial communications</h2>
+    <p>We only send you offers from <strong>Brasatech</strong> about its own products and services, never third-party
+        advertising, and only if you have agreed by ticking the box we offer at sign-up, which is not ticked in advance.
+        We record the date and version of your consent. To make them useful, we may choose them by the services you
+        subscribe to (for example, your plan or number of locations).</p>
+    <p>You can withdraw your consent, free of charge and at any time, by writing to
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> or with the
+        unsubscribe link in every message. Doing so does not affect the service.</p>
+    <p>We never send offers to restaurants' guests, nor use for that purpose any data we handle on a restaurant's
+        behalf.</p>
+
+    <h2>6. Required data</h2>
+    <p>The account, location and subscription details are needed to provide the service and issue valid invoices:
+        without them we cannot sign you up or invoice. Accepting commercial communications is optional.</p>
+
+    <h2>7. How long we keep it</h2>
     <ul>
         <li>Account and location data: for as long as the contract lasts. When it ends, the restaurant can export its
-            data for 30 days; it is then deleted, except what the law requires us to keep.</li>
-        <li>Invoices and accounting records: six years (Spanish Commercial Code, Art. 30) and, for tax purposes, while
-            they can be audited (four years under the General Tax Law).</li>
-        <li>Pricing requests that did not lead to a contract: one year.</li>
-        <li>Technical security logs: up to 90 days, unless needed to investigate an incident.</li>
+            data for 30 days; after that it is deleted, except what the law requires us to keep.</li>
+        <li>Invoices, billing records and accounting documents: six years (art. 30 of the Spanish Commercial Code) and,
+            for tax purposes, for as long as they can be audited (four years, art. 66 of the General Tax Law).</li>
+        <li>Quote requests that did not lead to a contract: one year.</li>
+        <li>Commercial communications: until you withdraw your consent.</li>
+        <li>Proof of acceptances and consent: for as long as the contract lasts and, afterwards, for as long as
+            liabilities may arise.</li>
+        <li>Technical security logs: 30 days, unless needed to investigate an incident.</li>
     </ul>
+    <p>After these periods, data is deleted or blocked for as long as liabilities may arise, as art. 32 of the LOPDGDD
+        requires.</p>
 
-    <h2>5. Recipients and providers</h2>
-    <p>We use providers that handle data on our behalf, under a data processing agreement and with appropriate
+    <h2>8. Recipients</h2>
+    <p>The data stays with Brasatech: we use it only for our own products and services. We do not sell it or pass it
+        to other companies for their own purposes.</p>
+    <p>We use providers that handle data on our behalf, under a data processing agreement and with adequate
         safeguards:</p>
     <ul>
-        <li><strong>Google Cloud and Firebase</strong> (Google Ireland Ltd.): hosting of the application, database and
-            files, in European Union data centres (Madrid).</li>
-        <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): service emails, such as setting a
-            password.</li>
+        <li><strong>Google Cloud and Firebase</strong> (Google Ireland Ltd.): the application, the database and the files
+            are hosted in the Madrid region; Firebase Hosting delivers the pages through Google's network, and Cloud
+            Logging keeps the technical logs.</li>
+        <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): sending the service's emails, such as
+            password setup.</li>
     </ul>
-    <p>Other recipients, acting on their own account:</p>
+    <p>Other recipients, acting on their own behalf:</p>
     <ul>
-        <li><strong>Stripe</strong> (Stripe Payments Europe Ltd.): processes subscription payments and, if the restaurant
-            turns them on, its guests' payments. Card details are entered on Stripe's pages; we never see or store them.</li>
-        <li><strong>Spanish Tax Agency (AEAT)</strong>: receives the VERI*FACTU billing records the law requires of the
-            restaurant.</li>
+        <li><strong>Stripe</strong> (Stripe Payments Europe Ltd.): processes subscription payments and, if the
+            restaurant enables it, its guests' payments. Card details are entered on Stripe's pages.</li>
+        <li><strong>The Spanish Tax Agency</strong> (Agencia Estatal de Administración Tributaria): receives the
+            VERI*FACTU billing records the law requires of the restaurant.</li>
         <li>Authorities and courts, when a law requires it.</li>
     </ul>
-    <p>The fonts, icons and libraries of our pages are served from our own servers: visiting them does not connect
-        your browser to third-party services.</p>
+    <p>The pages' fonts, icons and libraries are served from our own servers: visiting them does not connect your
+        browser to third-party services.</p>
 
-    <h2>6. International transfers</h2>
-    <p>We host data in the European Union. If a provider accesses it from outside the European Economic Area, it does so
-        with GDPR safeguards: an adequacy decision (such as the EU-US Data Privacy Framework) or the European
-        Commission's standard contractual clauses.</p>
+    <h2>9. International transfers</h2>
+    <p>The application, the database and the files are in the European Union (Madrid). Some of our providers' services
+        may handle data outside the European Economic Area: Firebase Hosting's delivery network and Cloud Logging's
+        technical logs (Google), email (Microsoft) and payments (Stripe). They do so with the safeguards of the GDPR:
+        the adequacy decision for the EU-US Data Privacy Framework or the European Commission's standard contractual
+        clauses.</p>
 
-    <h2>7. Security</h2>
+    <h2>10. Security</h2>
     <p>We apply appropriate technical and organisational measures: encrypted connections, passwords stored with
-        irreversible hashing, each restaurant's data kept apart from the rest, role-based access, backups and logging of
+        irreversible hashing, each restaurant's data kept separate, role-based access control, backups and logging of
         relevant activity.</p>
 
-    <h2>8. Your rights</h2>
-    <p>You can exercise your rights of access, rectification, erasure, objection, restriction and portability, and
-        withdraw any consent you gave at any time, by writing to
-        <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>. If you are not
-        satisfied, you can complain to the Spanish Data Protection Agency (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+    <h2>11. Your rights</h2>
+    <p>You can exercise your rights of access, rectification, erasure, objection (including to commercial
+        communications), restriction of processing and portability, and withdraw any consent you have given at any time,
+        without affecting the lawfulness of earlier processing. Write to
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> saying which right
+        you are exercising. We will answer within one month, extendable by two more in complex cases; we will only ask
+        you to prove your identity if we have reasonable doubts about it.</p>
+    <p>If you are not satisfied, you can complain to the Spanish Data Protection Agency
+        (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
     <p>If you are a restaurant's guest, please contact the restaurant first: it decides about your data. We will help it
         answer you.</p>
 
-    <h2>9. Changes</h2>
-    <p>We may update this policy. When a change matters, we will announce it in the service or by email to account
-        holders.</p>
+    <h2>12. Minors</h2>
+    <p>FastBite is aimed at businesses and professionals. We do not knowingly collect, for our own purposes, data of
+        children under 14.</p>
+
+    <h2>13. Changes</h2>
+    <p>We may update this policy. When a change is significant we will announce it in the service or by email to
+        account holders.</p>
 </article>
 
 <article th:fragment="pt">
-    <p class="eyebrow">RGPD · LOPDGDD espanhola</p>
+    <p class="eyebrow">RGPD · LOPDGDD · LSSI-CE</p>
     <h1>Política de privacidade</h1>
-    <p class="lead">Como tratamos os dados pessoais de quem visita a FastBite e dos restaurantes que a contratam. Esta é
-        uma tradução: prevalece a versão em espanhol.</p>
+    <p class="lead">Como tratamos os dados pessoais de quem visita o FastBite e dos restaurantes que o contratam: que
+        dados, para quê, durante quanto tempo e que direitos tem. Esta é uma tradução; prevalece a versão espanhola.</p>
 
     <h2>1. Responsável pelo tratamento</h2>
-    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS S.L.</strong>, NIF <span th:text="${company.taxId()}">B09767898</span>,
-        <span th:text="${company.address()}">Calle Ganaderos, 24, 03130 Santa Pola (Alicante), Espanha</span>.
-        Contacto para privacidade: <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>.
-        Não designámos encarregado da proteção de dados porque não somos obrigados; qualquer pedido é tratado nesse
+    <p><strong th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</strong> («Brasatech»), NIF
+        <span th:text="${company.taxId()}">B09767898</span>, com sede em
+        <span th:text="${company.address()}">Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España</span>, inscrita no
+        <span th:text="${company.registry()}">Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª</span>.
+        Contacto para privacidade: <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.
+        Não designámos encarregado da proteção de dados porque não somos obrigados; qualquer questão é tratada nesse
         endereço.</p>
 
-    <h2>2. Dois papéis distintos</h2>
-    <p>Esta política abrange os dados que tratamos <strong>por conta própria</strong>: os de quem visita o site e os dos
-        restaurantes clientes e dos seus representantes.</p>
+    <h2>2. A quem se aplica</h2>
+    <p>Esta política cobre os dados que tratamos <strong>por nossa conta</strong>: os das pessoas que visitam o site e os
+        dos restaurantes clientes e das pessoas que os representam.</p>
     <p>Os dados dos <strong>clientes de cada restaurante</strong> (os seus pedidos, o nome para levantar um pedido ou os
-        dados para uma fatura) e do seu <strong>pessoal</strong> são decididos pelo restaurante, que é o responsável. Nós
-        tratamo-los apenas por conta dele, como subcontratante, nos termos do
-        <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>. Cada restaurante informa os seus
-        clientes na sua própria página de privacidade, ligada a partir do seu menu.</p>
+        seus dados para uma fatura) e do seu <strong>pessoal</strong> são decididos pelo restaurante, que é o
+        responsável. Nós tratamo-los apenas por sua conta e segundo as suas instruções, como subcontratante, nos termos
+        do <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>. Nunca os usamos para fins
+        próprios nem para enviar ofertas. Cada restaurante informa os seus clientes na sua própria página de
+        privacidade, ligada a partir da sua ementa.</p>
 
-    <h2>3. Que dados tratamos, para quê e com que fundamento</h2>
+    <h2>3. Que dados tratamos e de onde vêm</h2>
+    <ul>
+        <li><strong>Conta do titular:</strong> utilizador, nome completo e palavra-passe (guardada cifrada de forma
+            irreversível).</li>
+        <li><strong>Dados de cada local:</strong> nome comercial, denominação social ou nome, NIF/NIE, morada, telefone
+            e correio eletrónico.</li>
+        <li><strong>Subscrição:</strong> plano, estado, datas e identificadores de cliente e de subscrição na Stripe. Não
+            vemos nem guardamos os dados do cartão.</li>
+        <li><strong>Contacto:</strong> o correio e o número de locais de um pedido de orçamento, e o que nos escrever ao
+            pedir ajuda.</li>
+        <li><strong>Aceitações:</strong> a data e a versão dos termos aceites e, se o der, do consentimento para receber
+            comunicações comerciais.</li>
+        <li><strong>Dados técnicos:</strong> endereço IP, data e hora, páginas pedidas e o cookie de sessão (ver a
+            <a th:href="@{/legal/cookies(lang='pt')}">Política de cookies</a>).</li>
+    </ul>
+    <p>Os dados são fornecidos por si ao registar-se e usar o serviço, ou são gerados ao usá-lo; o estado dos pagamentos
+        é-nos comunicado pela Stripe. Não tratamos categorias especiais de dados: o filtro de alergénios da ementa
+        guarda-se apenas no navegador de quem o usa.</p>
+
+    <h2>4. Para que os usamos e com que fundamento jurídico</h2>
     <table>
-        <thead><tr><th>Dados</th><th>Finalidade</th><th>Fundamento jurídico</th></tr></thead>
+        <thead><tr><th>Finalidade</th><th>Fundamento jurídico</th></tr></thead>
         <tbody>
-        <tr><td>Conta do titular: utilizador, nome completo, palavra-passe (guardada com resumo irreversível)</td>
-            <td>Criar e gerir a conta e os seus locais; permitir o acesso</td>
-            <td>Execução do contrato (art. 6.º, n.º 1, al. b) do RGPD)</td></tr>
-        <tr><td>Dados fiscais de cada local: denominação ou nome, NIF, morada, telefone, email</td>
-            <td>Emitir as faturas do restaurante e enviar os registos VERI*FACTU à Agência Tributária espanhola em seu nome</td>
-            <td>Execução do contrato; obrigações legais do restaurante (al. c)</td></tr>
-        <tr><td>Subscrição e faturação do serviço: plano, estado, identificadores de cliente e subscrição na Stripe</td>
-            <td>Cobrar a subscrição e emitir as nossas faturas</td>
-            <td>Execução do contrato; obrigações fiscais e contabilísticas (al. c)</td></tr>
-        <tr><td>Pedidos de preço para vários locais: email e número de locais</td>
-            <td>Responder ao pedido e preparar uma proposta</td>
-            <td>Diligências pré-contratuais a pedido do titular dos dados (al. b)</td></tr>
-        <tr><td>Comunicações de suporte</td>
-            <td>Responder a dúvidas e resolver incidentes</td>
-            <td>Execução do contrato; interesse legítimo num bom serviço (al. f)</td></tr>
-        <tr><td>Dados técnicos: endereço IP, data e hora, páginas pedidas, cookie de sessão</td>
-            <td>Prestar o serviço com segurança, prevenir abusos e corrigir erros</td>
-            <td>Interesse legítimo na segurança do serviço (al. f)</td></tr>
+        <tr><td>Criar e gerir a conta e os seus locais, e permitir o acesso</td>
+            <td>Execução do contrato (art. 6.º, n.º 1, al. b) RGPD)</td></tr>
+        <tr><td>Emitir as faturas do restaurante e enviar os registos VERI*FACTU à Agência Tributária espanhola em seu
+            nome</td>
+            <td>Execução do contrato; obrigações legais do restaurante (art. 6.º, n.º 1, al. c) RGPD)</td></tr>
+        <tr><td>Cobrar a subscrição e emitir as nossas faturas</td>
+            <td>Execução do contrato; obrigações fiscais e contabilísticas (art. 6.º, n.º 1, al. c) RGPD)</td></tr>
+        <tr><td>Enviar as comunicações próprias do serviço: avisos de segurança, fim do período de teste, faturas,
+            alterações das condições</td>
+            <td>Execução do contrato (art. 6.º, n.º 1, al. b) RGPD)</td></tr>
+        <tr><td>Responder a questões e incidências e melhorar o serviço a partir delas</td>
+            <td>Execução do contrato; interesse legítimo em prestar o melhor serviço possível (art. 6.º, n.º 1, al. f)
+            RGPD)</td></tr>
+        <tr><td>Responder a pedidos de orçamento</td>
+            <td>Diligências pré-contratuais a pedido do titular dos dados (art. 6.º, n.º 1, al. b) RGPD)</td></tr>
+        <tr><td>Enviar ofertas e informação sobre produtos e serviços da Brasatech, se o tiver aceitado</td>
+            <td>Consentimento (art. 6.º, n.º 1, al. a) RGPD e art. 21.1 LSSI-CE), que pode retirar a qualquer
+            momento</td></tr>
+        <tr><td>Proteger o serviço, prevenir abusos e resolver erros</td>
+            <td>Interesse legítimo na segurança do serviço (art. 6.º, n.º 1, al. f) RGPD)</td></tr>
+        <tr><td>Cumprir obrigações legais e tratar ou defender reclamações</td>
+            <td>Obrigação legal (art. 6.º, n.º 1, al. c) RGPD); interesse legítimo (art. 6.º, n.º 1, al. f) RGPD)</td></tr>
         </tbody>
     </table>
-    <p>Não tomamos decisões automatizadas com efeitos jurídicos sobre ninguém nem criamos perfis com fins comerciais. Não
-        vendemos dados pessoais.</p>
+    <p>Não tomamos decisões baseadas exclusivamente em tratamentos automatizados que produzam efeitos jurídicos sobre
+        si ou o afetem de forma significativa.</p>
 
-    <h2>4. Prazos de conservação</h2>
+    <h2>5. Comunicações comerciais</h2>
+    <p>Só lhe enviaremos ofertas da <strong>Brasatech</strong> sobre os seus próprios produtos e serviços, nunca
+        publicidade de terceiros, e só se o tiver aceitado marcando a caixa que lhe oferecemos ao registar-se, que não vem
+        marcada. Guardamos a data e a versão do seu consentimento. Para que lhe sejam úteis, podemos escolhê-las segundo
+        os serviços que tem contratados (por exemplo, o plano ou o número de locais).</p>
+    <p>Pode retirar o seu consentimento, gratuitamente e a qualquer momento, escrevendo para
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> ou através da
+        ligação de cancelamento incluída em cada comunicação. Isso não afeta o serviço.</p>
+    <p>Nunca enviamos ofertas aos clientes dos restaurantes nem usamos para isso os dados que tratamos por conta de um
+        restaurante.</p>
+
+    <h2>6. Dados obrigatórios</h2>
+    <p>Os dados da conta, de cada local e da subscrição são necessários para prestar o serviço e emitir faturas
+        válidas: sem eles não podemos registá-lo nem faturar. Aceitar comunicações comerciais é voluntário.</p>
+
+    <h2>7. Prazos de conservação</h2>
     <ul>
-        <li>Dados da conta e dos locais: enquanto durar o contrato. No fim, o restaurante pode exportar os seus dados
-            durante 30 dias; depois são apagados, exceto o que a lei nos obrigue a conservar.</li>
-        <li>Faturas e documentação contabilística: seis anos (Código Comercial espanhol, art. 30) e, para efeitos fiscais,
-            enquanto puderem ser verificadas (quatro anos segundo a Lei Geral Tributária espanhola).</li>
-        <li>Pedidos de preço sem contratação posterior: um ano.</li>
-        <li>Registos técnicos de segurança: até 90 dias, salvo se forem necessários para investigar um incidente.</li>
+        <li>Dados de conta e dos locais: enquanto durar o contrato. No fim, o restaurante pode exportar os seus dados
+            durante 30 dias; depois são eliminados, salvo o que tenhamos de conservar por lei.</li>
+        <li>Faturas, registos de faturação e documentação contabilística: seis anos (art. 30 do Código de Comercio
+            espanhol) e, para efeitos fiscais, enquanto puderem ser verificados (quatro anos, art. 66 da Ley General
+            Tributaria).</li>
+        <li>Pedidos de orçamento sem contratação posterior: um ano.</li>
+        <li>Comunicações comerciais: até retirar o seu consentimento.</li>
+        <li>Prova das aceitações e do consentimento: enquanto durar o contrato e, depois, enquanto puderem ser exigidas
+            responsabilidades.</li>
+        <li>Registos técnicos de segurança: 30 dias, salvo se forem necessários para investigar um incidente.</li>
     </ul>
+    <p>Decorridos estes prazos, os dados são eliminados ou bloqueados durante o tempo em que possam ser exigidas
+        responsabilidades, como estabelece o art. 32 da LOPDGDD.</p>
 
-    <h2>5. Destinatários e fornecedores</h2>
+    <h2>8. Destinatários</h2>
+    <p>Os dados ficam na Brasatech: só os usamos para os nossos próprios produtos e serviços. Não os vendemos nem os
+        cedemos a outras empresas para fins próprios.</p>
     <p>Usamos fornecedores que tratam dados por nossa conta, com contrato de subcontratação e garantias adequadas:</p>
     <ul>
-        <li><strong>Google Cloud e Firebase</strong> (Google Ireland Ltd.): alojamento da aplicação, da base de dados e
-            dos ficheiros, em centros de dados da União Europeia (Madrid).</li>
-        <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): envio de emails do serviço, como a
+        <li><strong>Google Cloud e Firebase</strong> (Google Ireland Ltd.): a aplicação, a base de dados e os ficheiros
+            estão alojados na região de Madrid; o Firebase Hosting entrega as páginas através da rede da Google, e o
+            Cloud Logging guarda os registos técnicos.</li>
+        <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): envio dos correios do serviço, como a
             criação de palavras-passe.</li>
     </ul>
     <p>Outros destinatários, que atuam por conta própria:</p>
     <ul>
-        <li><strong>Stripe</strong> (Stripe Payments Europe Ltd.): processa os pagamentos da subscrição e, se o restaurante
-            os ativar, os pagamentos dos seus clientes. Os dados do cartão são introduzidos nas páginas da Stripe; nós não
-            os vemos nem os guardamos.</li>
-        <li><strong>Agência Tributária espanhola (AEAT)</strong>: recebe os registos de faturação VERI*FACTU que a lei
-            exige ao restaurante.</li>
-        <li>Autoridades e tribunais, quando uma lei o exija.</li>
+        <li><strong>Stripe</strong> (Stripe Payments Europe Ltd.): processa os pagamentos da subscrição e, se o
+            restaurante o ativar, os pagamentos dos seus clientes. Os dados do cartão são introduzidos nas páginas da
+            Stripe.</li>
+        <li><strong>Agência Tributária espanhola</strong> (Agencia Estatal de Administración Tributaria): recebe os
+            registos de faturação VERI*FACTU que a lei exige ao restaurante.</li>
+        <li>Autoridades e tribunais, quando uma lei nos obrigue.</li>
     </ul>
     <p>Os tipos de letra, ícones e bibliotecas das páginas são servidos a partir dos nossos próprios servidores: ao
         visitá-las, o seu navegador não se liga a serviços de terceiros.</p>
 
-    <h2>6. Transferências internacionais</h2>
-    <p>Alojamos os dados na União Europeia. Se algum fornecedor lhes aceder a partir de fora do Espaço Económico Europeu,
-        fá-lo com as garantias do RGPD: decisão de adequação (como o Quadro de Privacidade de Dados UE-EUA) ou cláusulas
-        contratuais-tipo da Comissão Europeia.</p>
+    <h2>9. Transferências internacionais</h2>
+    <p>A aplicação, a base de dados e os ficheiros estão na União Europeia (Madrid). Alguns serviços dos nossos
+        fornecedores podem tratar dados fora do Espaço Económico Europeu: a rede de entrega do Firebase Hosting e os
+        registos técnicos do Cloud Logging (Google), o correio (Microsoft) e os pagamentos (Stripe). Fazem-no com as
+        garantias do RGPD: a decisão de adequação do Quadro de Privacidade de Dados UE-EUA ou as cláusulas contratuais
+        tipo da Comissão Europeia.</p>
 
-    <h2>7. Segurança</h2>
-    <p>Aplicamos medidas técnicas e organizativas adequadas: ligações cifradas, palavras-passe guardadas com resumo
-        irreversível, dados de cada restaurante separados dos restantes, controlo de acesso por funções, cópias de
-        segurança e registo da atividade relevante.</p>
+    <h2>10. Segurança</h2>
+    <p>Aplicamos medidas técnicas e organizativas adequadas: ligações cifradas, palavras-passe guardadas com algoritmos
+        de resumo irreversíveis, dados de cada restaurante separados dos restantes, controlo de acesso por funções,
+        cópias de segurança e registo da atividade relevante.</p>
 
-    <h2>8. Os seus direitos</h2>
-    <p>Pode exercer os direitos de acesso, retificação, apagamento, oposição, limitação do tratamento e portabilidade, e
-        retirar a qualquer momento o consentimento que tenha dado, escrevendo para
-        <a th:href="'mailto:' + ${company.email()}" th:text="${company.email()}">info@brasatech.es</a>. Se não ficar
-        satisfeito, pode apresentar reclamação à Agência Espanhola de Proteção de Dados
-        (<a href="https://www.aepd.es">www.aepd.es</a>) ou à autoridade de controlo do seu país.</p>
-    <p>Se é cliente de um restaurante, contacte primeiro o restaurante: é ele quem decide sobre os seus dados. Ajudá-lo-emos
-        a responder-lhe.</p>
+    <h2>11. Os seus direitos</h2>
+    <p>Pode exercer os direitos de acesso, retificação, apagamento, oposição (também às comunicações comerciais),
+        limitação do tratamento e portabilidade, e retirar a qualquer momento o consentimento que tenha dado, sem que
+        isso afete a licitude do tratamento anterior. Escreva para
+        <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a> indicando que
+        direito exerce. Responderemos no prazo de um mês, prorrogável por mais dois meses em casos complexos; só lhe
+        pediremos que comprove a sua identidade se tivermos dúvidas razoáveis.</p>
+    <p>Se não ficar satisfeito, pode apresentar reclamação à Agência Espanhola de Proteção de Dados
+        (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+    <p>Se for cliente de um restaurante, dirija-se primeiro ao restaurante: é ele quem decide sobre os seus dados.
+        Ajudá-lo-emos a responder-lhe.</p>
 
-    <h2>9. Alterações</h2>
-    <p>Podemos atualizar esta política. Quando a alteração for relevante, avisaremos no serviço ou por email aos titulares
-        de conta.</p>
+    <h2>12. Menores</h2>
+    <p>O FastBite destina-se a empresas e profissionais. Não recolhemos conscientemente, para fins próprios, dados de
+        menores de 14 anos.</p>
+
+    <h2>13. Alterações</h2>
+    <p>Podemos atualizar esta política. Quando a alteração for relevante, avisaremos no serviço ou por correio os
+        titulares de conta.</p>
 </article>
 
 </body>

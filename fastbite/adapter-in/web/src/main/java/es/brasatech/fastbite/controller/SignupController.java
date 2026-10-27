@@ -1,9 +1,10 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.platform.PlatformLink;
+import es.brasatech.fastbite.application.tenant.SignupConsents;
 import es.brasatech.fastbite.application.tenant.TenantSignupService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,13 +13,24 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
-@RequiredArgsConstructor
 @Slf4j
 public class SignupController {
 
     private final TenantSignupService tenantSignupService;
     private final PasswordEncoder passwordEncoder;
     private final PlatformLink link;
+    private final java.time.Clock clock;
+    /** The version of the legal texts an owner accepts: the date they show (see LegalController). */
+    private final String termsVersion;
+
+    public SignupController(TenantSignupService tenantSignupService, PasswordEncoder passwordEncoder, PlatformLink link,
+            java.time.Clock clock, @Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
+        this.tenantSignupService = tenantSignupService;
+        this.passwordEncoder = passwordEncoder;
+        this.link = link;
+        this.clock = clock;
+        this.termsVersion = termsVersion;
+    }
 
     @GetMapping("/signup")
     public String signup() {
@@ -36,6 +48,8 @@ public class SignupController {
             @RequestParam String password,
             @RequestParam String fullName,
             @RequestParam(defaultValue = "RESTAURANT") String plan,
+            @RequestParam(defaultValue = "false") boolean acceptTerms,
+            @RequestParam(defaultValue = "false") boolean marketing,
             jakarta.servlet.http.HttpServletRequest request,
             Model model) {
         if (link.linkedSandbox()) {
@@ -45,11 +59,15 @@ public class SignupController {
         model.addAttribute("username", username);
         model.addAttribute("fullName", fullName);
         model.addAttribute("plan", plan);
+        model.addAttribute("marketing", marketing);
         try {
+            if (!acceptTerms)
+                throw new IllegalArgumentException("Accept the terms of service and the data processing agreement to create your restaurant.");
             if (password.length() < 10 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
                 throw new IllegalArgumentException("Use a password of at least 10 characters and at most 72 UTF-8 bytes.");
             String encodedPassword = passwordEncoder.encode(password);
-            tenantSignupService.registerTenant(tenantId, username, encodedPassword, fullName, plan);
+            tenantSignupService.registerTenant(tenantId, username, encodedPassword, fullName, plan,
+                    new SignupConsents(termsVersion, marketing, clock.instant()));
             
             String normalizedTenant = es.brasatech.fastbite.application.tenant.TenantRegistrationRules.tenantId(tenantId);
             String subdomainUrl = "/" + normalizedTenant + "/login";

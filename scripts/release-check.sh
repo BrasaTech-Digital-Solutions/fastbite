@@ -185,8 +185,12 @@ SIGNUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/signup"
   --data-urlencode "tenantId=$T" \
   --data-urlencode "username=${T}owner" \
   --data-urlencode "password=$PASS" \
-  --data-urlencode "fullName=Release Owner")
+  --data-urlencode "fullName=Release Owner" \
+  --data-urlencode "acceptTerms=true")
 record "$SIGNUP_CODE" 200 "POST $P/signup"
+TERMS_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${T}owner' and document='terms' and version <> ''" 2>/dev/null | tr -d '\r')
+[[ "$TERMS_ROWS" == "1" ]] && TERMS_OK=1 || TERMS_OK=0
+record_match "$TERMS_OK" "signup recorded the owner's acceptance of the terms, with its date and version"
 
 LOGIN_HTML=$(curl -s -c "$J" -b "$J" "$P/login")
 TOKEN=$(echo "$LOGIN_HTML" | csrf)
@@ -792,7 +796,7 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
 done
 
 # The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

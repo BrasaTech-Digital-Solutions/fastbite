@@ -12,19 +12,20 @@ class VerifactuDeclarationTest {
 
     @Test
     void itStaysADraftWhileAnyDetailIsMissingEvenIfMarkedSigned() {
-        var declaration = new VerifactuDeclaration(system(""), "", "Madrid", "", true);
+        var declaration = new VerifactuDeclaration(system(""), "", "Madrid", "", "", true);
 
         assertThat(declaration.signed()).isFalse();
         assertThat(declaration.missing()).containsExactly("fastbite.verifactu.producer-nif",
-                "fastbite.verifactu.producer-address", "fastbite.verifactu.declaration-date");
+                "fastbite.verifactu.producer-address", "fastbite.verifactu.declaration-date",
+                "fastbite.verifactu.declaration-signatory");
     }
 
     @Test
     void itIsSignedOnlyWhenCompleteAndMarkedSigned() {
         var complete = new VerifactuDeclaration(system("B12345674"), "Calle Mayor 1, 28013 Madrid", "Madrid",
-                "15 de noviembre de 2026", true);
+                "15 de noviembre de 2026", "Ana García, administradora única", true);
         var notYetSigned = new VerifactuDeclaration(system("B12345674"), "Calle Mayor 1, 28013 Madrid", "Madrid",
-                "15 de noviembre de 2026", false);
+                "15 de noviembre de 2026", "Ana García, administradora única", false);
 
         assertThat(complete.signed()).isTrue();
         assertThat(notYetSigned.signed()).isFalse();

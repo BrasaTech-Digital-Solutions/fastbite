@@ -46,11 +46,13 @@ public class LegalController {
     /**
      * Brasatech as the provider of FastBite.
      *
-     * @param registry the Mercantile Registry entry; blank until it is configured
-     * @param updated  when the texts were last changed, as shown on every page
+     * @param privacyEmail where people write about their personal data
+     * @param registry     the Mercantile Registry entry; blank until it is configured
+     * @param updated      when the texts were last changed, as shown on every page; it is also the version an owner
+     *                     accepts at signup
      */
-    public record Company(String name, String taxId, String address, String email, String registry, String website,
-            String updated) {
+    public record Company(String name, String taxId, String address, String email, String privacyEmail, String registry,
+            String website, String updated) {
     }
 
     /** A link to one of the legal pages, titled in the page's language. */
@@ -67,16 +69,17 @@ public class LegalController {
     private final Plans plans;
 
     public LegalController(FiscalProfileService restaurants, SessionCookie sessionCookie,
-            @Value("${fastbite.legal.company-name:BRASATECH DIGITAL SOLUTIONS S.L.}") String name,
+            @Value("${fastbite.legal.company-name:BRASATECH DIGITAL SOLUTIONS, S.L.U.}") String name,
             @Value("${fastbite.legal.tax-id:B09767898}") String taxId,
-            @Value("${fastbite.legal.address:Calle Ganaderos, 24, 03130 Santa Pola (Alicante), España}") String address,
+            @Value("${fastbite.legal.address:Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España}") String address,
             @Value("${fastbite.legal.email:info@brasatech.es}") String email,
-            @Value("${fastbite.legal.registry:}") String registry,
+            @Value("${fastbite.legal.privacy-email:privacidad@brasatech.es}") String privacyEmail,
+            @Value("${fastbite.legal.registry:Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª}") String registry,
             @Value("${fastbite.legal.website:https://fastbite.brasatech.es}") String website,
-            @Value("${fastbite.legal.updated:16/10/2026}") String updated) {
+            @Value("${fastbite.legal.updated:27/10/2026}") String updated) {
         this.restaurants = restaurants;
         this.sessionCookie = sessionCookie;
-        this.company = new Company(name, taxId, address, email, registry, website, updated);
+        this.company = new Company(name, taxId, address, email, privacyEmail, registry, website, updated);
         this.plans = new Plans(euros(BigDecimal.valueOf(SubscriptionPlan.MONTHLY_CENTS, 2)), SubscriptionPlan.TRIAL_DAYS,
                 euros(BigDecimal.valueOf(SubscriptionPlan.FREE_PLAN_APPLICATION_FEE_BPS, 2)));
     }

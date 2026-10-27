@@ -9,6 +9,7 @@ public class TenantSignupService {
     private final TenantRegistrationPort registration;
     private final TenantLifecyclePort lifecycle;
     private final NewLocationListener listener;
+    private final LegalAcceptancePort acceptances;
 
     public TenantSignupService(TenantProvisionerPort provisioner, TenantRegistrationPort registration,
             TenantLifecyclePort lifecycle) {
@@ -18,16 +19,24 @@ public class TenantSignupService {
     /** @param listener told of every location created, for example to set it up in the sandbox */
     @Autowired
     public TenantSignupService(TenantProvisionerPort provisioner, TenantRegistrationPort registration,
-            TenantLifecyclePort lifecycle, java.util.Optional<NewLocationListener> listener) {
-        this(provisioner, registration, lifecycle, listener.orElse(NewLocationListener.NONE));
+            TenantLifecyclePort lifecycle, java.util.Optional<NewLocationListener> listener,
+            java.util.Optional<LegalAcceptancePort> acceptances) {
+        this(provisioner, registration, lifecycle, listener.orElse(NewLocationListener.NONE),
+                acceptances.orElse(LegalAcceptancePort.NONE));
     }
 
     public TenantSignupService(TenantProvisionerPort provisioner, TenantRegistrationPort registration,
             TenantLifecyclePort lifecycle, NewLocationListener listener) {
+        this(provisioner, registration, lifecycle, listener, LegalAcceptancePort.NONE);
+    }
+
+    public TenantSignupService(TenantProvisionerPort provisioner, TenantRegistrationPort registration,
+            TenantLifecyclePort lifecycle, NewLocationListener listener, LegalAcceptancePort acceptances) {
         this.provisioner = provisioner;
         this.registration = registration;
         this.lifecycle = lifecycle;
         this.listener = listener;
+        this.acceptances = acceptances;
     }
 
     public void registerTenant(String tenantId, String username, String encodedPassword, String fullName) {
@@ -35,6 +44,15 @@ public class TenantSignupService {
     }
 
     public void registerTenant(String tenantId, String username, String encodedPassword, String fullName, String plan) {
+        registerTenant(tenantId, username, encodedPassword, fullName, plan, null);
+    }
+
+    /**
+     * Creates the owner and their first location. What they accepted is recorded in the same step as the owner,
+     * so an owner never exists without the proof of their acceptance.
+     */
+    public void registerTenant(String tenantId, String username, String encodedPassword, String fullName, String plan,
+            SignupConsents consents) {
         String tenant = TenantRegistrationRules.tenantId(tenantId);
         TenantRegistrationRules.owner(username);
         TenantRegistrationRules.plan(plan);
@@ -46,6 +64,12 @@ public class TenantSignupService {
         lifecycle.register(tenant, "signup:" + tenant, username, TenantLifecyclePort.State.ACTIVE, () -> {
             provisioner.provisionTenant(tenant);
             registration.createOwner(tenant, username, encodedPassword, fullName, plan);
+            if (consents != null) {
+                acceptances.record(username, LegalAcceptancePort.TERMS, consents.termsVersion(), consents.at());
+                if (consents.marketing()) {
+                    acceptances.record(username, LegalAcceptancePort.MARKETING, consents.termsVersion(), consents.at());
+                }
+            }
         });
         listener.locationCreated(tenant, username, plan);
     }
