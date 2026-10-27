@@ -14,8 +14,27 @@ public interface LegalAcceptancePort {
     /** Consent to receive Brasatech's offers by email (opt-in, LSSI-CE art. 21.1). */
     String MARKETING = "marketing";
 
-    LegalAcceptancePort NONE = (username, document, version, acceptedAt) -> { };
+    LegalAcceptancePort NONE = new LegalAcceptancePort() {
+        @Override
+        public void record(String username, String document, String version, Instant acceptedAt) {
+        }
 
-    /** Records that this owner accepted this version of the document, unless it is already recorded. */
+        @Override
+        public void withdraw(String username, String document, Instant withdrawnAt) {
+        }
+
+        @Override
+        public boolean mayReceiveOffers(String username) {
+            return false;
+        }
+    };
+
+    /** Records that this owner accepted this version of the document, unless an active acceptance is already recorded. */
     void record(String username, String document, String version, Instant acceptedAt);
+
+    /** Records the withdrawal of an active consent without deleting the prior acceptance record. */
+    void withdraw(String username, String document, Instant withdrawnAt);
+
+    /** True only when the owner has an active (unwithdrawn) marketing consent on record. */
+    boolean mayReceiveOffers(String username);
 }

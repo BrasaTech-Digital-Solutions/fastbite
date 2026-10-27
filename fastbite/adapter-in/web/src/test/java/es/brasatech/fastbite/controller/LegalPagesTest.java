@@ -36,12 +36,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** FastBite's legal pages in its three languages, and each restaurant's privacy notice for its guests. */
 @WebMvcTest(controllers = LegalController.class)
 @ContextConfiguration(classes = {TestConfig.class, LegalController.class, EnvironmentAdvice.class, SecurityConfig.class,
-        TenantRoutingResolver.class, WebConfig.class})
+        TenantRoutingResolver.class, WebConfig.class,
+        es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink.class})
+@org.springframework.test.context.TestPropertySource(properties = "fastbite.jobs.secret=test-jobs-secret-at-least-32-characters-long")
 class LegalPagesTest {
 
     @Autowired MockMvc mockMvc;
+    @Autowired es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink unsubscribeLinks;
     @MockitoBean FiscalProfileService restaurants;
     @MockitoBean TenantLocationService tenantLocationService;
+    @MockitoBean es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances;
 
     @BeforeEach
     void setUp() {
@@ -174,5 +178,70 @@ class LegalPagesTest {
     void legalAndPrivacyCannotBeRestaurantAddresses() {
         assertThatThrownBy(() -> TenantRegistrationRules.tenantId("legal")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> TenantRegistrationRules.tenantId("privacy")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void badOrMissingUnsubscribeTokenReturns400AndTouchesNoDatabase() throws Exception {
+        mockMvc.perform(get("/legal/unsubscribe"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("privacidad@brasatech.es")));
+
+        mockMvc.perform(get("/legal/unsubscribe").param("token", "forged.token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("privacidad@brasatech.es")));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/legal/unsubscribe")
+                        .param("token", "forged.token"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(acceptances);
+    }
+
+    @Test
+    void validUnsubscribeTokenShowsConfirmationOnGetAndWithdrawsOnlyOnPostIncludingRfc8058OneClick() throws Exception {
+        String token = unsubscribeLinks.issueToken("optinowner").orElseThrow();
+
+        // GET shows confirmation button and does NOT withdraw (protecting against mail scanner prefetch)
+        mockMvc.perform(get("/legal/unsubscribe").param("token", token).param("lang", "es"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Retirar consentimiento")));
+        org.mockito.Mockito.verifyNoInteractions(acceptances);
+
+        // Browser form POST withdraws consent
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/legal/unsubscribe")
+                        .param("token", token)
+                        .param("lang", "en"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Consent withdrawn")));
+        org.mockito.Mockito.verify(acceptances).withdraw(
+                org.mockito.ArgumentMatchers.eq("optinowner"),
+                org.mockito.ArgumentMatchers.eq(es.brasatech.fastbite.application.tenant.LegalAcceptancePort.MARKETING),
+                org.mockito.ArgumentMatchers.any());
+
+        // RFC 8058 One-Click POST (List-Unsubscribe=One-Click without CSRF cookie) also withdraws
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/legal/unsubscribe")
+                        .queryParam("token", token)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                        .content("List-Unsubscribe=One-Click"))
+                .andExpect(status().isOk());
+        org.mockito.Mockito.verify(acceptances, org.mockito.Mockito.times(2)).withdraw(
+                org.mockito.ArgumentMatchers.eq("optinowner"),
+                org.mockito.ArgumentMatchers.eq(es.brasatech.fastbite.application.tenant.LegalAcceptancePort.MARKETING),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void validTokenForUnknownUsernameReturns200WithSameConfirmationPage() throws Exception {
+        String unknownToken = unsubscribeLinks.issueToken("unknown-account").orElseThrow();
+
+        mockMvc.perform(get("/legal/unsubscribe").param("token", unknownToken).param("lang", "es"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Retirar consentimiento")));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/legal/unsubscribe")
+                        .param("token", unknownToken)
+                        .param("lang", "es"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Consentimiento retirado")));
     }
 }

@@ -35,13 +35,16 @@ public class LegalController {
     static final Map<String, Map<String, String>> TITLES = Map.of(
             "es", Map.of("notice", "Aviso legal", "privacy", "Política de privacidad", "cookies", "Política de cookies",
                     "terms", "Condiciones del servicio", "data-processing", "Contrato de encargo del tratamiento",
-                    "guests", "Información de privacidad para clientes"),
+                    "guests", "Información de privacidad para clientes",
+                    "unsubscribe", "Comunicaciones comerciales"),
             "en", Map.of("notice", "Legal notice", "privacy", "Privacy policy", "cookies", "Cookie policy",
                     "terms", "Terms of service", "data-processing", "Data processing agreement",
-                    "guests", "Privacy notice for guests"),
+                    "guests", "Privacy notice for guests",
+                    "unsubscribe", "Commercial communications"),
             "pt", Map.of("notice", "Aviso legal", "privacy", "Política de privacidade", "cookies", "Política de cookies",
                     "terms", "Termos de serviço", "data-processing", "Contrato de subcontratação de tratamento de dados",
-                    "guests", "Aviso de privacidade para clientes"));
+                    "guests", "Aviso de privacidade para clientes",
+                    "unsubscribe", "Comunicações comerciais"));
 
     /**
      * Brasatech as the provider of FastBite.
@@ -65,10 +68,16 @@ public class LegalController {
 
     private final FiscalProfileService restaurants;
     private final SessionCookie sessionCookie;
+    private final es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances;
+    private final es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink unsubscribeLinks;
+    private final java.time.Clock clock;
     private final Company company;
     private final Plans plans;
 
     public LegalController(FiscalProfileService restaurants, SessionCookie sessionCookie,
+            es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances,
+            es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink unsubscribeLinks,
+            java.time.Clock clock,
             @Value("${fastbite.legal.company-name:BRASATECH DIGITAL SOLUTIONS, S.L.U.}") String name,
             @Value("${fastbite.legal.tax-id:B09767898}") String taxId,
             @Value("${fastbite.legal.address:Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España}") String address,
@@ -77,11 +86,46 @@ public class LegalController {
             @Value("${fastbite.legal.registry:Registro Mercantil de Alicante, tomo 4454, folio 21, sección 8.ª, hoja A-178766, inscripción 1.ª}") String registry,
             @Value("${fastbite.legal.website:https://fastbite.brasatech.es}") String website,
             @Value("${fastbite.legal.updated:27/10/2026}") String updated) {
-        this.restaurants = restaurants;
-        this.sessionCookie = sessionCookie;
+        this.restaurants = java.util.Objects.requireNonNull(restaurants, "restaurants");
+        this.sessionCookie = java.util.Objects.requireNonNull(sessionCookie, "sessionCookie");
+        this.acceptances = java.util.Objects.requireNonNull(acceptances, "acceptances");
+        this.unsubscribeLinks = java.util.Objects.requireNonNull(unsubscribeLinks, "unsubscribeLinks");
+        this.clock = java.util.Objects.requireNonNull(clock, "clock");
         this.company = new Company(name, taxId, address, email, privacyEmail, registry, website, updated);
         this.plans = new Plans(euros(BigDecimal.valueOf(SubscriptionPlan.MONTHLY_CENTS, 2)), SubscriptionPlan.TRIAL_DAYS,
                 euros(BigDecimal.valueOf(SubscriptionPlan.FREE_PLAN_APPLICATION_FEE_BPS, 2)));
+    }
+
+    @GetMapping("/legal/unsubscribe")
+    public String showUnsubscribe(@RequestParam(required = false) String token,
+            @RequestParam(required = false) String lang, Locale locale,
+            jakarta.servlet.http.HttpServletResponse response, Model model) {
+        show("unsubscribe", lang, locale, model);
+        java.util.Optional<String> username = unsubscribeLinks.verify(token);
+        if (username.isEmpty()) {
+            response.setStatus(HttpStatus.BAD_REQUEST.value());
+            model.addAttribute("status", "invalid");
+            return "fastfood/unsubscribe";
+        }
+        model.addAttribute("status", "confirm");
+        model.addAttribute("token", token);
+        return "fastfood/unsubscribe";
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/legal/unsubscribe")
+    public String confirmUnsubscribe(@RequestParam(required = false) String token,
+            @RequestParam(required = false) String lang, Locale locale,
+            jakarta.servlet.http.HttpServletResponse response, Model model) {
+        show("unsubscribe", lang, locale, model);
+        java.util.Optional<String> username = unsubscribeLinks.verify(token);
+        if (username.isEmpty()) {
+            response.setStatus(HttpStatus.BAD_REQUEST.value());
+            model.addAttribute("status", "invalid");
+            return "fastfood/unsubscribe";
+        }
+        acceptances.withdraw(username.get(), es.brasatech.fastbite.application.tenant.LegalAcceptancePort.MARKETING, clock.instant());
+        model.addAttribute("status", "withdrawn");
+        return "fastfood/unsubscribe";
     }
 
     @GetMapping("/legal/{page}")

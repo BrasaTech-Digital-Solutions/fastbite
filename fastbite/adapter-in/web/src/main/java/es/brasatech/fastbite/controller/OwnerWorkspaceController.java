@@ -30,14 +30,22 @@ public class OwnerWorkspaceController {
     private final es.brasatech.fastbite.application.platform.PlatformLink link;
     private final FreePlanLock freePlanLock;
     private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
+    private final LegalAcceptancePort acceptances;
+    private final java.time.Clock clock;
+    private final String termsVersion;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
             MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
             es.brasatech.fastbite.application.platform.PlatformLink link, FreePlanLock freePlanLock,
-            es.brasatech.fastbite.application.platform.PlatformAdmins admins) {
+            es.brasatech.fastbite.application.platform.PlatformAdmins admins,
+            LegalAcceptancePort acceptances, java.time.Clock clock,
+            @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
         this.admins=java.util.Objects.requireNonNull(admins, "admins");
+        this.acceptances=java.util.Objects.requireNonNull(acceptances, "acceptances");
+        this.clock=java.util.Objects.requireNonNull(clock, "clock");
+        this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -50,6 +58,7 @@ public class OwnerWorkspaceController {
         var selected=location==null?(list.isEmpty()?null:list.getFirst()):list.stream().filter(l->l.tenantId().equals(location)).findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("ownerUsername",owner.getName());model.addAttribute("locations",list);
         model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
+        model.addAttribute("marketingConsent",acceptances.mayReceiveOffers(owner.getName()));
         model.addAttribute("selected",selected);model.addAttribute("view",view);model.addAttribute("section",section);
         model.addAttribute("themes",themes.all());
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
@@ -200,6 +209,21 @@ public class OwnerWorkspaceController {
         try(var stream=file.getInputStream()) { return backups.previewBackup(tenant,stream); }
         catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,e.getMessage()); }
     }
+    @es.brasatech.fastbite.config.ProductionOnly
+    @PostMapping("/owner/marketing-consent")
+    public String updateMarketingConsent(@RequestParam(defaultValue="false") boolean marketing,
+            Principal owner, RedirectAttributes flash) {
+        if (owner == null) return "redirect:/login";
+        if (marketing) {
+            acceptances.record(owner.getName(), LegalAcceptancePort.MARKETING, termsVersion, clock.instant());
+            flash.addFlashAttribute("notice", "You have opted in to receive offers from Brasatech by email.");
+        } else {
+            acceptances.withdraw(owner.getName(), LegalAcceptancePort.MARKETING, clock.instant());
+            flash.addFlashAttribute("notice", "Your consent to receive offers from Brasatech has been withdrawn.");
+        }
+        return "redirect:/owner/console?view=settings";
+    }
+
     private void check(Principal owner,String tenant) {
         try { workspace.requireOwner(owner==null?null:owner.getName(),tenant); }
         catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.NOT_FOUND); }

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="${title} + ' · FastBite'">Comunicaciones comerciales · FastBite</title>
+    <link rel="stylesheet" th:href="@{/css/legal.css}">
+</head>
+<body class="legal">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
+<nav class="legal-bar" aria-label="FastBite">
+    <a class="legal-brand" href="/">fastbite</a>
+    <span class="legal-languages">
+        <a th:each="code : ${ {'es', 'en', 'pt'} }"
+           th:href="${token != null ? '/legal/unsubscribe?token=' + token + '&lang=' + code : '/legal/unsubscribe?lang=' + code}"
+           th:text="${#strings.toUpperCase(code)}"
+           th:classappend="${code == language} ? 'current'"
+           th:attr="aria-current=${code == language ? 'true' : null},hreflang=${code}">ES</a>
+    </span>
+</nav>
+<main>
+    <article th:if="${status == 'confirm'}">
+        <h1 th:text="${language == 'en' ? 'Withdraw consent to commercial communications' : language == 'pt' ? 'Retirar consentimento para comunicações comerciais' : 'Retirar el consentimiento para comunicaciones comerciales'}">Retirar el consentimiento para comunicaciones comerciales</h1>
+        <p th:if="${language == 'es'}">Pulse el botón siguiente para dejar de recibir ofertas y comunicaciones comerciales por correo electrónico de <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span></p>
+        <p th:if="${language == 'en'}">Click the button below to stop receiving offers and commercial emails from <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span></p>
+        <p th:if="${language == 'pt'}">Clique no botão abaixo para deixar de receber ofertas e comunicações comerciais por e-mail da <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span></p>
+        <form method="post" th:action="@{/legal/unsubscribe}" style="margin: 1.5rem 0;">
+            <input type="hidden" name="token" th:value="${token}">
+            <input type="hidden" name="lang" th:value="${language}">
+            <button type="submit" th:text="${language == 'en' ? 'Withdraw consent' : language == 'pt' ? 'Retirar consentimento' : 'Retirar consentimiento'}">Retirar consentimiento</button>
+        </form>
+    </article>
+
+    <article th:if="${status == 'withdrawn'}">
+        <h1 th:text="${language == 'en' ? 'Consent withdrawn' : language == 'pt' ? 'Consentimento retirado' : 'Consentimiento retirado'}">Consentimiento retirado</h1>
+        <p th:if="${language == 'es'}">Hemos registrado la retirada de su consentimiento para recibir ofertas por correo electrónico de <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span> También puede gestionar esta preferencia en cualquier momento desde su <a href="/owner/console?view=settings">consola de propietario</a> o escribiendo a <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+        <p th:if="${language == 'en'}">We have recorded the withdrawal of your consent to receive offers by email from <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span> You can also manage this preference at any time from your <a href="/owner/console?view=settings">owner console</a> or by writing to <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+        <p th:if="${language == 'pt'}">Registámos a retirada do seu consentimento para receber ofertas por e-mail da <span th:text="${company.name()}">BRASATECH DIGITAL SOLUTIONS, S.L.U.</span> Também pode gerir esta preferência a qualquer momento a partir da sua <a href="/owner/console?view=settings">consola de proprietário</a> ou escrevendo para <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+    </article>
+
+    <article th:if="${status == 'invalid'}">
+        <h1 th:text="${language == 'en' ? 'Invalid unsubscribe link' : language == 'pt' ? 'Ligação de cancelamento inválida' : 'Enlace de baja no válido'}">Enlace de baja no válido</h1>
+        <p th:if="${language == 'es'}">Este enlace de baja no es válido o está incompleto. Puede retirar su consentimiento para comunicaciones comerciales en cualquier momento desde su <a href="/owner/console?view=settings">consola de propietario</a> o escribiendo a <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+        <p th:if="${language == 'en'}">This unsubscribe link is invalid or incomplete. You can withdraw your consent to commercial communications at any time from your <a href="/owner/console?view=settings">owner console</a> or by writing to <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+        <p th:if="${language == 'pt'}">Esta ligação de cancelamento não é válida ou está incompleta. Pode retirar o seu consentimento para comunicações comerciais a qualquer momento a partir da sua <a href="/owner/console?view=settings">consola de proprietário</a> ou escrevendo para <a th:href="'mailto:' + ${company.privacyEmail()}" th:text="${company.privacyEmail()}">privacidad@brasatech.es</a>.</p>
+    </article>
+
+    <nav class="legal-pages" aria-label="FastBite">
+        <a th:each="link : ${navigation}" th:href="@{/legal/{p}(p=${link.page()},lang=${language})}" th:text="${link.title()}">Aviso legal</a>
+        <a href="/verifactu/declaracion-responsable"
+           th:text="${language == 'en' ? 'VERI*FACTU declaration' : language == 'pt' ? 'Declaração responsável VERI*FACTU' : 'Declaración responsable VERI*FACTU'}">Declaración responsable VERI*FACTU</a>
+    </nav>
+</main>
+</body>
+</html>
