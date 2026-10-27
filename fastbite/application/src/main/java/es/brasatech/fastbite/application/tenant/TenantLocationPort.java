@@ -16,6 +16,9 @@ public interface TenantLocationPort {
     void updateStripeCapabilities(String stripeAccountId, boolean chargesEnabled, boolean detailsSubmitted);
     void save(TenantLocation location);
     void delete(String tenantId);
+    default boolean isClosed(String tenantId) {
+        return false;
+    }
 
     /**
      * Map from owner username to the count of every location that owner has ever created

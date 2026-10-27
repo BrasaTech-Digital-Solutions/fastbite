@@ -41,6 +41,8 @@
 </dl>
 <p class="fine" th:if="${billing.status == 'FREE' || billing.status == 'free'}">You can take unlimited orders on the Free Plan. Upgrade to Restaurant Pro at any time to remove the 2.5% platform fee.</p>
 <p class="fine" th:unless="${billing.status == 'FREE' || billing.status == 'free'}">If your trial or subscription ends, new orders pause. Existing orders, owner access and data export remain available.</p>
+<p class="fine" th:if="${billing.closed}">This location’s contract has ended and its operational data has been deleted. <a th:href="@{/owner/console(location=${billing.tenantId})}">View and download fiscal records &amp; tickets →</a></p>
+<th:block th:unless="${billing.closed}">
 <div th:unless="${billingConfigured}" class="alert error">Subscription checkout is not configured yet. Contact the platform operator before your trial ends.</div>
 <div class="billing-actions">
 <form th:if="${billing.subscriptionId == null || billing.status == 'canceled' || billing.status == 'incomplete_expired'}" th:action="@{/owner/billing/{tenant}/checkout(tenant=${billing.tenantId})}" method="post">
@@ -54,8 +56,9 @@
 </form>
 </div>
 <p class="form-note">Activating a subscription starts paid billing immediately and ends your free trial. Stripe shows your total, applicable taxes and any approved promotion before you confirm. Payment-processing fees for customer orders are separate.</p>
+</th:block>
 </section>
-<details class="panel disclosure" style="margin-top: 1.5rem;"><summary>Change plan</summary>
+<details class="panel disclosure" style="margin-top: 1.5rem;" th:unless="${billing.closed}"><summary>Change plan</summary>
 <form class="compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post" style="margin-top: 1rem; max-width: 320px;">
 <label for="select-plan">Switch location plan</label>
 <select id="select-plan" name="plan">

@@ -68,7 +68,7 @@ public class SandboxEntryService {
         if (!locations.isOwnerOf(owner, tenantId)) {
             throw new IllegalArgumentException("Location " + tenantId + " is not yours");
         }
-        if (!subscriptions.canTakeOrders(tenantId) && !subscriptions.isFreePlan(tenantId)) {
+        if (subscriptions.isClosed(tenantId) || (!subscriptions.canTakeOrders(tenantId) && !subscriptions.isFreePlan(tenantId))) {
             return new Entry(State.SUBSCRIPTION_ENDED, null);
         }
         if (!provisioning.ensure(tenantId, owner)) {

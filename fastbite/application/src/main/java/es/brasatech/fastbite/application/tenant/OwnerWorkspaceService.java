@@ -143,6 +143,30 @@ public class OwnerWorkspaceService {
         return inTenant(tenant, () -> verifactu.chain(training));
     }
 
+    /** Every ticket ever issued by the location, oldest first, for the owner to inspect and download. */
+    public List<es.brasatech.fastbite.domain.fiscal.FiscalTicket> fiscalTickets(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, tickets::findAll);
+    }
+
+    /** A single issued ticket of the location, for the owner to inspect or print. */
+    public Optional<es.brasatech.fastbite.domain.fiscal.FiscalTicket> fiscalTicket(String owner, String tenant, String ticketId) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> tickets.findById(ticketId));
+    }
+
+    /** Cancellation of a ticket, if it was cancelled. */
+    public Optional<es.brasatech.fastbite.domain.fiscal.TicketCancellation> ticketCancellation(String owner, String tenant, String ticketId) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> tickets.findCancellation(ticketId));
+    }
+
+    /** VERI*FACTU record of a ticket, if any. */
+    public Optional<VerifactuRecord> verifactuRecordForTicket(String owner, String tenant, String ticketId) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, () -> verifactu.findForTicket(ticketId));
+    }
+
     /**
      * Sends a refused billing record again as a subsanación, with the location's legal name as it
      * is now, so a name corrected in the business details is the one sent.

@@ -163,6 +163,14 @@ public class FiscalTicketRepositoryJpa implements FiscalTicketRepository {
 
     @Override
     @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
+    public List<FiscalTicket> findAll() {
+        return entityManager.createQuery("select t from FiscalTicket t order by t.issuedLocal, t.series, t.number",
+                        FiscalTicketEntity.class)
+                .getResultStream().map(this::toTicket).toList();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
     public boolean anyRealTicket() {
         return !entityManager.createQuery("select t.id from FiscalTicket t where t.training = false", String.class)
                 .setMaxResults(1).getResultList().isEmpty();

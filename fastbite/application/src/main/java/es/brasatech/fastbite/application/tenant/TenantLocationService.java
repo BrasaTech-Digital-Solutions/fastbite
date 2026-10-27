@@ -91,6 +91,11 @@ public class TenantLocationService {
                 .orElse(false);
     }
 
+    public boolean isClosed(String tenantId) {
+        if (tenantId == null || tenantId.trim().isEmpty()) return false;
+        return tenantLocationPort.isClosed(tenantId.trim());
+    }
+
     public Optional<TenantLocation> getLocationByStripeAccount(String stripeAccountId) {
         if (stripeAccountId == null || stripeAccountId.trim().isEmpty()) return Optional.empty();
         return tenantLocationPort.findByStripeAccountId(stripeAccountId.trim());

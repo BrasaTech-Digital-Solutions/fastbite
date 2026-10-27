@@ -68,29 +68,37 @@ public class OwnerWorkspaceController {
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
         model.addAttribute("demoTemplates",backups.getAvailableTemplates(locale!=null?locale:Locale.getDefault()));
         if(selected!=null) {
-            model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
-            model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
-            var setup=workspace.summary(owner.getName(),selected.tenantId());
-            model.addAttribute("setup",setup);
-            if(view.equals("location-settings") && section.equals("general")) {
-                model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
-            }
-            if(section.equals("legal")) {
-                addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
-                model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
-                model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
-                model.addAttribute("activePrivacyNotice",privacyNotices.findActive(selected.tenantId()).orElse(null));
-                model.addAttribute("privacyNoticeHistory",privacyNotices.history(selected.tenantId()));
-            }
             var billing=subscriptions.account(selected.tenantId(),owner.getName());
             model.addAttribute("billing",billing);
-            boolean freePlanLocked=freePlanLock.locked(selected.tenantId());
-            model.addAttribute("freePlanLocked",freePlanLocked);
-            model.addAttribute("freePlanPaymentsMissing",freePlanLocked && !selected.isStripeVerified());
-            if(view.equals("team")) {
-                model.addAttribute("users",staff.listStaff(owner.getName(),selected.tenantId()).stream().filter(u->!u.isOwner()).toList());
-                model.addAttribute("tenantId",selected.tenantId());
-                model.addAttribute("roles",Arrays.stream(Role.values()).filter(r->r!=Role.OWNER).toList());
+            boolean locationClosed=(billing!=null && billing.isClosed()) || selected.isClosed() || subscriptions.isClosed(selected.tenantId()) || locations.isClosed(selected.tenantId());
+            model.addAttribute("locationClosed",locationClosed);
+            if(locationClosed) {
+                model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
+                model.addAttribute("closedTickets",workspace.fiscalTickets(owner.getName(),selected.tenantId()));
+                model.addAttribute("fiscal",workspace.fiscalProfile(owner.getName(),selected.tenantId()));
+            } else {
+                model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
+                model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
+                var setup=workspace.summary(owner.getName(),selected.tenantId());
+                model.addAttribute("setup",setup);
+                if(view.equals("location-settings") && section.equals("general")) {
+                    model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
+                }
+                if(section.equals("legal")) {
+                    addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
+                    model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
+                    model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
+                    model.addAttribute("activePrivacyNotice",privacyNotices.findActive(selected.tenantId()).orElse(null));
+                    model.addAttribute("privacyNoticeHistory",privacyNotices.history(selected.tenantId()));
+                }
+                boolean freePlanLocked=freePlanLock.locked(selected.tenantId());
+                model.addAttribute("freePlanLocked",freePlanLocked);
+                model.addAttribute("freePlanPaymentsMissing",freePlanLocked && !selected.isStripeVerified());
+                if(view.equals("team")) {
+                    model.addAttribute("users",staff.listStaff(owner.getName(),selected.tenantId()).stream().filter(u->!u.isOwner()).toList());
+                    model.addAttribute("tenantId",selected.tenantId());
+                    model.addAttribute("roles",Arrays.stream(Role.values()).filter(r->r!=Role.OWNER).toList());
+                }
             }
         }
         return "fastfood/owner/console";
@@ -100,7 +108,7 @@ public class OwnerWorkspaceController {
             @RequestParam(required=false) String template,
             @RequestParam(required=false) String theme,
             Principal owner, RedirectAttributes flash) {
-        check(owner,tenant);
+        checkOpen(owner,tenant);
         if("adopt".equals(action) && template != null && !template.isBlank()) {
             if(link.linkedProduction()) {
                 // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
@@ -124,7 +132,7 @@ public class OwnerWorkspaceController {
     }
     @PostMapping("/owner/workspace/{tenant}/cash-float")
     public String cashFloat(@PathVariable String tenant,@RequestParam(defaultValue="") String cashFloat,Principal owner,RedirectAttributes flash) {
-        check(owner,tenant);
+        checkOpen(owner,tenant);
         try {
             workspace.saveCashFloat(owner.getName(),tenant,new BigDecimal(cashFloat.strip().replace(',','.')));
             flash.addFlashAttribute("notice","Starting cash saved. The counter offers it when the cash is checked.");
@@ -138,7 +146,7 @@ public class OwnerWorkspaceController {
     @PostMapping("/owner/workspace/{tenant}/service")
     public String service(@PathVariable String tenant,@RequestParam(defaultValue="false") boolean dineIn,@RequestParam(defaultValue="false") boolean takeaway,
             @RequestParam(defaultValue="0") int yellow,@RequestParam(defaultValue="0") int red,@RequestParam(defaultValue="false") boolean tableQrTrusted,Principal owner,RedirectAttributes flash) {
-        check(owner,tenant);
+        checkOpen(owner,tenant);
         try { workspace.saveService(owner.getName(),tenant,dineIn,takeaway,yellow,red,tableQrTrusted);flash.addFlashAttribute("notice","Service preferences saved. Your setup progress has been updated."); }
         catch(IllegalArgumentException e) { flash.addFlashAttribute("error",e.getMessage()); }
         return "redirect:/owner/console?view=location-settings&location="+tenant;
@@ -163,7 +171,7 @@ public class OwnerWorkspaceController {
     @PostMapping("/owner/workspace/{tenant}/legal")
     public String legal(@PathVariable String tenant, @RequestParam Map<String, String> form, Principal owner,
             RedirectAttributes flash, Locale locale) {
-        check(owner, tenant);
+        checkOpen(owner, tenant);
         BigDecimal rate;
         try { rate = new BigDecimal(form.getOrDefault("defaultVatRate", "")); }
         catch (NumberFormatException e) { rate = VatRates.DEFAULT; }
@@ -195,11 +203,41 @@ public class OwnerWorkspaceController {
                 .body(workspace.verifactuRecords(owner.getName(), tenant, environment.sandbox()));
     }
 
+    /**
+     * Every issued ticket and invoice of the location as JSON, oldest first, so the owner can
+     * consult and download all fiscal invoices even after a location's contract has ended.
+     */
+    @GetMapping("/owner/workspace/{tenant}/tickets.json")
+    public org.springframework.http.ResponseEntity<List<es.brasatech.fastbite.domain.fiscal.FiscalTicket>> fiscalTicketsJson(
+            @PathVariable String tenant, Principal owner) {
+        check(owner, tenant);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"tickets-" + tenant + ".json\"")
+                .body(workspace.fiscalTickets(owner.getName(), tenant));
+    }
+
+    /** Printable view of an issued ticket for the location's owner, including on a closed location. */
+    @GetMapping("/owner/workspace/{tenant}/tickets/{ticketId}")
+    public String fiscalTicketPrint(@PathVariable String tenant, @PathVariable String ticketId, Principal owner, Model model) {
+        check(owner, tenant);
+        var ticket = workspace.fiscalTicket(owner.getName(), tenant, ticketId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        model.addAttribute("ticket", ticket);
+        workspace.ticketCancellation(owner.getName(), tenant, ticket.id())
+                .ifPresent(cancellation -> model.addAttribute("cancellation", cancellation));
+        workspace.verifactuRecordForTicket(owner.getName(), tenant, ticket.id()).ifPresent(record -> {
+            model.addAttribute("verifactu", record);
+            model.addAttribute("qrSvg", es.brasatech.fastbite.service.QrSvg.of(record.qrUrl(), "QR tributario"));
+        });
+        return "fastfood/ticket";
+    }
+
     /** Sends a refused record (or one accepted with errors) again, as a subsanación. */
     @PostMapping("/owner/workspace/{tenant}/verifactu/records/{record}/amend")
     public String amendVerifactuRecord(@PathVariable String tenant, @PathVariable String record, Principal owner,
             RedirectAttributes flash, Locale locale) {
-        check(owner, tenant);
+        checkOpen(owner, tenant);
         try {
             workspace.amendVerifactuRecord(owner.getName(), tenant, record);
             flash.addFlashAttribute("notice", messages.getMessage("owner.verifactu.amended", null, locale));
@@ -211,7 +249,7 @@ public class OwnerWorkspaceController {
 
     @PostMapping("/owner/workspace/{tenant}/backup-preview") @ResponseBody
     public TenantBackupRestorePort.BackupPreview preview(@PathVariable String tenant,@RequestParam MultipartFile file,Principal owner)throws java.io.IOException {
-        check(owner,tenant);
+        checkOpen(owner,tenant);
         try(var stream=file.getInputStream()) { return backups.previewBackup(tenant,stream); }
         catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,e.getMessage()); }
     }
@@ -233,7 +271,7 @@ public class OwnerWorkspaceController {
     @PostMapping("/owner/workspace/{tenant}/privacy-notice")
     public String uploadPrivacyNotice(@PathVariable String tenant, @RequestParam("file") MultipartFile file,
             Principal owner, RedirectAttributes flash) {
-        check(owner, tenant);
+        checkOpen(owner, tenant);
         try {
             byte[] bytes = file != null ? file.getBytes() : new byte[0];
             String originalName = file != null ? file.getOriginalFilename() : "privacy.pdf";
@@ -247,7 +285,7 @@ public class OwnerWorkspaceController {
 
     @PostMapping("/owner/workspace/{tenant}/privacy-notice/generated")
     public String useGeneratedPrivacyNotice(@PathVariable String tenant, Principal owner, RedirectAttributes flash) {
-        check(owner, tenant);
+        checkOpen(owner, tenant);
         privacyNotices.useGeneratedNotice(tenant);
         flash.addFlashAttribute("notice", "Switched back to the generated privacy notice. All previously uploaded PDF versions remain on file.");
         return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
@@ -256,5 +294,12 @@ public class OwnerWorkspaceController {
     private void check(Principal owner,String tenant) {
         try { workspace.requireOwner(owner==null?null:owner.getName(),tenant); }
         catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.NOT_FOUND); }
+    }
+
+    private void checkOpen(Principal owner,String tenant) {
+        check(owner,tenant);
+        if(subscriptions.isClosed(tenant) || locations.isClosed(tenant)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This location is closed.");
+        }
     }
 }

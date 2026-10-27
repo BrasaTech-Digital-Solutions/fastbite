@@ -95,6 +95,10 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
                 String state = rows.getString(3);
                 long updatedAt = rows.getLong(4);
 
+                if ("CLOSED".equals(state)) {
+                    throw new IllegalArgumentException("Restaurant identifier is permanently closed and cannot be reused.");
+                }
+
                 if (!operationId.equals(existingOp) || !owner.equals(existingOwner)) {
                     throw new IllegalArgumentException("Restaurant identifier is already reserved.");
                 }

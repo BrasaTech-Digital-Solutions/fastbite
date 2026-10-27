@@ -33,8 +33,12 @@ public class SubscriptionService {
     public boolean isFreePlan(String tenant) {
         return tenant != null && billing.find(tenant).map(BillingAccount::isFreePlan).orElse(false);
     }
+    public boolean isClosed(String tenant) {
+        return tenant != null && billing.find(tenant).map(BillingAccount::isClosed).orElse(false);
+    }
     public String checkout(String tenant, String owner) {
-        account(tenant, owner);
+        var existing = account(tenant, owner);
+        if (existing.isClosed()) throw new IllegalArgumentException("This location is closed and its contract has ended.");
         if (!gateway.configured()) throw new IllegalArgumentException("Subscription checkout is not available yet. Contact the platform operator.");
         // Commit the attempt BEFORE calling Stripe. A timeout or process crash must not lose its identity.
         billing.updateLocked(tenant, account -> {
@@ -126,7 +130,8 @@ public class SubscriptionService {
         billing.updatePlatformSettings(settings);
     }
     public void updateTenantPlan(String tenantId, String owner, String plan) {
-        account(tenantId, owner);
+        var existing = account(tenantId, owner);
+        if (existing.isClosed()) throw new IllegalArgumentException("This location is closed and its contract has ended.");
         billing.updateTenantPlan(tenantId, plan);
     }
     public java.util.List<BillingAccount> listAllAccounts(String admin) {
@@ -136,7 +141,8 @@ public class SubscriptionService {
     public BillingAccount extendTenantTrial(String tenantId, String admin, int extraDays) {
         if (!admins.isAdmin(admin)) throw new IllegalArgumentException("Only a platform administrator may extend a trial.");
         if (extraDays < 1 || extraDays > 180) throw new IllegalArgumentException("Trial extension must be between 1 and 180 days.");
-        if (billing.find(tenantId).isEmpty()) throw new IllegalArgumentException("Billing is not available for this location.");
+        var existing = billing.find(tenantId).orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
+        if (existing.isClosed()) throw new IllegalArgumentException("This location is closed and its contract has ended.");
         billing.extendTenantTrial(tenantId, extraDays);
         BillingAccount updated = billing.find(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));

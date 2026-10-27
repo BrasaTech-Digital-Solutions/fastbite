@@ -149,6 +149,10 @@ fastbite:
   jobs:
     in-process: ${FASTBITE_JOBS_IN_PROCESS:true}
     secret: ${FASTBITE_JOBS_SECRET:}
+  # Unpaid Restaurant-plan locations: orders pause, then 30 days after the pause notice the contract ends,
+  # and 30 days later non-fiscal data is deleted and the location closes once deletion-enabled is true.
+  contract:
+    deletion-enabled: ${FASTBITE_CONTRACT_DELETION_ENABLED:false}
   # The FastBite version running. Release images bake it in (FASTBITE_VERSION), so the sandbox and
   # production report the same one when they run the same image; production only imports promotion
   # bundles exported by the same version.

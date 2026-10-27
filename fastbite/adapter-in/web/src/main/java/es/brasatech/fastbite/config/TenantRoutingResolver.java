@@ -145,14 +145,21 @@ public class TenantRoutingResolver {
         }
     }
 
-    /** True if a restaurant with this id is registered in this environment. */
+    public void evictTenant(String tenantId) {
+        if (tenantId != null) {
+            knownTenants.remove(tenantId);
+        }
+    }
+
+    /** True if a restaurant with this id is registered and not closed in this environment. */
     public boolean exists(String tenantId) {
         long now = System.currentTimeMillis();
         Long checked = knownTenants.get(tenantId);
         if (checked != null && now - checked < KNOWN_TENANT_TTL_MS) {
             return true;
         }
-        boolean exists = tenantLocationService.getLocation(tenantId).isPresent();
+        boolean exists = tenantLocationService.getLocation(tenantId).filter(loc -> !loc.isClosed()).isPresent()
+                && !tenantLocationService.isClosed(tenantId);
         if (exists) {
             if (knownTenants.size() >= KNOWN_TENANT_LIMIT) knownTenants.clear();
             knownTenants.put(tenantId, now);

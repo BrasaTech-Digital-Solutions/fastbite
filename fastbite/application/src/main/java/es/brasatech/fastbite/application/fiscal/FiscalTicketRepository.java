@@ -31,6 +31,11 @@ public interface FiscalTicketRepository {
     /** Tickets issued in a period, oldest first. */
     List<FiscalTicket> findIssuedBetween(OffsetDateTime from, OffsetDateTime to);
 
+    /** Every ticket ever issued by the restaurant, oldest first. */
+    default List<FiscalTicket> findAll() {
+        return List.of();
+    }
+
     /**
      * Keeps the cancellation of a sale ticket issued by mistake and frees its orders, so they can
      * be charged again. The ticket itself is not changed.

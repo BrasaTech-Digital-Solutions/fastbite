@@ -99,4 +99,63 @@ class BillingJdbcIntegrationTest {
         assertThat(expiredTrial.status()).isEqualTo("LOCAL_TRIAL");
         assertThat(expiredTrial.canTakeOrders(Instant.now(), true)).isFalse();
     }
+
+    @Test void contractLifecycleColumnsOwnerEmailResolutionAndPermanentClosure() {
+        signup.registerTenant("lifecycleloc", "owner@bistro.test", "hash", "Owner");
+        // Group quote email must never be used for contract lifecycle notices
+        billing.requestGroupQuote("owner@bistro.test", "quote-only@bistro.test", 4);
+
+        // 1. Falls back to owner username when it is an email address
+        assertThat(billing.resolveOwnerEmail("lifecycleloc", "owner@bistro.test")).contains("owner@bistro.test");
+
+        // 2. owner_setup_tokens email takes precedence over username
+        jdbc.update("INSERT INTO public.owner_setup_tokens (checkout_id, tenant_id, username, email, user_id, token_hash, expires_at, completed) VALUES ('chk_lc', 'lifecycleloc', 'owner@bistro.test', 'setup@bistro.test', 'u1', NULL, 1000, TRUE)");
+        assertThat(billing.resolveOwnerEmail("lifecycleloc", "owner@bistro.test")).contains("setup@bistro.test");
+
+        // 3. fiscal_profile.email takes first priority
+        jdbc.update("INSERT INTO tenant_lifecycleloc.fiscal_profile (id, legal_name, tax_id, address_line, postal_code, city, province, email, series_prefix, default_vat_rate) VALUES (1, 'Bistro SL', 'B12345678', 'Calle 1', '28001', 'Madrid', 'Madrid', 'fiscal@bistro.test', 'BIS', 10.00)");
+        assertThat(billing.resolveOwnerEmail("lifecycleloc", "owner@bistro.test")).contains("fiscal@bistro.test");
+
+        // 4. Lifecycle timestamps persist and round-trip through updateLocked and findAll
+        Instant t0 = Instant.parse("2026-10-01T10:00:00Z");
+        Instant t1 = Instant.parse("2026-10-01T11:00:00Z");
+        Instant t2 = Instant.parse("2026-10-24T11:00:00Z");
+        Instant t3 = Instant.parse("2026-10-31T11:00:00Z");
+        billing.updateLocked("lifecycleloc", a -> a.withLifecycle(t0, t1, t2, t3, null));
+        var ended = billing.find("lifecycleloc").orElseThrow();
+        assertThat(ended.pausedSince()).isEqualTo(t0);
+        assertThat(ended.pauseNotifiedAt()).isEqualTo(t1);
+        assertThat(ended.warningNotifiedAt()).isEqualTo(t2);
+        assertThat(ended.contractEndedAt()).isEqualTo(t3);
+        assertThat(ended.closedAt()).isNull();
+        assertThat(ended.canTakeOrders(t3, true)).isFalse();
+
+        // 5. Closing location deletes restaurant_settings, releases custom_domain & stripe_account_id,
+        //    marks tenant_lifecycle CLOSED, and permanently blocks tenantId reuse (even by the same owner).
+        jdbc.execute("INSERT INTO tenant_lifecycleloc.restaurant_settings (id, dine_in, takeaway, kds_yellow_minutes, kds_red_minutes) VALUES (1, TRUE, TRUE, 5, 10)");
+        jdbc.update("UPDATE public.tenant_locations SET custom_domain='bistro.example.com', stripe_account_id='acct_bistro', stripe_charges_enabled=TRUE WHERE tenant_id='lifecycleloc'");
+        Instant closingStartedAt = Instant.parse("2026-11-30T10:59:50Z");
+        Instant closedAt = Instant.parse("2026-11-30T11:00:00Z");
+        billing.updateLocked("lifecycleloc", a -> a.withLifecycle(t0, t1, t2, t3, closingStartedAt, null));
+        assertThat(billing.find("lifecycleloc").orElseThrow().closingStartedAt()).isEqualTo(closingStartedAt);
+        billing.closeLocationData("lifecycleloc", closedAt);
+        billing.updateLocked("lifecycleloc", a -> a.withLifecycle(t0, t1, t2, t3, closingStartedAt, closedAt));
+
+        var closed = billing.find("lifecycleloc").orElseThrow();
+        assertThat(closed.isClosed()).isTrue();
+        assertThat(closed.closingStartedAt()).isEqualTo(closingStartedAt);
+        assertThat(closed.displayStatus()).isEqualTo("Closed on 30/11/2026");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_lifecycleloc.restaurant_settings", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT custom_domain FROM public.tenant_locations WHERE tenant_id='lifecycleloc'", String.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT stripe_account_id FROM public.tenant_locations WHERE tenant_id='lifecycleloc'", String.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT state FROM public.tenant_lifecycle WHERE tenant_id='lifecycleloc'", String.class)).isEqualTo("CLOSED");
+        // Fiscal profile remains intact
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_lifecycleloc.fiscal_profile", Integer.class)).isEqualTo(1);
+
+        // Neither another owner nor the same owner can ever reuse the closed tenantId
+        assertThatThrownBy(() -> signup.registerTenant("lifecycleloc", "newowner", "hash", "New Owner"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> signup.registerAdditionalLocation("lifecycleloc", "owner@bistro.test", "RESTAURANT"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

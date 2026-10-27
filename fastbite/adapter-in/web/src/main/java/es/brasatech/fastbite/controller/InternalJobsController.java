@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
 import es.brasatech.fastbite.service.VerifactuSubmissionJob;
@@ -34,12 +35,23 @@ public class InternalJobsController {
             int verifactuSubmitted,
             int verifactuLocationsChecked,
             int verifactuLocationsRemaining,
-            int fiscalIssuersBackfilled) {
+            int fiscalIssuersBackfilled,
+            int contractLifecycleActions) {
+        public JobRunSummary(
+                int sandboxProvisioned,
+                int verifactuSubmitted,
+                int verifactuLocationsChecked,
+                int verifactuLocationsRemaining,
+                int fiscalIssuersBackfilled) {
+            this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
+                    fiscalIssuersBackfilled, 0);
+        }
     }
 
     private final SandboxProvisioningJob sandboxProvisioning;
     private final VerifactuSubmissionJob verifactuSubmission;
     private final FiscalIssuerBackfillJob fiscalIssuerBackfill;
+    private final ContractLifecycleJob contractLifecycle;
     private final String secret;
     private final Clock clock;
 
@@ -47,23 +59,33 @@ public class InternalJobsController {
     public InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
-            @Value("${fastbite.jobs.secret:}") String secret) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, secret, Clock.systemUTC());
-    }
-
-    InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
-            VerifactuSubmissionJob verifactuSubmission,
-            FiscalIssuerBackfillJob fiscalIssuerBackfill,
-            String secret, Clock clock) {
+            ContractLifecycleJob contractLifecycle,
+            @Value("${fastbite.jobs.secret:}") String secret,
+            Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
         this.verifactuSubmission = verifactuSubmission;
         this.fiscalIssuerBackfill = fiscalIssuerBackfill;
+        this.contractLifecycle = contractLifecycle;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
             throw new IllegalStateException("FASTBITE_JOBS_SECRET must have at least " + MIN_SECRET_LENGTH
                     + " characters when set");
         }
+    }
+
+    public InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
+            VerifactuSubmissionJob verifactuSubmission,
+            FiscalIssuerBackfillJob fiscalIssuerBackfill,
+            String secret) {
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, secret, Clock.systemUTC());
+    }
+
+    InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
+            VerifactuSubmissionJob verifactuSubmission,
+            FiscalIssuerBackfillJob fiscalIssuerBackfill,
+            String secret, Clock clock) {
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, secret, clock);
     }
 
     @PostMapping("/internal/jobs/run")
@@ -80,12 +102,14 @@ public class InternalJobsController {
         int provisioned = sandboxProvisioning.run();
         VerifactuSubmissionJob.Summary verifactu = verifactuSubmission.run(deadline);
         int backfilled = fiscalIssuerBackfill.run(deadline);
+        int contractActions = contractLifecycle != null ? contractLifecycle.run(deadline) : 0;
         return ResponseEntity.ok(new JobRunSummary(
                 provisioned,
                 verifactu.submitted(),
                 verifactu.locationsChecked(),
                 verifactu.locationsRemaining(),
-                backfilled));
+                backfilled,
+                contractActions));
     }
 
     private boolean authorized(String header) {

@@ -11,9 +11,9 @@
 <header th:fragment="topbar" class="workspace-topbar">
 <form method="get" action="/owner/console" class="location-switcher" th:if="${!#lists.isEmpty(locations)}">
 <input type="hidden" name="view" th:value="${view=='locations'||view=='settings'?'overview':view}">
-<label for="location-switch">Your location</label><div class="switch-row"><select id="location-switch" name="location"><option th:each="loc:${locations}" th:value="${loc.tenantId}" th:selected="${selected?.tenantId==loc.tenantId}" th:text="${loc.tenantId}"></option></select><button class="quiet-button" type="submit">Open</button></div>
+<label for="location-switch">Your location</label><div class="switch-row"><select id="location-switch" name="location"><option th:each="loc:${locations}" th:value="${loc.tenantId}" th:selected="${selected?.tenantId==loc.tenantId}" th:text="${loc.closed ? loc.tenantId + ' (' + loc.closedLabel() + ')' : loc.tenantId}"></option></select><button class="quiet-button" type="submit">Open</button></div>
 </form><span th:if="${#lists.isEmpty(locations)}">Your business starts here</span>
-<a th:if="${platform != null && platform.practice() && selected != null}" class="quiet-button sandbox-entry" th:href="@{/owner/sandbox(location=${selected.tenantId})}" target="_blank" rel="noopener" title="Learn FastBite and set up your menu without affecting real orders or invoices">Practise in the sandbox ↗</a>
+<a th:if="${platform != null && platform.practice() && selected != null && !selected.closed && (locationClosed == null || !locationClosed)}" class="quiet-button sandbox-entry" th:href="@{/owner/sandbox(location=${selected.tenantId})}" target="_blank" rel="noopener" title="Learn FastBite and set up your menu without affecting real orders or invoices">Practise in the sandbox ↗</a>
 <div class="owner-account"><span th:text="${ownerUsername}">Owner</span><form th:action="@{/logout}" method="post"><button class="quiet-button">Sign out</button></form></div>
 </header>
 </body></html>

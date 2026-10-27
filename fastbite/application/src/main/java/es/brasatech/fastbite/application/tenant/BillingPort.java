@@ -13,4 +13,9 @@ public interface BillingPort {
     void updatePlatformSettings(es.brasatech.fastbite.domain.tenant.PlatformBillingSettings settings);
     void updateTenantPlan(String tenantId, String plan);
     void extendTenantTrial(String tenantId, int extraDays);
+    default java.util.Optional<String> resolveOwnerEmail(String tenantId, String ownerUsername) {
+        return java.util.Optional.empty();
+    }
+    default void closeLocationData(String tenantId, java.time.Instant now) {
+    }
 }

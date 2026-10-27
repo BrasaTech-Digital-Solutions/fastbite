@@ -9,6 +9,7 @@ import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.security.SecurityConfig;
+import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
 import es.brasatech.fastbite.service.VerifactuSubmissionJob;
@@ -57,6 +58,7 @@ class InternalJobsControllerTest {
         @MockitoBean SandboxProvisioningJob sandboxProvisioning;
         @MockitoBean VerifactuSubmissionJob verifactuSubmission;
         @MockitoBean FiscalIssuerBackfillJob fiscalIssuerBackfill;
+        @MockitoBean ContractLifecycleJob contractLifecycle;
         @MockitoBean TenantLocationService tenantLocationService;
 
         @BeforeEach
@@ -74,6 +76,7 @@ class InternalJobsControllerTest {
             when(sandboxProvisioning.run()).thenReturn(2);
             when(verifactuSubmission.run(any())).thenReturn(new VerifactuSubmissionJob.Summary(5, 3, 1));
             when(fiscalIssuerBackfill.run(any())).thenReturn(4);
+            when(contractLifecycle.run(any())).thenReturn(2);
 
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, SECRET))
@@ -82,7 +85,8 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.verifactuSubmitted").value(5))
                     .andExpect(jsonPath("$.verifactuLocationsChecked").value(3))
                     .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1))
-                    .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4));
+                    .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4))
+                    .andExpect(jsonPath("$.contractLifecycleActions").value(2));
         }
 
         @Test

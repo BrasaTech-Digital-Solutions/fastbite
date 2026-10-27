@@ -86,13 +86,19 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     @Override
+    public boolean isClosed(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) return false;
+        return findClosedAt(tenantId.trim()).isPresent();
+    }
+
+    @Override
     public java.util.Map<String, Long> countLocationsEverCreatedByOwner() {
         String sql = """
             SELECT owner_username, COUNT(DISTINCT tenant_id) AS cnt
             FROM (
                 SELECT owner_username, tenant_id FROM public.tenant_locations WHERE owner_username IS NOT NULL
                 UNION
-                SELECT owner_username, tenant_id FROM public.tenant_lifecycle WHERE state = 'ACTIVE' AND owner_username IS NOT NULL
+                SELECT owner_username, tenant_id FROM public.tenant_lifecycle WHERE state IN ('ACTIVE', 'CLOSED') AND owner_username IS NOT NULL
             ) combined
             GROUP BY owner_username
             """;
@@ -103,10 +109,25 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
         return counts;
     }
 
+    private Optional<java.time.Instant> findClosedAt(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) return Optional.empty();
+        try {
+            java.util.List<java.sql.Timestamp> rows = jdbc.query(
+                    "SELECT closed_at FROM public.tenant_billing WHERE LOWER(tenant_id) = LOWER(?) AND closed_at IS NOT NULL",
+                    (rs, rowNum) -> rs.getTimestamp("closed_at"),
+                    tenantId.trim());
+            return rows.isEmpty() || rows.getFirst() == null ? Optional.empty() : Optional.of(rows.getFirst().toInstant());
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
     private TenantLocation toDomain(TenantLocationEntity entity) {
+        java.time.Instant closedAt = findClosedAt(entity.getTenantId()).orElse(null);
         return new TenantLocation(entity.getId(), entity.getOwnerUsername(), entity.getTenantId(), entity.getPlan(),
                 entity.getCustomDomain(), entity.getStripeAccountId(),
                 Boolean.TRUE.equals(entity.getStripeChargesEnabled()),
-                Boolean.TRUE.equals(entity.getStripeDetailsSubmitted()));
+                Boolean.TRUE.equals(entity.getStripeDetailsSubmitted()),
+                closedAt);
     }
 }

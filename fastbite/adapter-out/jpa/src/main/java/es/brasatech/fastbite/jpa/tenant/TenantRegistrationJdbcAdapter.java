@@ -73,6 +73,12 @@ public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
     }
 
     private static boolean sameLocation(Connection connection, String tenant, String owner) throws SQLException {
+        try (var closed = statement(connection, "SELECT closed_at FROM public.tenant_billing WHERE tenant_id = ? AND closed_at IS NOT NULL", tenant);
+             var closedRows = closed.executeQuery()) {
+            if (closedRows.next()) {
+                throw new IllegalArgumentException("Restaurant identifier is permanently closed and cannot be reused.");
+            }
+        }
         try (var query = statement(connection, "SELECT owner_username FROM public.tenant_locations WHERE tenant_id = ?", tenant);
              var rows = query.executeQuery()) {
             if (!rows.next()) return false;
