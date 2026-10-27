@@ -36,8 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = BackOfficeController.class)
-@ContextConfiguration(classes = {TestConfig.class, BackOfficeController.class, SecurityConfig.class,
-        TenantRoutingResolver.class, WebConfig.class})
+@ContextConfiguration(classes = {TestConfig.class, BackOfficeController.class, BadRequestAdvice.class, SecurityConfig.class,
+        TenantRoutingResolver.class, WebConfig.class,
+        es.brasatech.fastbite.application.platform.PlatformEnvironment.class,
+        es.brasatech.fastbite.application.tenant.FreePlanLock.class})
 class RestaurantSettingsEndpointTest {
 
     private static final String SETTINGS = "{\"dineIn\":true,\"takeaway\":false,\"kdsYellowMinutes\":5,\"kdsRedMinutes\":10}";
@@ -102,5 +104,52 @@ class RestaurantSettingsEndpointTest {
                 .andExpect(status().isForbidden());
 
         verify(settingsService, never()).save(any());
+    }
+
+    @Test
+    void aFreePlanLocationCannotTurnTakeawayOffThroughTheBackOffice() throws Exception {
+        when(settingsService.save(new RestaurantSettings(true, false, 5, 10)))
+                .thenThrow(new IllegalArgumentException("The Free Plan requires online takeaway orders to stay enabled."));
+
+        mockMvc.perform(put("/api/backoffice/settings").session(kebabStaff("ROLE_ADMIN")).with(csrf())
+                        .header("Referer", "http://localhost/kebab/backoffice")
+                        .contentType(MediaType.APPLICATION_JSON).content(SETTINGS))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void aFreePlanLocationWithoutDinerPaymentsInProductionGets402WithConnectMessage() throws Exception {
+        var subscriptions = org.mockito.Mockito.mock(es.brasatech.fastbite.application.tenant.SubscriptionService.class);
+        when(subscriptions.canTakeOrders("freecafe")).thenReturn(false);
+        when(subscriptions.isFreePlan("freecafe")).thenReturn(true);
+
+        var env = new org.springframework.mock.env.MockEnvironment();
+        var config = new es.brasatech.fastbite.config.SubscriptionAccessConfig(subscriptions, env);
+        var interceptors = new java.util.ArrayList<org.springframework.web.servlet.HandlerInterceptor>();
+        config.addInterceptors(new org.springframework.web.servlet.config.annotation.InterceptorRegistry() {
+            @Override
+            public org.springframework.web.servlet.config.annotation.InterceptorRegistration addInterceptor(
+                    org.springframework.web.servlet.HandlerInterceptor interceptor) {
+                interceptors.add(interceptor);
+                return super.addInterceptor(interceptor);
+            }
+        });
+
+        var method = new org.springframework.web.method.HandlerMethod(
+                new Object() {
+                    @es.brasatech.fastbite.config.RequiresOrderingSubscription
+                    public void order() {}
+                },
+                "order");
+        var req = new org.springframework.mock.web.MockHttpServletRequest("POST", "/freecafe/api/create-order");
+        var res = new org.springframework.mock.web.MockHttpServletResponse();
+        es.brasatech.fastbite.domain.tenant.TenantContext.setCurrentTenant("freecafe");
+        try {
+            org.junit.jupiter.api.Assertions.assertFalse(interceptors.getFirst().preHandle(req, res, method));
+            org.junit.jupiter.api.Assertions.assertEquals(402, res.getStatus());
+            org.junit.jupiter.api.Assertions.assertTrue(res.getContentAsString().contains("until diner payments are connected"));
+        } finally {
+            es.brasatech.fastbite.domain.tenant.TenantContext.clear();
+        }
     }
 }

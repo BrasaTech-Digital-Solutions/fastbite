@@ -17,6 +17,7 @@
 <h1>Simple, clear billing.</h1>
 <div th:if="${error}" class="alert error" role="alert" th:text="${error}">
 </div>
+<div th:if="${notice}" class="alert success" role="status" th:text="${notice}"></div>
 <div th:if="${param.checkout != null}" class="alert success" role="status">Back from checkout? Use “Refresh status” to check Stripe’s confirmation. Returning here does not itself activate a subscription.</div>
 <section class="billing-card">
 <h2 style="font-size:30px" th:text="${billing.tenantId}">Restaurant</h2>
@@ -54,9 +55,8 @@
 </div>
 <p class="form-note">Activating a subscription starts paid billing immediately and ends your free trial. Stripe shows your total, applicable taxes and any approved promotion before you confirm. Payment-processing fees for customer orders are separate.</p>
 </section>
-<details class="panel disclosure" style="margin-top: 1.5rem;"><summary>Location Plan &amp; Trial Overrides</summary>
-<div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
-<form class="compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post" style="flex: 1; min-width: 240px;">
+<details class="panel disclosure" style="margin-top: 1.5rem;"><summary>Change plan</summary>
+<form class="compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post" style="margin-top: 1rem; max-width: 320px;">
 <label for="select-plan">Switch location plan</label>
 <select id="select-plan" name="plan">
 <option value="FREE" th:selected="${billing.status == 'FREE'}">Free (0€/mo + 2.5% card fee)</option>
@@ -64,12 +64,6 @@
 </select>
 <button class="button secondary" style="margin-top: 0.5rem;">Update plan</button>
 </form>
-<form class="compact-form" th:action="@{/owner/billing/{tenant}/extend-trial(tenant=${billing.tenantId})}" method="post" style="flex: 1; min-width: 240px;">
-<label for="extend-days">Extend trial period</label>
-<input id="extend-days" name="days" type="number" min="1" max="180" value="14" required>
-<button class="button secondary" style="margin-top: 0.5rem;">+ Add trial days</button>
-</form>
-</div>
 </details>
 <p class="fine">Subscriptions are billed separately for each location. For 3+ locations, request volume pricing in Account &amp; billing before you subscribe.</p>
 </main>

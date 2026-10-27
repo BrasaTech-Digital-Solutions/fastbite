@@ -19,12 +19,16 @@ public class SubscriptionAccessConfig implements WebMvcConfigurer {
     @Override public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new HandlerInterceptor() {
             @Override public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+                String tenant = TenantContext.getCurrentTenant();
                 if (handler instanceof HandlerMethod method && method.hasMethodAnnotation(RequiresOrderingSubscription.class)
-                        && !(localDemo && "kebab".equals(TenantContext.getCurrentTenant()))
-                        && !subscriptions.canTakeOrders(TenantContext.getCurrentTenant())) {
+                        && !(localDemo && "kebab".equals(tenant))
+                        && !subscriptions.canTakeOrders(tenant)) {
                     response.setStatus(402);
                     response.setContentType("application/json");
-                    response.getWriter().write("{\"error\":\"New orders are paused. The restaurant owner can renew in Billing.\"}");
+                    String msg = subscriptions.isFreePlan(tenant)
+                            ? "{\"error\":\"New orders are paused on the Free Plan until diner payments are connected in Location settings.\"}"
+                            : "{\"error\":\"New orders are paused. The restaurant owner can renew in Billing.\"}";
+                    response.getWriter().write(msg);
                     return false;
                 }
                 return true;

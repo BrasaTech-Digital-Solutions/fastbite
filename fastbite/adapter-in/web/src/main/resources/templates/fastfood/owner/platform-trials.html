@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Platform trials — FastBite</title>
+<link rel="stylesheet" href="/css/platform.css">
+<link rel="stylesheet" href="/css/workspace.css">
+</head>
+<body class="workspace">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main">Skip to content</a>
+<aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
+<div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
+<main class="workspace-main" id="workspace-main">
+<a class="text-link" href="/owner/console?view=settings">← Account &amp; billing</a>
+<p class="eyebrow">BRASATECH PLATFORM ADMINISTRATION</p>
+<h1>Restaurant trials</h1>
+<p>Extend a production location’s trial period for a pilot or commercial agreement.</p>
+<div th:if="${error}" class="alert error" role="alert" th:text="${error}"></div>
+<div th:if="${notice}" class="alert success" role="status" th:text="${notice}"></div>
+<section class="panel">
+<div class="billing-row" th:each="acc : ${accounts}" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 0.75rem 0;">
+<div>
+<strong th:text="${acc.tenantId}">tenant</strong>
+<span class="fine" th:text="${'Owner: ' + acc.owner}">Owner</span>
+<span class="fine" th:text="${'Status: ' + acc.displayStatus()}">Status</span>
+<span class="fine" th:text="${'Trial ends (UTC): ' + #temporals.format(acc.trialEndsAt(), 'd MMMM yyyy, HH:mm', 'UTC')}">Trial end</span>
+</div>
+<form class="compact-form" th:action="@{/owner/platform/trials/{tenant}/extend(tenant=${acc.tenantId})}" method="post" style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+<label th:for="${'days-' + acc.tenantId}" class="sr-only">Days</label>
+<input th:id="${'days-' + acc.tenantId}" name="days" type="number" min="1" max="180" value="14" required style="width: 5.5rem;">
+<button class="button secondary" type="submit">+ Add days</button>
+</form>
+</div>
+</section>
+</main>
+</div>
+</body>
+</html>

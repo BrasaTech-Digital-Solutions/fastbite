@@ -54,6 +54,9 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()
                         .requestMatchers("/login", "/error", "/*/login", "/set-password").permitAll()
 
+                        // Platform-admin pages answer 404 to non-admins and anonymous users so their existence stays private
+                        .requestMatchers("/owner/platform/**").permitAll()
+
                         // Owner Console access (strictly Tenant Owners)
                         .requestMatchers("/owner/**").hasRole("OWNER")
 

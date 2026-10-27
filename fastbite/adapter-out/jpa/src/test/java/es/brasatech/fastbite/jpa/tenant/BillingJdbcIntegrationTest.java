@@ -33,7 +33,9 @@ class BillingJdbcIntegrationTest {
         var checkout=new SubscriptionGateway.Checkout("race-checkout","https://checkout.stripe.com/example",Instant.now().plusSeconds(3600).getEpochSecond(),"billingrace",null,false,null,null);
         when(gateway.createCheckout(any(),anyString())).thenAnswer(call->{Thread.sleep(60);return checkout;});
         when(gateway.checkout("race-checkout")).thenReturn(checkout);
-        var first=new SubscriptionService(billing,gateway);var second=new SubscriptionService(billing,gateway);
+        var env=new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox");
+        var admins=new es.brasatech.fastbite.application.platform.PlatformAdmins("");
+        var first=new SubscriptionService(billing,gateway,env,admins);var second=new SubscriptionService(billing,gateway,env,admins);
         try(var executor=Executors.newFixedThreadPool(2)) {
             var a=executor.submit(()->first.checkout("billingrace","billingraceowner"));
             var b=executor.submit(()->second.checkout("billingrace","billingraceowner"));
@@ -47,7 +49,7 @@ class BillingJdbcIntegrationTest {
         var gateway=mock(SubscriptionGateway.class);
         when(gateway.configured()).thenReturn(true);
         when(gateway.createCheckout(any(),anyString())).thenThrow(new IllegalStateException("Timeout"));
-        var service=new SubscriptionService(billing,gateway);
+        var service=new SubscriptionService(billing,gateway,new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"),new es.brasatech.fastbite.application.platform.PlatformAdmins(""));
         assertThatThrownBy(()->service.checkout("billingfailure","billingfailureowner")).isInstanceOf(IllegalStateException.class);
         var pending=billing.find("billingfailure").orElseThrow();
         assertThat(pending.checkoutId()).startsWith("pending:");
@@ -66,10 +68,35 @@ class BillingJdbcIntegrationTest {
         assertThat(initial.trialDays()).isEqualTo(30);
         assertThat(initial.freePlanCutBps()).isEqualTo(250);
     }
-    @Test void tenantPlanCanBeOverriddenDynamically() {
+    @Test void tenantPlanCanBeOverriddenDynamicallyAndSwitchingToFreeEnablesTakeaway() {
         signup.registerTenant("planoverride","planowner","hash","Owner");
+        jdbc.execute("INSERT INTO tenant_planoverride.restaurant_settings (id, dine_in, takeaway, kds_yellow_minutes, kds_red_minutes) VALUES (1, TRUE, FALSE, 0, 0)");
         billing.updateTenantPlan("planoverride", "FREE");
         assertThat(jdbc.queryForObject("SELECT plan FROM public.tenant_locations WHERE tenant_id='planoverride'", String.class)).isEqualTo("FREE");
-        assertThat(billing.find("planoverride").orElseThrow().status()).isEqualTo("FREE");
+        var freeAccount = billing.find("planoverride").orElseThrow();
+        assertThat(freeAccount.status()).isEqualTo("FREE");
+        assertThat(freeAccount.dinerPaymentsReady()).isFalse();
+        assertThat(jdbc.queryForObject("SELECT takeaway FROM tenant_planoverride.restaurant_settings WHERE id = 1", Boolean.class)).isTrue();
+
+        jdbc.update("UPDATE public.tenant_locations SET stripe_account_id='acct_live', stripe_charges_enabled=TRUE WHERE tenant_id='planoverride'");
+        assertThat(billing.find("planoverride").orElseThrow().dinerPaymentsReady()).isTrue();
+
+        // Switching back to RESTAURANT restores LOCAL_TRIAL while keeping original trial_started_at
+        Instant originalTrialStart = freeAccount.trialStartedAt();
+        billing.updateTenantPlan("planoverride", "RESTAURANT");
+        var restoredTrial = billing.find("planoverride").orElseThrow();
+        assertThat(restoredTrial.status()).isEqualTo("LOCAL_TRIAL");
+        assertThat(restoredTrial.trialStartedAt()).isEqualTo(originalTrialStart);
+        assertThat(restoredTrial.canTakeOrders(Instant.now(), true)).isTrue();
+
+        // If the original trial had already run out before switching FREE -> RESTAURANT, orders stay paused until they subscribe
+        billing.updateTenantPlan("planoverride", "FREE");
+        Instant expiredStart = Instant.now().minus(java.time.Duration.ofDays(31));
+        jdbc.update("UPDATE public.tenant_billing SET trial_started_at = ? WHERE tenant_id = 'planoverride'",
+                java.sql.Timestamp.from(expiredStart));
+        billing.updateTenantPlan("planoverride", "RESTAURANT");
+        var expiredTrial = billing.find("planoverride").orElseThrow();
+        assertThat(expiredTrial.status()).isEqualTo("LOCAL_TRIAL");
+        assertThat(expiredTrial.canTakeOrders(Instant.now(), true)).isFalse();
     }
 }

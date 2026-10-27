@@ -104,6 +104,34 @@ class RestaurantSettingsAndTakeawayIntegrationTest {
         assertThat(waiting).containsExactly(1, 2);
     }
 
+    @Autowired
+    private RestaurantSettingsJpaRepository settingsRepo;
+    @Autowired
+    private es.brasatech.fastbite.application.tenant.TenantLocationService locationService;
+
+    @Test
+    void freePlanLocksTakeawayOnInProductionAndStaysUsableInTheSandbox() {
+        provisioner.provisionTenant("freeplanloc");
+        locationService.registerLocation("freeowner", "freeplanloc", "FREE");
+
+        var sandboxSettings = new RestaurantSettingsServiceJpaImpl(
+                settingsRepo, new es.brasatech.fastbite.application.tenant.FreePlanLock(
+                        new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), locationService));
+        var prodSettings = new RestaurantSettingsServiceJpaImpl(
+                settingsRepo, new es.brasatech.fastbite.application.tenant.FreePlanLock(
+                        new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), locationService));
+
+        // In the sandbox, a Free-plan location can turn takeaway off for practice
+        inTenant("freeplanloc", () -> sandboxSettings.save(new RestaurantSettings(true, false, 0, 0)));
+        assertThat(inTenant("freeplanloc", sandboxSettings::get).takeaway()).isFalse();
+
+        // In production, get() reports takeaway = true even if the stored row had false, and save() refuses takeaway = false
+        assertThat(inTenant("freeplanloc", prodSettings::get).takeaway()).isTrue();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                inTenant("freeplanloc", () -> prodSettings.save(new RestaurantSettings(true, false, 0, 0))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static OrderEntity order(int number, ServiceType serviceType, OrderPaymentStatus payment, OrderStatus status) {
         OrderEntity entity = new OrderEntity();
         entity.setOrderNumber(number);

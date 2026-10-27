@@ -13,7 +13,8 @@ import static org.mockito.Mockito.*;
 class SubscriptionServiceTest {
     BillingPort port = mock(BillingPort.class);
     SubscriptionGateway gateway = mock(SubscriptionGateway.class);
-    SubscriptionService service = new SubscriptionService(port, gateway);
+    es.brasatech.fastbite.application.platform.PlatformAdmins admins = new es.brasatech.fastbite.application.platform.PlatformAdmins("brasatech");
+    SubscriptionService service = new SubscriptionService(port, gateway, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), admins);
     BillingAccount account;
     @BeforeEach void setup() {
         when(gateway.configured()).thenReturn(true);
@@ -137,5 +138,63 @@ class SubscriptionServiceTest {
         verify(port).updatePlatformSettings(settings);
         assertThatThrownBy(() -> service.updatePlatformSettings(new es.brasatech.fastbite.domain.tenant.PlatformBillingSettings(-1, 20, 200)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test void freePlanInProductionPausesOrdersUntilStripeChargesAreEnabledWhileSandboxStaysUsable() {
+        var prodService = new SubscriptionService(port, gateway, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), admins);
+        var sandboxService = new SubscriptionService(port, gateway, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), admins);
+
+        account = new BillingAccount("cafe", "owner", "billing-key", Instant.now(), "FREE", null, null, 0, 0, false, null, null, 0, 0, null, false);
+        assertThat(prodService.canTakeOrders("cafe")).isFalse();
+        assertThat(sandboxService.canTakeOrders("cafe")).isTrue();
+        assertThat(account.displayStatus()).isEqualTo("Free Plan · Connect payments");
+
+        account = new BillingAccount("cafe", "owner", "billing-key", Instant.now(), "FREE", null, null, 0, 0, false, null, null, 0, 0, "acct_123", false);
+        assertThat(prodService.canTakeOrders("cafe")).isFalse();
+        assertThat(sandboxService.canTakeOrders("cafe")).isTrue();
+
+        account = new BillingAccount("cafe", "owner", "billing-key", Instant.now(), "FREE", null, null, 0, 0, false, null, null, 0, 0, "acct_123", true);
+        assertThat(prodService.canTakeOrders("cafe")).isTrue();
+        assertThat(sandboxService.canTakeOrders("cafe")).isTrue();
+        assertThat(account.displayStatus()).isEqualTo("Free Plan (0€/mo)");
+    }
+    @Test void onlyOwnerCanSwitchPlanAndOnlyPlatformAdminCanExtendTrial() {
+        assertThatThrownBy(() -> service.updateTenantPlan("cafe", "other", "FREE"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("You do not own this location.");
+        verify(port, never()).updateTenantPlan(anyString(), anyString());
+
+        service.updateTenantPlan("cafe", "owner", "FREE");
+        verify(port).updateTenantPlan("cafe", "FREE");
+
+        // An owner cannot extend their own trial (or anyone else's)
+        assertThatThrownBy(() -> service.extendTenantTrial("cafe", "owner", 14))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Only a platform administrator may extend a trial.");
+        assertThatThrownBy(() -> service.extendTenantTrial("cafe", "other", 14))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Only a platform administrator may extend a trial.");
+        verify(port, never()).extendTenantTrial(anyString(), anyInt());
+
+        // Blank FASTBITE_PLATFORM_ADMINS means nobody is an admin
+        var noAdmins = new es.brasatech.fastbite.application.platform.PlatformAdmins("   ,  ");
+        assertThat(noAdmins.isAdmin("")).isFalse();
+        assertThat(noAdmins.isAdmin("   ")).isFalse();
+        assertThat(noAdmins.isAdmin(null)).isFalse();
+        assertThat(noAdmins.isAdmin("brasatech")).isFalse();
+        var serviceWithoutAdmins = new SubscriptionService(port, gateway,
+                new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), noAdmins);
+        assertThatThrownBy(() -> serviceWithoutAdmins.extendTenantTrial("cafe", "brasatech", 14))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // 1-180 days bound is enforced even for platform admins
+        assertThatThrownBy(() -> service.extendTenantTrial("cafe", "brasatech", 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.extendTenantTrial("cafe", "brasatech", 181))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(port, never()).extendTenantTrial(anyString(), anyInt());
+
+        // A platform admin can extend another owner's location
+        service.extendTenantTrial("cafe", "brasatech", 14);
+        verify(port).extendTenantTrial("cafe", 14);
     }
 }

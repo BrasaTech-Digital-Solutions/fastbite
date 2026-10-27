@@ -32,4 +32,14 @@ public class TestConfig {
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
+
+    @Bean
+    public es.brasatech.fastbite.application.platform.PlatformEnvironment platformEnvironment() {
+        return new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox");
+    }
+
+    @Bean
+    public es.brasatech.fastbite.application.platform.PlatformAdmins platformAdmins() {
+        return new es.brasatech.fastbite.application.platform.PlatformAdmins("");
+    }
 }

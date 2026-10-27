@@ -1706,9 +1706,10 @@ async function triggerRestoreDemo() {
 // The ordering options and the KDS timers are saved together as this restaurant's settings
 async function saveRestaurantSettings(event) {
     event.preventDefault();
+    const takeawayEl = document.getElementById('takeawayInput');
     const settings = {
         dineIn: document.getElementById('dineInInput').checked,
-        takeaway: document.getElementById('takeawayInput').checked,
+        takeaway: takeawayEl.disabled ? true : takeawayEl.checked,
         tableQrTrusted: document.getElementById('tableQrTrustedInput') ? document.getElementById('tableQrTrustedInput').checked : false,
         kdsYellowMinutes: parseInt(document.getElementById('yellowTimerInput').value || '0'),
         kdsRedMinutes: parseInt(document.getElementById('redTimerInput').value || '0')
@@ -1726,7 +1727,8 @@ async function saveRestaurantSettings(event) {
         if (response.ok) {
             showToast('Settings saved successfully!');
         } else {
-            showToast('Failed to save settings', 'error');
+            const msg = await response.text();
+            showToast(msg || 'Failed to save settings', 'error');
         }
     } catch (err) {
         console.error('Error saving settings:', err);

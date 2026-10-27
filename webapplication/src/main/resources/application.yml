@@ -131,6 +131,9 @@ fastbite:
   # sandbox or production. The sandbox issues training tickets with no fiscal value; set
   # FASTBITE_ENVIRONMENT=production only on the deployment where restaurants trade for real.
   environment: ${FASTBITE_ENVIRONMENT:sandbox}
+  # Comma-separated owner usernames of Brasatech operators who may extend restaurant trials; empty means nobody.
+  platform:
+    admins: ${FASTBITE_PLATFORM_ADMINS:}
   # The link between production and the sandbox: the other environment's address for browsers, the
   # address the servers use to reach it (the same unless set apart), and the secret both share (at least
   # 32 characters). Production refuses to start without it unless standalone is allowed on purpose.

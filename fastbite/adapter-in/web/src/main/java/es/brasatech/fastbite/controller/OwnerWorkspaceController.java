@@ -28,11 +28,16 @@ public class OwnerWorkspaceController {
     private final MessageSource messages;
     private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
     private final es.brasatech.fastbite.application.platform.PlatformLink link;
+    private final FreePlanLock freePlanLock;
+    private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
             MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
-            es.brasatech.fastbite.application.platform.PlatformLink link) {
+            es.brasatech.fastbite.application.platform.PlatformLink link, FreePlanLock freePlanLock,
+            es.brasatech.fastbite.application.platform.PlatformAdmins admins) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
+        this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
+        this.admins=java.util.Objects.requireNonNull(admins, "admins");
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -44,6 +49,7 @@ public class OwnerWorkspaceController {
         var list=locations.getLocationsByOwner(owner.getName()).stream().sorted(Comparator.comparing(es.brasatech.fastbite.domain.tenant.TenantLocation::tenantId)).toList();
         var selected=location==null?(list.isEmpty()?null:list.getFirst()):list.stream().filter(l->l.tenantId().equals(location)).findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("ownerUsername",owner.getName());model.addAttribute("locations",list);
+        model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
         model.addAttribute("selected",selected);model.addAttribute("view",view);model.addAttribute("section",section);
         model.addAttribute("themes",themes.all());
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
@@ -61,7 +67,11 @@ public class OwnerWorkspaceController {
                 model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
                 model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
             }
-            model.addAttribute("billing",subscriptions.account(selected.tenantId(),owner.getName()));
+            var billing=subscriptions.account(selected.tenantId(),owner.getName());
+            model.addAttribute("billing",billing);
+            boolean freePlanLocked=freePlanLock.locked(selected.tenantId());
+            model.addAttribute("freePlanLocked",freePlanLocked);
+            model.addAttribute("freePlanPaymentsMissing",freePlanLocked && !selected.isStripeVerified());
             if(view.equals("team")) {
                 model.addAttribute("users",staff.listStaff(owner.getName(),selected.tenantId()).stream().filter(u->!u.isOwner()).toList());
                 model.addAttribute("tenantId",selected.tenantId());

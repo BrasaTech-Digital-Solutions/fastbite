@@ -23,6 +23,7 @@ public class BackOfficeController {
     private final TenantLocationService tenantLocationService;
     private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
     private final org.springframework.context.MessageSource messageSource;
+    private final es.brasatech.fastbite.application.tenant.FreePlanLock freePlanLock;
 
     /**
      * Render the BackOffice page
@@ -38,6 +39,7 @@ public class BackOfficeController {
 
         model.addAttribute("activeTenant", activeTenant);
         model.addAttribute("tenantPlan", plan);
+        model.addAttribute("freePlanLocked", freePlanLock.locked(activeTenant));
         model.addAttribute("enabledFeatures", enabledFeatures);
         model.addAttribute("settings", settingsService.get());
         model.addAttribute("defaultVatRate", fiscalProfileService.defaultVatRate());

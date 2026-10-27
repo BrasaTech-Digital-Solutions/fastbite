@@ -7,23 +7,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class RestaurantSettingsServiceJpaImpl implements RestaurantSettingsService {
 
     private final RestaurantSettingsJpaRepository repository;
+    private final es.brasatech.fastbite.application.tenant.FreePlanLock freePlanLock;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RestaurantSettingsServiceJpaImpl(
+            RestaurantSettingsJpaRepository repository,
+            es.brasatech.fastbite.application.tenant.FreePlanLock freePlanLock) {
+        this.repository = java.util.Objects.requireNonNull(repository, "repository");
+        this.freePlanLock = java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
+    }
 
     @Override
     @Transactional(readOnly = true)
     public RestaurantSettings get() {
+        boolean forceTakeaway = freePlanLock.locked(es.brasatech.fastbite.domain.tenant.TenantContext.getCurrentTenant());
         return repository.findById(RestaurantSettingsEntity.ID)
-                .map(entity -> new RestaurantSettings(entity.isDineIn(), entity.isTakeaway(),
+                .map(entity -> new RestaurantSettings(entity.isDineIn(), forceTakeaway || entity.isTakeaway(),
                         entity.getKdsYellowMinutes(), entity.getKdsRedMinutes(), entity.isTableQrTrusted()))
                 .orElse(RestaurantSettings.DEFAULTS);
     }
 
     @Override
     public RestaurantSettings save(RestaurantSettings settings) {
+        if (freePlanLock.locked(es.brasatech.fastbite.domain.tenant.TenantContext.getCurrentTenant()) && !settings.takeaway()) {
+            throw new IllegalArgumentException("The Free Plan requires online takeaway orders to stay enabled.");
+        }
         RestaurantSettingsEntity entity = repository.findById(RestaurantSettingsEntity.ID)
                 .orElseGet(RestaurantSettingsEntity::new);
         entity.setDineIn(settings.dineIn());

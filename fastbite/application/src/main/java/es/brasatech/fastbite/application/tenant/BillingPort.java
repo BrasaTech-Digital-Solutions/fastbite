@@ -6,6 +6,7 @@ import java.util.function.UnaryOperator;
 
 public interface BillingPort {
     Optional<BillingAccount> find(String tenant);
+    java.util.List<BillingAccount> findAll();
     BillingAccount updateLocked(String tenant, UnaryOperator<BillingAccount> update);
     void requestGroupQuote(String owner, String email, int locations);
     es.brasatech.fastbite.domain.tenant.PlatformBillingSettings getPlatformSettings();

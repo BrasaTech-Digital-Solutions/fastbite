@@ -16,6 +16,21 @@ public class BillingJdbcAdapter implements BillingPort {
     @Override public Optional<BillingAccount> find(String tenant) {
         return transaction(source, c -> read(c, tenant));
     }
+    @Override public java.util.List<BillingAccount> findAll() {
+        return transaction(source, c -> {
+            var list = new java.util.ArrayList<BillingAccount>();
+            try (var q = statement(c, "SELECT b.*, l.owner_username, l.stripe_account_id, l.stripe_charges_enabled FROM public.tenant_billing b JOIN public.tenant_locations l ON l.tenant_id=b.tenant_id ORDER BY b.tenant_id");
+                    var r = q.executeQuery()) {
+                while (r.next()) {
+                    list.add(new BillingAccount(r.getString("tenant_id"), r.getString("owner_username"), r.getString("billing_key"), r.getTimestamp("trial_started_at").toInstant(),
+                            r.getString("status"), r.getString("customer_id"), r.getString("subscription_id"), r.getLong("period_end"), r.getLong("stripe_trial_end"), r.getBoolean("cancel_at_period_end"),
+                            r.getString("checkout_id"), r.getString("checkout_url"), r.getLong("checkout_expires"), r.getInt("checkout_attempt"),
+                            r.getString("stripe_account_id"), r.getBoolean("stripe_charges_enabled")));
+                }
+            }
+            return java.util.List.copyOf(list);
+        });
+    }
     @Override public BillingAccount updateLocked(String tenant, UnaryOperator<BillingAccount> action) {
         return transaction(source, c -> {
             try (var lock = statement(c, "SELECT tenant_id FROM public.tenant_billing WHERE tenant_id = ? FOR UPDATE", tenant);
@@ -30,12 +45,13 @@ public class BillingJdbcAdapter implements BillingPort {
         });
     }
     private Optional<BillingAccount> read(Connection c, String tenant) throws SQLException {
-        try (var q = statement(c, "SELECT b.*, l.owner_username FROM public.tenant_billing b JOIN public.tenant_locations l ON l.tenant_id=b.tenant_id WHERE b.tenant_id=?", tenant);
+        try (var q = statement(c, "SELECT b.*, l.owner_username, l.stripe_account_id, l.stripe_charges_enabled FROM public.tenant_billing b JOIN public.tenant_locations l ON l.tenant_id=b.tenant_id WHERE b.tenant_id=?", tenant);
                 var r = q.executeQuery()) {
             if (!r.next()) return Optional.empty();
             return Optional.of(new BillingAccount(tenant, r.getString("owner_username"), r.getString("billing_key"), r.getTimestamp("trial_started_at").toInstant(),
                     r.getString("status"), r.getString("customer_id"), r.getString("subscription_id"), r.getLong("period_end"), r.getLong("stripe_trial_end"), r.getBoolean("cancel_at_period_end"),
-                    r.getString("checkout_id"), r.getString("checkout_url"), r.getLong("checkout_expires"), r.getInt("checkout_attempt")));
+                    r.getString("checkout_id"), r.getString("checkout_url"), r.getLong("checkout_expires"), r.getInt("checkout_attempt"),
+                    r.getString("stripe_account_id"), r.getBoolean("stripe_charges_enabled")));
         }
     }
     @Override public void requestGroupQuote(String owner, String email, int locations) {
@@ -58,6 +74,17 @@ public class BillingJdbcAdapter implements BillingPort {
             update(c, "UPDATE public.tenant_locations SET plan=? WHERE tenant_id=?", plan, tenantId);
             if ("FREE".equalsIgnoreCase(plan)) {
                 update(c, "UPDATE public.tenant_billing SET status='FREE' WHERE tenant_id=?", tenantId);
+                // Safe SQL identifier: TenantRegistrationRules.tenantId strictly validates [a-z0-9]{1,50}.
+                String schema = "tenant_" + es.brasatech.fastbite.application.tenant.TenantRegistrationRules.tenantId(tenantId);
+                try (var check = statement(c, "SELECT 1 FROM information_schema.tables WHERE LOWER(table_schema) = LOWER(?) AND LOWER(table_name) = 'restaurant_settings'", schema);
+                        var rows = check.executeQuery()) {
+                    if (rows.next()) {
+                        update(c, "UPDATE " + schema + ".restaurant_settings SET takeaway = TRUE WHERE id = 1");
+                    }
+                }
+            } else {
+                // Keep trial_started_at intact so switching Free -> Restaurant only uses any remaining original trial window.
+                update(c, "UPDATE public.tenant_billing SET status='LOCAL_TRIAL' WHERE tenant_id=? AND LOWER(status)='free' AND subscription_id IS NULL", tenantId);
             }
             return null;
         });

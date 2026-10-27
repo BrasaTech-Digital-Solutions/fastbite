@@ -447,6 +447,47 @@ class TenantBackupRestoreAdapterTest {
         });
     }
 
+    @Autowired
+    private es.brasatech.fastbite.application.tenant.TenantLocationService tenantLocationService;
+
+    @Test
+    void restoringIntoAFreePlanProductionLocationForcesTakeawayOn() {
+        String sourceTenant = "bundlesrcfree";
+        String destTenant = "bundledestfree";
+        tenantProvisionerAdapter.provisionTenant(sourceTenant);
+        tenantProvisionerAdapter.provisionTenant(destTenant);
+        tenantLocationService.registerLocation("freeowner", destTenant, "FREE");
+
+        TenantContext.setCurrentTenant(sourceTenant);
+        transactionTemplate.execute(status -> {
+            var s = new es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity();
+            s.setDineIn(true);
+            s.setTakeaway(false);
+            s.setKdsYellowMinutes(0);
+            s.setKdsRedMinutes(0);
+            settingsRepository.save(s);
+            return null;
+        });
+        ByteArrayOutputStream bundle = new ByteArrayOutputStream();
+        backupRestoreAdapter.exportProductionBundle(sourceTenant, bundle);
+
+        Object originalLock = org.springframework.test.util.ReflectionTestUtils.getField(backupRestoreAdapter, "freePlanLock");
+        org.springframework.test.util.ReflectionTestUtils.setField(backupRestoreAdapter, "freePlanLock",
+                new es.brasatech.fastbite.application.tenant.FreePlanLock(
+                        new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), tenantLocationService));
+        try {
+            TenantContext.setCurrentTenant(destTenant);
+            backupRestoreAdapter.importProductionBundle(destTenant, new ByteArrayInputStream(bundle.toByteArray()));
+            transactionTemplate.execute(status -> {
+                var restored = settingsRepository.findById(1).orElseThrow();
+                assertTrue(restored.isTakeaway(), "Free-plan production location must force takeaway = true on restore");
+                return null;
+            });
+        } finally {
+            org.springframework.test.util.ReflectionTestUtils.setField(backupRestoreAdapter, "freePlanLock", originalLock);
+        }
+    }
+
     private static byte[] withVersion(byte[] archive, String version) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (var in = new java.util.zip.ZipInputStream(new ByteArrayInputStream(archive));

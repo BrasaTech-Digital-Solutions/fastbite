@@ -7,10 +7,20 @@ import java.util.Set;
 
 @Service
 public class SubscriptionService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SubscriptionService.class);
     private final BillingPort billing;
     private final SubscriptionGateway gateway;
+    private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
+    private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
     private static final Set<String> STATES = Set.of("active", "trialing", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused");
-    public SubscriptionService(BillingPort billing, SubscriptionGateway gateway) { this.billing = billing; this.gateway = gateway; }
+    public SubscriptionService(BillingPort billing, SubscriptionGateway gateway,
+            es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
+            es.brasatech.fastbite.application.platform.PlatformAdmins admins) {
+        this.billing = java.util.Objects.requireNonNull(billing, "billing");
+        this.gateway = java.util.Objects.requireNonNull(gateway, "gateway");
+        this.environment = java.util.Objects.requireNonNull(environment, "environment");
+        this.admins = java.util.Objects.requireNonNull(admins, "admins");
+    }
     public BillingAccount account(String tenant, String owner) {
         BillingAccount account = billing.find(tenant).orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
         requireOwner(account, owner);
@@ -18,7 +28,10 @@ public class SubscriptionService {
     }
     public boolean configured() { return gateway.configured(); }
     public boolean canTakeOrders(String tenant) {
-        return tenant != null && billing.find(tenant).map(a -> a.canTakeOrders(Instant.now())).orElse(false);
+        return tenant != null && billing.find(tenant).map(a -> a.canTakeOrders(Instant.now(), environment.production())).orElse(false);
+    }
+    public boolean isFreePlan(String tenant) {
+        return tenant != null && billing.find(tenant).map(BillingAccount::isFreePlan).orElse(false);
     }
     public String checkout(String tenant, String owner) {
         account(tenant, owner);
@@ -112,10 +125,23 @@ public class SubscriptionService {
         }
         billing.updatePlatformSettings(settings);
     }
-    public void updateTenantPlan(String tenantId, String plan) {
+    public void updateTenantPlan(String tenantId, String owner, String plan) {
+        account(tenantId, owner);
         billing.updateTenantPlan(tenantId, plan);
     }
-    public void extendTenantTrial(String tenantId, int extraDays) {
+    public java.util.List<BillingAccount> listAllAccounts(String admin) {
+        if (!admins.isAdmin(admin)) throw new IllegalArgumentException("Only a platform administrator may view all trials.");
+        return billing.findAll();
+    }
+    public BillingAccount extendTenantTrial(String tenantId, String admin, int extraDays) {
+        if (!admins.isAdmin(admin)) throw new IllegalArgumentException("Only a platform administrator may extend a trial.");
+        if (extraDays < 1 || extraDays > 180) throw new IllegalArgumentException("Trial extension must be between 1 and 180 days.");
+        if (billing.find(tenantId).isEmpty()) throw new IllegalArgumentException("Billing is not available for this location.");
         billing.extendTenantTrial(tenantId, extraDays);
+        BillingAccount updated = billing.find(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
+        log.info("Platform admin '{}' extended trial for location '{}' by {} days (new trial end: {})",
+                admin.trim(), tenantId, extraDays, updated.trialEndsAt());
+        return updated;
     }
 }

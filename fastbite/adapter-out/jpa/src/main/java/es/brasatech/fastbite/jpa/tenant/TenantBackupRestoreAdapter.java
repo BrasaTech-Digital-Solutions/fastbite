@@ -84,6 +84,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     private final DynamicDemoTemplateRegistry dynamicDemoTemplateRegistry;
     private final es.brasatech.fastbite.application.tenant.AppearancePort appearance;
     private final es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets;
+    private final es.brasatech.fastbite.application.tenant.FreePlanLock freePlanLock;
 
     /** A theme id as the theme catalog names them; anything else in an archive is ignored. */
     private static final java.util.regex.Pattern THEME_ID = java.util.regex.Pattern.compile("[a-z0-9-]{1,40}");
@@ -350,8 +351,20 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             }
         }
         replicateAll(backupData.getPaymentConfigs());
+        boolean forceTakeaway = freePlanLock.locked(tenantId);
         if (backupData.getFormatVersion() >= 2) entityManager.createNativeQuery("DELETE FROM restaurant_settings").executeUpdate();
-        if (backupData.getRestaurantSettings() != null) entityManager.merge(backupData.getRestaurantSettings());
+        if (backupData.getRestaurantSettings() != null) {
+            if (forceTakeaway) {
+                backupData.getRestaurantSettings().setTakeaway(true);
+            }
+            entityManager.merge(backupData.getRestaurantSettings());
+        } else if (forceTakeaway) {
+            var existingSettings = entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1);
+            if (existingSettings != null && !existingSettings.isTakeaway()) {
+                existingSettings.setTakeaway(true);
+                entityManager.merge(existingSettings);
+            }
+        }
         boolean fiscalProfileLocked = false;
         boolean hasRealTickets = tickets.anyRealTicket();
         if (hasRealTickets) {
