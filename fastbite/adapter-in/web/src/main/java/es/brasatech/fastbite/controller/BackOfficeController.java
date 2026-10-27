@@ -24,6 +24,7 @@ public class BackOfficeController {
     private final es.brasatech.fastbite.application.fiscal.FiscalProfileService fiscalProfileService;
     private final org.springframework.context.MessageSource messageSource;
     private final es.brasatech.fastbite.application.tenant.FreePlanLock freePlanLock;
+    private final es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
 
     /**
      * Render the BackOffice page
@@ -45,6 +46,8 @@ public class BackOfficeController {
         model.addAttribute("defaultVatRate", fiscalProfileService.defaultVatRate());
         model.addAttribute("vatRates", es.brasatech.fastbite.domain.fiscal.VatRates.ALL);
         model.addAttribute("allergenList", List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
+        model.addAttribute("activePrivacyNotice", privacyNotices.findActive().orElse(null));
+        model.addAttribute("privacyNoticeHistory", privacyNotices.history());
         return "fastfood/backOffice";
     }
 
@@ -175,6 +178,51 @@ public class BackOfficeController {
     public String getDiscountForm(@RequestBody Map<String, Object> payload, Model model) {
         model.addAttribute("discount", payload.get("discount"));
         return "fastfood/fragments/backOffice :: discount-form";
+    }
+
+    @PostMapping({"/{tenantId}/backoffice/privacy-notice", "/backoffice/privacy-notice"})
+    public String uploadPrivacyNoticeForm(@PathVariable(required = false) String tenantId,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            java.security.Principal principal,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        String prefix = tenantId != null ? "/" + tenantId : "";
+        try {
+            byte[] bytes = file != null ? file.getBytes() : new byte[0];
+            String originalName = file != null ? file.getOriginalFilename() : "privacy.pdf";
+            String uploader = principal != null ? principal.getName() : "manager";
+            var saved = privacyNotices.upload(originalName, bytes, uploader);
+            flash.addFlashAttribute("notice", "Privacy notice PDF uploaded (v" + saved.version() + ").");
+        } catch (IllegalArgumentException | java.io.IOException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + prefix + "/backoffice?section=privacy";
+    }
+
+    @PostMapping({"/{tenantId}/backoffice/privacy-notice/generated", "/backoffice/privacy-notice/generated"})
+    public String useGeneratedPrivacyNoticeForm(@PathVariable(required = false) String tenantId,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes flash) {
+        String prefix = tenantId != null ? "/" + tenantId : "";
+        privacyNotices.useGeneratedNotice();
+        flash.addFlashAttribute("notice", "Switched back to the generated privacy notice. All previously uploaded PDF versions remain on file.");
+        return "redirect:" + prefix + "/backoffice?section=privacy";
+    }
+
+    @PostMapping({"/{tenantId}/api/backoffice/privacy-notice", "/api/backoffice/privacy-notice"})
+    @ResponseBody
+    public es.brasatech.fastbite.domain.settings.GuestPrivacyNotice uploadPrivacyNoticeApi(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            java.security.Principal principal) throws java.io.IOException {
+        byte[] bytes = file != null ? file.getBytes() : new byte[0];
+        String originalName = file != null ? file.getOriginalFilename() : "privacy.pdf";
+        String uploader = principal != null ? principal.getName() : "manager";
+        return privacyNotices.upload(originalName, bytes, uploader);
+    }
+
+    @PostMapping({"/{tenantId}/api/backoffice/privacy-notice/generated", "/api/backoffice/privacy-notice/generated"})
+    @ResponseBody
+    public Map<String, Object> useGeneratedPrivacyNoticeApi() {
+        privacyNotices.useGeneratedNotice();
+        return Map.of("active", false);
     }
 
 }

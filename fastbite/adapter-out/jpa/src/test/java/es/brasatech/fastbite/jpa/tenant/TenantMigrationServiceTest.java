@@ -37,8 +37,8 @@ class TenantMigrationServiceTest {
         migrations.validateAll();
         assertThat(versions("PUBLIC")).containsExactly("2", "4", "5", "6", "7", "15", "16", "18", "22", "23", "24", "25");
         assertThat(tables("PUBLIC")).containsExactlyInAnyOrderElementsOf(PLATFORM_TABLES);
-        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
-        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
+        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
         assertThat(jdbc.queryForObject("SELECT price FROM tenant_alpha.products WHERE id = 'meal'", BigDecimal.class))
                 .isEqualByComparingTo("12.50");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_beta.products", Integer.class)).isZero();
@@ -60,7 +60,7 @@ class TenantMigrationServiceTest {
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         migrations.migrateAll(true);
         migrations.validateAll();
-        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
+        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         assertThat(jdbc.queryForObject("SELECT translations FROM tenant_legacy.groups WHERE id = 'food'", String.class)).contains("Comida");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'TENANT_LEGACY' AND table_name = 'GROUP_TRANSLATIONS'", Integer.class)).isZero();
@@ -102,7 +102,7 @@ class TenantMigrationServiceTest {
             first.get(15, TimeUnit.SECONDS);
             second.get(15, TimeUnit.SECONDS);
         }
-        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
+        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
     }
 
     @Test void publicUpgradedFromBeforeV22KeepsOnlyPlatformTablesAndItsAccounts() {
@@ -120,7 +120,7 @@ class TenantMigrationServiceTest {
                 "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25");
         assertThat(jdbc.queryForObject("SELECT role FROM public.user_roles WHERE user_id = 'owner'", String.class)).isEqualTo("OWNER");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_alpha.products", Integer.class)).isEqualTo(1);
-        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
+        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
     }
 
     @Test void freshAndUpgradedPublicDefineTheAccountsTheSameWay() {
@@ -161,7 +161,7 @@ class TenantMigrationServiceTest {
     @Test void theDemoRestaurantHasItsOwnSchema() {
         migrations.migrateAll(false);
         migrations.provisionDemo();
-        assertThat(versions("TENANT_KEBAB")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21");
+        assertThat(versions("TENANT_KEBAB")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
     }
 
     @Test void theV22MigrationRunsInOneTransaction() {

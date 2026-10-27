@@ -204,5 +204,11 @@
        th:text="#{owner.verifactu.declaration}">Software declaration (declaración responsable) →</a>
   </p>
 </section>
+<div th:replace="~{fastfood/fragments/guest-privacy-notice :: panel(
+    uploadAction=@{/owner/workspace/{tenant}/privacy-notice(tenant=${selected.tenantId})},
+    revertAction=@{/owner/workspace/{tenant}/privacy-notice/generated(tenant=${selected.tenantId})},
+    publicUrl=@{/{tenant}/privacy(tenant=${selected.tenantId})},
+    activeNotice=${activePrivacyNotice},
+    noticeHistory=${privacyNoticeHistory})}"></div>
 </section>
 </body></html>

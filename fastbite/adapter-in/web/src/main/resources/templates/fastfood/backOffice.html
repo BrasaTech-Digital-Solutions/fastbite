@@ -60,6 +60,10 @@
                             <i class="fas fa-percentage me-2"></i> <span th:text="#{backoffice.discounts.list.title}">Discounts</span>
                             <span class="badge bg-primary float-end" id="discounts-count">0</span>
                         </a>
+                        <a href="#" class="list-group-item list-group-item-action" id="nav-privacy"
+                            onclick="showSection('privacy')">
+                            <i class="fas fa-user-shield me-2"></i> <span>Privacy Notice</span>
+                        </a>
                         <a href="#" class="list-group-item list-group-item-action" id="nav-maintenance"
                             onclick="showSection('maintenance')" sec:authorize="hasRole('ADMIN')">
                             <i class="fas fa-tools me-2"></i> <span>Maintenance</span>
@@ -437,6 +441,18 @@
                         <div id="discounts-list">
                             <!-- Discounts will be populated by JavaScript -->
                         </div>
+                    </div>
+
+                    <!-- Privacy Notice Section (Owner, Admin, and Manager) -->
+                    <div id="privacy-section" class="section-content" style="display: none;">
+                        <div class="alert alert-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
+                        <div class="alert alert-danger" role="alert" th:if="${error != null}" th:text="${error}"></div>
+                        <div th:replace="~{fastfood/fragments/guest-privacy-notice :: panel(
+                            uploadAction=@{/{tenant}/backoffice/privacy-notice(tenant=${activeTenant})},
+                            revertAction=@{/{tenant}/backoffice/privacy-notice/generated(tenant=${activeTenant})},
+                            publicUrl=@{/{tenant}/privacy(tenant=${activeTenant})},
+                            activeNotice=${activePrivacyNotice},
+                            noticeHistory=${privacyNoticeHistory})}"></div>
                     </div>
 
                     <!-- Maintenance Section -->
@@ -887,6 +903,13 @@
     <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../../static/js/confirm-dialog.js" th:src="@{/js/confirm-dialog.js}" defer></script>
     <script src="../../static/js/backOffice.js" th:src="@{/js/backOffice.js}" defer></script>
+    <script th:if="${param.section != null && param.section[0] == 'privacy'}">
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof showSection === 'function') {
+                showSection('privacy');
+            }
+        });
+    </script>
 </body>
 
 </html>

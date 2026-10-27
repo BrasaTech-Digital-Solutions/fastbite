@@ -56,6 +56,8 @@ class RestaurantSettingsEndpointTest {
     private PlanEntitlementService planEntitlementService;
     @MockitoBean
     private TenantLocationService tenantLocationService;
+    @MockitoBean
+    private es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
 
     @BeforeEach
     void setUp() {
@@ -151,5 +153,51 @@ class RestaurantSettingsEndpointTest {
         } finally {
             es.brasatech.fastbite.domain.tenant.TenantContext.clear();
         }
+    }
+
+    @Test
+    void managerAndAdminCanUploadAndRevertPrivacyNoticeWhileCashierIsForbidden() throws Exception {
+        byte[] pdf = "%PDF-1.4\nPrivacy\n%%EOF\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var file = new org.springframework.mock.web.MockMultipartFile("file", "privacy.pdf", "application/pdf", pdf);
+        var saved = new es.brasatech.fastbite.domain.settings.GuestPrivacyNotice(
+                1, "privacy.pdf", "privacy/privacy-v1-1.pdf", pdf.length,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "staff", java.time.Instant.parse("2026-10-27T12:00:00Z"), true);
+        when(privacyNotices.upload(anyString(), any(byte[].class), anyString())).thenReturn(saved);
+
+        // Manager can upload and revert
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/kebab/api/backoffice/privacy-notice").file(file)
+                        .session(kebabStaff("ROLE_MANAGER")).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.active").value(true));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/kebab/api/backoffice/privacy-notice/generated")
+                        .session(kebabStaff("ROLE_MANAGER")).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false));
+        verify(privacyNotices).useGeneratedNotice();
+
+        // Cashier is forbidden (403)
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/kebab/api/backoffice/privacy-notice").file(file)
+                        .session(kebabStaff("ROLE_CASHIER")).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void nonPdfUploadReturns400BadRequest() throws Exception {
+        var fakePdf = new org.springframework.mock.web.MockMultipartFile(
+                "file", "not-really-a.pdf", "application/pdf",
+                "PNG\r\nnot a pdf".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(privacyNotices.upload(anyString(), any(byte[].class), anyString()))
+                .thenThrow(new IllegalArgumentException("Only PDF files are accepted (checked by content, %PDF- header required)."));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/kebab/api/backoffice/privacy-notice").file(fakePdf)
+                        .session(kebabStaff("ROLE_ADMIN")).with(csrf()))
+                .andExpect(status().isBadRequest());
     }
 }

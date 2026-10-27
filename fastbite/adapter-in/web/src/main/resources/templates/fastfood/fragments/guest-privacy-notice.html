@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<section th:fragment="panel(uploadAction, revertAction, publicUrl, activeNotice, noticeHistory)"
+         class="panel card mb-4 guest-privacy-panel" aria-labelledby="guest-privacy-title">
+    <div class="card-body">
+        <div class="panel-heading d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+                <p class="eyebrow text-uppercase small text-muted mb-1">RGPD · ARTS. 13 &amp; 14</p>
+                <h2 id="guest-privacy-title" class="h4 mb-1">Privacy notice for your guests</h2>
+            </div>
+            <span class="status-pill badge"
+                  th:classappend="${activeNotice != null} ? 'done bg-success' : 'waiting bg-secondary'"
+                  th:text="${activeNotice != null} ? ('Custom PDF (v' + ${activeNotice.version()} + ')') : 'Generated notice'">
+                Generated notice
+            </span>
+        </div>
+
+        <p class="text-muted mb-3">
+            Your restaurant is the data controller for your guests' orders and invoices. FastBite publishes a generated
+            privacy notice from your business details by default, or you can upload your own PDF notice (up to 5 MB).
+            Every uploaded version is kept with its date and author.
+        </p>
+
+        <div class="inline-note alert alert-light border mb-3" th:if="${activeNotice != null}">
+            <p class="mb-1">
+                <strong>Active PDF:</strong>
+                <span th:text="${activeNotice.fileName()}">privacy.pdf</span>
+                · <span th:text="'v' + ${activeNotice.version()}">v1</span>
+                · uploaded <span th:text="${#temporals.format(activeNotice.uploadedAt(), 'dd/MM/yyyy HH:mm')}">27/10/2026 12:00</span>
+                by <span th:text="${activeNotice.uploadedBy()}">owner</span>
+            </p>
+            <p class="mb-0 small">
+                <a class="text-link" th:href="${publicUrl}" target="_blank" rel="noopener">View public guest privacy page →</a>
+            </p>
+        </div>
+
+        <div class="inline-note alert alert-light border mb-3" th:if="${activeNotice == null}">
+            <p class="mb-1">
+                <strong>Currently showing:</strong> FastBite's generated guest privacy notice using your restaurant's fiscal details.
+            </p>
+            <p class="mb-0 small">
+                <a class="text-link" th:href="${publicUrl}" target="_blank" rel="noopener">View public guest privacy page →</a>
+            </p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" th:action="${uploadAction}" class="mb-3">
+            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <label for="guestPrivacyPdfInput" class="form-label fw-semibold"
+                   th:text="${activeNotice != null} ? 'Replace with a new PDF version (max 5 MB)' : 'Upload your own privacy notice PDF (max 5 MB)'">
+                Upload your own privacy notice PDF (max 5 MB)
+            </label>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                <input id="guestPrivacyPdfInput" type="file" name="file" accept="application/pdf,.pdf" required
+                       class="form-control" style="max-width: 420px;">
+                <button type="submit" class="button btn btn-primary">
+                    <span th:text="${activeNotice != null} ? 'Upload new version' : 'Upload PDF'">Upload PDF</span>
+                </button>
+            </div>
+        </form>
+
+        <form method="post" th:if="${activeNotice != null}" th:action="${revertAction}" class="mb-3">
+            <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="quiet-button btn btn-outline-secondary btn-sm">
+                Use generated notice
+            </button>
+        </form>
+
+        <div th:if="${noticeHistory != null && !#lists.isEmpty(noticeHistory)}" class="mt-3 pt-2 border-top">
+            <p class="fine small text-muted mb-1"><strong>Version history</strong> (kept for audit proof)</p>
+            <ul class="list-unstyled small text-muted mb-0">
+                <li th:each="item : ${noticeHistory}" class="mb-1">
+                    <strong th:text="'v' + ${item.version()}">v1</strong> ·
+                    <span th:text="${item.fileName()}">privacy.pdf</span> ·
+                    <span th:text="${#temporals.format(item.uploadedAt(), 'dd/MM/yyyy HH:mm')}">27/10/2026 12:00</span> ·
+                    <span th:text="${item.uploadedBy()}">owner</span>
+                    <span th:if="${item.active()}" class="badge bg-success ms-1">active</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+</body>
+</html>

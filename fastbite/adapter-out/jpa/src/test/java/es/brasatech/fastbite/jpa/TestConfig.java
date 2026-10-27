@@ -42,4 +42,9 @@ public class TestConfig {
     public es.brasatech.fastbite.application.platform.PlatformAdmins platformAdmins() {
         return new es.brasatech.fastbite.application.platform.PlatformAdmins("");
     }
+
+    @Bean
+    public java.time.Clock clock() {
+        return java.time.Clock.systemUTC();
+    }
 }

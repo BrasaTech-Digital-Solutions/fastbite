@@ -151,6 +151,19 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
             // Production bundles carry it too, as a draft the owner confirms during production onboarding
             backupData.setFiscalProfile(entityManager.find(FiscalProfileEntity.class, 1));
+            List<es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity> activeNotices = entityManager.createQuery(
+                    "SELECT n FROM GuestPrivacyNotice n WHERE n.active = true ORDER BY n.version DESC",
+                    es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity.class).setMaxResults(1).getResultList();
+            es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity activeNotice = activeNotices.isEmpty() ? null : activeNotices.getFirst();
+            Path activeNoticeFile = null;
+            if (activeNotice != null) {
+                Path tenantDocs = es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeServiceJpaImpl.resolveTenantDocumentsPath(uploadDirectory, tenantId);
+                Path candidate = tenantDocs.resolve(activeNotice.getStoragePath()).normalize();
+                if (candidate.startsWith(tenantDocs) && Files.isRegularFile(candidate) && !Files.isSymbolicLink(candidate)) {
+                    activeNoticeFile = candidate;
+                    backupData.setGuestPrivacyNotice(activeNotice);
+                }
+            }
 
 
             // 2. Write to ZIP
@@ -176,6 +189,11 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                             zos.closeEntry();
                         }
                     }
+                }
+                if (activeNoticeFile != null) {
+                    zos.putNextEntry(new ZipEntry("documents/privacy-active.pdf"));
+                    Files.copy(activeNoticeFile, zos);
+                    zos.closeEntry();
                 }
             }
         } catch (Exception e) {
@@ -249,6 +267,10 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                 backupData.setUsers(java.util.List.of());
                 backupData.setOrders(java.util.List.of());
                 backupData.setOrderCounter(null);
+                if (!bundle) {
+                    backupData.setGuestPrivacyNotice(null);
+                    backupData.setActivePrivacyPdfBytes(null);
+                }
             }
             if (bundle || templateOnly) {
                 // Strips table overrides when restoring bundles or templates
@@ -385,10 +407,55 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             if (backupData.getFormatVersion() >= 3) entityManager.createNativeQuery("DELETE FROM fiscal_profile").executeUpdate();
             if (backupData.getFiscalProfile() != null) entityManager.merge(backupData.getFiscalProfile());
         }
+        restoreGuestPrivacyNotice(tenantId, backupData.getGuestPrivacyNotice(), backupData.getActivePrivacyPdfBytes());
         entityManager.flush();
         restoreOrderCounter(backupData.getOrderCounter());
         return fiscalProfileLocked;
 
+    }
+
+    private void restoreGuestPrivacyNotice(String tenantId,
+            es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity incoming, byte[] pdfBytes) {
+        if (incoming == null || pdfBytes == null || pdfBytes.length == 0) {
+            return;
+        }
+        es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService.validatePdf(pdfBytes);
+        String incomingSha256 = es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService.sha256Hex(pdfBytes);
+        List<es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity> currentActive = entityManager.createQuery(
+                "SELECT n FROM GuestPrivacyNotice n WHERE n.active = true ORDER BY n.version DESC",
+                es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity.class).setMaxResults(1).getResultList();
+        if (!currentActive.isEmpty() && incomingSha256.equalsIgnoreCase(currentActive.getFirst().getSha256())) {
+            return;
+        }
+        int nextVersion = ((Number) entityManager.createNativeQuery(
+                "SELECT COALESCE(MAX(version), 0) + 1 FROM guest_privacy_notices").getSingleResult()).intValue();
+        java.time.Instant uploadedAt = incoming.getUploadedAt() != null ? incoming.getUploadedAt() : java.time.Instant.now();
+        Path tenantDocs = es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeServiceJpaImpl.resolveTenantDocumentsPath(uploadDirectory, tenantId);
+        String relativePath = "privacy/privacy-v" + nextVersion + "-" + uploadedAt.toEpochMilli() + ".pdf";
+        Path targetFile = tenantDocs.resolve(relativePath).normalize();
+        if (Files.exists(targetFile)) {
+            relativePath = "privacy/privacy-v" + nextVersion + "-" + uploadedAt.toEpochMilli()
+                    + "-" + Math.abs(System.nanoTime() % 100_000) + ".pdf";
+            targetFile = tenantDocs.resolve(relativePath).normalize();
+        }
+        try {
+            Files.createDirectories(targetFile.getParent());
+            Files.write(targetFile, pdfBytes, java.nio.file.StandardOpenOption.CREATE_NEW);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write restored privacy notice PDF", e);
+        }
+        entityManager.createNativeQuery("UPDATE guest_privacy_notices SET active = FALSE WHERE active = TRUE").executeUpdate();
+        es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity restored = new es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity();
+        restored.setVersion(nextVersion);
+        restored.setFileName(es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService.sanitizeFileName(incoming.getFileName()));
+        restored.setStoragePath(relativePath);
+        restored.setFileSize(pdfBytes.length);
+        restored.setSha256(incomingSha256);
+        String uploader = incoming.getUploadedBy();
+        restored.setUploadedBy((uploader == null || uploader.isBlank()) ? "owner" : (uploader.length() > 100 ? uploader.substring(0, 100) : uploader));
+        restored.setUploadedAt(uploadedAt);
+        restored.setActive(true);
+        entityManager.persist(restored);
     }
 
     @Override
@@ -490,6 +557,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
 
     private TenantBackupData readArchive(InputStream input, Path stagedMedia) throws IOException {
         TenantBackupData data = null;
+        ByteArrayOutputStream privacyPdfOut = null;
         long remaining = 256L * 1024 * 1024;
         java.util.Set<Path> files = new java.util.HashSet<>();
         try (ZipInputStream zip = new ZipInputStream(input)) {
@@ -501,6 +569,10 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                     if (data != null) throw new IOException("Duplicate data.json");
                     json = new ByteArrayOutputStream();
                     target = json;
+                } else if ("documents/privacy-active.pdf".equalsIgnoreCase(name) && !entry.isDirectory()) {
+                    if (privacyPdfOut != null) throw new IOException("Duplicate documents/privacy-active.pdf");
+                    privacyPdfOut = new ByteArrayOutputStream();
+                    target = privacyPdfOut;
                 } else if (name.startsWith("media/") && !entry.isDirectory()) {
                     Path file = stagedMedia.resolve(name.substring(6)).normalize();
                     if (!file.startsWith(stagedMedia) || file.equals(stagedMedia) || !files.add(file)) {
@@ -529,6 +601,9 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             }
         }
         if (data == null) throw new IOException("Invalid backup file: data.json not found");
+        if (privacyPdfOut != null) {
+            data.setActivePrivacyPdfBytes(privacyPdfOut.toByteArray());
+        }
         return data;
     }
 
@@ -577,6 +652,10 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private String locationTheme;
         private FiscalProfileEntity fiscalProfile;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity guestPrivacyNotice;
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        private byte[] activePrivacyPdfBytes;
         private OrderCounterBackup orderCounter;
 
         // Legacy: translations as separate rows, only present in backups made before translations

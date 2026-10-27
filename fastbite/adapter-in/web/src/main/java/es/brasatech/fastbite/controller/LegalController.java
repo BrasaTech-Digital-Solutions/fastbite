@@ -70,6 +70,7 @@ public class LegalController {
     private final SessionCookie sessionCookie;
     private final es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances;
     private final es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink unsubscribeLinks;
+    private final es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
     private final java.time.Clock clock;
     private final Company company;
     private final Plans plans;
@@ -77,6 +78,7 @@ public class LegalController {
     public LegalController(FiscalProfileService restaurants, SessionCookie sessionCookie,
             es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances,
             es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink unsubscribeLinks,
+            es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices,
             java.time.Clock clock,
             @Value("${fastbite.legal.company-name:BRASATECH DIGITAL SOLUTIONS, S.L.U.}") String name,
             @Value("${fastbite.legal.tax-id:B09767898}") String taxId,
@@ -90,6 +92,7 @@ public class LegalController {
         this.sessionCookie = java.util.Objects.requireNonNull(sessionCookie, "sessionCookie");
         this.acceptances = java.util.Objects.requireNonNull(acceptances, "acceptances");
         this.unsubscribeLinks = java.util.Objects.requireNonNull(unsubscribeLinks, "unsubscribeLinks");
+        this.privacyNotices = java.util.Objects.requireNonNull(privacyNotices, "privacyNotices");
         this.clock = java.util.Objects.requireNonNull(clock, "clock");
         this.company = new Company(name, taxId, address, email, privacyEmail, registry, website, updated);
         this.plans = new Plans(euros(BigDecimal.valueOf(SubscriptionPlan.MONTHLY_CENTS, 2)), SubscriptionPlan.TRIAL_DAYS,
@@ -149,8 +152,39 @@ public class LegalController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
         model.addAttribute("restaurant", restaurants.get());
-        model.addAttribute("guestsPath", (tenantId != null ? "/" + tenantId : "") + "/privacy");
-        return show("guests", lang, locale, model);
+        String guestsPath = (tenantId != null ? "/" + tenantId : "") + "/privacy";
+        model.addAttribute("guestsPath", guestsPath);
+        show("guests", lang, locale, model);
+        var activeNotice = privacyNotices.findActive();
+        if (activeNotice.isPresent()) {
+            model.addAttribute("notice", activeNotice.get());
+            model.addAttribute("pdfPath", guestsPath + "/pdf");
+            return "fastfood/guest-privacy-pdf";
+        }
+        return "fastfood/legal/page";
+    }
+
+    @GetMapping({"/{tenantId}/privacy/pdf", "/privacy/pdf"})
+    public org.springframework.http.ResponseEntity<byte[]> guestsPdf(
+            @PathVariable(required = false) String tenantId,
+            @RequestParam(defaultValue = "false") boolean download) {
+        String activeTenant = TenantContext.getCurrentTenant();
+        if ("legal".equals(tenantId) || activeTenant == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        var activeNotice = privacyNotices.findActive();
+        var bytes = privacyNotices.readActiveBytes();
+        if (activeNotice.isEmpty() || bytes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        String disposition = (download ? "attachment" : "inline")
+                + "; filename=\"privacy-" + activeTenant + "-v" + activeNotice.get().version() + ".pdf\"";
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .header("X-Content-Type-Options", "nosniff")
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(bytes.get());
     }
 
     private String show(String page, String lang, Locale locale, Model model) {

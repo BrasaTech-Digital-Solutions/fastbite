@@ -46,9 +46,11 @@ class LegalPagesTest {
     @MockitoBean FiscalProfileService restaurants;
     @MockitoBean TenantLocationService tenantLocationService;
     @MockitoBean es.brasatech.fastbite.application.tenant.LegalAcceptancePort acceptances;
+    @MockitoBean es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
 
     @BeforeEach
     void setUp() {
+        when(privacyNotices.findActive()).thenReturn(Optional.empty());
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(tenantLocationService.getLocation("kebab")).thenReturn(Optional.of(
                 new TenantLocation("1", "ana", "kebab", "RESTAURANT", null)));
@@ -243,5 +245,51 @@ class LegalPagesTest {
                         .param("lang", "es"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Consentimiento retirado")));
+    }
+
+    @Test
+    void activeCustomPrivacyNoticeRendersWrapperPageAndStreamsPdfBytes() throws Exception {
+        byte[] pdfBytes = "%PDF-1.4\nCustom privacy notice\n%%EOF\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var notice = new es.brasatech.fastbite.domain.settings.GuestPrivacyNotice(
+                2, "kebab-privacy.pdf", "privacy/privacy-v2-100.pdf",
+                pdfBytes.length, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                "ana", java.time.Instant.parse("2026-10-27T12:00:00Z"), true);
+        when(privacyNotices.findActive()).thenReturn(Optional.of(notice));
+        when(privacyNotices.readActiveBytes()).thenReturn(Optional.of(pdfBytes));
+
+        // Wrapper page in English puts Open PDF & Download links first, responsibility line, and wide-screen iframe
+        mockMvc.perform(get("/kebab/privacy").param("lang", "en"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(
+                        containsString("Kebab House is the data controller and is responsible for this privacy notice"),
+                        containsString("Open the privacy notice (PDF)"),
+                        containsString("/kebab/privacy/pdf?download=true"),
+                        containsString("<iframe class=\"privacy-pdf-frame\" src=\"/kebab/privacy/pdf\""))));
+
+        // Direct PDF endpoint streams inline PDF with nosniff and no-store
+        mockMvc.perform(get("/kebab/privacy/pdf"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(org.springframework.http.MediaType.APPLICATION_PDF))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Disposition", "inline; filename=\"privacy-kebab-v2.pdf\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("X-Content-Type-Options", "nosniff"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Cache-Control", "no-store"))
+                .andExpect(content().bytes(pdfBytes));
+
+        // Download parameter switches Content-Disposition to attachment
+        mockMvc.perform(get("/kebab/privacy/pdf").param("download", "true"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Disposition", "attachment; filename=\"privacy-kebab-v2.pdf\""));
+    }
+
+    @Test
+    void privacyPdfEndpointReturns404WhenUsingGeneratedNotice() throws Exception {
+        when(privacyNotices.findActive()).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/kebab/privacy/pdf"))
+                .andExpect(status().isNotFound());
     }
 }

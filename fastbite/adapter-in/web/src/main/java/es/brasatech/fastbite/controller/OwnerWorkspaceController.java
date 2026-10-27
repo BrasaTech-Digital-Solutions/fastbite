@@ -31,19 +31,23 @@ public class OwnerWorkspaceController {
     private final FreePlanLock freePlanLock;
     private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
     private final LegalAcceptancePort acceptances;
+    private final es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
     private final java.time.Clock clock;
     private final String termsVersion;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
             MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
             es.brasatech.fastbite.application.platform.PlatformLink link, FreePlanLock freePlanLock,
             es.brasatech.fastbite.application.platform.PlatformAdmins admins,
-            LegalAcceptancePort acceptances, java.time.Clock clock,
+            LegalAcceptancePort acceptances,
+            es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices,
+            java.time.Clock clock,
             @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
         this.admins=java.util.Objects.requireNonNull(admins, "admins");
         this.acceptances=java.util.Objects.requireNonNull(acceptances, "acceptances");
+        this.privacyNotices=java.util.Objects.requireNonNull(privacyNotices, "privacyNotices");
         this.clock=java.util.Objects.requireNonNull(clock, "clock");
         this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
     }
@@ -75,6 +79,8 @@ public class OwnerWorkspaceController {
                 addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
                 model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
                 model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
+                model.addAttribute("activePrivacyNotice",privacyNotices.findActive(selected.tenantId()).orElse(null));
+                model.addAttribute("privacyNoticeHistory",privacyNotices.history(selected.tenantId()));
             }
             var billing=subscriptions.account(selected.tenantId(),owner.getName());
             model.addAttribute("billing",billing);
@@ -222,6 +228,29 @@ public class OwnerWorkspaceController {
             flash.addFlashAttribute("notice", "Your consent to receive offers from Brasatech has been withdrawn.");
         }
         return "redirect:/owner/console?view=settings";
+    }
+
+    @PostMapping("/owner/workspace/{tenant}/privacy-notice")
+    public String uploadPrivacyNotice(@PathVariable String tenant, @RequestParam("file") MultipartFile file,
+            Principal owner, RedirectAttributes flash) {
+        check(owner, tenant);
+        try {
+            byte[] bytes = file != null ? file.getBytes() : new byte[0];
+            String originalName = file != null ? file.getOriginalFilename() : "privacy.pdf";
+            var saved = privacyNotices.upload(tenant, originalName, bytes, owner.getName());
+            flash.addFlashAttribute("notice", "Privacy notice PDF uploaded (v" + saved.version() + ") and published at /" + tenant + "/privacy.");
+        } catch (IllegalArgumentException | java.io.IOException e) {
+            flash.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
+    }
+
+    @PostMapping("/owner/workspace/{tenant}/privacy-notice/generated")
+    public String useGeneratedPrivacyNotice(@PathVariable String tenant, Principal owner, RedirectAttributes flash) {
+        check(owner, tenant);
+        privacyNotices.useGeneratedNotice(tenant);
+        flash.addFlashAttribute("notice", "Switched back to the generated privacy notice. All previously uploaded PDF versions remain on file.");
+        return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
     }
 
     private void check(Principal owner,String tenant) {

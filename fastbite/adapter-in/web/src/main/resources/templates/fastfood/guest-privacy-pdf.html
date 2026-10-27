@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${language}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <title th:text="${title} + ' · FastBite'">Información de privacidad para clientes · FastBite</title>
+    <link rel="stylesheet" th:href="@{/css/legal.css}">
+    <style>
+        .privacy-pdf-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin: 1.25rem 0;
+        }
+        .privacy-pdf-button {
+            display: inline-block;
+            padding: 0.65rem 1.15rem;
+            background: #111827;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .privacy-pdf-download {
+            display: inline-block;
+            padding: 0.6rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .privacy-pdf-frame {
+            width: 100%;
+            height: 75vh;
+            min-height: 560px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin: 1rem 0 1.5rem;
+            background: #f9fafb;
+        }
+        @media (max-width: 767px) {
+            .privacy-pdf-frame {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="legal">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div>
+<nav class="legal-bar" aria-label="FastBite">
+    <a class="legal-brand" href="/">fastbite</a>
+    <span class="legal-languages">
+        <a th:each="code : ${ {'es', 'en', 'pt'} }" th:href="@{${prefix}(lang=${code})}" th:text="${#strings.toUpperCase(code)}"
+           th:classappend="${code == language} ? 'current'" th:attr="aria-current=${code == language ? 'true' : null},hreflang=${code}">ES</a>
+    </span>
+</nav>
+<main th:with="r=${restaurant},restaurantName=${(r != null && !#strings.isEmpty(r.displayName())) ? r.displayName() : ((r != null && !#strings.isEmpty(r.legalName())) ? r.legalName() : '')}">
+    <article th:if="${language == 'en'}">
+        <p class="eyebrow">GDPR · Arts. 13 and 14</p>
+        <h1>Privacy notice for guests</h1>
+        <p class="lead" th:text="${!#strings.isEmpty(restaurantName)
+                ? restaurantName + ' is the data controller and is responsible for this privacy notice. ' + company.name() + ' provides the FastBite ordering platform as its data processor.'
+                : 'This restaurant is the data controller and is responsible for this privacy notice. ' + company.name() + ' provides the FastBite ordering platform as its data processor.'}">
+            This restaurant is the data controller and is responsible for this privacy notice.
+        </p>
+        <div class="privacy-pdf-actions">
+            <a class="privacy-pdf-button" th:href="${pdfPath}" target="_blank" rel="noopener">Open the privacy notice (PDF)</a>
+            <a class="privacy-pdf-download" th:href="@{${pdfPath}(download=true)}" download>Download PDF</a>
+        </div>
+        <iframe class="privacy-pdf-frame" th:src="${pdfPath}" title="Privacy notice for guests (PDF)"></iframe>
+        <p class="lead legal-updated"
+           th:text="'Version ' + ${notice.version()} + ' · Published ' + ${#temporals.format(notice.uploadedAt(), 'dd/MM/yyyy')}">
+            Version 1 · Published 27/10/2026
+        </p>
+        <p><a th:href="@{/legal/cookies(lang='en')}">Cookie policy</a> ·
+            <a th:href="@{/legal/notice(lang='en')}">FastBite legal notice</a></p>
+    </article>
+
+    <article th:if="${language == 'pt'}">
+        <p class="eyebrow">RGPD · arts. 13.º e 14.º</p>
+        <h1>Aviso de privacidade para clientes</h1>
+        <p class="lead" th:text="${!#strings.isEmpty(restaurantName)
+                ? restaurantName + ' é o responsável pelo tratamento e por este aviso de privacidade. A ' + company.name() + ' presta o serviço FastBite como subcontratante.'
+                : 'Este restaurante é o responsável pelo tratamento e por este aviso de privacidade. A ' + company.name() + ' presta o serviço FastBite como subcontratante.'}">
+            Este restaurante é o responsável pelo tratamento e por este aviso de privacidade.
+        </p>
+        <div class="privacy-pdf-actions">
+            <a class="privacy-pdf-button" th:href="${pdfPath}" target="_blank" rel="noopener">Abrir o aviso de privacidade (PDF)</a>
+            <a class="privacy-pdf-download" th:href="@{${pdfPath}(download=true)}" download>Transferir PDF</a>
+        </div>
+        <iframe class="privacy-pdf-frame" th:src="${pdfPath}" title="Aviso de privacidade para clientes (PDF)"></iframe>
+        <p class="lead legal-updated"
+           th:text="'Versão ' + ${notice.version()} + ' · Publicado em ' + ${#temporals.format(notice.uploadedAt(), 'dd/MM/yyyy')}">
+            Versão 1 · Publicado em 27/10/2026
+        </p>
+        <p><a th:href="@{/legal/cookies(lang='pt')}">Política de cookies</a> ·
+            <a th:href="@{/legal/notice(lang='pt')}">Aviso legal da FastBite</a></p>
+    </article>
+
+    <article th:if="${language != 'en' && language != 'pt'}">
+        <p class="eyebrow">RGPD · arts. 13 y 14</p>
+        <h1>Información de privacidad para clientes</h1>
+        <p class="lead" th:text="${!#strings.isEmpty(restaurantName)
+                ? restaurantName + ' es el responsable del tratamiento y de este aviso de privacidad. ' + company.name() + ' presta al restaurante el servicio FastBite como encargado del tratamiento.'
+                : 'Este restaurante es el responsable del tratamiento y de este aviso de privacidad. ' + company.name() + ' presta al restaurante el servicio FastBite como encargado del tratamiento.'}">
+            Este restaurante es el responsable del tratamiento y de este aviso de privacidad.
+        </p>
+        <div class="privacy-pdf-actions">
+            <a class="privacy-pdf-button" th:href="${pdfPath}" target="_blank" rel="noopener">Abrir el aviso de privacidad (PDF)</a>
+            <a class="privacy-pdf-download" th:href="@{${pdfPath}(download=true)}" download>Descargar PDF</a>
+        </div>
+        <iframe class="privacy-pdf-frame" th:src="${pdfPath}" title="Información de privacidad para clientes (PDF)"></iframe>
+        <p class="lead legal-updated"
+           th:text="'Versión ' + ${notice.version()} + ' · Publicado el ' + ${#temporals.format(notice.uploadedAt(), 'dd/MM/yyyy')}">
+            Versión 1 · Publicado el 27/10/2026
+        </p>
+        <p><a th:href="@{/legal/cookies(lang='es')}">Política de cookies</a> ·
+            <a th:href="@{/legal/notice(lang='es')}">Aviso legal de FastBite</a></p>
+    </article>
+</main>
+</body>
+</html>

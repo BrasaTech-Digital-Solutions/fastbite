@@ -210,6 +210,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of("es.brasatech.fastbite.jpa.tenant.TenantBackupRestoreAdapter$TenantBackupData"), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of("es.brasatech.fastbite.jpa.tenant.TenantBackupRestoreAdapter$OrderCounterBackup"), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of("es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity"), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of("es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity"), MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.domain.settings.GuestPrivacyNotice.class, MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(UserDto.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(es.brasatech.fastbite.domain.user.Role.class), MemberCategory.values());
 
