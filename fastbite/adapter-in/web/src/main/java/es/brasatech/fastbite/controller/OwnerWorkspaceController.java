@@ -8,6 +8,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,11 +19,13 @@ import java.time.Year;
 import java.util.*;
 @Controller
 public class OwnerWorkspaceController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OwnerWorkspaceController.class);
     private final TenantLocationService locations;
     private final OwnerWorkspaceService workspace;
     private final OwnerStaffService staff;
     private final SubscriptionService subscriptions;
     private final TenantBackupRestorePort backups;
+    private final es.brasatech.fastbite.application.platform.PromotionService promotionService;
     private final AppearancePort appearance;
     private final es.brasatech.fastbite.config.ThemeCatalog themes;
     private final MessageSource messages;
@@ -41,7 +44,8 @@ public class OwnerWorkspaceController {
             LegalAcceptancePort acceptances,
             es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices,
             java.time.Clock clock,
-            @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
+            @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
+            es.brasatech.fastbite.application.platform.PromotionService promotionService) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
@@ -50,6 +54,7 @@ public class OwnerWorkspaceController {
         this.privacyNotices=java.util.Objects.requireNonNull(privacyNotices, "privacyNotices");
         this.clock=java.util.Objects.requireNonNull(clock, "clock");
         this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
+        this.promotionService=java.util.Objects.requireNonNull(promotionService, "promotionService");
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -83,6 +88,10 @@ public class OwnerWorkspaceController {
                 model.addAttribute("setup",setup);
                 if(view.equals("location-settings") && section.equals("general")) {
                     model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
+                }
+                if(view.equals("location-settings") && section.equals("backup")) {
+                    promotionService.getUndoablePromotion(selected.tenantId(), owner.getName())
+                            .ifPresent(undo -> model.addAttribute("undoablePromotion", undo));
                 }
                 if(section.equals("legal")) {
                     addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
@@ -252,6 +261,71 @@ public class OwnerWorkspaceController {
         checkOpen(owner,tenant);
         try(var stream=file.getInputStream()) { return backups.previewBackup(tenant,stream); }
         catch(IllegalArgumentException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,e.getMessage()); }
+    }
+
+    public record PromotionErrorResponse(String code, String message) {}
+    public record ConfirmPromotionRequest(String token) {}
+
+    @es.brasatech.fastbite.config.ProductionOnly
+    @PostMapping("/owner/workspace/{tenant}/promote/preview")
+    @ResponseBody
+    public ResponseEntity<?> previewPromotion(@PathVariable String tenant, Principal owner, Locale locale) {
+        checkOpen(owner, tenant);
+        try {
+            return ResponseEntity.ok(promotionService.preview(tenant, owner.getName()));
+        } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
+            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
+        } catch (Exception e) {
+            log.error("Promotion preview failed unexpectedly for tenant {}", tenant, e);
+            String msg = messages.getMessage("promotion.failed", null, "Promotion failed", locale);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new PromotionErrorResponse("promotion.failed", msg));
+        }
+    }
+
+    @es.brasatech.fastbite.config.ProductionOnly
+    @PostMapping("/owner/workspace/{tenant}/promote/confirm")
+    @ResponseBody
+    public ResponseEntity<?> confirmPromotion(
+            @PathVariable String tenant,
+            @RequestBody(required = false) ConfirmPromotionRequest body,
+            Principal owner,
+            Locale locale) {
+        checkOpen(owner, tenant);
+        String actualToken = body != null ? body.token() : null;
+        if (actualToken == null || actualToken.isBlank()) {
+            String msg = messages.getMessage("promotion.token.invalid", null, "Invalid promotion token", locale);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new PromotionErrorResponse("promotion.token.invalid", msg));
+        }
+        try {
+            var result = promotionService.confirm(tenant, owner.getName(), actualToken);
+            return ResponseEntity.ok(Map.of("status", "applied", "snapshot", result.snapshotName(), "summary", result.summary()));
+        } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
+            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
+        } catch (Exception e) {
+            log.error("Promotion confirm failed unexpectedly for tenant {}", tenant, e);
+            String msg = messages.getMessage("promotion.failed", null, "Promotion failed", locale);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new PromotionErrorResponse("promotion.failed", msg));
+        }
+    }
+
+    @es.brasatech.fastbite.config.ProductionOnly
+    @PostMapping("/owner/workspace/{tenant}/promote/undo")
+    @ResponseBody
+    public ResponseEntity<?> undoPromotion(@PathVariable String tenant, Principal owner, Locale locale) {
+        checkOpen(owner, tenant);
+        try {
+            var result = promotionService.undo(tenant, owner.getName());
+            return ResponseEntity.ok(Map.of("status", "undone", "snapshot", result.snapshotName()));
+        } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
+            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
+        } catch (Exception e) {
+            log.error("Promotion undo failed unexpectedly for tenant {}", tenant, e);
+            String msg = messages.getMessage("promotion.failed", null, "Promotion failed", locale);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new PromotionErrorResponse("promotion.failed", msg));
+        }
     }
     @es.brasatech.fastbite.config.ProductionOnly
     @PostMapping("/owner/marketing-consent")

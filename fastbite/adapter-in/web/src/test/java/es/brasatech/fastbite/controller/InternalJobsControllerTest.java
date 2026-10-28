@@ -61,6 +61,7 @@ class InternalJobsControllerTest {
         @MockitoBean VerifactuSubmissionJob verifactuSubmission;
         @MockitoBean FiscalIssuerBackfillJob fiscalIssuerBackfill;
         @MockitoBean ContractLifecycleJob contractLifecycle;
+        @MockitoBean es.brasatech.fastbite.application.platform.PromotionService promotionService;
         @MockitoBean TenantLocationService tenantLocationService;
 
         @BeforeEach
@@ -79,6 +80,7 @@ class InternalJobsControllerTest {
             when(verifactuSubmission.run(any())).thenReturn(new VerifactuSubmissionJob.Summary(5, 3, 1));
             when(fiscalIssuerBackfill.run(any())).thenReturn(4);
             when(contractLifecycle.run(any())).thenReturn(2);
+            when(promotionService.sweep()).thenReturn(3);
 
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, SECRET))
@@ -88,7 +90,8 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.verifactuLocationsChecked").value(3))
                     .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1))
                     .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4))
-                    .andExpect(jsonPath("$.contractLifecycleActions").value(2));
+                    .andExpect(jsonPath("$.contractLifecycleActions").value(2))
+                    .andExpect(jsonPath("$.promotionsSwept").value(3));
 
             String expectedToken = new es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink(SECRET, "http://localhost:8080")
                     .issueToken("ana").orElseThrow();

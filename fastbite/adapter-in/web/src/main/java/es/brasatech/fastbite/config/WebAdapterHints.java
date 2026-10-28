@@ -77,6 +77,15 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         }
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.BackupPreview.class, org.springframework.aot.hint.MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.EntityDiff.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.ThemeDiff.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.ProductChange.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.platform.PromotionService.PromotionResult.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.platform.PromotionService.UndoResult.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.platform.PromotionService.UndoablePromotionInfo.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.controller.OwnerWorkspaceController.PromotionErrorResponse.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.controller.OwnerWorkspaceController.ConfirmPromotionRequest.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.DemoTemplateDescriptor.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.BillingAccount.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SubscriptionPlan.class, MemberCategory.values());

@@ -367,6 +367,146 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         } catch (Exception e) { throw new IllegalArgumentException("This file is not a supported FastBite backup. Choose an exported ZIP and try again."); }
     }
 
+    @Override
+    public TenantBackupRestorePort.PromotionPreview previewPromotion(String tenantId, Path bundlePath) {
+        if (bundlePath == null || !Files.exists(bundlePath)) {
+            throw new TenantBackupRestorePort.UnreadableBundle("Promotion bundle not found on disk");
+        }
+        TenantBackupData data;
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(bundlePath.toFile())) {
+            java.util.zip.ZipEntry entry = zip.getEntry("data.json");
+            if (entry == null) {
+                throw new TenantBackupRestorePort.UnreadableBundle("Promotion bundle does not contain data.json");
+            }
+            try (InputStream in = zip.getInputStream(entry)) {
+                data = objectMapper.readValue(in, TenantBackupData.class);
+            }
+        } catch (TenantBackupRestorePort.UnreadableBundle e) {
+            throw e;
+        } catch (Exception e) {
+            throw new TenantBackupRestorePort.UnreadableBundle("Failed to read promotion bundle: " + e.getMessage(), e);
+        }
+        if (data == null) {
+            throw new TenantBackupRestorePort.UnreadableBundle("Invalid promotion bundle data");
+        }
+        if (!version.equals(data.getAppVersion())) {
+            throw new TenantBackupRestorePort.VersionMismatch(data.getAppVersion(), version);
+        }
+        return inTenantTransaction(tenantId, true, () -> computePromotionPreview(tenantId, data));
+    }
+
+    private TenantBackupRestorePort.PromotionPreview computePromotionPreview(String tenantId, TenantBackupData incomingData) {
+        // Products
+        List<ProductEntity> currentProducts = productJpaRepository.findAll();
+        List<ProductEntity> incomingProducts = incomingData.getProducts() != null ? incomingData.getProducts() : List.of();
+        Map<String, ProductEntity> currentProdMap = currentProducts.stream().collect(Collectors.toMap(ProductEntity::getId, p -> p, (a, b) -> a));
+        Map<String, ProductEntity> incomingProdMap = incomingProducts.stream().collect(Collectors.toMap(ProductEntity::getId, p -> p, (a, b) -> a));
+
+        int prodAdded = 0, prodChanged = 0, prodUnchanged = 0;
+        int pricesOverwritten = 0;
+        List<String> prodRemovedNames = new ArrayList<>();
+        List<TenantBackupRestorePort.PromotionPreview.ProductChange> productChanges = new ArrayList<>();
+
+        for (ProductEntity p : currentProducts) {
+            if (!incomingProdMap.containsKey(p.getId())) {
+                prodRemovedNames.add(p.getName());
+            }
+        }
+        for (ProductEntity inc : incomingProducts) {
+            if (!currentProdMap.containsKey(inc.getId())) {
+                prodAdded++;
+            } else {
+                ProductEntity cur = currentProdMap.get(inc.getId());
+                boolean priceChanged = cur.getPrice() == null
+                        ? inc.getPrice() != null
+                        : (inc.getPrice() == null || cur.getPrice().compareTo(inc.getPrice()) != 0);
+                boolean allergensChanged = !java.util.Objects.equals(cur.getAllergens(), inc.getAllergens());
+                boolean descChanged = !java.util.Objects.equals(cur.getDescription(), inc.getDescription());
+                boolean nameChanged = !java.util.Objects.equals(cur.getName(), inc.getName());
+                boolean customChanged = !java.util.Objects.equals(cur.getCustomizations(), inc.getCustomizations());
+                boolean imageChanged = !java.util.Objects.equals(cur.getImage(), inc.getImage());
+                boolean activeChanged = cur.isActive() != inc.isActive();
+                if (priceChanged) {
+                    pricesOverwritten++;
+                }
+                if (priceChanged || allergensChanged || descChanged || nameChanged || customChanged || imageChanged || activeChanged) {
+                    prodChanged++;
+                    productChanges.add(new TenantBackupRestorePort.PromotionPreview.ProductChange(
+                            cur.getId(), inc.getName() != null ? inc.getName() : cur.getName(),
+                            cur.getPrice(), inc.getPrice(), allergensChanged, descChanged, customChanged));
+                } else {
+                    prodUnchanged++;
+                }
+            }
+        }
+        var productsDiff = new TenantBackupRestorePort.PromotionPreview.EntityDiff(prodAdded, prodChanged, prodRemovedNames.size(), prodUnchanged, prodRemovedNames);
+
+        // Groups
+        var groupsDiff = diffEntities(groupJpaRepository.findAll(), incomingData.getGroups() != null ? incomingData.getGroups() : List.of(),
+                GroupEntity::getId, GroupEntity::getName);
+
+        // Customizations
+        var customizationsDiff = diffEntities(customizationJpaRepository.findAll(), incomingData.getCustomizations() != null ? incomingData.getCustomizations() : List.of(),
+                CustomizationEntity::getId, CustomizationEntity::getName);
+
+        // Tables
+        var tablesDiff = diffEntities(tableJpaRepository.findAll(), incomingData.getTables() != null ? incomingData.getTables() : List.of(),
+                TableEntity::getId, TableEntity::getName);
+
+        // Discounts
+        var discountsDiff = diffEntities(discountRuleJpaRepository.findAll(), incomingData.getDiscountRules() != null ? incomingData.getDiscountRules() : List.of(),
+                DiscountRuleEntity::getId, DiscountRuleEntity::getName);
+
+        // Theme
+        String curTheme = appearance.locationTheme(tenantId);
+        String incTheme = incomingData.getLocationTheme();
+        var themeDiff = new TenantBackupRestorePort.PromotionPreview.ThemeDiff(curTheme, incTheme);
+
+        // Settings
+        es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity curSettings = entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1);
+        es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity incSettings = incomingData.getRestaurantSettings();
+        boolean settingsReplaced = false;
+        if (incSettings != null) {
+            if (curSettings == null) {
+                settingsReplaced = true;
+            } else {
+                com.fasterxml.jackson.databind.JsonNode curTree = objectMapper.valueToTree(curSettings);
+                com.fasterxml.jackson.databind.JsonNode incTree = objectMapper.valueToTree(incSettings);
+                settingsReplaced = !curTree.equals(incTree);
+            }
+        }
+
+        return new TenantBackupRestorePort.PromotionPreview(
+                null, productsDiff, groupsDiff, customizationsDiff, tablesDiff, discountsDiff,
+                themeDiff, settingsReplaced, productChanges, pricesOverwritten, 0L);
+    }
+
+    private <E> TenantBackupRestorePort.PromotionPreview.EntityDiff diffEntities(
+            List<E> current, List<E> incoming, Function<E, String> idFn, Function<E, String> nameFn) {
+        Map<String, E> curMap = current.stream().collect(Collectors.toMap(idFn, e -> e, (a, b) -> a));
+        Map<String, E> incMap = incoming.stream().collect(Collectors.toMap(idFn, e -> e, (a, b) -> a));
+        int added = 0, changed = 0, unchanged = 0;
+        List<String> removedNames = new ArrayList<>();
+        for (E cur : current) {
+            if (!incMap.containsKey(idFn.apply(cur))) {
+                removedNames.add(nameFn.apply(cur));
+            }
+        }
+        for (E inc : incoming) {
+            if (!curMap.containsKey(idFn.apply(inc))) {
+                added++;
+            } else {
+                E cur = curMap.get(idFn.apply(inc));
+                if (!java.util.Objects.equals(nameFn.apply(cur), nameFn.apply(inc))) {
+                    changed++;
+                } else {
+                    unchanged++;
+                }
+            }
+        }
+        return new TenantBackupRestorePort.PromotionPreview.EntityDiff(added, changed, removedNames.size(), unchanged, removedNames);
+    }
+
     private boolean restoreDatabase(String tenantId, TenantBackupData backupData, boolean bundle) {
         // Rewrite product image URLs to match the new tenant ID
         if (backupData.getProducts() != null) {

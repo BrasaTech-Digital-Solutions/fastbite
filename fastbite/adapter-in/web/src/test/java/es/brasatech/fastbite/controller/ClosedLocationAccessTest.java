@@ -72,6 +72,7 @@ class ClosedLocationAccessTest {
     @MockitoBean LegalAcceptancePort acceptances;
     @MockitoBean GuestPrivacyNoticeService privacyNotices;
     @MockitoBean UserService userService;
+    @MockitoBean es.brasatech.fastbite.application.platform.PromotionService promotionService;
 
     private static final Instant CLOSED_AT = Instant.parse("2026-12-15T10:00:00Z");
 

@@ -40,7 +40,18 @@ public class InternalJobsController {
             int verifactuLocationsChecked,
             int verifactuLocationsRemaining,
             int fiscalIssuersBackfilled,
-            int contractLifecycleActions) {
+            int contractLifecycleActions,
+            int promotionsSwept) {
+        public JobRunSummary(
+                int sandboxProvisioned,
+                int verifactuSubmitted,
+                int verifactuLocationsChecked,
+                int verifactuLocationsRemaining,
+                int fiscalIssuersBackfilled,
+                int contractLifecycleActions) {
+            this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
+                    fiscalIssuersBackfilled, contractLifecycleActions, 0);
+        }
         public JobRunSummary(
                 int sandboxProvisioned,
                 int verifactuSubmitted,
@@ -48,7 +59,7 @@ public class InternalJobsController {
                 int verifactuLocationsRemaining,
                 int fiscalIssuersBackfilled) {
             this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
-                    fiscalIssuersBackfilled, 0);
+                    fiscalIssuersBackfilled, 0, 0);
         }
     }
 
@@ -56,6 +67,7 @@ public class InternalJobsController {
     private final VerifactuSubmissionJob verifactuSubmission;
     private final FiscalIssuerBackfillJob fiscalIssuerBackfill;
     private final ContractLifecycleJob contractLifecycle;
+    private final es.brasatech.fastbite.application.platform.PromotionService promotionService;
     private final String secret;
     private final Clock clock;
 
@@ -64,12 +76,14 @@ public class InternalJobsController {
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             ContractLifecycleJob contractLifecycle,
+            @Autowired(required = false) es.brasatech.fastbite.application.platform.PromotionService promotionService,
             @Value("${fastbite.jobs.secret:}") String secret,
             Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
         this.verifactuSubmission = verifactuSubmission;
         this.fiscalIssuerBackfill = fiscalIssuerBackfill;
         this.contractLifecycle = contractLifecycle;
+        this.promotionService = promotionService;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
@@ -82,14 +96,14 @@ public class InternalJobsController {
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, secret, Clock.systemUTC());
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, secret, Clock.systemUTC());
     }
 
     InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret, Clock clock) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, secret, clock);
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, secret, clock);
     }
 
     @PostMapping("/internal/jobs/run")
@@ -107,13 +121,15 @@ public class InternalJobsController {
         VerifactuSubmissionJob.Summary verifactu = verifactuSubmission.run(deadline);
         int backfilled = fiscalIssuerBackfill.run(deadline);
         int contractActions = contractLifecycle != null ? contractLifecycle.run(deadline) : 0;
+        int promotionsSwept = promotionService != null ? promotionService.sweep() : 0;
         return ResponseEntity.ok(new JobRunSummary(
                 provisioned,
                 verifactu.submitted(),
                 verifactu.locationsChecked(),
                 verifactu.locationsRemaining(),
                 backfilled,
-                contractActions));
+                contractActions,
+                promotionsSwept));
     }
 
     @GetMapping(value = "/internal/jobs/unsubscribe-token", produces = MediaType.TEXT_PLAIN_VALUE)
