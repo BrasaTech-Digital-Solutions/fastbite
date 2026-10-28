@@ -10,7 +10,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.io.ByteArrayInputStream;
 import java.net.CookieManager;
+import java.util.zip.ZipInputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -102,6 +104,23 @@ class LinkedSandboxFlowTest {
         assertTrue(ready.contains("Take your setup to production"));
         assertTrue(ready.contains(PRODUCTION + "/owner/console?view=location-settings&section=backup&location=practicecafe"));
         assertTrue(ready.contains("Orders placed here are practice orders."));
+
+        byte[] bundleReqBody = "{\"tenantId\":\"practicecafe\",\"ownerUsername\":\"practiceowner\"}".getBytes(StandardCharsets.UTF_8);
+        var bundleResp = client().send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/internal/link/production-bundle"))
+                .header("Content-Type", "application/json")
+                .header("X-FastBite-Signature", LinkSignature.header(SECRET, Instant.now(), bundleReqBody))
+                .header("X-FastBite-Version", "9.9.9")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(bundleReqBody)).build(), HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, bundleResp.statusCode());
+        assertEquals("application/zip", bundleResp.headers().firstValue("Content-Type").orElse(""));
+        try (var zis = new ZipInputStream(new ByteArrayInputStream(bundleResp.body()))) {
+            assertTrue(zis.getNextEntry() != null, "bundle must contain zip entries");
+        }
+        var unsignedBundleResp = client().send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/internal/link/production-bundle"))
+                .header("Content-Type", "application/json")
+                .header("X-FastBite-Version", "9.9.9")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(bundleReqBody)).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(401, unsignedBundleResp.statusCode());
 
         var locations = get(owner, "/owner/console?view=locations").body();
         assertTrue(locations.contains("Add a location in FastBite"));

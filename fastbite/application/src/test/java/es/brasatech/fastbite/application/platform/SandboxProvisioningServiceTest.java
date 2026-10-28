@@ -2,6 +2,7 @@ package es.brasatech.fastbite.application.platform;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -75,6 +76,11 @@ class SandboxProvisioningServiceTest {
         public void provision(LinkedLocation location) {
             if (down) throw new Unavailable("The sandbox could not be reached");
             received.add(location);
+        }
+
+        @Override
+        public InputStream streamBundle(String tenantId, String ownerUsername, long maxBytes) {
+            throw new UnsupportedOperationException();
         }
     }
 

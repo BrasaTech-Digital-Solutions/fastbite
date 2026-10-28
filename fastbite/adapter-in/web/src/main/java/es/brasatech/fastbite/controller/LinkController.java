@@ -1,15 +1,22 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.platform.LinkSignature;
 import es.brasatech.fastbite.application.platform.LinkedLocationService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.platform.SandboxLinkPort;
+import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
+import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -17,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
@@ -38,15 +46,23 @@ public class LinkController {
     private final PasswordEncoder passwords;
     private final ObjectMapper json;
     private final String version;
+    private final TenantLocationService tenantLocationService;
+    private final ProductService productService;
+    private final TenantBackupRestorePort backupRestorePort;
 
     public LinkController(PlatformEnvironment environment, PlatformLink link, LinkedLocationService locations,
-            PasswordEncoder passwords, ObjectMapper json, @Value("${fastbite.version:dev}") String version) {
+            PasswordEncoder passwords, ObjectMapper json, @Value("${fastbite.version:dev}") String version,
+            TenantLocationService tenantLocationService, ProductService productService,
+            TenantBackupRestorePort backupRestorePort) {
         this.environment = environment;
         this.link = link;
         this.locations = locations;
         this.passwords = passwords;
         this.json = json;
         this.version = version;
+        this.tenantLocationService = tenantLocationService;
+        this.productService = productService;
+        this.backupRestorePort = backupRestorePort;
     }
 
     @PostMapping("/internal/link/locations")
@@ -81,6 +97,61 @@ public class LinkController {
         }
         log.info("Location {} of {} is set up in the sandbox", location.tenantId(), location.ownerUsername());
         return ResponseEntity.ok(Map.of("status", "ready"));
+    }
+
+    @PostMapping("/internal/link/production-bundle")
+    public ResponseEntity<?> bundle(@RequestBody(required = false) byte[] content,
+            @RequestHeader(value = "X-FastBite-Signature", required = false) String signature,
+            @RequestHeader(value = "X-FastBite-Version", required = false) String senderVersion,
+            HttpServletResponse response) throws IOException {
+        if (!environment.sandbox() || !link.linked()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (content == null || content.length == 0 || !LinkSignature.verify(link.secret(), signature, content, Instant.now())) {
+            log.warn("Refused a link call that is not signed with the shared secret, or too old");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not signed by production"));
+        }
+        if (!version.equals(senderVersion)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "The sandbox runs FastBite " + version + ", production " + senderVersion));
+        }
+        JsonNode body = json.readTree(content);
+        String tenantId = text(body, "tenantId");
+        String ownerUsername = text(body, "ownerUsername");
+        if (tenantId == null || tenantId.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            log.warn("Refused a link bundle call with missing or blank tenantId or ownerUsername");
+            return ResponseEntity.badRequest().body(Map.of("message", "tenantId and ownerUsername are required"));
+        }
+        if (tenantLocationService.getLocation(tenantId).isEmpty()) {
+            log.warn("Refused bundle export: location {} not found in the sandbox", tenantId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Location " + tenantId + " not found in the sandbox"));
+        }
+        if (!tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
+            log.warn("Refused bundle export: user {} does not own location {} in the sandbox", ownerUsername, tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "User " + ownerUsername + " does not own location " + tenantId));
+        }
+        String prev = TenantContext.getCurrentTenant();
+        TenantContext.setCurrentTenant(tenantId);
+        try {
+            if (productService.findAll().isEmpty()) {
+                log.info("Refused bundle export: location {} has no products to promote", tenantId);
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(Map.of("message", "Location " + tenantId + " has no products to promote"));
+            }
+        } finally {
+            if (prev == null) TenantContext.clear();
+            else TenantContext.setCurrentTenant(prev);
+        }
+
+        response.setStatus(HttpStatus.OK.value());
+        response.setContentType("application/zip");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"bundle-" + tenantId + ".zip\"");
+        backupRestorePort.exportProductionBundle(tenantId, response.getOutputStream());
+        // Returning null tells Spring MVC that the response body was written directly
+        // to HttpServletResponse.getOutputStream() (streaming chunked zip).
+        return null;
     }
 
     private static String text(JsonNode body, String field) {
