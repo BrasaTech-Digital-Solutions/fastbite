@@ -235,12 +235,12 @@
 
     <!-- Customization Options Modal Body -->
     <th:block th:fragment="customization-options(customizations, selectedOptions)">
-        <div th:each="cust : ${customizations}" class="mb-4">
+        <div th:each="cust : ${customizations}" th:if="${!#lists.isEmpty(cust.options)}" class="mb-4">
             <h6 class="fw-bold border-bottom pb-2">
                 <i class="fas fa-utensils me-2"></i>
                 <span th:text="${cust.name}">Customization Name</span>
             </h6>
-            <div th:each="opt, optIter : ${cust.options}" class="form-check mb-2">
+            <div th:if="${cust.type != 'quantity'}" th:each="opt, optIter : ${cust.options}" class="form-check mb-2">
                 <input class="form-check-input customization-input"
                     th:type="${cust.type == 'radio' ? 'radio' : 'checkbox'}"
                     th:name="${cust.type == 'radio' ? cust.id : cust.id + '-opt-' + optIter.index}"
@@ -253,6 +253,43 @@
                     <span class="text-muted"
                         th:text="${opt.price > 0 ? '+' + #numbers.formatDecimal(opt.price, 1, 2) : ''}">+1.00</span>
                 </label>
+            </div>
+            <div th:if="${cust.type == 'quantity'}" th:each="opt : ${cust.options}" class="ingredient-control">
+                <div class="ingredient-info">
+                    <div class="ingredient-name">
+                        <span th:text="${opt.name}">Onions</span>
+                        <span class="option-allergens" th:if="${opt.allergens() != null}" th:each="allergen : ${opt.allergens()}"
+                            th:title="#{${allergen.messageKey()}}" role="img"
+                            th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</span>
+                    </div>
+                    <div class="ingredient-price text-muted" th:if="${opt.price > 0}"
+                        th:text="${'(+' + #numbers.formatDecimal(opt.price, 1, 2) + ')'}">+1.00</div>
+                </div>
+                <div class="ingredient-quantity-control">
+                    <button type="button" class="ingredient-btn"
+                        th:id="${'counter-qty-' + opt.id + '-minus'}"
+                        th:data-option-id="${opt.id}"
+                        th:disabled="${opt.defaultValue == 0}"
+                        onclick="changeCounterQuantityToggle(this.dataset.optionId, -1)">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <span th:id="${'counter-qty-' + opt.id}" class="ingredient-quantity"
+                        th:text="${opt.defaultValue >= 1 ? 1 : 0}">1</span>
+                    <button type="button" class="ingredient-btn"
+                        th:id="${'counter-qty-' + opt.id + '-plus'}"
+                        th:data-option-id="${opt.id}"
+                        th:disabled="${opt.defaultValue >= 1}"
+                        onclick="changeCounterQuantityToggle(this.dataset.optionId, 1)">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <input class="customization-quantity-input" type="hidden"
+                    th:id="${'counter-input-' + opt.id}"
+                    th:data-option-id="${opt.id}"
+                    th:data-name="${opt.name}"
+                    th:data-price="${opt.price}"
+                    th:data-default-value="${opt.defaultValue}"
+                    th:value="${opt.defaultValue >= 1 ? 1 : 0}">
             </div>
         </div>
     </th:block>

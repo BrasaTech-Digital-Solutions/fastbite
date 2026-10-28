@@ -883,6 +883,10 @@ function getDefaultCustomizations(product) {
         const customization = allCustomizations.find(c => c.id === custId);
         if (!customization) return;
 
+        if (customization.type === 'quantity') {
+            return;
+        }
+
         customization.options.forEach((opt, idx) => {
             if (opt.isSelectedByDefault) {
                 defaults.push({
@@ -995,6 +999,21 @@ function formatPrice(val) {
     return parseFloat(val).toFixed(2);
 }
 
+function changeCounterQuantityToggle(optionId, change) {
+    const span = document.getElementById(`counter-qty-${optionId}`);
+    const input = document.getElementById(`counter-input-${optionId}`);
+    const minusBtn = document.getElementById(`counter-qty-${optionId}-minus`);
+    const plusBtn = document.getElementById(`counter-qty-${optionId}-plus`);
+    if (!span || !input) return;
+
+    let currentQty = parseInt(span.textContent || '0');
+    const newQty = Math.min(1, Math.max(0, currentQty + change));
+    span.textContent = newQty;
+    input.value = newQty;
+    if (minusBtn) minusBtn.disabled = (newQty === 0);
+    if (plusBtn) plusBtn.disabled = (newQty >= 1);
+}
+
 async function showCustomizationModal(product, currentCustomizations = []) {
     currentProduct = product;
     document.getElementById('product-modal-name').textContent = `${t('customizerTitle')} ${product.name}`;
@@ -1008,6 +1027,23 @@ async function showCustomizationModal(product, currentCustomizations = []) {
         const res = await fetch(`/counter/fragments/customization-options/${product.id}?selected=${selectedIds}`);
         if (res.ok) {
             optionsContainer.innerHTML = await res.text();
+
+            if (currentCustomizations && currentCustomizations.length > 0) {
+                currentCustomizations.forEach(c => {
+                    const input = document.getElementById(`counter-input-${c.id}`);
+                    if (input) {
+                        const qty = c.quantity;
+                        input.value = qty;
+                        const span = document.getElementById(`counter-qty-${c.id}`);
+                        if (span) span.textContent = qty;
+                        const minusBtn = document.getElementById(`counter-qty-${c.id}-minus`);
+                        const plusBtn = document.getElementById(`counter-qty-${c.id}-plus`);
+                        if (minusBtn) minusBtn.disabled = (qty === 0);
+                        if (plusBtn) plusBtn.disabled = (qty >= 1);
+                    }
+                });
+            }
+
             new bootstrap.Modal(document.getElementById('customizationModal')).show();
         }
     } catch (e) {
@@ -1028,8 +1064,30 @@ function saveCustomizations() {
         });
     });
 
+    const qtyInputs = document.querySelectorAll('.customization-quantity-input');
+    qtyInputs.forEach(input => {
+        const defaultValue = parseInt(input.dataset.defaultValue || '0');
+        const currentQty = parseInt(input.value || '0');
+        if (defaultValue >= 1 && currentQty === 0) {
+            customizations.push({
+                id: input.dataset.optionId,
+                name: 'SIN ' + input.dataset.name,
+                price: 0,
+                quantity: 0
+            });
+        } else if (defaultValue === 0 && currentQty === 1) {
+            customizations.push({
+                id: input.dataset.optionId,
+                name: input.dataset.name,
+                price: parseFloat(input.dataset.price || 0),
+                quantity: 1
+            });
+        }
+    });
+
     const productId = currentProduct.id;
-    addToCart(productId, 1, customizations);
+    const currentQty = currentEditingItemIndex !== null ? cart[currentEditingItemIndex].quantity : 1;
+    addToCart(productId, currentQty, customizations);
     hideModal('customizationModal');
 }
 
