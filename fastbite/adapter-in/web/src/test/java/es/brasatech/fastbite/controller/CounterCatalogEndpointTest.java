@@ -109,4 +109,17 @@ class CounterCatalogEndpointTest {
         mockMvc.perform(get("/counter/api/catalog/products").header("Referer", "http://localhost/unknown/counter"))
                 .andExpect(request().attribute(TenantContextFilter.UNKNOWN_RESTAURANT, (Object) null));
     }
+
+    @Test void emptyCustomizationsAreExcludedFromCounterCatalog() throws Exception {
+        var opt = new es.brasatech.fastbite.domain.customization.CustomizationOptionDto("opt-1", "Regular", BigDecimal.ZERO);
+        var valid = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-valid", "Valid", "radio", List.of(opt), 0);
+        var empty = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-empty", "Empty", "quantity", List.of(), 0);
+        when(customizationService.findAll()).thenReturn(List.of(valid, empty));
+
+        mockMvc.perform(as("CASHIER", get("/counter/api/catalog/customizations")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value("c-valid"));
+    }
 }

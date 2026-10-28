@@ -41,6 +41,7 @@ public class CounterCatalogController {
     @GetMapping("/counter/api/catalog/customizations")
     public List<BackOfficeDto<CustomizationDto>> customizations() {
         return customizationService.findAll().stream()
+                .filter(c -> c.options() != null && !c.options().isEmpty())
                 .map(customization -> BackOfficeDto.of(customization.id(), customization)).toList();
     }
 

@@ -53,9 +53,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -292,5 +294,62 @@ class CounterTakeawayEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Cart-Subtotal", "8.00"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Cart-Total", "8.00"));
+    }
+
+    @Test
+    void orderCartFragmentMarksProductWithoutCustomizationsAsNonCustomizableWhenCustomizationsAreEmpty() throws Exception {
+        var emptyCust = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-empty", "Empty", "quantity", List.of(), 0);
+        var validOpt = new es.brasatech.fastbite.domain.customization.CustomizationOptionDto("opt-cheese", "Extra Cheese", new BigDecimal("1.50"));
+        var validCust = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-valid", "Valid", "checkbox", List.of(validOpt), 1);
+        when(customizationService.findAll()).thenReturn(List.of(emptyCust, validCust));
+
+        when(productService.findById("kebab")).thenReturn(Optional.of(new ProductDto("kebab", "Kebab",
+                new BigDecimal("6.50"), "Beef kebab", "/kebab.webp", Set.of("c-empty"), true)));
+        when(productService.findById("pizza")).thenReturn(Optional.of(new ProductDto("pizza", "Pizza",
+                new BigDecimal("8.00"), "Cheese pizza", "/pizza.webp", Set.of("c-valid"), true)));
+        when(discountService.calculateDiscount(any(), any(), any(), eq(OrderChannel.COUNTER))).thenReturn(BigDecimal.ZERO);
+
+        String cartJson = """
+                [
+                    {
+                        "id": "item-1",
+                        "productId": "kebab",
+                        "itemId": "kebab",
+                        "name": "Kebab",
+                        "price": 6.50,
+                        "quantity": 1,
+                        "customizations": []
+                    },
+                    {
+                        "id": "item-2",
+                        "productId": "pizza",
+                        "itemId": "pizza",
+                        "name": "Pizza",
+                        "price": 8.00,
+                        "quantity": 1,
+                        "customizations": []
+                    }
+                ]
+                """;
+
+        mockMvc.perform(asCashier(post("/counter/fragments/order-cart")).content(cartJson))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-customizable=\"false\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-customizable=\"true\"")));
+    }
+
+    @Test
+    void customizationOptionsFragmentExcludesEmptyCustomizations() throws Exception {
+        var opt = new es.brasatech.fastbite.domain.customization.CustomizationOptionDto("opt-1", "Regular", BigDecimal.ZERO);
+        var valid = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-valid", "Valid", "radio", List.of(opt), 0);
+        var empty = new es.brasatech.fastbite.domain.customization.CustomizationDto("c-empty", "Empty", "quantity", List.of(), 0);
+        when(productService.findById("p1")).thenReturn(Optional.of(new ProductDto("p1", "Product",
+                new BigDecimal("5.00"), "Desc", "/p.webp", Set.of("c-valid", "c-empty"), true)));
+        when(customizationService.findById("c-valid")).thenReturn(Optional.of(valid));
+        when(customizationService.findById("c-empty")).thenReturn(Optional.of(empty));
+
+        mockMvc.perform(asCashier(get("/counter/fragments/customization-options/p1")))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("customizations", List.of(valid)));
     }
 }

@@ -38,13 +38,19 @@ public class MenuDataService {
     public MenuData buildMenuData(Locale locale) {
         // Get all entities from BackOffice
         List<Group> groups = groupService.findAll();
-        List<CustomizationDto> customizationDtos = customizationService.findAll();
+        List<CustomizationDto> customizationDtos = customizationService.findAll().stream()
+                .filter(c -> c.options() != null && !c.options().isEmpty())
+                .toList();
         List<ProductDto> productDtos = productService.findAll();
+
+        Set<String> validCustomizationIds = customizationDtos.stream()
+                .map(CustomizationDto::id)
+                .collect(Collectors.toSet());
 
         // Convert to menu entities
         List<Tab> tabs = convertGroupsToTabs(groups);
         List<Customization> customizations = convertCustomizations(customizationDtos);
-        Map<String, Product> productsById = convertProducts(productDtos);
+        Map<String, Product> productsById = convertProducts(productDtos, validCustomizationIds);
 
         // Group products by tab
         Map<String, List<Product>> menuDataMap = groupProductsByTab(groups, productsById);
@@ -139,14 +145,16 @@ public class MenuDataService {
     /**
      * Convert BackOffice ProductDto to menu Product
      */
-    private Map<String, Product> convertProducts(List<ProductDto> productDtos) {
+    private Map<String, Product> convertProducts(List<ProductDto> productDtos, Set<String> validCustomizationIds) {
         return productDtos.stream()
                 .collect(Collectors.toMap(
                         ProductDto::id,
                         productDto -> {
-                            // Convert customizations list to array
+                            // Convert customizations list to array, keeping only non-empty customizations
                             String[] customizations = productDto.customizations() != null
-                                    ? productDto.customizations().toArray(new String[0])
+                                    ? productDto.customizations().stream()
+                                            .filter(validCustomizationIds::contains)
+                                            .toArray(String[]::new)
                                     : new String[0];
 
                             return new Product(

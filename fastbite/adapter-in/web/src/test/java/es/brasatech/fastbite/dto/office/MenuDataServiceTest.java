@@ -5,9 +5,14 @@ import es.brasatech.fastbite.application.office.GroupService;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.domain.customization.CustomizationOptionDto;
+import es.brasatech.fastbite.domain.group.Group;
+import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.dto.menu.Customization;
 import es.brasatech.fastbite.dto.menu.CustomizationInputType;
 import es.brasatech.fastbite.dto.menu.MenuData;
+import es.brasatech.fastbite.dto.menu.Product;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
@@ -63,5 +68,44 @@ class MenuDataServiceTest {
 
         Customization quantity = customizations.stream().filter(c -> c.id().equals("c-quantity")).findFirst().orElseThrow();
         assertThat(quantity.inputType()).isEqualTo(CustomizationInputType.HIDDEN);
+    }
+
+    @Test
+    void emptyCustomizationsAreExcludedFromMenuDataAndProductCustomizations() {
+        List<CustomizationDto> dtos = List.of(
+                new CustomizationDto("c-valid", "Valid", "radio", List.of(
+                        new CustomizationOptionDto("opt-1", "Regular", BigDecimal.ZERO, true, 1)), 0),
+                new CustomizationDto("c-empty", "Empty", "quantity", List.of(), 0)
+        );
+        when(customizationService.findAll()).thenReturn(dtos);
+
+        ProductDto productOnlyEmpty = new ProductDto("prod-empty", "Empty Cust Product", BigDecimal.TEN,
+                "Desc", "/img.png", Set.of("c-empty"), true);
+        ProductDto productBoth = new ProductDto("prod-both", "Both Cust Product", BigDecimal.TEN,
+                "Desc", "/img.png", Set.of("c-valid", "c-empty"), true);
+        when(productService.findAll()).thenReturn(List.of(productOnlyEmpty, productBoth));
+
+        Group group = new Group("group-1", "Group 1", "", null, List.of("prod-empty", "prod-both"));
+        when(groupService.findAll()).thenReturn(List.of(group));
+
+        MenuData menuData = menuDataService.buildMenuData(Locale.ENGLISH);
+
+        // 1. Absent from customizations
+        assertThat(menuData.customizations()).extracting(Customization::id).containsExactly("c-valid");
+
+        // 2. Absent from availableCustomizations
+        assertThat(menuData.availableCustomizations()).isEqualTo("c-valid");
+
+        // 3. Absent from product customizations; product with only empty customization has no customization ids
+        Map<String, List<Product>> map = menuData.menuDataMap();
+        List<Product> products = map.get("group-1");
+
+        Product pEmpty = products.stream().filter(p -> p.id().equals("prod-empty")).findFirst().orElseThrow();
+        assertThat(pEmpty.customizations()).isEmpty();
+        assertThat(pEmpty.customizationsAsString()).isEmpty();
+
+        Product pBoth = products.stream().filter(p -> p.id().equals("prod-both")).findFirst().orElseThrow();
+        assertThat(pBoth.customizations()).containsExactly("c-valid");
+        assertThat(pBoth.customizationsAsString()).isEqualTo("c-valid");
     }
 }

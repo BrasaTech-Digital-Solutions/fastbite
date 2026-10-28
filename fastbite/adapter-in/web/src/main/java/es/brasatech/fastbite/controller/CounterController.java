@@ -23,9 +23,13 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import es.brasatech.fastbite.domain.customization.CustomizationDto;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -304,10 +308,15 @@ public class CounterController {
     @PostMapping("/counter/fragments/order-cart")
     public String getOrderCartFragment(Model model, @RequestBody List<CartItem> requested, jakarta.servlet.http.HttpServletResponse response) {
         List<CartItem> items = orderPricingService.price(requested, OrderChannel.COUNTER);
+        Set<String> withOptions = customizationService.findAll().stream()
+                .filter(c -> c.options() != null && !c.options().isEmpty())
+                .map(CustomizationDto::id)
+                .collect(Collectors.toSet());
+
         // Enriched list for the fragment
         var enrichedItems = items.stream().map(item -> {
             boolean customizable = productService.findById(item.itemId())
-                    .map(p -> p.customizations() != null && !p.customizations().isEmpty())
+                    .map(p -> p.customizations() != null && p.customizations().stream().anyMatch(withOptions::contains))
                     .orElse(false);
 
             return Map.of(
@@ -415,7 +424,7 @@ public class CounterController {
 
         var customizations = product.customizations().stream()
                 .map(id -> customizationService.findById(id).orElse(null))
-                .filter(java.util.Objects::nonNull)
+                .filter(c -> c != null && c.options() != null && !c.options().isEmpty())
                 .toList();
 
         model.addAttribute("customizations", customizations);

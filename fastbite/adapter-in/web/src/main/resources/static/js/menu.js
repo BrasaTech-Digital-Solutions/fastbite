@@ -159,7 +159,8 @@ function customizeItem(itemId, category) {
 
 function getDefaultCustomizations(itemId) {
     const customizationsMap = new Map();
-    const allowedCustomizationIds = document.getElementById(itemId).dataset.customizations?.split(',') || [];
+    const itemElement = document.getElementById(itemId);
+    const allowedCustomizationIds = itemElement?.dataset.customizations?.split(',').filter(Boolean) || [];
 
     allowedCustomizationIds.forEach(customizationId => {
         const parent = document.getElementById(customizationId);
@@ -185,11 +186,15 @@ function getDefaultCustomizations(itemId) {
 }
 
 // Show customization modal
-function showCustomizationModal(itemId, customizations) {
+function showCustomizationModal(itemId, customizations = []) {
     // clear the options
-    const customizationsModal = document.getElementById('customizationsModal').dataset.availableCustomizations.split(',');
+    const modalElement = document.getElementById('customizationsModal');
+    if (!modalElement) return;
+    const rawAvailable = modalElement.dataset.availableCustomizations || '';
+    const customizationsModal = rawAvailable.split(',').filter(Boolean);
     customizationsModal.forEach(option => {
         const parent = document.getElementById(option);
+        if (!parent) return;
         parent.style.display = "none";
         // Reset radio buttons
         const radios = parent.querySelectorAll('input[type="radio"]');
@@ -210,9 +215,7 @@ function showCustomizationModal(itemId, customizations) {
         });
 
         // Reset Ingredients
-        const ingredientsParent = document.getElementById('customizations');
-        const buttons = ingredientsParent.querySelectorAll('button');
-
+        const buttons = parent.querySelectorAll('button');
         buttons.forEach(button => {
             // minus
             const minusSuffix = '-minus';
@@ -237,29 +240,38 @@ function showCustomizationModal(itemId, customizations) {
     // display the desired options
     customizationsModal.forEach(option => {
         let currentCustomizationElement = document.getElementById(option);
-        if (currentCustomizationElement && customizations.includes(option)) {
+        if (currentCustomizationElement && (customizations || []).includes(option)) {
             currentCustomizationElement.style.display = "block";
         }
     });
 
-    const productName = document.getElementById(itemId).dataset.name;
-    const image = document.getElementById(itemId).dataset.image;
-    document.getElementById('modalProductImage').src = image;
-    document.getElementById('modalProductImage').alt = productName;
+    const itemElement = document.getElementById(itemId);
+    if (!itemElement) return;
+    const productName = itemElement.dataset.name || '';
+    const image = itemElement.dataset.image || '';
+    const modalImg = document.getElementById('modalProductImage');
+    if (modalImg) {
+        modalImg.src = image;
+        modalImg.alt = productName;
+    }
 
     const modalTitle = document.querySelector('#customizationsModal .modal-title');
-    modalTitle.textContent = modalTitle.dataset.title + ' ' + productName;
+    if (modalTitle) {
+        modalTitle.textContent = (modalTitle.dataset.title || '') + ' ' + productName;
+    }
 
     // Update submit button text
     const submitBtn = document.getElementById('customizationSubmitBtn');
     const dictionary = document.getElementById('dictionary');
-    if (currentCustomization.editId) {
-        submitBtn.textContent = dictionary.dataset.buttonUpdateItem || 'Update Item';
-    } else {
-        submitBtn.textContent = dictionary.dataset.buttonAddToCart || 'Add to Cart';
+    if (submitBtn && dictionary) {
+        if (currentCustomization && currentCustomization.editId) {
+            submitBtn.textContent = dictionary.dataset.buttonUpdateItem || 'Update Item';
+        } else {
+            submitBtn.textContent = dictionary.dataset.buttonAddToCart || 'Add to Cart';
+        }
     }
 
-    const modal = new bootstrap.Modal(document.getElementById('customizationsModal'));
+    const modal = new bootstrap.Modal(modalElement);
     modal.show();
 }
 
@@ -268,7 +280,8 @@ function editCartItem(cartItemId) {
     const cartItem = cart.find(item => item.id === cartItemId);
     if (!cartItem) return;
 
-    const customizations = document.getElementById(cartItem.itemId).dataset.customizations?.split(',');
+    const itemElement = document.getElementById(cartItem.itemId);
+    const customizations = itemElement?.dataset.customizations?.split(',').filter(Boolean) || [];
 
     currentCustomization = {
         itemId: cartItem.itemId,

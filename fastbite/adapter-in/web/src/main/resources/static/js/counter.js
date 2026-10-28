@@ -881,7 +881,7 @@ function getDefaultCustomizations(product) {
 
     product.customizations.forEach(custId => {
         const customization = allCustomizations.find(c => c.id === custId);
-        if (!customization) return;
+        if (!customization || !customization.options || customization.options.length === 0) return;
 
         if (customization.type === 'quantity') {
             return;
@@ -1020,7 +1020,7 @@ async function showCustomizationModal(product, currentCustomizations = []) {
     const optionsContainer = document.getElementById('customization-options');
     if (!optionsContainer) return;
 
-    if (!product.customizations) return;
+    if (!product.customizations || product.customizations.length === 0) return;
 
     try {
         const selectedIds = currentCustomizations.map(c => c.id).join(',');
