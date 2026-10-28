@@ -717,6 +717,23 @@
                                 (Add/Remove)</option>
                         </select>
                     </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label" th:text="#{backoffice.customizations.option.label.name}">Option Name *</label>
+                            <input type="text" class="form-control" id="quick-customization-opt-name" placeholder="Option name">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" th:text="#{backoffice.customizations.option.label.price}">Price *</label>
+                            <input type="number" step="0.01" class="form-control" id="quick-customization-opt-price" value="0.00">
+                        </div>
+                    </div>
+                    <div class="mb-3" id="quick-customization-included-wrapper" style="display: none;">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="quick-customization-opt-default" checked>
+                            <label class="form-check-label" for="quick-customization-opt-default"
+                                th:text="#{backoffice.customizations.quick.option.included}">Comes with the product</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
@@ -862,6 +879,8 @@
         th:data-groups-delete-success="#{backoffice.groups.delete.success}"
         th:data-groups-delete-error="#{backoffice.groups.delete.error}"
         th:data-products-count="#{backoffice.groups.products.count}"
+        th:data-customizations-create-title="#{backoffice.customizations.create.title}"
+        th:data-customizations-edit-title="#{backoffice.customizations.edit.title}"
         th:data-customizations-empty="#{backoffice.customizations.empty}"
         th:data-customizations-options-count="#{backoffice.customizations.options.count}"
         th:data-customizations-usage-count="#{backoffice.customizations.usage.count}"

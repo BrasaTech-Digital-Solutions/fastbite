@@ -11,6 +11,7 @@ let editingId = null;
 let selectedProductsForGroup = [];
 let selectedCustomizationsForProduct = [];
 let i18n = {};
+let optionSeq = 0;
 
 // CSRF token helper
 function getCsrfToken() {
@@ -63,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Setup form handlers
     document.getElementById('groupFormElement').addEventListener('submit', handleGroupSubmit);
     document.getElementById('customizationFormElement').addEventListener('submit', handleCustomizationSubmit);
+    document.getElementById('customization-type')?.addEventListener('change', updateCustomizationTypeVisibility);
+    document.getElementById('quick-customization-type')?.addEventListener('change', updateQuickCustomizationTypeVisibility);
     document.getElementById('productFormElement').addEventListener('submit', handleProductSubmit);
     document.getElementById('tableFormElement').addEventListener('submit', handleTableSubmit);
 
@@ -473,6 +476,33 @@ async function renderCustomizationsList() {
     container.innerHTML = await fetchFragment('/api/backoffice/fragments/customizations-list', customizations);
 }
 
+function updateCustomizationTypeVisibility() {
+    const type = document.getElementById('customization-type')?.value;
+    const isQuantity = type === 'quantity';
+    const container = document.getElementById('customization-options-container');
+    if (!container) return;
+    const cards = container.querySelectorAll('.card');
+    cards.forEach(card => {
+        const switchCol = card.querySelector('.opt-selected-default-col');
+        if (switchCol) {
+            switchCol.style.display = isQuantity ? 'none' : '';
+        }
+        const defInput = card.querySelector('.opt-defaultValue');
+        if (defInput) {
+            if (isQuantity) {
+                defInput.setAttribute('min', '0');
+                defInput.setAttribute('max', '1');
+                if (parseInt(defInput.value, 10) > 1) {
+                    defInput.value = '1';
+                }
+            } else {
+                defInput.removeAttribute('max');
+                defInput.setAttribute('min', '0');
+            }
+        }
+    });
+}
+
 function showCustomizationForm(customId = null) {
     editingId = customId;
     const form = document.getElementById('customization-form');
@@ -480,13 +510,13 @@ function showCustomizationForm(customId = null) {
 
     if (customId) {
         const custom = customizations.find(c => c.id === customId);
-        title.textContent = 'Edit Customization';
+        title.textContent = i18n.customizationsEditTitle || 'Edit Customization';
         document.getElementById('customization-id').value = custom.id;
         document.getElementById('customization-name').value = custom.name;
         document.getElementById('customization-type').value = custom.type;
         renderCustomizationOptions(custom.options);
     } else {
-        title.textContent = 'Create New Customization';
+        title.textContent = i18n.customizationsCreateTitle || 'Create New Customization';
         document.getElementById('customizationFormElement').reset();
         renderCustomizationOptions([]);
     }
@@ -505,60 +535,75 @@ async function renderCustomizationOptions(options = []) {
 
     let html = '';
     for (let i = 0; i < options.length; i++) {
-        html += await fetchFragment('/api/backoffice/fragments/customization-option', { opt: options[i], index: i });
+        html += await fetchFragment('/api/backoffice/fragments/customization-option', { opt: options[i], index: optionSeq++ });
     }
     container.innerHTML = html;
+    updateCustomizationTypeVisibility();
 }
 
 async function addCustomizationOption() {
     const container = document.getElementById('customization-options-container');
-    const index = container.querySelectorAll('.card').length;
+    const count = container.querySelectorAll('.card').length;
 
     // Remove placeholder text if this is the first option
-    if (index === 0) {
+    if (count === 0) {
         const placeholder = container.querySelector('p.text-muted');
         if (placeholder) {
             placeholder.remove();
         }
     }
 
-    const optionHtml = await fetchFragment('/api/backoffice/fragments/customization-option', { opt: null, index: index });
+    const optionHtml = await fetchFragment('/api/backoffice/fragments/customization-option', { opt: null, index: optionSeq++ });
     container.insertAdjacentHTML('beforeend', optionHtml);
+    updateCustomizationTypeVisibility();
 }
 
-function removeCustomizationOption(index) {
+function removeCustomizationOption(target) {
+    const card = target?.closest('.card');
+    if (card) {
+        card.remove();
+    }
     const container = document.getElementById('customization-options-container');
-    const options = container.querySelectorAll('.card');
-    if (options[index]) {
-        options[index].remove();
+    if (container && container.querySelectorAll('.card').length === 0) {
+        container.innerHTML = `<p class="text-muted">${i18n.customizationsOptionsEmptyHint}</p>`;
     }
 }
 
 async function handleCustomizationSubmit(e) {
     e.preventDefault();
 
+    const customizationType = document.getElementById('customization-type').value;
+    const isQuantity = customizationType === 'quantity';
+
     // Collect options
     const optionsContainer = document.getElementById('customization-options-container');
     const optionElements = optionsContainer.querySelectorAll('.card');
-    const options = Array.from(optionElements).map((el, index) => {
-        const name = document.getElementById(`opt-name-${index}`)?.value || '';
-        const price = document.getElementById(`opt-price-${index}`)?.value || '0';
-        const defaultValue = document.getElementById(`opt-defaultValue-${index}`)?.value || '1';
-        const isSelectedByDefault = document.getElementById(`opt-isSelectedByDefault-${index}`)?.checked || false;
+    const options = Array.from(optionElements).map((el) => {
+        const name = el.querySelector('.opt-name')?.value || '';
+        const price = el.querySelector('.opt-price')?.value || '0';
+        const defaultValue = el.querySelector('.opt-defaultValue')?.value || '1';
+        const isSelectedByDefault = isQuantity
+            ? (parseInt(defaultValue, 10) >= 1)
+            : (el.querySelector('.opt-isSelectedByDefault')?.checked || false);
         const allergens = [...el.querySelectorAll('input[data-option-allergen]:checked')].map(box => box.value);
 
         return {
             name,
             price: parseFloat(price),
-            defaultValue: parseInt(defaultValue),
+            defaultValue: parseInt(defaultValue, 10),
             isSelectedByDefault,
             allergens
         };
     }).filter(opt => opt.name.trim() !== '');
 
+    if (options.length === 0) {
+        showToast(i18n.customizationsValidationError || 'Please fill in all fields', 'error');
+        return;
+    }
+
     const customizationData = {
         name: document.getElementById('customization-name').value,
-        type: document.getElementById('customization-type').value,
+        type: customizationType,
         options: options,
         usageCount: 0
     };
@@ -588,11 +633,10 @@ async function handleCustomizationSubmit(e) {
         if (response.ok) {
             await loadData();
             cancelForm();
-            await loadData();
-            cancelForm();
             showToast(i18n.customizationsSaveSuccess);
         } else {
-            showToast(i18n.customizationsSaveError, 'error');
+            const errorMsg = response.status === 400 ? await response.text() : null;
+            showToast(errorMsg || i18n.customizationsSaveError, 'error');
         }
     } catch (error) {
         console.error('Error saving customization:', error);
@@ -793,25 +837,47 @@ function confirmCustomizationSelection() {
     modal.hide();
 }
 
+function updateQuickCustomizationTypeVisibility() {
+    const type = document.getElementById('quick-customization-type')?.value;
+    const wrapper = document.getElementById('quick-customization-included-wrapper');
+    if (wrapper) {
+        wrapper.style.display = type === 'quantity' ? 'block' : 'none';
+    }
+}
+
 function showCustomizationFormPopup() {
-    // Show quick customization modal
+    updateQuickCustomizationTypeVisibility();
     const modal = new bootstrap.Modal(document.getElementById('quickCustomizationModal'));
     modal.show();
 }
 
 async function saveQuickCustomization() {
-    const name = document.getElementById('quick-customization-name').value;
+    const name = document.getElementById('quick-customization-name').value.trim();
     const type = document.getElementById('quick-customization-type').value;
+    const optName = document.getElementById('quick-customization-opt-name').value.trim();
+    const optPrice = document.getElementById('quick-customization-opt-price').value || '0';
 
-    if (!name || !type) {
-        showToast(i18n.customizationsValidationError, 'error');
+    if (!name || !type || !optName) {
+        showToast(i18n.customizationsValidationError || 'Please fill in all fields', 'error');
         return;
     }
+
+    const isQuantity = type === 'quantity';
+    const defaultValue = isQuantity
+        ? (document.getElementById('quick-customization-opt-default').checked ? 1 : 0)
+        : 1;
+    const isSelectedByDefault = isQuantity ? (defaultValue >= 1) : false;
 
     const customizationData = {
         name: name,
         type: type,
-        options: [],
+        options: [{
+            name: optName,
+            price: parseFloat(optPrice),
+            defaultValue: defaultValue,
+            isSelectedByDefault: isSelectedByDefault,
+            allergens: []
+        }],
         usageCount: 0
     };
 
@@ -826,23 +892,35 @@ async function saveQuickCustomization() {
         });
 
         if (response.ok) {
+            const created = await response.json();
             await loadData();
+
+            // Select for the product being edited
+            if (created && created.id && !selectedCustomizationsForProduct.includes(created.id)) {
+                selectedCustomizationsForProduct.push(created.id);
+                updateProductCustomizationsList();
+            }
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('quickCustomizationModal'));
-            modal.hide();
+            if (modal) modal.hide();
 
             // Clear form
             document.getElementById('quick-customization-name').value = '';
             document.getElementById('quick-customization-type').value = 'radio';
+            document.getElementById('quick-customization-opt-name').value = '';
+            document.getElementById('quick-customization-opt-price').value = '0.00';
+            document.getElementById('quick-customization-opt-default').checked = true;
+            updateQuickCustomizationTypeVisibility();
 
-            showToast('Customization created successfully!');
+            showToast(i18n.customizationsSaveSuccess);
         } else {
-            showToast('Error creating customization', 'error');
+            const errorMsg = response.status === 400 ? await response.text() : null;
+            showToast(errorMsg || i18n.customizationsSaveError, 'error');
         }
     } catch (error) {
         console.error('Error creating customization:', error);
-        showToast('Error creating customization', 'error');
+        showToast(i18n.customizationsSaveError, 'error');
     }
 }
 

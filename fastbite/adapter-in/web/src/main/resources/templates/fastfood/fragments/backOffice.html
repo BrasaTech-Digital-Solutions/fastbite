@@ -155,31 +155,31 @@
     <div class="row g-2 mb-2">
         <div class="col-md-4">
             <label class="form-label small" th:text="#{backoffice.customizations.option.label.name}">Option name</label>
-            <input type="text" class="form-control form-control-sm" placeholder="Option name"
+            <input type="text" class="form-control form-control-sm opt-name" placeholder="Option name"
                 th:value="${opt != null ? opt['name'] : ''}" th:id="|opt-name-${index}|" required>
         </div>
         <div class="col-md-3">
             <label class="form-label small" th:text="#{backoffice.customizations.option.label.price}">Price</label>
-            <input type="number" step="0.01" class="form-control form-control-sm" placeholder="0.00"
+            <input type="number" step="0.01" class="form-control form-control-sm opt-price" placeholder="0.00"
                 th:value="${opt != null ? opt['price'] : '0.00'}" th:id="|opt-price-${index}|" required>
         </div>
         <div class="col-md-2">
             <label class="form-label small" th:text="#{backoffice.customizations.option.label.default.value}">Default
                 Value</label>
-            <input type="number" class="form-control form-control-sm" placeholder="1"
+            <input type="number" class="form-control form-control-sm opt-defaultValue" placeholder="1"
                 th:value="${opt != null ? opt['defaultValue'] ?: 0 : 1}" th:id="|opt-defaultValue-${index}|" min="0">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-2 opt-selected-default-col">
             <label class="form-label small"
                 th:text="#{backoffice.customizations.option.label.selected.default}">Selected Default</label>
             <div class="form-check form-switch mt-1">
-                <input class="form-check-input" type="checkbox" th:id="|opt-isSelectedByDefault-${index}|"
+                <input class="form-check-input opt-isSelectedByDefault" type="checkbox" th:id="|opt-isSelectedByDefault-${index}|"
                     th:checked="${opt != null ? opt['isSelectedByDefault'] : false}">
             </div>
         </div>
         <div class="col-md-1 d-flex align-items-end">
-            <button class="btn btn-sm btn-outline-danger w-100" type="button" th:data-index="${index}"
-                onclick="removeCustomizationOption(this.dataset.index)">
+            <button class="btn btn-sm btn-outline-danger w-100" type="button"
+                onclick="removeCustomizationOption(this)">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
