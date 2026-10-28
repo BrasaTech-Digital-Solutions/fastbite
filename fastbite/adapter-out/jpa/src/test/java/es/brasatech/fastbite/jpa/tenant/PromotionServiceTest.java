@@ -44,6 +44,7 @@ class PromotionServiceTest {
 
     @TempDir
     Path tempStorage;
+    private Path promoStorage;
 
     private SandboxLinkPort sandboxLinkPort;
     private TenantBackupRestorePort backupRestorePort;
@@ -65,6 +66,7 @@ class PromotionServiceTest {
         when(locationService.isOwnerOf(anyString(), anyString())).thenReturn(true);
         when(locationService.isClosed(anyString())).thenReturn(false);
 
+        promoStorage = tempStorage.resolve("promotions");
         promotionService = new PromotionService(
                 promotionJdbcAdapter,
                 sandboxLinkPort,
@@ -72,8 +74,42 @@ class PromotionServiceTest {
                 locationService,
                 new PlatformEnvironment("production"),
                 clock,
-                tempStorage.toString()
+                tempStorage.resolve("images").toString(),
+                promoStorage.toString()
         );
+    }
+
+    @Test
+    void refusesToStartWhenPromotionsRootIsInsideImageUploadDir() {
+        Path imageDir = tempStorage.resolve("images");
+        Path promoDir = imageDir.resolve("promotions");
+        assertThatThrownBy(() -> new PromotionService(
+                promotionJdbcAdapter,
+                sandboxLinkPort,
+                backupRestorePort,
+                locationService,
+                new PlatformEnvironment("production"),
+                clock,
+                imageDir.toString(),
+                promoDir.toString()
+        )).isInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("must not be inside");
+    }
+
+    @Test
+    void defaultsPromotionsRootToSiblingOfImageUploadDir() {
+        Path imageDir = tempStorage.resolve("images");
+        PromotionService svc = new PromotionService(
+                promotionJdbcAdapter,
+                sandboxLinkPort,
+                backupRestorePort,
+                locationService,
+                new PlatformEnvironment("production"),
+                clock,
+                imageDir.toString(),
+                ""
+        );
+        assertThat(svc).isNotNull();
     }
 
     private PromotionPreview fakePreview() {
@@ -104,7 +140,7 @@ class PromotionServiceTest {
         assertThat(result.pricesOverwritten()).isEqualTo(2);
 
         // Verify pending zip created
-        Path tenantDir = tempStorage.resolve(tenant);
+        Path tenantDir = promoStorage.resolve(tenant);
         assertThat(Files.list(tenantDir).filter(p -> p.getFileName().toString().startsWith("pending-")).count()).isEqualTo(1);
 
         // 2. Confirm
@@ -225,7 +261,7 @@ class PromotionServiceTest {
                 .isInstanceOf(PromotionException.class)
                 .matches(e -> ((PromotionException) e).code().equals("promotion.sandbox.other-version") && ((PromotionException) e).statusCode() == 409);
 
-        Path tenantDir = tempStorage.resolve(tenant);
+        Path tenantDir = promoStorage.resolve(tenant);
         // All zip files (pending and snapshot) must be deleted from disk
         assertThat(Files.list(tenantDir).count()).isZero();
     }
@@ -240,7 +276,7 @@ class PromotionServiceTest {
         );
         promotionJdbcAdapter.savePreview(oldEntry);
 
-        Path snapshotPath = tempStorage.resolve(tenant).resolve("snapshot-" + id + ".zip");
+        Path snapshotPath = promoStorage.resolve(tenant).resolve("snapshot-" + id + ".zip");
         try {
             Files.createDirectories(snapshotPath.getParent());
             Files.writeString(snapshotPath, "dummy");
@@ -258,8 +294,8 @@ class PromotionServiceTest {
         String tenantLive = "live" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String tenantStale = "stale" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
 
-        Path liveDir = tempStorage.resolve(tenantLive);
-        Path staleDir = tempStorage.resolve(tenantStale);
+        Path liveDir = promoStorage.resolve(tenantLive);
+        Path staleDir = promoStorage.resolve(tenantStale);
         Files.createDirectories(liveDir);
         Files.createDirectories(staleDir);
 
@@ -308,7 +344,7 @@ class PromotionServiceTest {
 
     @Test
     void sweepExpiresOldPreviewsAndStaleApplyingAndDeletesFiles() throws Exception {
-        Path tenantDir = tempStorage.resolve(tenant);
+        Path tenantDir = promoStorage.resolve(tenant);
         Files.createDirectories(tenantDir);
 
         // Expired preview file
@@ -343,7 +379,7 @@ class PromotionServiceTest {
 
     @Test
     void snapshotRetentionPrunesOldFilesAndRows() throws Exception {
-        Path tenantDir = tempStorage.resolve(tenant);
+        Path tenantDir = promoStorage.resolve(tenant);
         Files.createDirectories(tenantDir);
 
         List<Path> createdSnapshots = new ArrayList<>();

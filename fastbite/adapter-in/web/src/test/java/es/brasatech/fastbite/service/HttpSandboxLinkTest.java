@@ -122,7 +122,7 @@ class HttpSandboxLinkTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void streamBundleMaps404ToRefused() throws Exception {
+    void streamBundleMaps404ToNothingToPromote() throws Exception {
         HttpResponse<InputStream> response = mock(HttpResponse.class);
         when(response.statusCode()).thenReturn(404);
         when(response.body()).thenReturn(new ByteArrayInputStream("Not Found".getBytes(StandardCharsets.UTF_8)));
@@ -132,7 +132,7 @@ class HttpSandboxLinkTest {
                 .isInstanceOf(SandboxLinkPort.Unavailable.class)
                 .satisfies(e -> {
                     var ex = (SandboxLinkPort.Unavailable) e;
-                    assertThat(ex.reason()).isEqualTo(Reason.REFUSED);
+                    assertThat(ex.reason()).isEqualTo(Reason.NOTHING_TO_PROMOTE);
                     assertThat(ex.getMessage()).isEqualTo("Location not found in the sandbox");
                 });
     }

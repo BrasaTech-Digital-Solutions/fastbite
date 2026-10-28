@@ -177,7 +177,7 @@ public class HttpSandboxLink implements SandboxLinkPort {
             case 400 -> new Unavailable(Reason.REFUSED, "Bad request to sandbox");
             case 401 -> new Unavailable(Reason.REFUSED, "Not signed by production");
             case 403 -> new Unavailable(Reason.REFUSED, "You do not own this location in the sandbox");
-            case 404 -> new Unavailable(Reason.REFUSED, "Location not found in the sandbox");
+            case 404 -> new Unavailable(Reason.NOTHING_TO_PROMOTE, "Location not found in the sandbox");
             case 409 -> new Unavailable(Reason.OTHER_VERSION, "The sandbox runs a different version of FastBite");
             case 422 -> new Unavailable(Reason.NOTHING_TO_PROMOTE, "The sandbox location has no products to promote");
             default -> new Unavailable(Reason.UNREACHABLE, "The sandbox answered " + statusCode);

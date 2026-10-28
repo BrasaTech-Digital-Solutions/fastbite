@@ -59,14 +59,26 @@ public class PromotionService {
             TenantLocationService locationService,
             PlatformEnvironment environment,
             Clock clock,
-            @Value("${fastbite.promotions.directory:${image.upload.directory}/promotions}") String storageDir) {
+            @Value("${image.upload.directory}") String imageUploadDir,
+            @Value("${fastbite.promotions.directory:}") String storageDir) {
         this.promotionPort = promotionPort;
         this.sandboxLinkPort = sandboxLinkPort;
         this.backupRestorePort = backupRestorePort;
         this.locationService = locationService;
         this.environment = environment;
         this.clock = clock;
-        this.promotionsRoot = Paths.get(storageDir).toAbsolutePath().normalize();
+
+        Path imagePath = Paths.get(imageUploadDir).toAbsolutePath().normalize();
+        if (storageDir != null && !storageDir.isBlank()) {
+            this.promotionsRoot = Paths.get(storageDir).toAbsolutePath().normalize();
+        } else {
+            this.promotionsRoot = imagePath.resolveSibling("promotions").normalize();
+        }
+
+        if (this.promotionsRoot.startsWith(imagePath) || this.promotionsRoot.equals(imagePath)) {
+            throw new IllegalStateException("Promotions storage directory (" + this.promotionsRoot
+                    + ") must not be inside the public image upload directory (" + imagePath + ")");
+        }
     }
 
     public PromotionPreview preview(String tenantId, String ownerUsername) {
