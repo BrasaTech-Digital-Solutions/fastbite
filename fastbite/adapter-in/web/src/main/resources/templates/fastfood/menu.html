@@ -171,6 +171,7 @@
                             <div id="customizations">
                                 <!-- Customization options will be populated here -->
                                 <div class="mb-4" th:id="${customization.id}"
+                                    th:if="${!#lists.isEmpty(customization.options)}"
                                     th:each="customization : ${menuData.customizations}">
                                     <h6 class="fw-bold"><i class="fas fa-utensils me-2"></i><span
                                             th:text="${customization.name}">Size</span></h6>
@@ -210,13 +211,16 @@
                                         <div class="ingredient-quantity-control">
                                             <button type="button" class="ingredient-btn"
                                                 th:id="${'qty-' + customizationOption.id + '-minus'}"
+                                                th:disabled="${customizationOption.defaultValue == 0}"
                                                 id="qty-hidden-option-minus">
                                                 <i class="fas fa-minus"></i>
                                             </button>
                                             <span th:id="${'qty-' + customizationOption.id}" class="ingredient-quantity"
+                                                th:text="${customizationOption.defaultValue >= 1 ? 1 : 0}"
                                                 id="qty-hidden-option">1</span>
                                             <button type="button" class="ingredient-btn"
                                                 th:id="${'qty-' + customizationOption.id + '-plus'}"
+                                                th:disabled="${customizationOption.defaultValue >= 1}"
                                                 id="qty-hidden-option-plus" disabled>
                                                 <i class="fas fa-plus"></i>
                                             </button>
@@ -226,7 +230,8 @@
                                             th:data-no="#{customizer.type.toggle.without}"
                                             th:data-name="${customizationOption.name}"
                                             th:data-price="${customizationOption.price}"
-                                            th:data-default-value="${customizationOption.defaultValue}" type="hidden"
+                                            th:data-default-value="${customizationOption.defaultValue}"
+                                            th:value="${customizationOption.defaultValue >= 1 ? 1 : 0}" type="hidden"
                                             id="hidden-option" value="1" />
                                     </div>
                                 </div>

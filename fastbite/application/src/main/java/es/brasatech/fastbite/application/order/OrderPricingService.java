@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @Service
 public class OrderPricingService {
 
+    public static final String WITHOUT_PREFIX = "SIN ";
     private static final int MAX_QUANTITY = 99;
 
     private final ProductService productService;
@@ -97,7 +98,8 @@ public class OrderPricingService {
             }
         }
         Set<String> chosen = new HashSet<>();
-        return line.customizations().stream().map(requested -> {
+        List<ProductCustomizer> result = new ArrayList<>();
+        for (ProductCustomizer requested : line.customizations()) {
             CustomizationOptionDto option = offered.get(requested.id());
             if (option == null) {
                 throw new IllegalArgumentException("This option is not available for " + product.name());
@@ -107,7 +109,24 @@ public class OrderPricingService {
             if (!chosen.add(option.id()) || (oneChoiceOnly && !chosen.add(customization.id()))) {
                 throw new IllegalArgumentException("Choose one " + customization.name() + " for " + product.name());
             }
-            return new ProductCustomizer(option.id(), option.name(), option.price(), Math.max(0, requested.quantity()));
-        }).collect(Collectors.toCollection(ArrayList::new));
+            if ("quantity".equalsIgnoreCase(customization.type())) {
+                if (requested.quantity() < 0 || requested.quantity() > 1) {
+                    throw new IllegalArgumentException("Quantity for " + option.name() + " must be 0 or 1");
+                }
+                boolean comesWithProduct = option.defaultValue() >= 1;
+                if (comesWithProduct) {
+                    if (requested.quantity() == 0) {
+                        result.add(new ProductCustomizer(option.id(), WITHOUT_PREFIX + option.name(), BigDecimal.ZERO, 0));
+                    }
+                } else {
+                    if (requested.quantity() == 1) {
+                        result.add(new ProductCustomizer(option.id(), option.name(), option.price(), 1));
+                    }
+                }
+            } else {
+                result.add(new ProductCustomizer(option.id(), option.name(), option.price(), 1));
+            }
+        }
+        return result;
     }
 }

@@ -70,7 +70,7 @@
         <tr th:each="option : ${line.options()}">
             <td></td>
             <td class="option" colspan="3"
-                th:text="'+ ' + ${option.name()} + (${option.quantity() > 1} ? ' x' + ${option.quantity()} : '')">+ Garlic sauce</td>
+                th:text="${option.quantity() == 0 ? option.name() : '+ ' + option.name() + (option.quantity() > 1 ? ' x' + option.quantity() : '')}">+ Garlic sauce</td>
         </tr>
     </th:block>
     </tbody>

@@ -110,20 +110,18 @@ function addListenerToMenuCategory(category) {
 
 // Quantity control
 function changeQuantityToggle(itemId, change) {
-    changeQuantityNoLessThanZero(itemId, change)
+    const qtyElement = document.getElementById(itemId);
+    let currentQty = parseInt(qtyElement.textContent);
+    const newQty = Math.min(1, Math.max(0, currentQty + change));
+    qtyElement.textContent = newQty;
     const hiddenInput = document.getElementById(itemId.replace('qty-', ''));
+    if (hiddenInput) {
+        hiddenInput.value = newQty;
+    }
     const minusButton = document.getElementById(itemId + '-minus');
     const plusButton = document.getElementById(itemId + '-plus');
-    const displayElement = document.getElementById(itemId);
-    let currentQty = parseInt(displayElement.textContent);
-    hiddenInput.value = displayElement.textContent
-    if (currentQty == 0) {
-        plusButton.disabled = false;
-        minusButton.disabled = true;
-    } else {
-        plusButton.disabled = true;
-        minusButton.disabled = false;
-    }
+    if (minusButton) minusButton.disabled = (newQty === 0);
+    if (plusButton) plusButton.disabled = (newQty >= 1);
 }
 
 // Quantity control no less than one
@@ -175,24 +173,13 @@ function getDefaultCustomizations(itemId) {
                     id: input.id,
                     name: input.value,
                     price: parseFloat(input.dataset.price),
-                    quantity: Math.max(0, parseInt(input.dataset.defaultValue || "0"))
+                    quantity: 1
                 });
             }
         });
 
-        // Ingredients (Hidden inputs with quantity control)
-        const ingredients = parent.querySelectorAll('input[type="hidden"]');
-        ingredients.forEach(input => {
-            const defaultValue = parseInt(input.dataset.defaultValue || "1");
-            if (defaultValue === 0 && !customizationsMap.has(input.id)) {
-                customizationsMap.set(input.id, {
-                    id: input.id,
-                    name: input.dataset.no + ' ' + input.dataset.name,
-                    price: parseFloat(input.dataset.price),
-                    quantity: 0
-                });
-            }
-        });
+        // Ingredients (Hidden inputs with quantity control):
+        // Untouched defaults are omitted from customizations, so nothing is added here.
     });
     return Array.from(customizationsMap.values());
 }
@@ -231,11 +218,18 @@ function showCustomizationModal(itemId, customizations) {
             const minusSuffix = '-minus';
             if (button.id?.endsWith(minusSuffix)) {
                 const displayId = button.id.replace(minusSuffix, '');
-                const defaultValue = document.getElementById(displayId.replace('qty-', '')).dataset.defaultValue;
-                console.log("Default value: ", defaultValue);
-                changeQuantitySetNoLessThanZero(displayId, defaultValue);
-                button.disabled = false;
-                document.getElementById(displayId + '-plus').disabled = true;
+                const input = document.getElementById(displayId.replace('qty-', ''));
+                const defaultValue = parseInt(input?.dataset.defaultValue || "0");
+                const initialQty = defaultValue >= 1 ? 1 : 0;
+                changeQuantitySetNoLessThanZero(displayId, initialQty);
+                if (input) {
+                    input.value = initialQty.toString();
+                }
+                button.disabled = (initialQty === 0);
+                const plusBtn = document.getElementById(displayId + '-plus');
+                if (plusBtn) {
+                    plusBtn.disabled = (initialQty >= 1);
+                }
             }
         });
     });
@@ -293,14 +287,21 @@ function editCartItem(cartItemId) {
                 if (input.type === 'radio' || input.type === 'checkbox') {
                     input.checked = true;
                 } else if (input.type === 'hidden') {
-                    // This is an ingredient toggle (value 0 means without)
+                    // This is an ingredient toggle (value 0 means without, 1 means with/added)
                     if (c.quantity === 0) {
                         changeQuantitySetNoLessThanZero('qty-' + c.id, 0);
                         const minusButton = document.getElementById('qty-' + c.id + '-minus');
                         const plusButton = document.getElementById('qty-' + c.id + '-plus');
-                        minusButton.disabled = true;
-                        plusButton.disabled = false;
+                        if (minusButton) minusButton.disabled = true;
+                        if (plusButton) plusButton.disabled = false;
                         input.value = "0";
+                    } else if (c.quantity === 1) {
+                        changeQuantitySetNoLessThanZero('qty-' + c.id, 1);
+                        const minusButton = document.getElementById('qty-' + c.id + '-minus');
+                        const plusButton = document.getElementById('qty-' + c.id + '-plus');
+                        if (minusButton) minusButton.disabled = false;
+                        if (plusButton) plusButton.disabled = true;
+                        input.value = "1";
                     }
                 }
             }
@@ -325,7 +326,7 @@ function addCustomizedItem() {
                     id: input.id,
                     name: input.value,
                     price: parseFloat(input.dataset.price),
-                    quantity: Math.max(0, parseInt(input.dataset.defaultValue || "0"))
+                    quantity: 1
                 });
             }
         });
@@ -333,12 +334,21 @@ function addCustomizedItem() {
         // Ingredients (Hidden inputs)
         const ingredients = group.querySelectorAll('input[type="hidden"]');
         ingredients.forEach(input => {
-            if (input.value === '0' && !customizationsMap.has(input.id)) {
+            const defaultValue = parseInt(input.dataset.defaultValue || "0");
+            const currentQty = parseInt(input.value || "0");
+            if (defaultValue >= 1 && currentQty === 0 && !customizationsMap.has(input.id)) {
                 customizationsMap.set(input.id, {
                     id: input.id,
                     name: input.dataset.no + ' ' + input.dataset.name,
-                    price: parseFloat(input.dataset.price),
+                    price: 0,
                     quantity: 0
+                });
+            } else if (defaultValue === 0 && currentQty === 1 && !customizationsMap.has(input.id)) {
+                customizationsMap.set(input.id, {
+                    id: input.id,
+                    name: input.dataset.name,
+                    price: parseFloat(input.dataset.price) || 0,
+                    quantity: 1
                 });
             }
         });

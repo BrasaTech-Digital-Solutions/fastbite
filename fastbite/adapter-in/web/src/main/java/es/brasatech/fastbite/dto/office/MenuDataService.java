@@ -109,7 +109,8 @@ public class MenuDataService {
     private CustomizationInputType convertInputType(String type) {
         return switch (type.toLowerCase()) {
             case "radio" -> CustomizationInputType.RADIO;
-            case "checkbox", "quantity" -> CustomizationInputType.CHECKBOX;
+            case "checkbox" -> CustomizationInputType.CHECKBOX;
+            case "quantity" -> CustomizationInputType.HIDDEN;
             default -> CustomizationInputType.RADIO; // Default fallback
         };
     }

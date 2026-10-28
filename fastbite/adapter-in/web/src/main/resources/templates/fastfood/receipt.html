@@ -44,7 +44,7 @@
             </tr>
             <tr th:each="option : ${item.customizations}">
                 <td></td>
-                <td class="option" colspan="2" th:text="'+ ' + ${option.name}">+ Garlic sauce</td>
+                <td class="option" colspan="2" th:text="${option.quantity == 0 ? option.name : '+ ' + option.name}">+ Garlic sauce</td>
             </tr>
         </th:block>
     </th:block>
