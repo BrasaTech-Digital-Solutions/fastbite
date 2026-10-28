@@ -36,7 +36,10 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -99,101 +102,125 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         exportArchive(tenantId, outputStream, true);
     }
 
+    private record ExportPayload(byte[] jsonBytes, Path activeNoticeFile) {}
+
     private void exportArchive(String tenantId, OutputStream outputStream, boolean productionBundleOnly) {
         tenantMediaPath(tenantId); // Validate before starting any database/file operation.
         // Kept with the platform, outside the restaurant's schema: read it before entering it
         String locationTheme = appearance.locationTheme(tenantId);
-        inTenantTransaction(tenantId, true, () -> exportInTransaction(tenantId, outputStream, productionBundleOnly, locationTheme));
+        ExportPayload payload = inTenantTransaction(tenantId, true,
+                () -> gatherExportPayload(tenantId, productionBundleOnly, locationTheme));
+        writeZipArchive(tenantId, outputStream, payload);
     }
 
-    private void exportInTransaction(String tenantId, OutputStream outputStream, boolean productionBundleOnly,
-            String locationTheme) {
+    private ExportPayload gatherExportPayload(String tenantId, boolean productionBundleOnly, String locationTheme) {
+        // 1. Gather all database entities inside the transaction
+        TenantBackupData backupData = new TenantBackupData();
+        backupData.setFormatVersion(3);
+        backupData.setAppVersion(version);
+        backupData.setProductionBundle(productionBundleOnly);
+        // The look chosen in the sandbox goes to production with the menu
+        backupData.setLocationTheme(locationTheme);
+        backupData.setGroups(groupJpaRepository.findAll());
+        backupData.setProducts(productJpaRepository.findAll());
+        backupData.setCustomizations(customizationJpaRepository.findAll());
+        backupData.setCustomizationOptions(customizationOptionJpaRepository.findAll());
+        backupData.setTables(tableJpaRepository.findAll());
+        backupData.setDiscountRules(discountRuleJpaRepository.findAll());
+        if (productionBundleOnly) {
+            // Strictly exclude test orders, staff/test credentials, payment configurations, and order counters
+            backupData.setOrders(java.util.List.of());
+            backupData.setUsers(java.util.List.of());
+            backupData.setPaymentConfigs(java.util.List.of());
+            backupData.setOrderCounter(null);
+            // Production bundles strip table overrides and reset occupancy
+            if (backupData.getTables() != null) {
+                for (TableEntity table : backupData.getTables()) {
+                    entityManager.detach(table);
+                    table.setQrTrusted(null);
+                    table.setQrTrustedBy(null);
+                    table.setQrTrustedAt(null);
+                    table.setOrderIds(new java.util.ArrayList<>());
+                    table.setStatus(es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+                }
+            }
+        } else {
+            backupData.setOrders(orderJpaRepository.findAll());
+            backupData.setUsers(userJpaRepository.findAll().stream()
+                    .filter(user -> !isPlatformSchema(tenantId) || isDemoStaff(user)).toList());
+            backupData.setPaymentConfigs(paymentConfigJpaRepository.findAll());
+            List<?> counters = entityManager.createNativeQuery("SELECT business_day, last_number FROM order_counter WHERE id = 1").getResultList();
+            if (!counters.isEmpty()) {
+                Object[] row = (Object[]) counters.getFirst();
+                backupData.setOrderCounter(new OrderCounterBackup(java.time.LocalDate.parse(row[0].toString()), ((Number) row[1]).intValue()));
+            }
+        }
+        backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
+        // Production bundles carry it too, as a draft the owner confirms during production onboarding
+        backupData.setFiscalProfile(entityManager.find(FiscalProfileEntity.class, 1));
+        List<es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity> activeNotices = entityManager.createQuery(
+                "SELECT n FROM GuestPrivacyNotice n WHERE n.active = true ORDER BY n.version DESC",
+                es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity.class).setMaxResults(1).getResultList();
+        es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity activeNotice = activeNotices.isEmpty() ? null : activeNotices.getFirst();
+        Path activeNoticeFile = null;
+        if (activeNotice != null) {
+            Path tenantDocs = es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeServiceJpaImpl.resolveTenantDocumentsPath(uploadDirectory, tenantId);
+            Path candidate = tenantDocs.resolve(activeNotice.getStoragePath()).normalize();
+            if (candidate.startsWith(tenantDocs) && Files.isRegularFile(candidate) && !Files.isSymbolicLink(candidate)) {
+                activeNoticeFile = candidate;
+                backupData.setGuestPrivacyNotice(activeNotice);
+            }
+        }
+
+        byte[] jsonBytes;
         try {
-            
-            // 1. Gather all database entities
-            TenantBackupData backupData = new TenantBackupData();
-            backupData.setFormatVersion(3);
-            backupData.setAppVersion(version);
-            backupData.setProductionBundle(productionBundleOnly);
-            // The look chosen in the sandbox goes to production with the menu
-            backupData.setLocationTheme(locationTheme);
-            backupData.setGroups(groupJpaRepository.findAll());
-            backupData.setProducts(productJpaRepository.findAll());
-            backupData.setCustomizations(customizationJpaRepository.findAll());
-            backupData.setCustomizationOptions(customizationOptionJpaRepository.findAll());
-            backupData.setTables(tableJpaRepository.findAll());
-            backupData.setDiscountRules(discountRuleJpaRepository.findAll());
-            if (productionBundleOnly) {
-                // Strictly exclude test orders, staff/test credentials, payment configurations, and order counters
-                backupData.setOrders(java.util.List.of());
-                backupData.setUsers(java.util.List.of());
-                backupData.setPaymentConfigs(java.util.List.of());
-                backupData.setOrderCounter(null);
-                // Production bundles strip table overrides
-                if (backupData.getTables() != null) {
-                    for (TableEntity table : backupData.getTables()) {
-                        table.setQrTrusted(null);
-                        table.setQrTrustedBy(null);
-                        table.setQrTrustedAt(null);
-                    }
-                }
-            } else {
-                backupData.setOrders(orderJpaRepository.findAll());
-                backupData.setUsers(userJpaRepository.findAll().stream()
-                        .filter(user -> !isPlatformSchema(tenantId) || isDemoStaff(user)).toList());
-                backupData.setPaymentConfigs(paymentConfigJpaRepository.findAll());
-                List<?> counters = entityManager.createNativeQuery("SELECT business_day, last_number FROM order_counter WHERE id = 1").getResultList();
-                if (!counters.isEmpty()) {
-                    Object[] row = (Object[]) counters.getFirst();
-                    backupData.setOrderCounter(new OrderCounterBackup(java.time.LocalDate.parse(row[0].toString()), ((Number) row[1]).intValue()));
-                }
-            }
-            backupData.setRestaurantSettings(entityManager.find(es.brasatech.fastbite.jpa.settings.RestaurantSettingsEntity.class, 1));
-            // Production bundles carry it too, as a draft the owner confirms during production onboarding
-            backupData.setFiscalProfile(entityManager.find(FiscalProfileEntity.class, 1));
-            List<es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity> activeNotices = entityManager.createQuery(
-                    "SELECT n FROM GuestPrivacyNotice n WHERE n.active = true ORDER BY n.version DESC",
-                    es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity.class).setMaxResults(1).getResultList();
-            es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeEntity activeNotice = activeNotices.isEmpty() ? null : activeNotices.getFirst();
-            Path activeNoticeFile = null;
-            if (activeNotice != null) {
-                Path tenantDocs = es.brasatech.fastbite.jpa.legal.GuestPrivacyNoticeServiceJpaImpl.resolveTenantDocumentsPath(uploadDirectory, tenantId);
-                Path candidate = tenantDocs.resolve(activeNotice.getStoragePath()).normalize();
-                if (candidate.startsWith(tenantDocs) && Files.isRegularFile(candidate) && !Files.isSymbolicLink(candidate)) {
-                    activeNoticeFile = candidate;
-                    backupData.setGuestPrivacyNotice(activeNotice);
-                }
-            }
-
-
-            // 2. Write to ZIP
-            try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
-                // Entry 1: Data JSON
-                ZipEntry dataEntry = new ZipEntry("data.json");
-                zos.putNextEntry(dataEntry);
-                objectMapper.writerWithDefaultPrettyPrinter()
+            jsonBytes = objectMapper.writerWithDefaultPrettyPrinter()
                     .without(com.fasterxml.jackson.core.JsonGenerator.Feature.AUTO_CLOSE_TARGET)
-                    .writeValue(zos, backupData);
-                zos.closeEntry();
+                    .writeValueAsBytes(backupData);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to serialize backup data to JSON", e);
+        }
+        return new ExportPayload(jsonBytes, activeNoticeFile);
+    }
 
-                // Entry 2: Media subfolder
-                Path tenantMediaPath = tenantMediaPath(tenantId);
-                if (Files.exists(tenantMediaPath) && Files.isDirectory(tenantMediaPath)) {
-                    try (var files = Files.walk(tenantMediaPath)) {
-                        for (Path file : files.toList()) {
-                            if (Files.isSymbolicLink(file)) throw new IOException("Backup media contains a symbolic link");
-                            if (!Files.isRegularFile(file)) continue;
-                            String relativePath = "media/" + tenantMediaPath.relativize(file).toString().replace("\\", "/");
+    private void writeZipArchive(String tenantId, OutputStream outputStream, ExportPayload payload) {
+        try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
+            // Entry 1: Data JSON
+            ZipEntry dataEntry = new ZipEntry("data.json");
+            zos.putNextEntry(dataEntry);
+            zos.write(payload.jsonBytes());
+            zos.closeEntry();
+
+            // Entry 2: Media subfolder (streamed outside transaction; skips missing files)
+            Path tenantMediaPath = tenantMediaPath(tenantId);
+            if (Files.exists(tenantMediaPath) && Files.isDirectory(tenantMediaPath)) {
+                try (var files = Files.walk(tenantMediaPath)) {
+                    for (Path file : files.toList()) {
+                        if (Files.isSymbolicLink(file)) throw new IOException("Backup media contains a symbolic link");
+                        if (!Files.isRegularFile(file)) continue;
+                        String relativePath = "media/" + tenantMediaPath.relativize(file).toString().replace("\\", "/");
+                        InputStream in;
+                        try {
+                            in = Files.newInputStream(file);
+                        } catch (NoSuchFileException e) {
+                            log.warn("Media file disappeared before export could read it: {}", file);
+                            continue;
+                        }
+                        try (in) {
                             zos.putNextEntry(new ZipEntry(relativePath));
-                            Files.copy(file, zos);
+                            in.transferTo(zos);
                             zos.closeEntry();
                         }
                     }
                 }
-                if (activeNoticeFile != null) {
+            }
+            if (payload.activeNoticeFile() != null) {
+                try (InputStream in = Files.newInputStream(payload.activeNoticeFile())) {
                     zos.putNextEntry(new ZipEntry("documents/privacy-active.pdf"));
-                    Files.copy(activeNoticeFile, zos);
+                    in.transferTo(zos);
                     zos.closeEntry();
+                } catch (NoSuchFileException e) {
+                    log.warn("Active privacy notice file disappeared before export: {}", payload.activeNoticeFile());
                 }
             }
         } catch (Exception e) {
@@ -244,6 +271,11 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
     }
 
     @Override
+    public RestoreResult restorePromotionSnapshot(String tenantId, InputStream inputStream) {
+        return restoreArchive(tenantId, inputStream, true, VersionCheck.NEVER, true);
+    }
+
+    @Override
     public RestoreResult importDemoTemplate(String tenantId, InputStream inputStream) {
         return restoreArchive(tenantId, inputStream, true, VersionCheck.NEVER);
     }
@@ -272,20 +304,41 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
                     backupData.setActivePrivacyPdfBytes(null);
                 }
             }
-            if (bundle || templateOnly) {
-                // Strips table overrides when restoring bundles or templates
-                if (backupData.getTables() != null) {
-                    for (TableEntity table : backupData.getTables()) {
-                        table.setQrTrusted(null);
-                        table.setQrTrustedBy(null);
-                        table.setQrTrustedAt(null);
-                    }
-                }
-            }
             java.util.concurrent.atomic.AtomicBoolean locked = new java.util.concurrent.atomic.AtomicBoolean(false);
             inTenantTransaction(tenantId, false, () -> {
-                cleanDatabase(tenantId);
-                boolean fiscalLocked = restoreDatabase(tenantId, backupData);
+                if (bundle) {
+                    Map<String, TableEntity> existingTables = tableJpaRepository.findAll().stream()
+                            .collect(Collectors.toMap(TableEntity::getId, Function.identity(), (a, b) -> a));
+                    if (backupData.getTables() != null) {
+                        for (TableEntity table : backupData.getTables()) {
+                            TableEntity existing = existingTables.get(table.getId());
+                            if (existing != null) {
+                                table.setQrTrusted(existing.getQrTrusted());
+                                table.setQrTrustedBy(existing.getQrTrustedBy());
+                                table.setQrTrustedAt(existing.getQrTrustedAt());
+                                table.setOrderIds(existing.getOrderIds() != null ? new ArrayList<>(existing.getOrderIds()) : new ArrayList<>());
+                                table.setStatus(existing.getStatus() != null ? existing.getStatus() : es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+                            } else {
+                                table.setQrTrusted(null);
+                                table.setQrTrustedBy(null);
+                                table.setQrTrustedAt(null);
+                                table.setOrderIds(new ArrayList<>());
+                                table.setStatus(es.brasatech.fastbite.domain.table.TableStatus.AVAILABLE);
+                            }
+                        }
+                    }
+                    cleanForBundle(tenantId, backupData.getTables());
+                } else {
+                    if (templateOnly && backupData.getTables() != null) {
+                        for (TableEntity table : backupData.getTables()) {
+                            table.setQrTrusted(null);
+                            table.setQrTrustedBy(null);
+                            table.setQrTrustedAt(null);
+                        }
+                    }
+                    cleanDatabase(tenantId);
+                }
+                boolean fiscalLocked = restoreDatabase(tenantId, backupData, bundle);
                 locked.set(fiscalLocked);
                 entityManager.flush();
                 media.install();
@@ -314,7 +367,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         } catch (Exception e) { throw new IllegalArgumentException("This file is not a supported FastBite backup. Choose an exported ZIP and try again."); }
     }
 
-    private boolean restoreDatabase(String tenantId, TenantBackupData backupData) {
+    private boolean restoreDatabase(String tenantId, TenantBackupData backupData, boolean bundle) {
         // Rewrite product image URLs to match the new tenant ID
         if (backupData.getProducts() != null) {
             for (var prod : backupData.getProducts()) {
@@ -409,7 +462,9 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         }
         restoreGuestPrivacyNotice(tenantId, backupData.getGuestPrivacyNotice(), backupData.getActivePrivacyPdfBytes());
         entityManager.flush();
-        restoreOrderCounter(backupData.getOrderCounter());
+        if (!bundle) {
+            restoreOrderCounter(backupData.getOrderCounter());
+        }
         return fiscalProfileLocked;
 
     }
@@ -472,6 +527,37 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         }
     }
 
+    private void cleanForBundle(String tenantId, List<TableEntity> incomingTables) {
+        try {
+            entityManager.createNativeQuery("DELETE FROM group_products").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM groups").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM product_customizations").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM products").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM customization_options").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM customizations").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM discount_rules").executeUpdate();
+
+            if (incomingTables == null || incomingTables.isEmpty()) {
+                entityManager.createNativeQuery("DELETE FROM table_orders").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM dining_tables").executeUpdate();
+            } else {
+                List<String> incomingIds = incomingTables.stream().map(TableEntity::getId).toList();
+                entityManager.createNativeQuery("DELETE FROM table_orders WHERE table_id NOT IN (:ids)")
+                        .setParameter("ids", incomingIds)
+                        .executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM dining_tables WHERE id NOT IN (:ids)")
+                        .setParameter("ids", incomingIds)
+                        .executeUpdate();
+            }
+
+            entityManager.flush();
+            entityManager.clear();
+        } catch (Exception e) {
+            log.error("Failed to clean bundle data for tenant: " + tenantId, e);
+            throw new RuntimeException("Clean bundle data failed", e);
+        }
+    }
+
     private void cleanDatabase(String tenantId) {
         try {
 
@@ -518,7 +604,7 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
         }
     }
 
-    private void inTenantTransaction(String tenantId, boolean readOnly, Runnable work) {
+    private <T> T inTenantTransaction(String tenantId, boolean readOnly, Supplier<T> work) {
         String originalTenant = TenantContext.getCurrentTenant();
         TenantContext.setCurrentTenant(tenantId);
         try {
@@ -526,11 +612,18 @@ public class TenantBackupRestoreAdapter implements TenantBackupRestorePort {
             TransactionTemplate transaction = new TransactionTemplate(transactionManager);
             transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
             transaction.setReadOnly(readOnly);
-            transaction.executeWithoutResult(status -> work.run());
+            return transaction.execute(status -> work.get());
         } finally {
             if (originalTenant == null) TenantContext.clear();
             else TenantContext.setCurrentTenant(originalTenant);
         }
+    }
+
+    private void inTenantTransaction(String tenantId, boolean readOnly, Runnable work) {
+        inTenantTransaction(tenantId, readOnly, () -> {
+            work.run();
+            return null;
+        });
     }
 
     private static boolean isPlatformSchema(String tenantId) {

@@ -11,6 +11,7 @@ public interface TenantBackupRestorePort {
     void exportProductionBundle(String tenantId, OutputStream outputStream);
     RestoreResult importRestore(String tenantId, InputStream inputStream);
     RestoreResult importProductionBundle(String tenantId, InputStream inputStream);
+    RestoreResult restorePromotionSnapshot(String tenantId, InputStream inputStream);
     RestoreResult importDemoTemplate(String tenantId, InputStream inputStream);
     RestoreResult importDemoTemplate(String tenantId, String templateId);
     void cleanTenantData(String tenantId);
