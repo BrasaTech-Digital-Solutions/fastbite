@@ -635,13 +635,46 @@ p{
   font-size:12px;
   font-weight:700;
   margin-bottom:6px}
-.field input{
+.field input:not([type=checkbox]):not([type=radio]){
   width:100%;
   border:1px solid #bfc7bd;
   border-radius:6px;
   padding:11px 12px;
   background:#fffefb;
   color:var(--ink)}
+.field .plan-choices{
+  display:flex;
+  gap:12px;
+  margin-top:6px;
+  flex-wrap:wrap}
+.field .plan-card{
+  flex:1;
+  min-width:180px;
+  border:1px solid #ddd;
+  border-radius:8px;
+  padding:12px;
+  cursor:pointer;
+  background:#fff;
+  display:block;
+  font-weight:400;
+  margin-bottom:0}
+.field .plan-card input{
+  margin-right:6px}
+.field .plan-card p{
+  font-size:13px;
+  color:#555;
+  margin:6px 0 0 0;
+  font-weight:400}
+.field .check-row{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  font-weight:400;
+  cursor:pointer;
+  margin-bottom:0}
+.field .check-row input{
+  margin-top:4px;
+  flex:none}
 .field small{
   font-size:11px;
   color:var(--muted);
