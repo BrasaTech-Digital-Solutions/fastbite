@@ -8,9 +8,10 @@ FastBite runs as two environments with the same version:
   practise. Tickets are training tickets (`TEST-` series) and records go only to the AEAT test environment.
   It is part of the product, not a development environment.
 
-When a restaurant is ready, it is promoted: the owner exports a **production bundle** from the sandbox
-(menu, settings, theme and business details; never orders, accounts or payment settings) and imports it into its
-production location.
+When a restaurant is ready, it is promoted: the owner brings in their sandbox setup in one click from
+production's Backup page (menu, settings, theme and business details; never orders, accounts or payment
+settings). Production previews the diff, saves an automatic pre-promotion snapshot, and offers a 7-day undo.
+Exporting and importing a **production bundle** ZIP manually remains available as a fallback.
 
 ## Linked or standalone
 
@@ -74,10 +75,11 @@ When the environments are linked, each one does its own part:
 
 - **The sandbox is where a restaurant is set up.** The owner chooses a concept there (Fast Food, Café, Fine
   Dining), builds the menu, tables and team, and practises. Once setup has started, its overview shows how to
-  take it to production: export the production bundle there, restore it in production.
+  take it to production: bring in the sandbox setup from production, or export the production bundle.
 - **Production gets its menu only by promotion.** A new location's overview invites the owner into the sandbox
   instead of offering concepts, and demo templates cannot be loaded there (the setup form and the advanced
-  tools' "Load demo template" are refused with 409). The backup page explains how to bring in the bundle.
+  tools' "Load demo template" are refused with 409). The backup page lets the owner preview and bring in their
+  sandbox setup in one click, with a 7-day undo window, or upload an exported bundle archive manually.
 - **Locations, subscriptions, billing and custom domains belong to production.** In a linked sandbox the
   console links to production for them, and the actions themselves (`@ProductionOnly`) send the owner there: a
   page to the same page in production, a form to production's owner console. A location therefore never exists
@@ -191,9 +193,14 @@ docker compose up --build
 1. Sign up at http://fastbite.localhost:8088/signup.
 2. Open the location's "Practise in the sandbox", which signs you in to the sandbox.
 3. Set the location up there.
-4. Export the production bundle (owner console → Location settings → Backup → Export Production Bundle).
-5. Restore it in production on the same page of http://fastbite.localhost:8088.
-6. You stay signed in to both.
+4. In production (http://fastbite.localhost:8088, Location settings → Backup), click **"Bring in my sandbox setup"**:
+   production downloads the bundle from the sandbox server-to-server (`POST /internal/link/production-bundle`), previews
+   changes (including prices or products changed directly in production), and applies them under a distributed lease after
+   saving a pre-promotion snapshot.
+5. If needed, click **"Undo the last promotion"** within 7 days to restore the pre-promotion snapshot without rolling
+   back subsequent orders, staff, payments, or table QR trust. Up to 3 snapshots are kept on storage.
+6. Manual bundle export and import (Export Production Bundle / Import Production Bundle) remains available on the same page.
+7. You stay signed in to both.
 
 ### Release Check (`scripts/release-check.sh`)
 
@@ -216,7 +223,7 @@ The script:
 2. Creates a staff user with `CASHIER` role, signs in at `/{tenant}/login`, and tests cashier surfaces (`counter`, `tickets`, `day-report`, `api/cash`, `dashboard`).
 3. Sweeps guest pages (`menu`, `allergens`, `declaracion-responsable`), legal pages across all supported languages (`es`, `en`, `pt`), and the cart calculation endpoint. When `STRIPE_SECRET_KEY` is configured in the sandbox container, it also tests guest online payment by placing an order and verifying that `POST /{tenant}/api/stripe/create-checkout-session` returns HTTP 200 with a Stripe checkout URL (prints `SKIP` when unconfigured).
 4. Sweeps owner pages across all setting sections (`legal`, `appearance`, `payments`, `backup`, `advanced`) and POST fragments (`image-gallery`). Submits an invalid legal form to assert HTTP 302 and that the uncommitted draft (`INVALID_NIF_999`) is preserved across the redirect.
-5. Exercises promotion: exports the production promotion bundle from the sandbox and imports it into production.
+5. Exercises promotion: previews and confirms one-click promotion from the sandbox, checks promoted products on the production menu, exercises 7-day undo (verifying catalog reset to 0 products), and verifies manual production bundle export and import.
 6. Verifies static assets and self-hosted fonts (`live-updates.js`, `fonts.css`, `.woff2` files, `qrcode.min.js`), and checks that `POST /internal/jobs/run` returns HTTP 401 without `X-FastBite-Jobs-Secret` and HTTP 200 with it in both environments.
 7. Greps container logs for both `production` and `sandbox` since the run started for `TemplateProcessingException`, `SpelEvaluationException`, `MissingReflectionRegistrationError`, or `ERROR`.
 8. Cleans up temporary files and cookies automatically on exit, outputs a single-line summary, and exits non-zero if any check fails or any error is logged.

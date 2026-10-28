@@ -77,6 +77,257 @@ confirmForm.addEventListener('submit',async event=>{
 // Restore the exact File object reviewed, not a subsequently changed selection.
 const backupForm=document.getElementById('backup-preview');
 if(backupForm){const fileInput=document.getElementById('backup-file');const result=document.getElementById('backup-result');fileInput.addEventListener('change',()=>{reviewedFile=null;result.hidden=true;});backupForm.addEventListener('submit',async event=>{event.preventDefault();result.hidden=true;reviewedFile=null;const file=fileInput.files[0];if(!file)return;busy(backupForm,true);try{const body=new FormData();body.append('file',file);const summary=await request('/owner/workspace/'+encodeURIComponent(backupForm.dataset.tenant)+'/backup-preview',body);if(fileInput.files[0]!==file)return;reviewedFile=file;document.getElementById('backup-summary').textContent='Archive checked: '+summary.products+' menu items, '+summary.orders+' orders and '+summary.accounts+' account records.';result.hidden=false;}catch(e){message('We could not validate this backup. Use an exported FastBite ZIP and check that you are still signed in.',true);}finally{busy(backupForm,false);}});document.getElementById('restore-reviewed').addEventListener('click',()=>{if(reviewedFile)review(backupForm.dataset.tenant,'restore',reviewedFile);});}
+const promoteBtn = document.getElementById('promote-preview-btn');
+if (promoteBtn) {
+ const tenant = promoteBtn.dataset.tenant;
+ const previewResult = document.getElementById('promote-preview-result');
+ const diffList = document.getElementById('promote-diff-list');
+ const productChangesDiv = document.getElementById('promote-product-changes');
+ const removedProductsDiv = document.getElementById('promote-removed-products');
+ const warningEl = document.getElementById('promote-warning');
+ const confirmBtn = document.getElementById('promote-confirm-btn');
+ const cancelBtn = document.getElementById('promote-cancel-btn');
+ const errorEl = document.getElementById('promote-error');
+ let currentToken = null;
+
+ const fmtPrice = (val) => {
+  if (val == null) return '';
+  return new Intl.NumberFormat(document.documentElement.lang || 'es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+ };
+
+ promoteBtn.addEventListener('click', async () => {
+  const origText = promoteBtn.textContent;
+  const checkingText = promoteBtn.dataset.checkingText || 'Checking your sandbox…';
+  promoteBtn.disabled = true;
+  promoteBtn.textContent = checkingText;
+  if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
+  if (previewResult) { previewResult.hidden = true; }
+  try {
+   const res = await fetch('/owner/workspace/' + encodeURIComponent(tenant) + '/promote/preview', {
+    method: 'POST',
+    headers: { [header]: token }
+   });
+   let data = null;
+   try {
+    data = await res.json();
+   } catch (_) {
+    data = null;
+   }
+   if (!res.ok) {
+    const genericErr = promoteBtn.dataset.genericError || 'Could not check sandbox setup';
+    throw new Error((data && data.message) ? data.message : genericErr);
+   }
+   currentToken = data.token;
+   diffList.innerHTML = '';
+   const addDiff = (label, diff) => {
+    if (!diff || (diff.added === 0 && diff.changed === 0 && diff.removed === 0)) return;
+    const li = document.createElement('li');
+    li.textContent = label + ': ' + diff.added + ' added, ' + diff.changed + ' changed, ' + diff.removed + ' removed';
+    diffList.appendChild(li);
+   };
+   addDiff('Products', data.products);
+   addDiff('Categories', data.categories);
+   addDiff('Customizations', data.customizations);
+   addDiff('Tables', data.tables);
+   addDiff('Discounts', data.discounts);
+   if (data.theme && data.theme.before !== data.theme.after) {
+    const li = document.createElement('li');
+    const tBefore = data.theme.before || 'default';
+    const tAfter = data.theme.after || 'default';
+    li.textContent = 'Visual theme: ' + tBefore + ' → ' + tAfter;
+    diffList.appendChild(li);
+   }
+   if (data.serviceSettingsReplaced) {
+    const li = document.createElement('li');
+    li.textContent = 'Business details and service settings will be replaced from the sandbox';
+    diffList.appendChild(li);
+   }
+   if (diffList.children.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = 'No changes to menu or configuration detected.';
+    diffList.appendChild(li);
+   }
+
+   const priceChanges = [];
+   const otherChanges = [];
+   (data.productChanges || []).forEach(pc => {
+    const pBefore = pc.priceBefore != null ? Number(pc.priceBefore) : null;
+    const pAfter = pc.priceAfter != null ? Number(pc.priceAfter) : null;
+    if (pBefore !== pAfter) {
+     priceChanges.push(pc);
+    } else {
+     otherChanges.push(pc.name);
+    }
+   });
+
+   productChangesDiv.innerHTML = '';
+   if (priceChanges.length > 0) {
+    const title = document.createElement('strong');
+    title.textContent = 'Price changes:';
+    productChangesDiv.appendChild(title);
+    const ul = document.createElement('ul');
+    ul.style.paddingLeft = '1.2rem';
+    ul.style.margin = '0.25rem 0';
+    priceChanges.forEach(pc => {
+     const li = document.createElement('li');
+     let desc = pc.name + ': ' + fmtPrice(pc.priceBefore) + ' → ' + fmtPrice(pc.priceAfter);
+     if (pc.allergensChanged) desc += ' (allergens changed)';
+     li.textContent = desc;
+     ul.appendChild(li);
+    });
+    productChangesDiv.appendChild(ul);
+   }
+   if (otherChanges.length > 0) {
+    const p = document.createElement('p');
+    p.style.margin = '0.25rem 0';
+    p.innerHTML = '<strong>Other product changes:</strong> ' + otherChanges.join(', ');
+    productChangesDiv.appendChild(p);
+   }
+   productChangesDiv.hidden = (priceChanges.length === 0 && otherChanges.length === 0);
+
+   if (data.products && data.products.removedNames && data.products.removedNames.length > 0) {
+    removedProductsDiv.innerHTML = '<strong>Removed products:</strong> ' + data.products.removedNames.join(', ');
+    removedProductsDiv.hidden = false;
+   } else {
+    removedProductsDiv.hidden = true;
+   }
+
+   const po = data.pricesOverwritten || 0;
+   const pr = (data.products && data.products.removed) ? data.products.removed : 0;
+   const wPricesOne = previewResult.dataset.warnPricesOne || '1 price changed directly in production will be replaced';
+   const wPricesMany = previewResult.dataset.warnPricesMany || '{0} prices changed directly in production will be replaced';
+   const wRemovedOne = previewResult.dataset.warnRemovedOne || '1 product that exists only in production will be removed';
+   const wRemovedMany = previewResult.dataset.warnRemovedMany || '{0} products that exist only in production will be removed';
+   const wGeneral = previewResult.dataset.warnGeneral || 'Promoting replaces changes made directly in production. A backup of this location will be taken automatically before applying.';
+
+   let parts = [];
+   if (po > 0) {
+    parts.push(po === 1 ? wPricesOne : wPricesMany.replace('{0}', String(po)));
+   }
+   if (pr > 0) {
+    parts.push(pr === 1 ? wRemovedOne : wRemovedMany.replace('{0}', String(pr)));
+   }
+   let warn = '';
+   if (parts.length > 0) {
+    warn = parts.join(', ') + '. ';
+   }
+   warn += wGeneral;
+   warningEl.textContent = warn;
+
+   previewResult.hidden = false;
+  } catch (err) {
+   if (errorEl) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+   } else {
+    message(err.message, true);
+   }
+  } finally {
+   promoteBtn.disabled = false;
+   promoteBtn.textContent = origText;
+  }
+ });
+
+ if (cancelBtn) {
+  cancelBtn.addEventListener('click', () => {
+   previewResult.hidden = true;
+   currentToken = null;
+  });
+ }
+
+ if (confirmBtn) {
+  confirmBtn.addEventListener('click', async () => {
+   if (!currentToken) return;
+   confirmBtn.disabled = true;
+   if (cancelBtn) cancelBtn.disabled = true;
+   try {
+    const res = await fetch('/owner/workspace/' + encodeURIComponent(tenant) + '/promote/confirm', {
+     method: 'POST',
+     headers: {
+      [header]: token,
+      'Content-Type': 'application/json'
+     },
+     body: JSON.stringify({ token: currentToken })
+    });
+    let data = null;
+    try {
+     data = await res.json();
+    } catch (_) {
+     data = null;
+    }
+    if (!res.ok) {
+     const genericErr = confirmBtn.dataset.genericError || 'Could not apply promotion';
+     throw new Error((data && data.message) ? data.message : genericErr);
+    }
+    if (typeof fbNotice === 'function') {
+     await fbNotice({ message: 'Promotion applied successfully. Pre-promotion snapshot saved.' });
+    }
+    window.location.assign('/owner/console?view=location-settings&section=backup&location=' + encodeURIComponent(tenant));
+   } catch (err) {
+    if (errorEl) {
+     errorEl.textContent = err.message;
+     errorEl.hidden = false;
+    } else {
+     message(err.message, true);
+    }
+    confirmBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
+   }
+  });
+ }
+}
+
+const undoBtn = document.getElementById('promote-undo-btn');
+if (undoBtn) {
+ const tenant = undoBtn.dataset.tenant;
+ const undoError = document.getElementById('promote-undo-error');
+ undoBtn.addEventListener('click', async () => {
+  const msg = undoBtn.dataset.confirm || 'Are you sure you want to undo the last promotion? This will restore the pre-promotion snapshot.';
+  let confirmed = false;
+  if (typeof fbConfirm === 'function') {
+   confirmed = await fbConfirm({
+    message: msg,
+    confirmText: undoBtn.textContent.trim(),
+    cancelText: 'Cancel',
+    danger: true
+   });
+  } else {
+   confirmed = window.confirm(msg);
+  }
+  if (!confirmed) return;
+
+  undoBtn.disabled = true;
+  if (undoError) { undoError.hidden = true; undoError.textContent = ''; }
+  try {
+   const res = await fetch('/owner/workspace/' + encodeURIComponent(tenant) + '/promote/undo', {
+    method: 'POST',
+    headers: { [header]: token }
+   });
+   let data = null;
+   try {
+    data = await res.json();
+   } catch (_) {
+    data = null;
+   }
+   if (!res.ok) {
+    const genericErr = undoBtn.dataset.genericError || 'Could not undo promotion';
+    throw new Error((data && data.message) ? data.message : genericErr);
+   }
+   if (typeof fbNotice === 'function') {
+    await fbNotice({ message: 'Last promotion has been undone.' });
+   }
+   window.location.assign('/owner/console?view=location-settings&section=backup&location=' + encodeURIComponent(tenant));
+  } catch (err) {
+   if (undoError) {
+    undoError.textContent = err.message;
+    undoError.hidden = false;
+   } else {
+    message(err.message, true);
+   }
+   undoBtn.disabled = false;
+  }
+ });
+}
 function openSection(){if(location.hash==='#add-location'){const item=document.getElementById('add-location');if(item)item.open=true;}}
 window.addEventListener('hashchange',openSection);openSection();
 })();

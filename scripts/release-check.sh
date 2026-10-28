@@ -625,7 +625,74 @@ SETTINGS_SAVE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -b "$J" -c "$
   "$S/$T/api/backoffice/settings")
 record "$SETTINGS_SAVE_CODE" 200 "PUT $S/$T/api/backoffice/settings (sandbox owner saves settings)"
 
-echo "== [5/6] Production bundle export & import"
+echo "== [5/6] One-click promotion, undo, and production bundle export"
+# 1. Preview promotion from sandbox
+PROD_PROMOTE_CSRF=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=backup&location=$T" | meta)
+PREVIEW_RESP=$(curl -s -w '\n%{http_code}' -X POST -b "$J" -c "$J" \
+  -H "X-CSRF-TOKEN: $PROD_PROMOTE_CSRF" \
+  "$P/owner/workspace/$T/promote/preview")
+PREVIEW_CODE=$(echo "$PREVIEW_RESP" | tail -n 1)
+PREVIEW_JSON=$(echo "$PREVIEW_RESP" | head -n -1)
+record "$PREVIEW_CODE" 200 "POST $P/owner/workspace/$T/promote/preview"
+PROMOTION_TOKEN=$(echo "$PREVIEW_JSON" | grep -o '"token":"[^"]*"' | head -1 | sed 's/"token":"//; s/"$//')
+
+# Assert preview diff reports added products > 0
+PROD_ADDED_COUNT=$(echo "$PREVIEW_JSON" | grep -o '"added":[0-9]*' | head -1 | sed 's/"added"://')
+if [ -n "$PROD_ADDED_COUNT" ] && [ "$PROD_ADDED_COUNT" -gt 0 ]; then
+  record_match 1 "Preview diff reports added products ($PROD_ADDED_COUNT)"
+else
+  record_match 0 "Preview diff reports added products (expected >0, got ${PROD_ADDED_COUNT:-0})"
+fi
+
+# 2. Confirm promotion
+CONFIRM_RESP=$(curl -s -w '\n%{http_code}' -X POST -b "$J" -c "$J" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $PROD_PROMOTE_CSRF" \
+  -d "{\"token\":\"$PROMOTION_TOKEN\"}" \
+  "$P/owner/workspace/$T/promote/confirm")
+CONFIRM_CODE=$(echo "$CONFIRM_RESP" | tail -n 1)
+CONFIRM_JSON=$(echo "$CONFIRM_RESP" | head -n -1)
+record "$CONFIRM_CODE" 200 "POST $P/owner/workspace/$T/promote/confirm"
+PROMOTION_SNAPSHOT=$(echo "$CONFIRM_JSON" | grep -o '"snapshot":"[^"]*"' | head -1 | sed 's/"snapshot":"//; s/"$//')
+
+# Assert snapshot is not publicly accessible via /user-images
+if [ -n "$PROMOTION_SNAPSHOT" ]; then
+  SNAPSHOT_PUBLIC_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/user-images/promotions/$T/$PROMOTION_SNAPSHOT" || true)
+  record "$SNAPSHOT_PUBLIC_CODE" 404 "GET $P/user-images/promotions/$T/$PROMOTION_SNAPSHOT (snapshot not publicly served)"
+fi
+
+# Verify production products exist in database (> 0)
+PROD_COUNT_AFTER_CONFIRM=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.products" 2>/dev/null | tr -d '\r')
+if [ -n "$PROD_COUNT_AFTER_CONFIRM" ] && [ "$PROD_COUNT_AFTER_CONFIRM" -gt 0 ]; then
+  record_match 1 "Production has promoted products in database ($PROD_COUNT_AFTER_CONFIRM)"
+else
+  record_match 0 "Production has promoted products in database (expected >0, got ${PROD_COUNT_AFTER_CONFIRM:-0})"
+fi
+
+# Verify production menu now serves the promoted products
+PROD_MENU_CODE=$(curl -s -o "$PROD_MENU_OUT" -w '%{http_code}' -b "$G" -c "$G" "$P/$T/menu")
+record "$PROD_MENU_CODE" 200 "GET $P/$T/menu (after one-click promotion)"
+if [ $(grep -c -i 'product' "$PROD_MENU_OUT" 2>/dev/null || echo 0) -gt 0 ]; then
+  record_match 1 "Production menu contains promoted products"
+else
+  record_match 0 "Production menu contains promoted products"
+fi
+
+# 3. Undo promotion and verify catalog reset
+UNDO_RESP=$(curl -s -w '\n%{http_code}' -X POST -b "$J" -c "$J" \
+  -H "X-CSRF-TOKEN: $PROD_PROMOTE_CSRF" \
+  "$P/owner/workspace/$T/promote/undo")
+UNDO_CODE=$(echo "$UNDO_RESP" | tail -n 1)
+record "$UNDO_CODE" 200 "POST $P/owner/workspace/$T/promote/undo"
+
+PROD_PROD_COUNT=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.products" 2>/dev/null | tr -d '\r')
+if [ "$PROD_PROD_COUNT" = "0" ]; then
+  record_match 1 "Undo promotion restored production menu (0 products)"
+else
+  record_match 0 "Undo promotion restored production menu (expected 0 products, got $PROD_PROD_COUNT)"
+fi
+
+# 4. Manual export & import fallback
 EXPORT_CODE=$(curl -s -w '%{http_code}' -b "$J" -c "$J" \
   -o "$BUNDLE" \
   "$S/$T/api/backoffice/maintenance/export-production-bundle")
@@ -640,8 +707,8 @@ IMPORT_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
 record "$IMPORT_CODE" 200 "POST $P/$T/api/backoffice/maintenance/import-production-bundle"
 
 # Verify production menu now serves the imported products
-PROD_MENU_CODE=$(curl -s -o "$PROD_MENU_OUT" -w '%{http_code}' -b "$G" -c "$G" "$P/$T/menu")
-record "$PROD_MENU_CODE" 200 "GET $P/$T/menu (after promotion bundle import)"
+PROD_MENU_CODE2=$(curl -s -o "$PROD_MENU_OUT" -w '%{http_code}' -b "$G" -c "$G" "$P/$T/menu")
+record "$PROD_MENU_CODE2" 200 "GET $P/$T/menu (after promotion bundle import)"
 if [ $(grep -c -i 'product' "$PROD_MENU_OUT" 2>/dev/null || echo 0) -gt 0 ]; then
   record_match 1 "Production menu contains imported products"
 else
@@ -914,7 +981,7 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
 done
 
 # The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

@@ -26,6 +26,7 @@ public class OwnerWorkspaceController {
     private final SubscriptionService subscriptions;
     private final TenantBackupRestorePort backups;
     private final es.brasatech.fastbite.application.platform.PromotionService promotionService;
+    private final String ordersTimeZone;
     private final AppearancePort appearance;
     private final es.brasatech.fastbite.config.ThemeCatalog themes;
     private final MessageSource messages;
@@ -45,7 +46,8 @@ public class OwnerWorkspaceController {
             es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices,
             java.time.Clock clock,
             @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
-            es.brasatech.fastbite.application.platform.PromotionService promotionService) {
+            es.brasatech.fastbite.application.platform.PromotionService promotionService,
+            @org.springframework.beans.factory.annotation.Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
@@ -55,6 +57,7 @@ public class OwnerWorkspaceController {
         this.clock=java.util.Objects.requireNonNull(clock, "clock");
         this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
         this.promotionService=java.util.Objects.requireNonNull(promotionService, "promotionService");
+        this.ordersTimeZone = (ordersTimeZone != null && !ordersTimeZone.isBlank()) ? ordersTimeZone : "Europe/Madrid";
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -91,7 +94,18 @@ public class OwnerWorkspaceController {
                 }
                 if(view.equals("location-settings") && section.equals("backup")) {
                     promotionService.getUndoablePromotion(selected.tenantId(), owner.getName())
-                            .ifPresent(undo -> model.addAttribute("undoablePromotion", undo));
+                            .ifPresent(undo -> {
+                                model.addAttribute("undoablePromotion", undo);
+                                if (undo.appliedAt() != null) {
+                                    try {
+                                        model.addAttribute("undoablePromotionAt", java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+                                                .withZone(java.time.ZoneId.of(ordersTimeZone))
+                                                .format(undo.appliedAt()));
+                                    } catch (Exception e) {
+                                        model.addAttribute("undoablePromotionAt", undo.appliedAt().toString());
+                                    }
+                                }
+                            });
                 }
                 if(section.equals("legal")) {
                     addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
