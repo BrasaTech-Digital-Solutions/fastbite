@@ -1,45 +1,42 @@
 package es.brasatech.fastbite.application.tenant;
 
-import es.brasatech.fastbite.application.mail.OwnerSetupMailPort;
+import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.Duration;
-import java.util.Base64;
 import java.util.HexFormat;
 
 @Service
 public class OwnerSetupService {
-    private static final SecureRandom RANDOM = new SecureRandom();
     private final OwnerSetupPort persistence;
     private final TenantLifecyclePort lifecycle;
     private final TenantProvisionerPort provisioner;
-    private final OwnerSetupMailPort mail;
+    private final AccountMailOutboxService mail;
     private final String publicUrl;
     private final NewLocationListener listener;
 
     public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
-            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, String publicUrl) {
+            AccountMailOutboxService mail, TenantLifecyclePort lifecycle, String publicUrl) {
         this(persistence, provisioner, mail, lifecycle, publicUrl, NewLocationListener.NONE);
     }
 
     /** @param listener told of the location the paid checkout created, for example to set it up in the sandbox */
     @Autowired
     public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
-            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, @Value("${fastbite.public-url:http://localhost:8080}") String publicUrl,
+            AccountMailOutboxService mail, TenantLifecyclePort lifecycle, @Value("${fastbite.public-url:http://localhost:8080}") String publicUrl,
             java.util.Optional<NewLocationListener> listener) {
         this(persistence, provisioner, mail, lifecycle, publicUrl, listener.orElse(NewLocationListener.NONE));
     }
 
     public OwnerSetupService(OwnerSetupPort persistence, TenantProvisionerPort provisioner,
-            OwnerSetupMailPort mail, TenantLifecyclePort lifecycle, String publicUrl, NewLocationListener listener) {
+            AccountMailOutboxService mail, TenantLifecyclePort lifecycle, String publicUrl, NewLocationListener listener) {
         this.listener = listener;
         this.persistence = persistence;
         this.lifecycle = lifecycle;
@@ -56,6 +53,9 @@ public class OwnerSetupService {
     }
 
     public void invite(OwnerSetupPort.Invitation input) {
+        // Lifecycle adapters commit independently, so an outer rollback could not undo them.
+        if (TransactionSynchronizationManager.isActualTransactionActive())
+            throw new IllegalStateException("Owner setup must not run inside an outer transaction");
         String tenant = TenantRegistrationRules.tenantId(input.tenantId());
         // PostgreSQL identifiers are limited to 63 bytes, including the seven-byte tenant_ prefix.
         if (input.checkoutId() == null || input.checkoutId().isBlank() || input.checkoutId().length() > 255
@@ -68,17 +68,13 @@ public class OwnerSetupService {
         }
         var invitation = new OwnerSetupPort.Invitation(input.checkoutId(), tenant, input.username(),
                 input.fullName(), input.email(), input.plan());
-        byte[] random = new byte[32];
-        RANDOM.nextBytes(random);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
         lifecycle.register(tenant, "setup:" + input.checkoutId(), invitation.username(),
                 TenantLifecyclePort.State.AWAITING_OWNER, () -> {
                     provisioner.provisionTenant(tenant);
-                    if (persistence.prepare(invitation, hash(token), Instant.now().plus(Duration.ofHours(24)))) {
-                        // Failure is retried with a new link. Successful delivery is not repeated by webhook replays.
-                        mail.sendSetupLink(invitation.email(), invitation.username(), publicUrl + "/set-password?token=" + token);
-                    }
+                    persistence.prepareQueued(invitation, Instant.now());
                 });
+        // Registration and its email intent are committed before delivery is attempted.
+        try { mail.runForSetup(invitation.checkoutId()); } catch (RuntimeException ignored) { /* The jobs endpoint retries the durable intent. */ }
         listener.locationCreated(tenant, invitation.username(), invitation.plan());
     }
 

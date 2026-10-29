@@ -61,6 +61,7 @@ class InternalJobsControllerTest {
         @MockitoBean VerifactuSubmissionJob verifactuSubmission;
         @MockitoBean FiscalIssuerBackfillJob fiscalIssuerBackfill;
         @MockitoBean ContractLifecycleJob contractLifecycle;
+        @MockitoBean es.brasatech.fastbite.application.mail.AccountMailOutboxService accountMail;
         @MockitoBean es.brasatech.fastbite.application.platform.PromotionService promotionService;
         @MockitoBean TenantLocationService tenantLocationService;
 
@@ -93,6 +94,8 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.contractLifecycleActions").value(2))
                     .andExpect(jsonPath("$.promotionsSwept").value(3));
 
+            verify(accountMail).run(5);
+
             String expectedToken = new es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink(SECRET, "http://localhost:8080")
                     .issueToken("ana").orElseThrow();
             mockMvc.perform(get("/internal/jobs/unsubscribe-token")
@@ -112,6 +115,7 @@ class InternalJobsControllerTest {
             mockMvc.perform(get("/internal/jobs/unsubscribe-token").param("username", "ana"))
                     .andExpect(status().isUnauthorized());
 
+            verify(accountMail, never()).run(org.mockito.ArgumentMatchers.anyInt());
             verify(sandboxProvisioning, never()).run();
             verify(verifactuSubmission, never()).run(any());
             verify(fiscalIssuerBackfill, never()).run(any());

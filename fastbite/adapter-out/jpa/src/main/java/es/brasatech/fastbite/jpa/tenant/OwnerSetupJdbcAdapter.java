@@ -21,6 +21,15 @@ public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
 
     @Override
     public boolean prepare(Invitation invitation, String tokenHash, Instant expiresAt) {
+        return prepareInternal(invitation, tokenHash, expiresAt, null);
+    }
+
+    @Override
+    public boolean prepareQueued(Invitation invitation, Instant now) {
+        return prepareInternal(invitation, null, Instant.EPOCH, now);
+    }
+
+    private boolean prepareInternal(Invitation invitation, String tokenHash, Instant expiresAt, Instant queuedAt) {
         return transaction(connection -> {
             try (var query = statement(connection, "SELECT tenant_id, username, email, completed FROM public.owner_setup_tokens WHERE checkout_id = ? FOR UPDATE", invitation.checkoutId());
                  var rows = query.executeQuery()) {
@@ -30,8 +39,12 @@ public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
                         throw new IllegalArgumentException("Checkout owner details changed");
                     }
                     if (rows.getBoolean(4)) return false;
-                    update(connection, "UPDATE public.owner_setup_tokens SET token_hash = ?, expires_at = ? WHERE checkout_id = ?",
-                            tokenHash, expiresAt.toEpochMilli(), invitation.checkoutId());
+                    if (queuedAt != null) {
+                        enqueueIfNeeded(connection, invitation, queuedAt);
+                    } else {
+                        update(connection, "UPDATE public.owner_setup_tokens SET token_hash = ?, expires_at = ? WHERE checkout_id = ?",
+                                tokenHash, expiresAt.toEpochMilli(), invitation.checkoutId());
+                    }
                     return true;
                 }
             }
@@ -45,8 +58,17 @@ public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
             BillingJdbcAdapter.createTrial(connection, invitation.tenantId());
             update(connection, "INSERT INTO public.owner_setup_tokens (checkout_id, tenant_id, username, email, user_id, token_hash, expires_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE)",
                     invitation.checkoutId(), invitation.tenantId(), invitation.username(), invitation.email(), userId, tokenHash, expiresAt.toEpochMilli());
+            if (queuedAt != null) enqueueIfNeeded(connection, invitation, queuedAt);
             return true;
         });
+    }
+
+    private static void enqueueIfNeeded(Connection connection, Invitation invitation, Instant now) throws SQLException {
+        try (var query = statement(connection, "SELECT id FROM public.account_email_outbox WHERE purpose = 'OWNER_SETUP' AND subject_type = 'CHECKOUT' AND subject_id = ? AND state IN ('PENDING', 'CLAIMED', 'FAILED')", invitation.checkoutId()); var rows = query.executeQuery()) {
+            if (rows.next()) return;
+        }
+        update(connection, "INSERT INTO public.account_email_outbox (id, purpose, subject_type, subject_id, tenant_id, language, recipient_email, state, attempts, available_at, created_at) VALUES (?, 'OWNER_SETUP', 'CHECKOUT', ?, ?, 'en', ?, 'PENDING', 0, ?, ?)",
+                UUID.randomUUID().toString(), invitation.checkoutId(), invitation.tenantId(), invitation.email(), now.toEpochMilli(), now.toEpochMilli());
     }
 
     @Override

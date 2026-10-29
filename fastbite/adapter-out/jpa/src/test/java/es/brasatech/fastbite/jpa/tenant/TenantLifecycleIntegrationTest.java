@@ -1,7 +1,7 @@
 package es.brasatech.fastbite.jpa.tenant;
 
 import es.brasatech.fastbite.application.tenant.*;
-import es.brasatech.fastbite.application.mail.OwnerSetupMailPort;
+import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -25,9 +25,10 @@ class TenantLifecycleIntegrationTest {
     @Autowired TenantRegistrationPort registration;
     @Autowired TenantLifecyclePort lifecycle;
     @Autowired OwnerSetupService setup;
-    @Autowired OwnerSetupMailPort mail;
+    @Autowired AccountMailOutboxService mail;
     @Autowired JdbcTemplate jdbc;
     @Autowired DataSource dataSource;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
 
     @AfterEach void clear() { TenantContext.clear(); reset(mail); }
 
@@ -123,28 +124,29 @@ class TenantLifecycleIntegrationTest {
         assertThat(locationCount("lifenoowner")).isZero();
     }
 
-    @Test void mailFailureRetriesAndSuccessfulDuplicatesKeepTheSameLinkUntilExpiry() {
+    @Test void ownerSetupRejectsAnOuterTransactionBeforeCreatingAnything() {
+        var invitation = new OwnerSetupPort.Invitation("outer-checkout", "outerlocation", "outerowner", "Owner", "owner@example.test", "RESTAURANT");
+        var template = new org.springframework.transaction.support.TransactionTemplate(transactions);
+        template.executeWithoutResult(status -> {
+            assertThatThrownBy(() -> setup.invite(invitation)).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("outer transaction");
+            status.setRollbackOnly();
+        });
+        assertThat(locationCount("outerlocation")).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.account_email_outbox WHERE subject_id = 'outer-checkout'", Integer.class)).isZero();
+        verify(mail, never()).runForSetup("outer-checkout");
+    }
+
+    @Test void dispatchFailureLeavesOneDurableIntentAndDoesNotRollBackRegistration() {
         reset(mail);
         var invitation = new OwnerSetupPort.Invitation("lifemail", "lifemail", "lifemailowner", "Owner", "owner@example.test", "RESTAURANT");
-        doThrow(new IllegalStateException("SMTP unavailable")).doNothing().when(mail).sendSetupLink(anyString(), anyString(), anyString());
-        assertThatThrownBy(() -> setup.invite(invitation)).isInstanceOf(IllegalStateException.class);
-        assertThat(state("lifemail")).isEqualTo("FAILED");
+        doThrow(new IllegalStateException("temporary failure")).when(mail).runForSetup("lifemail");
         setup.invite(invitation);
-        String originalHash = jdbc.queryForObject("SELECT token_hash FROM public.owner_setup_tokens WHERE checkout_id = 'lifemail'", String.class);
-        setup.invite(invitation);
-        verify(mail, times(2)).sendSetupLink(anyString(), anyString(), anyString());
         assertThat(state("lifemail")).isEqualTo("AWAITING_OWNER");
-        assertThat(jdbc.queryForObject("SELECT token_hash FROM public.owner_setup_tokens WHERE checkout_id = 'lifemail'", String.class)).isEqualTo(originalHash);
-        jdbc.update("UPDATE public.owner_setup_tokens SET expires_at = ? WHERE checkout_id = 'lifemail'", Instant.now().minusSeconds(1).toEpochMilli());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.account_email_outbox WHERE subject_id = 'lifemail'", Integer.class)).isEqualTo(1);
         setup.invite(invitation);
-        verify(mail, times(3)).sendSetupLink(anyString(), anyString(), anyString());
-        var links = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(mail, times(3)).sendSetupLink(anyString(), anyString(), links.capture());
-        String token = links.getAllValues().getLast().split("token=")[1];
-        assertThat(setup.complete(token, "secure-hash")).isTrue();
-        assertThat(state("lifemail")).isEqualTo("ACTIVE");
-        setup.invite(invitation);
-        verify(mail, times(3)).sendSetupLink(anyString(), anyString(), anyString());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.account_email_outbox WHERE subject_id = 'lifemail'", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT token_hash FROM public.owner_setup_tokens WHERE checkout_id = 'lifemail'", String.class)).isNull();
     }
 
     @Test void reservedAndMalformedNamesNeverReachDdl() {

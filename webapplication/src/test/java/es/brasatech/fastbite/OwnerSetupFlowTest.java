@@ -9,8 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import es.brasatech.fastbite.application.mail.OwnerSetupMailPort;
+
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.mockito.ArgumentCaptor;
 
@@ -31,14 +31,14 @@ import static org.mockito.Mockito.*;
         "spring.datasource.url=jdbc:h2:mem:owner-flow;DB_CLOSE_DELAY=-1",
         "spring.jpa.properties.jakarta.persistence.jdbc.url=jdbc:h2:mem:owner-flow;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa", "spring.datasource.password=",
-        "fastbite.public-url=http://localhost:8080", "spring.mail.password=", "management.health.mail.enabled=false",
+        "fastbite.public-url=http://localhost:8080", "fastbite.environment=production", "fastbite.link.standalone=true", "spring.mail.password=", "management.health.mail.enabled=false",
         "fastbite.migrations.mode=migrate", "spring.jpa.hibernate.ddl-auto=none", "spring.session.jdbc.initialize-schema=never", "stripe.secret.key=", "stripe.webhook.secret=", "stripe.connected-account="})
 class OwnerSetupFlowTest {
     @Value("${local.server.port}") int port;
     @Autowired OwnerSetupService setup;
     @Autowired DataSource dataSource;
     @Autowired ApplicationContext context;
-    @MockitoBean JavaMailSender sender;
+    @MockitoBean OwnerSetupMailPort sender;
 
     private HttpClient client() { return HttpClient.newBuilder().cookieHandler(new CookieManager()).build(); }
     private HttpResponse<String> get(HttpClient client, String path) throws Exception {
@@ -64,10 +64,9 @@ class OwnerSetupFlowTest {
             assertEquals(0, rows.getInt(1));
         }
         setup.invite(new OwnerSetupPort.Invitation("flow-checkout", "flowtenant", "flowowner", "Flow Owner", "owner@example.test", "RESTAURANT"));
-        var email = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(sender).send(email.capture());
-        assertArrayEquals(new String[]{"owner@example.test"}, email.getValue().getTo());
-        var tokenMatch = Pattern.compile("token=([A-Za-z0-9_-]{43})").matcher(email.getValue().getText());
+        var link = ArgumentCaptor.forClass(String.class);
+        verify(sender).sendSetupLink(eq("owner@example.test"), eq("flowowner"), link.capture(), eq("en"));
+        var tokenMatch = Pattern.compile("token=([A-Za-z0-9_-]{43})").matcher(link.getValue());
         assertTrue(tokenMatch.find());
         String token = tokenMatch.group(1);
         var guest = client();
@@ -91,6 +90,6 @@ class OwnerSetupFlowTest {
             assertEquals(200, get(owner, "/owner/console").statusCode());
         }
         setup.invite(new OwnerSetupPort.Invitation("flow-checkout", "flowtenant", "flowowner", "Flow Owner", "owner@example.test", "RESTAURANT"));
-        verify(sender, times(1)).send(any(SimpleMailMessage.class));
+        verify(sender, times(1)).sendSetupLink(anyString(), anyString(), anyString(), anyString());
     }
 }

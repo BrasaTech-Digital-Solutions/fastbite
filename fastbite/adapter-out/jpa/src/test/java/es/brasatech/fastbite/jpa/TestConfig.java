@@ -19,6 +19,11 @@ import org.springframework.context.annotation.ComponentScan;
 public class TestConfig {
 
     @Bean
+    public es.brasatech.fastbite.application.mail.AccountMailOutboxService accountMailOutboxService() {
+        return org.mockito.Mockito.mock(es.brasatech.fastbite.application.mail.AccountMailOutboxService.class);
+    }
+
+    @Bean
     public es.brasatech.fastbite.application.mail.OwnerSetupMailPort ownerSetupMailPort() {
         return org.mockito.Mockito.mock(es.brasatech.fastbite.application.mail.OwnerSetupMailPort.class);
     }
