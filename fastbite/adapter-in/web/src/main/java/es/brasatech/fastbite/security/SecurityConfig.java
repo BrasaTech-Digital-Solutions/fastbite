@@ -1,14 +1,20 @@
 package es.brasatech.fastbite.security;
 
+import es.brasatech.fastbite.application.office.OwnerEmailService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
+import es.brasatech.fastbite.application.tenant.PendingSignupService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
@@ -28,6 +34,8 @@ import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.session.web.http.DefaultCookieSerializer;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @Configuration
 @EnableWebSecurity
@@ -35,16 +43,16 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService,
-            SessionCookie sessionCookie, Environment configuration, org.springframework.beans.factory.ObjectProvider<es.brasatech.fastbite.application.office.OwnerEmailService> ownerEmail,
-            org.springframework.beans.factory.ObjectProvider<UserDetailsServiceImpl> users, PasswordEncoder encoder,
-            org.springframework.beans.factory.ObjectProvider<es.brasatech.fastbite.application.tenant.PendingSignupService> pendingSignup,
-            org.springframework.context.MessageSource messages) throws Exception {
+            SessionCookie sessionCookie, Environment configuration, ObjectProvider<OwnerEmailService> ownerEmail,
+            ObjectProvider<UserDetailsServiceImpl> users, PasswordEncoder encoder,
+            ObjectProvider<PendingSignupService> pendingSignup,
+            MessageSource messages) throws Exception {
         var userDetails = users.getIfAvailable();
         if (userDetails != null) {
-            var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider(userDetails);
+            var provider = new DaoAuthenticationProvider(userDetails);
             provider.setPasswordEncoder(encoder);
             provider.setPreAuthenticationChecks(user -> { });
-            provider.setPostAuthenticationChecks(new org.springframework.security.authentication.AccountStatusUserDetailsChecker());
+            provider.setPostAuthenticationChecks(new AccountStatusUserDetailsChecker());
             http.authenticationProvider(provider);
         }
         var emailService = ownerEmail.getIfAvailable();
@@ -165,12 +173,31 @@ public class SecurityConfig {
             SavedRequest savedRequest = requestCache.getRequest(request, response);
             if (savedRequest != null) {
                 String redirectUrl = savedRequest.getRedirectUrl();
-                if (redirectUrl.contains("com.chrome.devtools") || redirectUrl.contains("/appspecific/") || redirectUrl.endsWith(".json") || redirectUrl.contains("/favicon.ico")) {
+                String target = localSavedTarget(redirectUrl);
+                if (target == null || target.contains("com.chrome.devtools") || target.contains("/appspecific/") || target.endsWith(".json") || target.contains("/favicon.ico")) {
                     requestCache.removeRequest(request, response);
+                } else {
+                    clearAuthenticationAttributes(request);
+                    getRedirectStrategy().sendRedirect(request, response, target);
+                    return;
                 }
             }
 
             super.onAuthenticationSuccess(request, response, authentication);
+        }
+
+        /** Keep the saved path and query, never the host supplied by a proxy or client. */
+        private static String localSavedTarget(String url) {
+            try {
+                URI uri = new URI(url);
+                String path = uri.getRawPath();
+                if (!uri.isAbsolute() || uri.getHost() == null || !("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                        || path == null || !path.startsWith("/") || path.startsWith("//") || path.indexOf('\\') >= 0
+                        || path.toLowerCase(java.util.Locale.ROOT).contains("%5c")) return null;
+                return path + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
+            } catch (URISyntaxException | IllegalArgumentException invalid) {
+                return null;
+            }
         }
     }
 
@@ -195,9 +222,9 @@ public class SecurityConfig {
     }
 
     private static class TenantAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
-        private final es.brasatech.fastbite.application.tenant.PendingSignupService pending;
+        private final PendingSignupService pending;
         private final PasswordEncoder encoder;
-        TenantAuthenticationFailureHandler(es.brasatech.fastbite.application.tenant.PendingSignupService pending, PasswordEncoder encoder) {
+        TenantAuthenticationFailureHandler(PendingSignupService pending, PasswordEncoder encoder) {
             this.pending = pending; this.encoder = encoder;
         }
         @Override

@@ -68,6 +68,12 @@ class CloudRunForwardedHeadersTest {
     private es.brasatech.fastbite.application.tenant.PendingSignupService pendingSignup;
 
     @MockitoBean
+    private UserDetailsServiceImpl userDetails;
+
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwords;
+
+    @MockitoBean
     private TableService tableService;
 
     @MockitoBean
@@ -86,6 +92,8 @@ class CloudRunForwardedHeadersTest {
                 .build();
 
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
+        org.mockito.Mockito.doThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("not found"))
+                .when(userDetails).loadUserByUsername(anyString());
     }
 
     @Test
@@ -102,6 +110,39 @@ class CloudRunForwardedHeadersTest {
                 .andExpect(header().string("Location", "/login?error"));
         mockMvc.perform(post("/login").with(csrf()).param("username", "newowner").param("password", "correct password"))
                 .andExpect(header().string("Location", "/login?error"));
+    }
+
+    @Test
+    void successfulLoginReturnsToSavedPathOnBrowserOrigin() throws Exception {
+        var roles = AuthorityUtils.createAuthorityList("ROLE_OWNER");
+        org.mockito.Mockito.doReturn(new TenantUser("savedowner", passwords.encode("local password"), true, roles, null))
+                .when(userDetails).loadUserByUsername("savedowner");
+        var session = new MockHttpSession();
+        mockMvc.perform(get("/owner/console").queryParam("view", "settings").session(session)
+                        .header("Host", "production:8080").header("X-Forwarded-Proto", "https"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/login").with(csrf()).session(session)
+                        .header("Host", "production:8080").header("X-Forwarded-Proto", "https")
+                        .header("X-Forwarded-Host", "fastbite.example.test")
+                        .param("username", "savedowner").param("password", "local password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", org.hamcrest.Matchers.startsWith("/owner/console?view=settings")))
+                .andExpect(header().string("Location", not(containsString("production"))));
+    }
+
+    @Test
+    void savedNetworkPathCannotRedirectToAnotherHost() throws Exception {
+        var roles = AuthorityUtils.createAuthorityList("ROLE_OWNER");
+        org.mockito.Mockito.doReturn(new TenantUser("savedowner", passwords.encode("local password"), true, roles, null))
+                .when(userDetails).loadUserByUsername("savedowner");
+        var saved = org.mockito.Mockito.mock(org.springframework.security.web.savedrequest.SavedRequest.class);
+        when(saved.getRedirectUrl()).thenReturn("https://internal.example//attacker.example/path");
+        var session = new MockHttpSession(); session.setAttribute("SPRING_SECURITY_SAVED_REQUEST", saved);
+        mockMvc.perform(post("/login").with(csrf()).session(session)
+                        .header("Host", "production:8080").header("X-Forwarded-Host", "fastbite.example.test")
+                        .header("X-Forwarded-Proto", "https").param("username", "savedowner").param("password", "local password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "/owner/console"));
     }
 
     @Test
