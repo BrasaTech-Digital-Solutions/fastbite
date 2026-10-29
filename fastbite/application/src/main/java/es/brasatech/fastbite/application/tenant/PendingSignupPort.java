@@ -12,6 +12,7 @@ public interface PendingSignupPort {
     Start start(Signup signup, Instant now);
     boolean changeEmail(String pendingId, String email, Instant now);
     boolean resend(String pendingId, Instant now);
+    Optional<Pending> forBrowser(String id, Instant now);
     Optional<Pending> forToken(String hash, Instant now);
     boolean alreadyVerified(String hash);
     boolean usernameAvailable(String username, Instant now);

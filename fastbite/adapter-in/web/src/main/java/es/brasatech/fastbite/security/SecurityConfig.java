@@ -35,7 +35,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService,
-            SessionCookie sessionCookie, Environment configuration) throws Exception {
+            SessionCookie sessionCookie, Environment configuration, org.springframework.beans.factory.ObjectProvider<es.brasatech.fastbite.application.office.OwnerEmailService> ownerEmail,
+            org.springframework.beans.factory.ObjectProvider<UserDetailsServiceImpl> users, PasswordEncoder encoder,
+            org.springframework.beans.factory.ObjectProvider<es.brasatech.fastbite.application.tenant.PendingSignupService> pendingSignup,
+            org.springframework.context.MessageSource messages) throws Exception {
+        var userDetails = users.getIfAvailable();
+        if (userDetails != null) {
+            var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider(userDetails);
+            provider.setPasswordEncoder(encoder);
+            provider.setPreAuthenticationChecks(user -> { });
+            provider.setPostAuthenticationChecks(new org.springframework.security.authentication.AccountStatusUserDetailsChecker());
+            http.authenticationProvider(provider);
+        }
+        var emailService = ownerEmail.getIfAvailable();
         http
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
@@ -79,7 +91,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler(new TenantAuthenticationSuccessHandler())
-                        .failureHandler(new TenantAuthenticationFailureHandler())
+                        .failureHandler(new TenantAuthenticationFailureHandler(pendingSignup.getIfAvailable(), encoder))
                         .permitAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(new TenantAuthenticationEntryPoint()))
@@ -96,6 +108,8 @@ public class SecurityConfig {
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())
                 );
 
+        if (emailService != null) http.addFilterAfter(new OwnerVerificationFilter(emailService,
+                new PlatformEnvironment(configuration.getProperty("fastbite.environment", "sandbox")), messages), TenantAccessFilter.class);
         return http.build();
     }
 
@@ -181,8 +195,24 @@ public class SecurityConfig {
     }
 
     private static class TenantAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+        private final es.brasatech.fastbite.application.tenant.PendingSignupService pending;
+        private final PasswordEncoder encoder;
+        TenantAuthenticationFailureHandler(es.brasatech.fastbite.application.tenant.PendingSignupService pending, PasswordEncoder encoder) {
+            this.pending = pending; this.encoder = encoder;
+        }
         @Override
         public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
+            var session = request.getSession(false);
+            if (pending != null && session != null && Boolean.TRUE.equals(session.getAttribute("pendingSignupReal"))
+                    && session.getAttribute("pendingSignupId") instanceof String id) {
+                var signup = pending.forBrowser(id);
+                String username = request.getParameter("username"), password = request.getParameter("password");
+                if (signup.isPresent() && password != null && username != null
+                        && (username.equals(signup.get().signup().username()) || username.equalsIgnoreCase(signup.get().signup().email()))
+                        && encoder.matches(password, signup.get().signup().passwordHash())) {
+                    getRedirectStrategy().sendRedirect(request, response, "/signup/check-email"); return;
+                }
+            }
             String prefix = tenantUrlPrefix(request);
             if (prefix != null) {
                 saveException(request, exception);

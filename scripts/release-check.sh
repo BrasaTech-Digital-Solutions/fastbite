@@ -216,8 +216,8 @@ record_match "$PENDING_OK" "signup creates no location before verification"
 OLD_VERIFY=$(verification_token "${T}-wrong@example.test" || true)
 PENDING_LOGIN_HTML=$(curl -s -c "$J" -b "$J" "$P/login")
 PENDING_LOGIN=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/login" --data-urlencode "_csrf=$(echo "$PENDING_LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$PASS")
-[[ "$(echo "$PENDING_LOGIN" | loc)" == *"error"* ]] && PENDING_LOGIN_OK=1 || PENDING_LOGIN_OK=0
-record_match "$PENDING_LOGIN_OK" "owner cannot sign in before verification"
+[[ "$(echo "$PENDING_LOGIN" | loc)" == *"/signup/check-email"* ]] && PENDING_LOGIN_OK=1 || PENDING_LOGIN_OK=0
+record_match "$PENDING_LOGIN_OK" "correct pending credentials return to check-email, not the console"
 CHECK_EMAIL_HTML=$(curl -s -c "$J" -b "$J" "$P/signup/check-email")
 echo "$CHECK_EMAIL_HTML" | grep -qF "${T}-wrong@example.test" && CHECK_EMAIL_OK=1 || CHECK_EMAIL_OK=0
 record_match "$CHECK_EMAIL_OK" "check-email page displays the full address"
@@ -234,6 +234,19 @@ TERMS_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "
 [[ "$TERMS_ROWS" == "1" ]] && TERMS_OK=1 || TERMS_OK=0
 record_match "$TERMS_OK" "signup recorded the owner's acceptance of the terms, with its date and version"
 
+# Turn only this run's freshly created owner into a legacy account to exercise migration at sign-in.
+# The tenant, owner and verified address must all match before the update can touch a row.
+LEGACY_ROWS=0
+if [[ "$PENDING_OK" == "1" && ( "$SIGNUP_CODE" == "302" || "$SIGNUP_CODE" == "303" ) && ( "$VERIFY_CODE" == "302" || "$VERIFY_CODE" == "303" ) && "$NEW_VERIFY" =~ ^[A-Za-z0-9_-]{43}$ ]]; then
+  LEGACY_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "WITH changed AS (UPDATE public.users SET email = NULL, email_verified_at = NULL WHERE username = '${T}owner' AND email = '${T}@example.test' AND email_verified_at IS NOT NULL AND EXISTS (SELECT 1 FROM public.tenant_locations WHERE tenant_id = '$T' AND owner_username = '${T}owner') RETURNING id) SELECT count(*) FROM changed" 2>/dev/null | tr -d '\r')
+fi
+[[ "$LEGACY_ROWS" == "1" ]] && LEGACY_FIXTURE_OK=1 || LEGACY_FIXTURE_OK=0
+record_match "$LEGACY_FIXTURE_OK" "prepare this run's verified owner as a legacy owner"
+
+LOGIN_HTML=$(curl -s -c "$J" -b "$J" "$P/login")
+WRONG_LOGIN=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/login" --data-urlencode "_csrf=$(echo "$LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=wrong-test-password")
+[[ "$(echo "$WRONG_LOGIN" | loc)" == *"/login?error"* ]] && WRONG_LOGIN_OK=1 || WRONG_LOGIN_OK=0
+record_match "$WRONG_LOGIN_OK" "wrong password gives the normal login error before the verification gate"
 LOGIN_HTML=$(curl -s -c "$J" -b "$J" "$P/login")
 TOKEN=$(echo "$LOGIN_HTML" | csrf)
 LOGIN_RESP=$(curl -s -i -c "$J" -b "$J" "$P/login" \
@@ -243,6 +256,47 @@ LOGIN_RESP=$(curl -s -i -c "$J" -b "$J" "$P/login" \
 LOGIN_CODE=$(echo "$LOGIN_RESP" | head -n 1 | awk '{print $2}')
 LOGIN_LOC=$(echo "$LOGIN_RESP" | loc)
 record_redirect "$LOGIN_CODE" "$LOGIN_LOC" "$P" "/owner/console" "POST $P/login"
+
+GATE_HEADERS=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/console")
+GATE_CODE=$(echo "$GATE_HEADERS" | head -n 1 | awk '{print $2}')
+record_redirect "$GATE_CODE" "$(echo "$GATE_HEADERS" | loc)" "$P" "/owner/account/verify" "unverified existing owner is stopped at verification"
+GATE_PAGE=$(curl -s -c "$J" -b "$J" "$P/owner/account/verify")
+check "$J" "$P/legal/terms"
+check "$J" "$P/verifactu/declaracion-responsable"
+GATE_JSON=$(curl -s -o gated-api.json -w '%{http_code}' -c "$J" -b "$J" -H 'Accept: application/json' "$P/api/orders")
+record "$GATE_JSON" 403 "unverified owner receives 403 from JSON API"
+grep -q '"error"' gated-api.json && GATE_JSON_BODY_OK=1 || GATE_JSON_BODY_OK=0
+record_match "$GATE_JSON_BODY_OK" "gated JSON API returns an error message"
+LEGACY_EMAIL="${T}-legacy@example.test"
+GATE_SUBMIT=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/owner/account/verify" --data-urlencode "_csrf=$(echo "$GATE_PAGE" | csrf)" --data-urlencode "email=$LEGACY_EMAIL")
+record "$GATE_SUBMIT" 302 "existing owner requests email verification"
+LEGACY_VERIFY=$(verification_token "$LEGACY_EMAIL" || true)
+LEGACY_VERIFY_HEADERS=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/verify-email?token=$LEGACY_VERIFY")
+record_redirect "$(echo "$LEGACY_VERIFY_HEADERS" | head -n 1 | awk '{print $2}')" "$(echo "$LEGACY_VERIFY_HEADERS" | loc)" "$P" "/owner/console" "existing owner verifies email while signed in"
+LEGACY_REPLAY=$(curl -s -o /dev/null -w '%{http_code}' "$P/verify-email?token=$LEGACY_VERIFY")
+record "$LEGACY_REPLAY" 302 "existing-owner verification link is idempotent"
+check "$J" "$P/owner/console"
+
+# A second browser must lose its owner session when the first changes the password.
+J_OTHER="other-owner.cookies"
+OTHER_LOGIN_HTML=$(curl -s -c "$J_OTHER" -b "$J_OTHER" "$P/login")
+OTHER_LOGIN=$(curl -s -D - -o /dev/null -c "$J_OTHER" -b "$J_OTHER" "$P/login" --data-urlencode "_csrf=$(echo "$OTHER_LOGIN_HTML" | csrf)" --data-urlencode "username=$LEGACY_EMAIL" --data-urlencode "password=$PASS")
+record_redirect "$(echo "$OTHER_LOGIN" | head -n 1 | awk '{print $2}')" "$(echo "$OTHER_LOGIN" | loc)" "$P" "/owner/console" "verified owner signs in by email from another browser"
+PASSWORD_SETTINGS=$(curl -s -c "$J" -b "$J" "$P/owner/console?view=settings")
+NEXT_PASS="another-long-test-password-456"
+PASSWORD_RESULT=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/account/password" --data-urlencode "_csrf=$(echo "$PASSWORD_SETTINGS" | csrf)" --data-urlencode "currentPassword=$PASS" --data-urlencode "password=$NEXT_PASS" --data-urlencode "confirmation=$NEXT_PASS")
+record_redirect "$(echo "$PASSWORD_RESULT" | head -n 1 | awk '{print $2}')" "$(echo "$PASSWORD_RESULT" | loc)" "$P" "passwordChanged" "owner changes password"
+check "$J" "$P/owner/console"
+OTHER_AFTER=$(curl -s -D - -o /dev/null -c "$J_OTHER" -b "$J_OTHER" "$P/owner/console")
+record_redirect "$(echo "$OTHER_AFTER" | head -n 1 | awk '{print $2}')" "$(echo "$OTHER_AFTER" | loc)" "$P" "/login" "password change ends the other owner's session"
+OTHER_LOGIN_HTML=$(curl -s -c "$J_OTHER" -b "$J_OTHER" "$P/login")
+OLD_PASS_LOGIN=$(curl -s -D - -o /dev/null -c "$J_OTHER" -b "$J_OTHER" "$P/login" --data-urlencode "_csrf=$(echo "$OTHER_LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$PASS")
+[[ "$(echo "$OLD_PASS_LOGIN" | loc)" == *"/login?error"* ]] && OLD_PASS_REJECTED=1 || OLD_PASS_REJECTED=0
+record_match "$OLD_PASS_REJECTED" "old owner password no longer signs in"
+OTHER_LOGIN_HTML=$(curl -s -c "$J_OTHER" -b "$J_OTHER" "$P/login")
+NEW_PASS_LOGIN=$(curl -s -D - -o /dev/null -c "$J_OTHER" -b "$J_OTHER" "$P/login" --data-urlencode "_csrf=$(echo "$OTHER_LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$NEXT_PASS")
+record_redirect "$(echo "$NEW_PASS_LOGIN" | head -n 1 | awk '{print $2}')" "$(echo "$NEW_PASS_LOGIN" | loc)" "$P" "/owner/console" "new owner password signs in"
+PASS="$NEXT_PASS"
 
 LINK_RESP=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/sandbox?location=$T")
 LINK=$(echo "$LINK_RESP" | loc)
@@ -905,14 +959,16 @@ record "${UNSUB_ISSUE_CODE:-000}" 200 "GET $P/internal/jobs/unsubscribe-token (a
 UNSUB_GET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/legal/unsubscribe?token=$UNSUB_TOKEN" || true)
 record "${UNSUB_GET_CODE:-000}" 200 "GET $P/legal/unsubscribe?token=... (confirmation page)"
 
-MKT_ACTIVE_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is null" 2>/dev/null | tr -d '')
+MKT_ACTIVE_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is null" 2>/dev/null | tr -d '
+')
 [[ "$MKT_ACTIVE_ROWS" == "1" ]] && MKT_STILL_ACTIVE=1 || MKT_STILL_ACTIVE=0
 record_match "$MKT_STILL_ACTIVE" "GET unsubscribe link does not withdraw consent"
 
 UNSUB_POST_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST   --data-urlencode "token=$UNSUB_TOKEN"   "$P/legal/unsubscribe" || true)
 record "${UNSUB_POST_CODE:-000}" 200 "POST $P/legal/unsubscribe (withdraw consent)"
 
-MKT_WITHDRAWN_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is not null" 2>/dev/null | tr -d '')
+MKT_WITHDRAWN_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${TF}owner' and document='marketing' and withdrawn_at is not null" 2>/dev/null | tr -d '
+')
 [[ "$MKT_WITHDRAWN_ROWS" == "1" ]] && MKT_WITHDRAWN=1 || MKT_WITHDRAWN=0
 record_match "$MKT_WITHDRAWN" "POST unsubscribe link sets withdrawn_at in fastbite_production"
 
@@ -962,7 +1018,8 @@ if [[ "$BAD_PDF_LOC" =~ ^/ ]]; then
   BAD_PDF_LOC="$P$BAD_PDF_LOC"
 fi
 BAD_PDF_PAGE=$(curl -s -b "$J" -c "$J" "$BAD_PDF_LOC")
-PDF_COUNT_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.guest_privacy_notices" 2>/dev/null | tr -d '')
+PDF_COUNT_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.guest_privacy_notices" 2>/dev/null | tr -d '
+')
 if echo "$BAD_PDF_PAGE" | grep -q "%PDF-" && [ "$PDF_COUNT_DB" = "1" ]; then
   record_match 1 "Non-PDF upload is refused and keeps active PDF unchanged"
 else

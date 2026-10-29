@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface UserService {
     Optional<UserDto> findByUsername(String username);
 
+    Optional<UserDto> findByVerifiedEmail(String email);
+
     void save(UserDto userDto);
 
     boolean existsAny();

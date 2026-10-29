@@ -39,6 +39,22 @@ public class OwnerSetupMailAdapter implements OwnerSetupMailPort {
         }
         send(email, subject, lead + "\n\n" + link, "<p>" + escape(lead) + "</p><p><a href=\"" + escape(link) + "\">" + escape(action) + "</a></p>");
     }
+    @Override public void sendOwnerVerification(String email, String username, String link, String language) {
+        String text = switch (language == null ? "en" : language) {
+            case "es" -> "Confirma tu correo para tu cuenta FastBite.";
+            case "pt" -> "Confirme o email da sua conta FastBite.";
+            default -> "Verify the email address for your FastBite account.";
+        };
+        send(email, "FastBite", text + "\n\n" + link, "<p>" + escape(text) + "</p><p><a href=\"" + escape(link) + "\">" + escape(link) + "</a></p>");
+    }
+    @Override public void sendOwnerEmailNotice(String email, String language) {
+        String text = switch (language == null ? "en" : language) {
+            case "es" -> "Se ha cambiado el correo de tu cuenta FastBite.";
+            case "pt" -> "O email da sua conta FastBite foi alterado.";
+            default -> "Your FastBite account email was changed.";
+        };
+        send(email, "FastBite", text, "<p>" + escape(text) + "</p>");
+    }
     @Override public void sendSignupNotice(String email, String language) {
         String subject, body;
         switch (language == null ? "en" : language) {

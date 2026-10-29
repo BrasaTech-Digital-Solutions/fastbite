@@ -44,7 +44,7 @@ class SignupFlowTest {
         var check = get(browser, "/signup/check-email");
         assertThat(check.body()).contains("wrong@example.test");
         var login = get(browser, "/login");
-        assertThat(post(browser, "/login", "username=verifyowner&password=local-test-password&_csrf=" + csrf(login.body())).headers().firstValue("Location").orElse("")).contains("error");
+        assertThat(post(browser, "/login", "username=verifyowner&password=local-test-password&_csrf=" + csrf(login.body())).headers().firstValue("Location").orElse("")).isEqualTo("/signup/check-email");
         assertThat(post(browser, "/signup/check-email/change", "email=right%40example.test&_csrf=" + csrf(check.body())).statusCode()).isEqualTo(302);
         var newLink = ArgumentCaptor.forClass(String.class);
         verify(mail).sendSignupVerification(eq("right@example.test"), eq("verifyowner"), newLink.capture(), anyString());
@@ -60,5 +60,24 @@ class SignupFlowTest {
         assertThat(get(other, "/signup/check-email").body()).contains("right@example.test");
         verify(mail).sendSignupNotice(eq("right@example.test"), anyString());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.tenant_locations WHERE tenant_id='anotherflow'", Integer.class)).isZero();
+    }
+    @Test void existingOwnerMustVerifyBeforeOpeningConsole() throws Exception {
+        String id = java.util.UUID.randomUUID().toString(), username = "existing" + id;
+        jdbc.update("INSERT INTO public.users (id, username, password, active) VALUES (?, ?, ?, TRUE)", id, username,
+                new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("existing password"));
+        jdbc.update("INSERT INTO public.user_roles (user_id, role) VALUES (?, 'OWNER')", id);
+        var browser = client(); var login = get(browser, "/login");
+        var signIn = post(browser, "/login", "username=" + username + "&password=existing+password&_csrf=" + csrf(login.body()));
+        assertThat(signIn.statusCode()).isEqualTo(302);
+        var blocked = get(browser, "/owner/console");
+        assertThat(blocked.headers().firstValue("Location")).contains("/owner/account/verify");
+        var form = get(browser, "/owner/account/verify");
+        String email = "owner" + id + "@example.test";
+        assertThat(post(browser, "/owner/account/verify", "email=" + URLEncoder.encode(email, StandardCharsets.UTF_8) + "&_csrf=" + csrf(form.body())).statusCode()).isEqualTo(302);
+        var link = ArgumentCaptor.forClass(String.class);
+        verify(mail).sendOwnerVerification(eq(email), eq(username), link.capture(), anyString());
+        URI uri = URI.create(link.getValue());
+        assertThat(get(browser, uri.getRawPath() + "?" + uri.getRawQuery()).headers().firstValue("Location")).contains("/owner/console");
+        assertThat(jdbc.queryForObject("SELECT email FROM public.users WHERE id = ?", String.class, id)).isEqualTo(email);
     }
 }

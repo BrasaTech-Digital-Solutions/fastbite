@@ -70,6 +70,7 @@ public class PendingSignupService {
         listener.locationCreated(data.tenantId(), data.username(), data.plan());
         return true;
     }
+    public java.util.Optional<PendingSignupPort.Pending> forBrowser(String id) { return pending.forBrowser(id, clock.instant()); }
     public boolean isPending(String id) { return pending.isPending(id, clock.instant()); }
     public boolean usernameAvailable(String username) {
         if (username == null || !username.matches("[a-zA-Z0-9_.-]{1,100}")) return false;

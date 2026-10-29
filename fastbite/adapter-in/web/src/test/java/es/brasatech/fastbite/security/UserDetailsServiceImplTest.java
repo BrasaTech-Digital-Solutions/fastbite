@@ -98,4 +98,23 @@ class UserDetailsServiceImplTest {
         assertThatThrownBy(() -> linkedSandbox.loadUserByUsername("alice")).isInstanceOf(UsernameNotFoundException.class);
         assertThat(((TenantUser) linkedSandbox.loadUserByUsername("carl")).belongsTo("pizza")).isTrue();
     }
+    @Test
+    void verifiedOwnerEmailSignsInUsingCanonicalUsername() {
+        users(null, null);
+        when(userService.findByVerifiedEmail("ALICE@example.test")).thenReturn(Optional.of(OWNER));
+        TenantUser user = (TenantUser) service.loadUserByUsername("ALICE@example.test");
+        assertThat(user.getUsername()).isEqualTo("alice");
+        assertThat(user.isPlatformAccount()).isTrue();
+    }
+
+    @Test
+    void existingStaffUsernameTakesPrecedenceOverOwnerEmail() {
+        UserDto staff = new UserDto("2", "alice@example.test", "hash", "Staff", Set.of(Role.COOK), true, "pizza");
+        users(null, staff);
+        when(userService.findByVerifiedEmail("alice@example.test")).thenReturn(Optional.of(OWNER));
+        TenantContext.setCurrentTenant("pizza");
+        TenantUser user = (TenantUser) service.loadUserByUsername("alice@example.test");
+        assertThat(user.belongsTo("pizza")).isTrue();
+        assertThat(user.getAuthorities()).extracting("authority").containsExactly("ROLE_COOK");
+    }
 }

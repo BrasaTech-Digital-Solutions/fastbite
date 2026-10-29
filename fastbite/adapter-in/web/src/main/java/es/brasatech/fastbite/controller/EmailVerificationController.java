@@ -10,12 +10,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class EmailVerificationController {
     private final PendingSignupService signup;
-    public EmailVerificationController(PendingSignupService signup) { this.signup = signup; }
+    private final es.brasatech.fastbite.application.office.OwnerEmailService owners;
+    public EmailVerificationController(PendingSignupService signup, es.brasatech.fastbite.application.office.OwnerEmailService owners) { this.signup = signup; this.owners = owners; }
     @GetMapping("/verify-email")
-    public String verify(@RequestParam(defaultValue = "") String token, Model model, HttpServletResponse response) {
+    public String verify(@RequestParam(defaultValue = "") String token, Model model, HttpServletResponse response, org.springframework.security.core.Authentication auth) {
         response.setHeader("Cache-Control", "no-store");
         response.setHeader("Referrer-Policy", "no-referrer");
         try {
+            if (owners.verify(token)) return auth != null && auth.isAuthenticated() && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) ? "redirect:/owner/console" : "redirect:/login?verified";
             if (signup.verify(token)) return "redirect:/login?verified";
         } catch (es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException busy) {
             model.addAttribute("token", token);

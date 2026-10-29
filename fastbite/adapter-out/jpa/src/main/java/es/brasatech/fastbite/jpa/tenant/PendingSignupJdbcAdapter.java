@@ -72,6 +72,12 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
             return true;
         });
     }
+    @Override public Optional<Pending> forBrowser(String id, Instant now) {
+        return transaction(source, connection -> {
+            Pending item = load(connection, id);
+            return item == null || !item.expiresAt().isAfter(now) ? Optional.empty() : Optional.of(item);
+        });
+    }
     @Override public Optional<Pending> forToken(String hash, Instant now) {
         return transaction(source, connection -> {
             try (var query = statement(connection, "SELECT subject_id FROM public.account_tokens WHERE token_hash = ? AND purpose = 'SIGNUP_VERIFY' AND subject_type = 'PENDING' AND consumed_at IS NULL AND expires_at > ?", hash, now.toEpochMilli()); var rows = query.executeQuery()) {

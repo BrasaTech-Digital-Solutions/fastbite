@@ -21,6 +21,12 @@ public class UserServiceJpaImpl implements UserService {
     }
 
     @Override
+    public Optional<UserDto> findByVerifiedEmail(String email) {
+        return userRepository.findByEmailIgnoreCaseAndEmailVerifiedAtIsNotNull(email)
+                .map(this::toDto).filter(UserDto::isOwner);
+    }
+
+    @Override
     @Transactional
     public void save(UserDto userDto) {
         UserEntity entity = userRepository.findByUsername(userDto.username())

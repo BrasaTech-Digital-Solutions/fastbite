@@ -25,7 +25,7 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
 
     private Optional<Claim> claim(String subjectId, Instant now) {
         return transaction(connection -> {
-            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE') AND "
+            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE', 'OWNER_VERIFY', 'OWNER_EMAIL_NOTICE') AND "
                     + (subjectId == null ? "" : "subject_id = ? AND ")
                     + "((state = 'PENDING' AND available_at <= ?) OR (state = 'CLAIMED' AND claimed_at <= ?)) ORDER BY created_at FETCH FIRST 1 ROWS ONLY FOR UPDATE SKIP LOCKED";
             Object[] args = subjectId == null ? new Object[]{now.toEpochMilli(), now.toEpochMilli() - LEASE_MS}
@@ -72,6 +72,18 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = "signup:" + email;
+            } else if ("OWNER_VERIFY".equals(claim.purpose())) {
+                try (var query = statement(connection, "SELECT pending_email, username, COALESCE(account_language, 'en') FROM public.users WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    email = row.getString(1); username = row.getString(2); language = row.getString(3);
+                }
+                limitKey = "owner:" + claim.subjectId();
+            } else if ("OWNER_EMAIL_NOTICE".equals(claim.purpose())) {
+                try (var query = statement(connection, "SELECT username FROM public.users WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
+                    if (!row.next()) return cancel(connection, claim);
+                    username = row.getString(1); email = destination;
+                }
+                limitKey = "owner:" + claim.subjectId();
             } else if ("SIGNUP_NOTICE".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT username, COALESCE(account_language, 'en') FROM public.users WHERE email = ? AND email_verified_at IS NOT NULL FOR UPDATE", destination); var row = query.executeQuery()) {
                     if (!row.next()) return cancel(connection, claim);
@@ -93,6 +105,10 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
             } else if ("SIGNUP_VERIFY".equals(claim.purpose())) {
                 update(connection, "DELETE FROM public.account_tokens WHERE purpose = 'SIGNUP_VERIFY' AND subject_type = 'PENDING' AND subject_id = ?", claim.subjectId());
                 update(connection, "INSERT INTO public.account_tokens (token_hash, purpose, subject_type, subject_id, email, created_at, expires_at) VALUES (?, 'SIGNUP_VERIFY', 'PENDING', ?, ?, ?, ?)", hash, claim.subjectId(), email, time, now.plus(Duration.ofHours(48)).toEpochMilli());
+            }
+            if ("OWNER_VERIFY".equals(claim.purpose())) {
+                update(connection, "DELETE FROM public.account_tokens WHERE purpose = 'OWNER_VERIFY' AND subject_type = 'OWNER' AND subject_id = ? AND consumed_at IS NULL", claim.subjectId());
+                update(connection, "INSERT INTO public.account_tokens (token_hash, purpose, subject_type, subject_id, email, created_at, expires_at) VALUES (?, 'OWNER_VERIFY', 'OWNER', ?, ?, ?, ?)", hash, claim.subjectId(), email, time, now.plus(Duration.ofHours(48)).toEpochMilli());
             }
             update(connection, "INSERT INTO public.account_email_limits (id, subject_key, purpose, sent_at) VALUES (?, ?, ?, ?)", UUID.randomUUID().toString(), limitKey, claim.purpose(), time);
             return Optional.of(new Recipient(email, username, language));

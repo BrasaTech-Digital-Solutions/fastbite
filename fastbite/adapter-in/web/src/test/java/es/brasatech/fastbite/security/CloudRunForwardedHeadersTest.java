@@ -65,6 +65,9 @@ class CloudRunForwardedHeadersTest {
     private TenantLocationService tenantLocationService;
 
     @MockitoBean
+    private es.brasatech.fastbite.application.tenant.PendingSignupService pendingSignup;
+
+    @MockitoBean
     private TableService tableService;
 
     @MockitoBean
@@ -83,6 +86,22 @@ class CloudRunForwardedHeadersTest {
                 .build();
 
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
+    }
+
+    @Test
+    void pendingSignupLoginRequiresPasswordAndOriginalBrowser() throws Exception {
+        var signup = new es.brasatech.fastbite.application.tenant.PendingSignupPort.Signup("place", "newowner", "Owner",
+                new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("correct password"), "RESTAURANT",
+                "owner@example.test", "en", "v1", java.time.Instant.now(), false);
+        when(pendingSignup.forBrowser("pending-id")).thenReturn(Optional.of(new es.brasatech.fastbite.application.tenant.PendingSignupPort.Pending("pending-id", signup, java.time.Instant.now().plusSeconds(60))));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("pendingSignupId", "pending-id"); session.setAttribute("pendingSignupReal", true);
+        mockMvc.perform(post("/login").with(csrf()).session(session).param("username", "newowner").param("password", "correct password"))
+                .andExpect(header().string("Location", "/signup/check-email"));
+        mockMvc.perform(post("/login").with(csrf()).session(session).param("username", "newowner").param("password", "wrong password"))
+                .andExpect(header().string("Location", "/login?error"));
+        mockMvc.perform(post("/login").with(csrf()).param("username", "newowner").param("password", "correct password"))
+                .andExpect(header().string("Location", "/login?error"));
     }
 
     @Test

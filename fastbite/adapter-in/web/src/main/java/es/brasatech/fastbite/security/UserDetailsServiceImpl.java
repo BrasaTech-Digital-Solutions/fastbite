@@ -41,6 +41,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         String tenantId = TenantContext.getCurrentTenant();
         Optional<UserDto> platformUser = inPlatformSchema(() -> userService.findByUsername(username));
+        // Preserve existing restaurant usernames, including legacy names containing @.
+        if (platformUser.isEmpty() && tenantId != null) {
+            Optional<UserDto> staff = userService.findByUsername(username);
+            if (staff.isPresent()) return toUserDetails(staff.get(), tenantId);
+        }
+        if (platformUser.isEmpty()) {
+            platformUser = inPlatformSchema(() -> userService.findByVerifiedEmail(username));
+        }
 
         if (tenantId == null || platformUser.filter(u -> tenantLocationService.isOwnerOf(u.username(), tenantId)).isPresent()) {
             log.debug("Signing in platform account {}", username);

@@ -15,7 +15,7 @@ class EmailVerificationControllerTest {
         when(signup.verify(token)).thenThrow(new TenantProvisioningInProgressException("busy"));
         var model = new ExtendedModelMap();
         var response = new MockHttpServletResponse();
-        assertThat(new EmailVerificationController(signup).verify(token, model, response)).isEqualTo("fastfood/verifyEmailWaiting");
+        assertThat(new EmailVerificationController(signup, org.mockito.Mockito.mock(es.brasatech.fastbite.application.office.OwnerEmailService.class)).verify(token, model, response, null)).isEqualTo("fastfood/verifyEmailWaiting");
         assertThat(model.get("token")).isEqualTo(token);
         assertThat(response.getStatus()).isEqualTo(200);
     }

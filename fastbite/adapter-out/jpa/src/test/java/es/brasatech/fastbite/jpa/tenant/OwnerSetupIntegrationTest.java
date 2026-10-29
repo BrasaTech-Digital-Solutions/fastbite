@@ -28,7 +28,7 @@ class OwnerSetupIntegrationTest {
         String suffix = UUID.randomUUID().toString().replace("-", "");
         String tenant = "setup" + suffix;
         provisioner.provisionTenant(tenant);
-        return new OwnerSetupPort.Invitation("checkout-" + suffix, tenant, "owner" + suffix, "Owner", "owner@example.test", "RESTAURANT");
+        return new OwnerSetupPort.Invitation("checkout-" + suffix, tenant, "owner" + suffix, "Owner", "owner" + suffix + "@example.test", "RESTAURANT");
     }
 
     private Object value(String sql) throws Exception {
@@ -53,6 +53,8 @@ class OwnerSetupIntegrationTest {
         for (String schema : new String[]{"public", "tenant_" + invitation.tenantId()}) {
             assertEquals(true, value("SELECT active FROM " + schema + ".users WHERE username = '" + invitation.username() + "'"));
             assertEquals("encoded-new-password", value("SELECT password FROM " + schema + ".users WHERE username = '" + invitation.username() + "'"));
+            assertEquals(invitation.email(), value("SELECT email FROM " + schema + ".users WHERE username = '" + invitation.username() + "'"));
+            assertNotNull(value("SELECT email_verified_at FROM " + schema + ".users WHERE username = '" + invitation.username() + "'"));
         }
         assertEquals("unrelated", TenantContext.getCurrentTenant());
     }

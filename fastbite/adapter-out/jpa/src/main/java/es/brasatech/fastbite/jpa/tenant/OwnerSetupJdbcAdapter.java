@@ -95,15 +95,16 @@ public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
                  var rows = query.executeQuery()) {
                 rows.next(); // Legacy invitations may not yet have a lifecycle record.
             }
-            try (var query = statement(connection, "SELECT checkout_id, tenant_id, user_id FROM public.owner_setup_tokens WHERE token_hash = ? AND completed = FALSE AND expires_at > ? FOR UPDATE", tokenHash, now.toEpochMilli());
+            try (var query = statement(connection, "SELECT checkout_id, tenant_id, user_id, email FROM public.owner_setup_tokens WHERE token_hash = ? AND completed = FALSE AND expires_at > ? FOR UPDATE", tokenHash, now.toEpochMilli());
                  var rows = query.executeQuery()) {
                 if (!rows.next()) return false;
                 String checkoutId = rows.getString(1);
                 String tenant = rows.getString(2);
                 String userId = rows.getString(3);
+                String email = rows.getString(4).trim().toLowerCase(java.util.Locale.ROOT);
                 for (String schema : new String[]{"public", tenantSchema(tenant)}) {
-                    int updated = update(connection, "UPDATE " + schema + ".users SET password = ?, active = TRUE WHERE id = ? AND tenant_id = ? AND active = FALSE",
-                            encodedPassword, userId, tenant);
+                    int updated = update(connection, "UPDATE " + schema + ".users SET password = ?, active = TRUE, email = ?, email_verified_at = ? WHERE id = ? AND tenant_id = ? AND active = FALSE",
+                            encodedPassword, email, now.toEpochMilli(), userId, tenant);
                     if (updated != 1) throw new IllegalStateException("Pending owner account is missing or already enabled");
                 }
                 update(connection, "UPDATE public.owner_setup_tokens SET completed = TRUE, token_hash = NULL WHERE checkout_id = ?", checkoutId);
