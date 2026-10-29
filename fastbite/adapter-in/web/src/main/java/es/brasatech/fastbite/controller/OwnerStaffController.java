@@ -67,7 +67,11 @@ public class OwnerStaffController {
             model.addAttribute("roles", STAFF_ROLES);
             model.addAttribute("success", "User '" + username + "' created successfully!");
         } catch (Exception e) {
-            log.error("Failed to create staff user for tenant " + tenantId, e);
+            if (e instanceof IllegalArgumentException) {
+                log.warn("Staff account creation rejected for tenant {}", tenantId);
+            } else {
+                log.error("Failed to create staff user for tenant {}", tenantId, e);
+            }
             model.addAttribute("error", RejectionMessages.resolve(e, messages));
             
             List<UserDto> users = ownerStaffService.listStaff(ownerUsername, tenantId);

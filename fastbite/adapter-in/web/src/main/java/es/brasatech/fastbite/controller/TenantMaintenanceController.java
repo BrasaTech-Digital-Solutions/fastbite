@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Controller
 @RequestMapping("/{tenantId}/api/backoffice/maintenance")
@@ -103,6 +104,9 @@ public class TenantMaintenanceController {
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.warn("Production bundle import rejected for tenant {}", tenantId);
+            return ResponseEntity.badRequest().body(Map.of("message", Objects.toString(e.getMessage(), "Invalid bundle.")));
         } catch (Exception e) {
             log.error("Failed to import production bundle for tenant: " + tenantId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -136,6 +140,9 @@ public class TenantMaintenanceController {
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            log.warn("Backup restore rejected for tenant {}", tenantId);
+            return ResponseEntity.badRequest().body(Map.of("message", Objects.toString(e.getMessage(), "Invalid backup.")));
         } catch (Exception e) {
             log.error("Failed to restore backup for tenant: " + tenantId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -154,6 +161,9 @@ public class TenantMaintenanceController {
             tenantBackupRestorePort.cleanTenantData(tenantId);
             log.info("Tenant reset/clean completed successfully by user {} for tenant: {}", username, tenantId);
             return ResponseEntity.ok(Map.of("status", "success", "message", "Database and uploads successfully reset."));
+        } catch (IllegalArgumentException e) {
+            log.warn("Database reset rejected for tenant {}", tenantId);
+            return ResponseEntity.badRequest().body(Map.of("message", Objects.toString(e.getMessage(), "Invalid reset request.")));
         } catch (Exception e) {
             log.error("Failed to reset tenant data for: " + tenantId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

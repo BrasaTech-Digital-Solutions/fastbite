@@ -39,6 +39,10 @@ public class OwnerConsoleController {
         try {
             tenantSignupService.registerAdditionalLocation(tenantId, ownerUsername, "RESTAURANT");
             return "redirect:/owner/console?location=" + tenantId.trim().toLowerCase(java.util.Locale.ROOT);
+        } catch (IllegalArgumentException e) {
+            log.warn("Location creation rejected for tenant {}", tenantId);
+            model.addFlashAttribute("error", e.getMessage());
+            return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to add location: " + tenantId, e);
             model.addFlashAttribute("error", e.getMessage());
@@ -91,6 +95,10 @@ public class OwnerConsoleController {
             }
             
             return "redirect:/owner/console?view=location-settings&section=domain&location=" + tenantId;
+        } catch (IllegalArgumentException e) {
+            log.warn("Custom domain change rejected for tenant {}", tenantId);
+            model.addFlashAttribute("error", e.getMessage());
+            return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to bind custom domain: " + customDomain, e);
             model.addFlashAttribute("error", e.getMessage());
@@ -112,6 +120,10 @@ public class OwnerConsoleController {
             tenantLocationService.updateStripeAccountId(ownerUsername, tenantId, stripeAccountId);
             refreshStripeStatus(stripeAccountId);
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
+        } catch (IllegalArgumentException e) {
+            log.warn("Stripe account update rejected for tenant {}", tenantId);
+            model.addFlashAttribute("error", e.getMessage());
+            return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to update Stripe account ID for location: " + tenantId, e);
             model.addFlashAttribute("error", e.getMessage());
@@ -154,6 +166,10 @@ public class OwnerConsoleController {
 
             com.stripe.model.AccountLink accountLink = stripeService.createAccountLink(accountId, refreshUrl, returnUrl);
             return "redirect:" + accountLink.getUrl();
+        } catch (IllegalArgumentException e) {
+            log.warn("Stripe onboarding rejected for tenant {}", tenantId);
+            model.addFlashAttribute("error", "Failed to connect with Stripe: " + e.getMessage());
+            return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         } catch (Exception e) {
             log.error("Failed to initiate Stripe onboarding for location: " + tenantId, e);
             model.addFlashAttribute("error", "Failed to connect with Stripe: " + e.getMessage());
