@@ -35,6 +35,18 @@ public class UserEntity {
     @Column(name = "role")
     private Set<Role> roles;
 
+    @Column(length = 254)
+    private String email;
+
+    @Column(name = "email_verified_at")
+    private Long emailVerifiedAt;
+
+    @Column(name = "pending_email", length = 254)
+    private String pendingEmail;
+
+    @Column(name = "account_language", length = 2)
+    private String accountLanguage;
+
     private boolean active;
 
     @Column(name = "tenant_id")

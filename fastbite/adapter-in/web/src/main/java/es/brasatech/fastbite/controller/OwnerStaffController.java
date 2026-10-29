@@ -3,6 +3,8 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.tenant.OwnerStaffService;
 import es.brasatech.fastbite.domain.user.Role;
 import es.brasatech.fastbite.domain.user.UserDto;
+import es.brasatech.fastbite.application.tenant.PasswordPolicy;
+import org.springframework.context.MessageSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +26,7 @@ public class OwnerStaffController {
 
     private final OwnerStaffService ownerStaffService;
     private final PasswordEncoder passwordEncoder;
+    private final MessageSource messages;
 
     @GetMapping
     public String listUsers(
@@ -56,8 +59,7 @@ public class OwnerStaffController {
 
         String ownerUsername = principal != null ? principal.getName() : null;
         try {
-            if (password.length() < 10 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
-                throw new IllegalArgumentException("Use a password of at least 10 characters and at most 72 UTF-8 bytes.");
+            PasswordPolicy.require(password);
             String encodedPassword = passwordEncoder.encode(password);
             List<UserDto> users = ownerStaffService.createStaff(ownerUsername, tenantId, username, fullName, encodedPassword, role);
             model.addAttribute("users", users);
@@ -66,7 +68,7 @@ public class OwnerStaffController {
             model.addAttribute("success", "User '" + username + "' created successfully!");
         } catch (Exception e) {
             log.error("Failed to create staff user for tenant " + tenantId, e);
-            model.addAttribute("error", e.getMessage());
+            model.addAttribute("error", RejectionMessages.resolve(e, messages));
             
             List<UserDto> users = ownerStaffService.listStaff(ownerUsername, tenantId);
             model.addAttribute("users", users);

@@ -981,7 +981,7 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
 done
 
 # The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+PLATFORM_TABLES="account_email_limits account_email_outbox account_tokens fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens pending_registrations sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

@@ -3,6 +3,8 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.SignupConsents;
 import es.brasatech.fastbite.application.tenant.TenantSignupService;
+import es.brasatech.fastbite.application.tenant.PasswordPolicy;
+import org.springframework.context.MessageSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,15 +22,17 @@ public class SignupController {
     private final PasswordEncoder passwordEncoder;
     private final PlatformLink link;
     private final java.time.Clock clock;
+    private final MessageSource messages;
     /** The version of the legal texts an owner accepts: the date they show (see LegalController). */
     private final String termsVersion;
 
     public SignupController(TenantSignupService tenantSignupService, PasswordEncoder passwordEncoder, PlatformLink link,
-            java.time.Clock clock, @Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
+            java.time.Clock clock, MessageSource messages, @Value("${fastbite.legal.updated:27/10/2026}") String termsVersion) {
         this.tenantSignupService = tenantSignupService;
         this.passwordEncoder = passwordEncoder;
         this.link = link;
         this.clock = clock;
+        this.messages = messages;
         this.termsVersion = termsVersion;
     }
 
@@ -63,8 +67,7 @@ public class SignupController {
         try {
             if (!acceptTerms)
                 throw new IllegalArgumentException("Accept the terms of service and the data processing agreement to create your restaurant.");
-            if (password.length() < 10 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72)
-                throw new IllegalArgumentException("Use a password of at least 10 characters and at most 72 UTF-8 bytes.");
+            PasswordPolicy.require(password);
             String encodedPassword = passwordEncoder.encode(password);
             tenantSignupService.registerTenant(tenantId, username, encodedPassword, fullName, plan,
                     new SignupConsents(termsVersion, marketing, clock.instant()));
@@ -81,7 +84,7 @@ public class SignupController {
             return "fastfood/signup";
         } catch (IllegalArgumentException e) {
             log.warn("Failed tenant registration due to input validation: {}", e.getMessage());
-            model.addAttribute("error", e.getMessage());
+            model.addAttribute("error", RejectionMessages.resolve(e, messages));
             return "fastfood/signup";
         } catch (Exception e) {
             log.error("Failed tenant registration and self-provisioning: ", e);

@@ -35,10 +35,10 @@ class TenantMigrationServiceTest {
         migrations.migrateAll(false);
         migrations.provision("alpha");
         migrations.validateAll();
-        assertThat(versions("PUBLIC")).containsExactly("2", "4", "5", "6", "7", "15", "16", "18", "22", "23", "24", "25", "27", "28");
+        assertThat(versions("PUBLIC")).containsExactly("2", "4", "5", "6", "7", "15", "16", "18", "22", "23", "24", "25", "27", "28", "29");
         assertThat(tables("PUBLIC")).containsExactlyInAnyOrderElementsOf(PLATFORM_TABLES);
-        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
-        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
+        assertThat(versions("TENANT_BETA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
         assertThat(jdbc.queryForObject("SELECT price FROM tenant_alpha.products WHERE id = 'meal'", BigDecimal.class))
                 .isEqualByComparingTo("12.50");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_beta.products", Integer.class)).isZero();
@@ -60,10 +60,23 @@ class TenantMigrationServiceTest {
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         migrations.migrateAll(true);
         migrations.validateAll();
-        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_LEGACY")).containsExactly("0", "1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
         assertThat(jdbc.queryForObject("SELECT total FROM tenant_legacy.orders WHERE id = 'paid'", BigDecimal.class)).isEqualByComparingTo("19.95");
         assertThat(jdbc.queryForObject("SELECT translations FROM tenant_legacy.groups WHERE id = 'food'", String.class)).contains("Comida");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'TENANT_LEGACY' AND table_name = 'GROUP_TRANSLATIONS'", Integer.class)).isZero();
+    }
+
+    @Test void ownerEmailsAreNormalizedAndUniqueAndStaffAreTenantScoped() {
+        migrations.migrateAll(false);
+        migrations.provision("alpha");
+        migrations.provision("beta");
+        jdbc.update("INSERT INTO public.users (id, username, password, active, email) VALUES ('one', 'one', 'hash', TRUE, 'owner@example.com')");
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO public.users (id, username, password, active, email) VALUES ('two', 'two', 'hash', TRUE, 'OWNER@example.com')"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO public.users (id, username, password, active, email) VALUES ('two', 'two', 'hash', TRUE, 'owner@example.com')"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        jdbc.update("INSERT INTO tenant_alpha.users (id, username, password, active, email) VALUES ('one', 'staff', 'hash', TRUE, 'staff@example.com')");
+        jdbc.update("INSERT INTO tenant_beta.users (id, username, password, active, email) VALUES ('one', 'staff', 'hash', TRUE, 'staff@example.com')");
     }
 
     @Test void validationFailsForUnmigratedDatabaseWithoutCreatingTables() {
@@ -102,7 +115,7 @@ class TenantMigrationServiceTest {
             first.get(15, TimeUnit.SECONDS);
             second.get(15, TimeUnit.SECONDS);
         }
-        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_CONCURRENT")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
     }
 
     @Test void publicUpgradedFromBeforeV22KeepsOnlyPlatformTablesAndItsAccounts() {
@@ -117,10 +130,10 @@ class TenantMigrationServiceTest {
 
         assertThat(tables("PUBLIC")).containsExactlyInAnyOrderElementsOf(PLATFORM_TABLES);
         assertThat(versions("PUBLIC")).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
-                "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "27", "28");
+                "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "27", "28", "29");
         assertThat(jdbc.queryForObject("SELECT role FROM public.user_roles WHERE user_id = 'owner'", String.class)).isEqualTo("OWNER");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tenant_alpha.products", Integer.class)).isEqualTo(1);
-        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_ALPHA")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
     }
 
     @Test void freshAndUpgradedPublicDefineTheAccountsTheSameWay() {
@@ -161,7 +174,7 @@ class TenantMigrationServiceTest {
     @Test void theDemoRestaurantHasItsOwnSchema() {
         migrations.migrateAll(false);
         migrations.provisionDemo();
-        assertThat(versions("TENANT_KEBAB")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26");
+        assertThat(versions("TENANT_KEBAB")).containsExactly("1", "3", "8", "9", "10", "11", "12", "13", "14", "17", "19", "20", "21", "26", "30");
     }
 
     @Test void theV22MigrationRunsInOneTransaction() {
@@ -172,7 +185,7 @@ class TenantMigrationServiceTest {
             "SPRING_SESSION", "SPRING_SESSION_ATTRIBUTES", "USERS", "USER_ROLES", "TENANT_LOCATIONS", "OWNER_SETUP_TOKENS",
             "TENANT_LIFECYCLE", "TENANT_BILLING", "GROUP_QUOTE_REQUESTS", "OWNER_ONBOARDING", "OWNER_APPEARANCE",
             "LOCATION_APPEARANCE", "SANDBOX_PROVISIONING", "SANDBOX_SIGN_IN", "FISCAL_ISSUERS", "LEGAL_ACCEPTANCES",
-            "LOCATION_PROMOTIONS", "LOCATION_PROMOTION_LEASE");
+            "LOCATION_PROMOTIONS", "LOCATION_PROMOTION_LEASE", "PENDING_REGISTRATIONS", "ACCOUNT_TOKENS", "ACCOUNT_EMAIL_OUTBOX", "ACCOUNT_EMAIL_LIMITS");
 
     /** PUBLIC as every release before V22 left it: platform and restaurant migrations together. */
     private void migratePublicAsBeforeV22() {

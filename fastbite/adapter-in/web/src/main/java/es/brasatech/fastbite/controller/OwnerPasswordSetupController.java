@@ -1,6 +1,9 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.tenant.OwnerSetupService;
+import es.brasatech.fastbite.application.tenant.PasswordPolicy;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+import org.springframework.context.MessageSource;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -9,16 +12,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.nio.charset.StandardCharsets;
 
 @Controller
 public class OwnerPasswordSetupController {
     private final OwnerSetupService setup;
     private final PasswordEncoder encoder;
+    private final MessageSource messages;
 
-    public OwnerPasswordSetupController(OwnerSetupService setup, PasswordEncoder encoder) {
+    public OwnerPasswordSetupController(OwnerSetupService setup, PasswordEncoder encoder, MessageSource messages) {
         this.setup = setup;
         this.encoder = encoder;
+        this.messages = messages;
     }
 
     @GetMapping("/set-password")
@@ -35,11 +39,14 @@ public class OwnerPasswordSetupController {
             Model model, HttpServletResponse response) {
         protect(response);
         if (!setup.isValid(token)) return invalid(model, response);
-        // BCrypt has a 72-byte input limit; enforce it before encoding, including Unicode input.
-        if (password.length() < 12 || password.getBytes(StandardCharsets.UTF_8).length > 72 || !password.equals(confirmation)) {
+        try {
+            PasswordPolicy.require(password);
+            if (!password.equals(confirmation))
+                throw new LocalizedRejection("password.mismatch", "The passwords do not match.");
+        } catch (LocalizedRejection rejection) {
             response.setStatus(400);
             model.addAttribute("token", token);
-            model.addAttribute("error", "Use at least 12 characters (at most 72 UTF-8 bytes), and enter the same password twice.");
+            model.addAttribute("error", RejectionMessages.resolve(rejection, messages));
             return "fastfood/setPassword";
         }
         if (!setup.complete(token, encoder.encode(password))) return invalid(model, response);
