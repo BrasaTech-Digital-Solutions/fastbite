@@ -25,13 +25,20 @@
         pedido o sus datos para una factura) y de su <strong>personal</strong> los decide el restaurante, que es el
         responsable. Nosotros los tratamos solo por su cuenta y siguiendo sus instrucciones, como encargado del
         tratamiento, según el <a th:href="@{/legal/data-processing(lang='es')}">Contrato de encargo del tratamiento</a>.
+        Esto incluye el correo electrónico que el restaurante decida añadir a la cuenta de un empleado y los correos de
+        verificación y de restablecimiento de contraseña que le enviamos en su nombre.
         Nunca los usamos para fines propios ni para enviar ofertas. Cada restaurante informa a sus clientes en su propia
         página de privacidad, enlazada desde su carta.</p>
 
     <h2>3. Qué datos tratamos y de dónde proceden</h2>
     <ul>
-        <li><strong>Cuenta del titular:</strong> usuario, nombre completo y contraseña (guardada cifrada de forma
-            irreversible).</li>
+        <li><strong>Cuenta del titular:</strong> usuario, nombre completo, correo electrónico (que verificamos antes
+            de crear la cuenta) y contraseña (guardada cifrada de forma irreversible).</li>
+        <li><strong>Alta pendiente:</strong> mientras confirma su correo, los datos del formulario de alta (con la
+            contraseña ya cifrada) y la aceptación de las condiciones.</li>
+        <li><strong>Seguridad de la cuenta:</strong> la fecha en que verificó su correo, los enlaces de verificación y
+            de restablecimiento de contraseña (de los que solo guardamos una huella irreversible) y un registro de los
+            correos de la cuenta enviados, para limitar cuántos se envían.</li>
         <li><strong>Datos de cada local:</strong> nombre comercial, razón social o nombre, NIF/NIE, dirección,
             teléfono y correo electrónico.</li>
         <li><strong>Suscripción:</strong> plan, estado, fechas e identificadores de cliente y de suscripción en Stripe.
@@ -58,6 +65,10 @@
             <td>Ejecución del contrato; obligaciones legales del restaurante (art. 6.1.c RGPD)</td></tr>
         <tr><td>Cobrar la suscripción y emitir nuestras facturas</td>
             <td>Ejecución del contrato; obligaciones fiscales y contables (art. 6.1.c RGPD)</td></tr>
+        <tr><td>Verificar su correo, permitirle recuperar el acceso si olvida la contraseña y avisarle de los cambios
+            en su cuenta</td>
+            <td>Ejecución del contrato (art. 6.1.b RGPD); interés legítimo en la seguridad de las cuentas
+            (art. 6.1.f RGPD)</td></tr>
         <tr><td>Enviar las comunicaciones propias del servicio: avisos de seguridad, fin de la prueba, facturas,
             cambios en las condiciones</td>
             <td>Ejecución del contrato (art. 6.1.b RGPD)</td></tr>
@@ -88,7 +99,7 @@
         de un restaurante.</p>
 
     <h2>6. Datos obligatorios</h2>
-    <p>Los datos de la cuenta, de cada local y de la suscripción son necesarios para prestar el servicio y emitir
+    <p>Los datos de la cuenta (incluido un correo electrónico verificado), de cada local y de la suscripción son necesarios para prestar el servicio y emitir
         facturas válidas: sin ellos no podemos darle de alta ni facturar. Aceptar comunicaciones comerciales es
         voluntario.</p>
 
@@ -103,6 +114,8 @@
         <li>Prueba de las aceptaciones y del consentimiento: mientras dure el contrato y, después, mientras puedan
             exigirse responsabilidades.</li>
         <li>Registros técnicos de seguridad: 30 días, salvo que se necesiten para investigar un incidente.</li>
+        <li>Altas pendientes que no se confirman: 48 horas; después se suprimen.</li>
+        <li>Enlaces de verificación y de restablecimiento y registro de los correos de la cuenta enviados: 30 días.</li>
     </ul>
     <p>Pasados estos plazos, los datos se suprimen o se bloquean durante el tiempo en que puedan exigirse
         responsabilidades, como establece el art. 32 de la LOPDGDD.</p>
@@ -117,7 +130,7 @@
             archivos se alojan en la región de Madrid; Firebase Hosting entrega las páginas a través de la red de
             Google, y Cloud Logging guarda los registros técnicos.</li>
         <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): envío de correos del servicio, como la
-            creación de contraseñas.</li>
+            verificación del correo y la creación y el restablecimiento de contraseñas.</li>
     </ul>
     <p>Otros destinatarios, que actúan por su propia cuenta:</p>
     <ul>
@@ -185,12 +198,20 @@
     <p>The data of each <strong>restaurant's guests</strong> (their orders, the name they collect an order under, or
         their invoice details) and of its <strong>staff</strong> is decided by the restaurant, which is the controller.
         We handle it only on its behalf and on its instructions, as processor, under the
-        <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>. We never use it for our own
+        <a th:href="@{/legal/data-processing(lang='en')}">Data processing agreement</a>. This includes the email address
+        the restaurant may add to a staff member's account, and the verification and password reset emails we send them on
+        its behalf. We never use it for our own
         purposes or to send offers. Each restaurant informs its guests on its own privacy page, linked from its menu.</p>
 
     <h2>3. What data we handle and where it comes from</h2>
     <ul>
-        <li><strong>Owner account:</strong> username, full name and password (stored with irreversible hashing).</li>
+        <li><strong>Owner account:</strong> username, full name, email address (which we verify before the account is
+            created) and password (stored with irreversible hashing).</li>
+        <li><strong>Pending sign-up:</strong> while you confirm your email, the details of the sign-up form (with the
+            password already hashed) and your acceptance of the terms.</li>
+        <li><strong>Account security:</strong> the date you verified your email, the verification and password reset
+            links (of which we keep only an irreversible fingerprint) and a record of the account emails sent, to limit
+            how many are sent.</li>
         <li><strong>Each location's details:</strong> trading name, legal name or name, tax ID (NIF/NIE), address,
             phone and email.</li>
         <li><strong>Subscription:</strong> plan, status, dates, and the customer and subscription IDs at Stripe. We
@@ -217,6 +238,10 @@
             <td>Performance of the contract; the restaurant's legal obligations (art. 6.1.c GDPR)</td></tr>
         <tr><td>Charging the subscription and issuing our invoices</td>
             <td>Performance of the contract; tax and accounting obligations (art. 6.1.c GDPR)</td></tr>
+        <tr><td>Verifying your email, letting you recover access if you forget your password, and telling you about
+            changes to your account</td>
+            <td>Performance of the contract (art. 6.1.b GDPR); legitimate interest in account security
+            (art. 6.1.f GDPR)</td></tr>
         <tr><td>Sending service messages: security notices, end of trial, invoices, changes to the terms</td>
             <td>Performance of the contract (art. 6.1.b GDPR)</td></tr>
         <tr><td>Answering questions and incidents, and improving the service from them</td>
@@ -247,7 +272,7 @@
         behalf.</p>
 
     <h2>6. Required data</h2>
-    <p>The account, location and subscription details are needed to provide the service and issue valid invoices:
+    <p>The account details (including a verified email address), location and subscription details are needed to provide the service and issue valid invoices:
         without them we cannot sign you up or invoice. Accepting commercial communications is optional.</p>
 
     <h2>7. How long we keep it</h2>
@@ -261,6 +286,8 @@
         <li>Proof of acceptances and consent: for as long as the contract lasts and, afterwards, for as long as
             liabilities may arise.</li>
         <li>Technical security logs: 30 days, unless needed to investigate an incident.</li>
+        <li>Sign-ups that are never confirmed: 48 hours; they are then deleted.</li>
+        <li>Verification and reset links, and the record of account emails sent: 30 days.</li>
     </ul>
     <p>After these periods, data is deleted or blocked for as long as liabilities may arise, as art. 32 of the LOPDGDD
         requires.</p>
@@ -275,7 +302,7 @@
             are hosted in the Madrid region; Firebase Hosting delivers the pages through Google's network, and Cloud
             Logging keeps the technical logs.</li>
         <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): sending the service's emails, such as
-            password setup.</li>
+            email verification and setting or resetting a password.</li>
     </ul>
     <p>Other recipients, acting on their own behalf:</p>
     <ul>
@@ -342,14 +369,21 @@
     <p>Os dados dos <strong>clientes de cada restaurante</strong> (os seus pedidos, o nome para levantar um pedido ou os
         seus dados para uma fatura) e do seu <strong>pessoal</strong> são decididos pelo restaurante, que é o
         responsável. Nós tratamo-los apenas por sua conta e segundo as suas instruções, como subcontratante, nos termos
-        do <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>. Nunca os usamos para fins
+        do <a th:href="@{/legal/data-processing(lang='pt')}">Contrato de subcontratação</a>. Isto inclui o endereço de
+        correio eletrónico que o restaurante decida acrescentar à conta de um funcionário e os correios de verificação e
+        de reposição da palavra-passe que lhe enviamos em seu nome. Nunca os usamos para fins
         próprios nem para enviar ofertas. Cada restaurante informa os seus clientes na sua própria página de
         privacidade, ligada a partir da sua ementa.</p>
 
     <h2>3. Que dados tratamos e de onde vêm</h2>
     <ul>
-        <li><strong>Conta do titular:</strong> utilizador, nome completo e palavra-passe (guardada cifrada de forma
-            irreversível).</li>
+        <li><strong>Conta do titular:</strong> utilizador, nome completo, correio eletrónico (que verificamos antes de
+            criar a conta) e palavra-passe (guardada cifrada de forma irreversível).</li>
+        <li><strong>Registo pendente:</strong> enquanto confirma o seu correio, os dados do formulário de registo (com a
+            palavra-passe já cifrada) e a aceitação das condições.</li>
+        <li><strong>Segurança da conta:</strong> a data em que verificou o seu correio, as ligações de verificação e de
+            reposição da palavra-passe (das quais guardamos apenas uma impressão irreversível) e um registo dos correios
+            da conta enviados, para limitar quantos são enviados.</li>
         <li><strong>Dados de cada local:</strong> nome comercial, denominação social ou nome, NIF/NIE, morada, telefone
             e correio eletrónico.</li>
         <li><strong>Subscrição:</strong> plano, estado, datas e identificadores de cliente e de subscrição na Stripe. Não
@@ -376,6 +410,10 @@
             <td>Execução do contrato; obrigações legais do restaurante (art. 6.º, n.º 1, al. c) RGPD)</td></tr>
         <tr><td>Cobrar a subscrição e emitir as nossas faturas</td>
             <td>Execução do contrato; obrigações fiscais e contabilísticas (art. 6.º, n.º 1, al. c) RGPD)</td></tr>
+        <tr><td>Verificar o seu correio, permitir-lhe recuperar o acesso se esquecer a palavra-passe e avisá-lo das
+            alterações na sua conta</td>
+            <td>Execução do contrato (art. 6.º, n.º 1, al. b) RGPD); interesse legítimo na segurança das contas
+            (art. 6.º, n.º 1, al. f) RGPD)</td></tr>
         <tr><td>Enviar as comunicações próprias do serviço: avisos de segurança, fim do período de teste, faturas,
             alterações das condições</td>
             <td>Execução do contrato (art. 6.º, n.º 1, al. b) RGPD)</td></tr>
@@ -408,7 +446,7 @@
         restaurante.</p>
 
     <h2>6. Dados obrigatórios</h2>
-    <p>Os dados da conta, de cada local e da subscrição são necessários para prestar o serviço e emitir faturas
+    <p>Os dados da conta (incluindo um correio eletrónico verificado), de cada local e da subscrição são necessários para prestar o serviço e emitir faturas
         válidas: sem eles não podemos registá-lo nem faturar. Aceitar comunicações comerciais é voluntário.</p>
 
     <h2>7. Prazos de conservação</h2>
@@ -423,6 +461,8 @@
         <li>Prova das aceitações e do consentimento: enquanto durar o contrato e, depois, enquanto puderem ser exigidas
             responsabilidades.</li>
         <li>Registos técnicos de segurança: 30 dias, salvo se forem necessários para investigar um incidente.</li>
+        <li>Registos que nunca são confirmados: 48 horas; depois são eliminados.</li>
+        <li>Ligações de verificação e de reposição e registo dos correios da conta enviados: 30 dias.</li>
     </ul>
     <p>Decorridos estes prazos, os dados são eliminados ou bloqueados durante o tempo em que possam ser exigidas
         responsabilidades, como estabelece o art. 32 da LOPDGDD.</p>
@@ -436,7 +476,7 @@
             estão alojados na região de Madrid; o Firebase Hosting entrega as páginas através da rede da Google, e o
             Cloud Logging guarda os registos técnicos.</li>
         <li><strong>Microsoft 365</strong> (Microsoft Ireland Operations Ltd.): envio dos correios do serviço, como a
-            criação de palavras-passe.</li>
+            verificação do correio e a criação e a reposição de palavras-passe.</li>
     </ul>
     <p>Outros destinatários, que atuam por conta própria:</p>
     <ul>
