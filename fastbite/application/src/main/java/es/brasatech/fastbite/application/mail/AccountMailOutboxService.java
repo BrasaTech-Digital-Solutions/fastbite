@@ -58,6 +58,8 @@ public class AccountMailOutboxService {
             switch (item.purpose()) {
                 case "OWNER_SETUP" -> mail.sendSetupLink(target.email(), target.username(), origin + "/set-password?token=" + token, target.language());
                 case "SIGNUP_VERIFY" -> mail.sendSignupVerification(target.email(), target.username(), origin + "/verify-email?token=" + token, target.language());
+                case "STAFF_VERIFY" -> mail.sendOwnerVerification(target.email(), target.username(), origin + "/verify-email?token=" + token, target.language());
+                case "PASSWORD_RESET" -> mail.sendPasswordReset(target.email(), target.username(), origin + "/reset-password?token=" + token, target.language());
                 case "OWNER_VERIFY" -> mail.sendOwnerVerification(target.email(), target.username(), origin + "/verify-email?token=" + token, target.language());
                 case "OWNER_EMAIL_NOTICE" -> mail.sendOwnerEmailNotice(target.email(), target.language());
                 case "SIGNUP_NOTICE" -> mail.sendSignupNotice(target.email(), target.language());

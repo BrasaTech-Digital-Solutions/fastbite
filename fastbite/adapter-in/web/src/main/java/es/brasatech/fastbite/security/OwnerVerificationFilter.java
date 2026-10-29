@@ -31,7 +31,7 @@ public class OwnerVerificationFilter extends OncePerRequestFilter {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setCharacterEncoding("UTF-8");
                 response.setContentType("application/json");
-                String message = messages.getMessage("account.email.required", null, "Verify your email to use your account.", request.getLocale());
+                String message = messages.getMessage("account.email.required", null, "Verify your email to use your account.", org.springframework.context.i18n.LocaleContextHolder.getLocale());
                 response.getWriter().write("{\"error\":" + jsonString(message) + "}");
             } else response.sendRedirect(request.getContextPath() + "/owner/account/verify");
             return;

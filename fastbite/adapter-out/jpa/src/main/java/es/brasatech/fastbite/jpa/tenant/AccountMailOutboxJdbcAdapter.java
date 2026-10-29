@@ -25,7 +25,7 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
 
     private Optional<Claim> claim(String subjectId, Instant now) {
         return transaction(connection -> {
-            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE', 'OWNER_VERIFY', 'OWNER_EMAIL_NOTICE') AND "
+            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE', 'OWNER_VERIFY', 'OWNER_EMAIL_NOTICE', 'PASSWORD_RESET', 'STAFF_VERIFY') AND "
                     + (subjectId == null ? "" : "subject_id = ? AND ")
                     + "((state = 'PENDING' AND available_at <= ?) OR (state = 'CLAIMED' AND claimed_at <= ?)) ORDER BY created_at FETCH FIRST 1 ROWS ONLY FOR UPDATE SKIP LOCKED";
             Object[] args = subjectId == null ? new Object[]{now.toEpochMilli(), now.toEpochMilli() - LEASE_MS}
@@ -54,10 +54,10 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                     if (!row.next()) throw new IllegalStateException("Signup lock is missing");
                 }
             }
-            String destination, language;
-            try (var lock = statement(connection, "SELECT recipient_email, language FROM public.account_email_outbox WHERE id = ? AND state = 'CLAIMED' AND claim_id = ? AND purpose = ? FOR UPDATE", claim.id(), claim.claimId(), claim.purpose()); var row = lock.executeQuery()) {
+            String destination, language, subjectType, tenantId;
+            try (var lock = statement(connection, "SELECT recipient_email, language, subject_type, tenant_id FROM public.account_email_outbox WHERE id = ? AND state = 'CLAIMED' AND claim_id = ? AND purpose = ? FOR UPDATE", claim.id(), claim.claimId(), claim.purpose()); var row = lock.executeQuery()) {
                 if (!row.next()) return Optional.empty();
-                destination = row.getString(1); language = row.getString(2);
+                destination = row.getString(1); language = row.getString(2); subjectType = row.getString(3); tenantId = row.getString(4);
             }
             String email, username, limitKey;
             if ("OWNER_SETUP".equals(claim.purpose())) {
@@ -72,6 +72,23 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = "signup:" + email;
+            } else if ("STAFF_VERIFY".equals(claim.purpose())) {
+                if (!"STAFF".equals(subjectType) || tenantId == null || !tenantId.matches("[a-z0-9]{1,56}") || java.util.Set.of("default", "admin", "kebab").contains(tenantId)) return cancel(connection, claim);
+                try (var query = statement(connection, "SELECT pending_email, username, COALESCE(account_language, 'en') FROM tenant_" + tenantId + ".users WHERE id = ? AND active = TRUE FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    email = row.getString(1); username = row.getString(2); language = row.getString(3);
+                }
+                limitKey = "STAFF:" + tenantId + ":" + claim.subjectId();
+            } else if ("PASSWORD_RESET".equals(claim.purpose())) {
+                String schema;
+                if ("OWNER".equals(subjectType)) schema = "public";
+                else if ("STAFF".equals(subjectType) && tenantId != null && tenantId.matches("[a-z0-9]{1,56}") && !java.util.Set.of("default", "admin", "kebab").contains(tenantId)) schema = "tenant_" + tenantId;
+                else return cancel(connection, claim);
+                try (var query = statement(connection, "SELECT email, username, COALESCE(account_language, 'en') FROM " + schema + ".users WHERE id = ? AND active = TRUE AND email_verified_at IS NOT NULL FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    email = row.getString(1); username = row.getString(2); language = row.getString(3);
+                }
+                limitKey = subjectType + ":" + (tenantId == null ? "" : tenantId + ":") + claim.subjectId();
             } else if ("OWNER_VERIFY".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT pending_email, username, COALESCE(account_language, 'en') FROM public.users WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
                     if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
@@ -109,6 +126,14 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
             if ("OWNER_VERIFY".equals(claim.purpose())) {
                 update(connection, "DELETE FROM public.account_tokens WHERE purpose = 'OWNER_VERIFY' AND subject_type = 'OWNER' AND subject_id = ? AND consumed_at IS NULL", claim.subjectId());
                 update(connection, "INSERT INTO public.account_tokens (token_hash, purpose, subject_type, subject_id, email, created_at, expires_at) VALUES (?, 'OWNER_VERIFY', 'OWNER', ?, ?, ?, ?)", hash, claim.subjectId(), email, time, now.plus(Duration.ofHours(48)).toEpochMilli());
+            }
+            if ("STAFF_VERIFY".equals(claim.purpose())) {
+                update(connection, "DELETE FROM public.account_tokens WHERE purpose = 'STAFF_VERIFY' AND subject_type = 'STAFF' AND subject_id = ? AND tenant_id = ? AND consumed_at IS NULL", claim.subjectId(), tenantId);
+                update(connection, "INSERT INTO public.account_tokens (token_hash, purpose, subject_type, subject_id, tenant_id, email, created_at, expires_at) VALUES (?, 'STAFF_VERIFY', 'STAFF', ?, ?, ?, ?, ?)", hash, claim.subjectId(), tenantId, email, time, now.plus(Duration.ofHours(48)).toEpochMilli());
+            }
+            if ("PASSWORD_RESET".equals(claim.purpose())) {
+                update(connection, "DELETE FROM public.account_tokens WHERE purpose = 'PASSWORD_RESET' AND subject_type = ? AND subject_id = ? AND consumed_at IS NULL", subjectType, claim.subjectId());
+                update(connection, "INSERT INTO public.account_tokens (token_hash, purpose, subject_type, subject_id, tenant_id, email, created_at, expires_at) VALUES (?, 'PASSWORD_RESET', ?, ?, ?, ?, ?, ?)", hash, subjectType, claim.subjectId(), tenantId, email, time, now.plus(Duration.ofHours(1)).toEpochMilli());
             }
             update(connection, "INSERT INTO public.account_email_limits (id, subject_key, purpose, sent_at) VALUES (?, ?, ?, ?)", UUID.randomUUID().toString(), limitKey, claim.purpose(), time);
             return Optional.of(new Recipient(email, username, language));

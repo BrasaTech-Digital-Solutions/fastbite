@@ -192,6 +192,26 @@ sys.exit(1)
 PYCODE
 }
 
+# Read reset links only for the unique throwaway address; never print a token or message body.
+reset_token() {
+  python3 - "$1" <<'PYCODE'
+import json, re, sys, time, urllib.parse, urllib.request
+for _ in range(15):
+    try:
+        query = urllib.parse.quote('to:' + sys.argv[1])
+        search = json.load(urllib.request.urlopen('http://localhost:8027/api/v1/search?query=' + query, timeout=3))
+        for item in search.get('messages', []):
+            detail = json.load(urllib.request.urlopen('http://localhost:8027/api/v1/message/' + item['ID'], timeout=3))
+            match = re.search(r'/reset-password\?token=([A-Za-z0-9_-]{43})', detail.get('Text', '') or '')
+            if match:
+                print(match.group(1)); sys.exit(0)
+    except Exception:
+        pass
+    time.sleep(1)
+sys.exit(1)
+PYCODE
+}
+
 echo "== [0/6] Host header & redirect isolation"
 check_redirect "$P/owner/console" "$P" "/login"
 check_redirect "$P/cake/counter" "$P" "/cake/login"
@@ -297,6 +317,51 @@ OTHER_LOGIN_HTML=$(curl -s -c "$J_OTHER" -b "$J_OTHER" "$P/login")
 NEW_PASS_LOGIN=$(curl -s -D - -o /dev/null -c "$J_OTHER" -b "$J_OTHER" "$P/login" --data-urlencode "_csrf=$(echo "$OTHER_LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$NEXT_PASS")
 record_redirect "$(echo "$NEW_PASS_LOGIN" | head -n 1 | awk '{print $2}')" "$(echo "$NEW_PASS_LOGIN" | loc)" "$P" "/owner/console" "new owner password signs in"
 PASS="$NEXT_PASS"
+
+# Recovery must give the same answer for a missing account and a verified account.
+J_RECOVERY="recovery.cookies"
+RECOVERY_HTML=$(curl -s -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/forgot-password")
+RECOVERY_CSRF=$(echo "$RECOVERY_HTML" | csrf)
+UNKNOWN_RECOVERY=$(curl -s -o recovery-unknown.html -w '%{http_code}' -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/forgot-password" --data-urlencode "_csrf=$RECOVERY_CSRF" --data-urlencode "identifier=${T}-missing@example.test")
+RECOVERY_HTML=$(curl -s -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/forgot-password")
+KNOWN_RECOVERY=$(curl -s -o recovery-known.html -w '%{http_code}' -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/forgot-password" --data-urlencode "_csrf=$(echo "$RECOVERY_HTML" | csrf)" --data-urlencode "identifier=${T}owner")
+record "$UNKNOWN_RECOVERY" 200 "forgot-password response for unknown account"
+record "$KNOWN_RECOVERY" 200 "forgot-password response for known account"
+cmp -s recovery-unknown.html recovery-known.html && RECOVERY_SAME=1 || RECOVERY_SAME=0
+record_match "$RECOVERY_SAME" "forgot-password answers do not reveal whether an account exists"
+RESET_TOKEN=$(reset_token "$LEGACY_EMAIL" || true)
+RESET_HTML=$(curl -s -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/reset-password?token=$RESET_TOKEN")
+RECOVERED_PASS="recovered-long-test-password-789"
+RESET_RESPONSE=$(curl -s -D - -o /dev/null -c "$J_RECOVERY" -b "$J_RECOVERY" "$P/reset-password" --data-urlencode "_csrf=$(echo "$RESET_HTML" | csrf)" --data-urlencode "token=$RESET_TOKEN" --data-urlencode "password=$RECOVERED_PASS" --data-urlencode "confirmation=$RECOVERED_PASS")
+record_redirect "$(echo "$RESET_RESPONSE" | head -n 1 | awk '{print $2}')" "$(echo "$RESET_RESPONSE" | loc)" "$P" "/login?reset" "owner resets forgotten password"
+RESET_REUSE=$(curl -s -o /dev/null -w '%{http_code}' "$P/reset-password?token=$RESET_TOKEN")
+record "$RESET_REUSE" 400 "password reset link cannot be reused"
+for RESET_JAR in "$J" "$J_OTHER"; do
+  RESET_SESSION=$(curl -s -D - -o /dev/null -c "$RESET_JAR" -b "$RESET_JAR" "$P/owner/console")
+  record_redirect "$(echo "$RESET_SESSION" | head -n 1 | awk '{print $2}')" "$(echo "$RESET_SESSION" | loc)" "$P" "/login" "password reset ends an owner session"
+done
+RECOVERED_LOGIN_PAGE=$(curl -s -c "$J" -b "$J" "$P/login")
+RECOVERED_LOGIN=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/login" --data-urlencode "_csrf=$(echo "$RECOVERED_LOGIN_PAGE" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$RECOVERED_PASS")
+record_redirect "$(echo "$RECOVERED_LOGIN" | head -n 1 | awk '{print $2}')" "$(echo "$RECOVERED_LOGIN" | loc)" "$P" "/owner/console" "owner signs in with recovered password"
+PASS="$RECOVERED_PASS"
+
+# Add a throwaway staff account in this run's production location and help with its password.
+TEAM_PAGE=$(curl -s -c "$J" -b "$J" "$P/owner/console?view=team&location=$T")
+TEAM_CSRF=$(echo "$TEAM_PAGE" | meta)
+STAFF_USERNAME="${T}recoverstaff"
+STAFF_CREATE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" -H "X-CSRF-TOKEN: $TEAM_CSRF" "$P/owner/locations/$T/users" --data-urlencode "username=$STAFF_USERNAME" --data-urlencode "fullName=Release Staff" --data-urlencode "password=$PASS" --data-urlencode "role=CASHIER")
+record "$STAFF_CREATE" 200 "owner creates throwaway production staff account"
+STAFF_ID=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "SELECT id FROM tenant_$T.users WHERE username = '$STAFF_USERNAME'" 2>/dev/null | tr -d '\r')
+[[ "$STAFF_ID" =~ ^[0-9a-f-]{36}$ ]] && STAFF_ID_OK=1 || STAFF_ID_OK=0
+record_match "$STAFF_ID_OK" "throwaway staff account exists"
+STAFF_ACCOUNT_PAGE=$(curl -s -c "$J" -b "$J" "$P/owner/locations/$T/users/$STAFF_ID/account")
+STAFF_PASS="staff-replacement-password-456"
+STAFF_CHANGE=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/locations/$T/users/$STAFF_ID/account/password" --data-urlencode "_csrf=$(echo "$STAFF_ACCOUNT_PAGE" | csrf)" --data-urlencode "password=$STAFF_PASS")
+record_redirect "$(echo "$STAFF_CHANGE" | head -n 1 | awk '{print $2}')" "$(echo "$STAFF_CHANGE" | loc)" "$P" "/owner/locations/$T/users/$STAFF_ID/account?updated" "owner sets staff password"
+J_STAFF="production-staff.cookies"
+STAFF_LOGIN_PAGE=$(curl -s -c "$J_STAFF" -b "$J_STAFF" "$P/login?tenantId=$T")
+STAFF_LOGIN=$(curl -s -D - -o /dev/null -c "$J_STAFF" -b "$J_STAFF" "$P/login?tenantId=$T" --data-urlencode "_csrf=$(echo "$STAFF_LOGIN_PAGE" | csrf)" --data-urlencode "username=$STAFF_USERNAME" --data-urlencode "password=$STAFF_PASS")
+record_redirect "$(echo "$STAFF_LOGIN" | head -n 1 | awk '{print $2}')" "$(echo "$STAFF_LOGIN" | loc)" "$P" "/$T/menu" "staff signs in with the new password"
 
 LINK_RESP=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/owner/sandbox?location=$T")
 LINK=$(echo "$LINK_RESP" | loc)

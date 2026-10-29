@@ -16,6 +16,7 @@
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <!-- Navigation -->
     <div th:replace="~{fastfood/fragments/navbar :: navbar(activeTab='backoffice')}"></div>
+    <p><a th:href="@{/{tenant}/backoffice/team(tenant=${activeTenant})}" th:text="#{staff.account.team}">Team accounts</a></p>
 
     <!-- Main Layout -->
     <div class="container-fluid" style="height: calc(100vh - 70px);">

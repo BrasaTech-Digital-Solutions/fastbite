@@ -55,6 +55,15 @@ public class OwnerSetupMailAdapter implements OwnerSetupMailPort {
         };
         send(email, "FastBite", text, "<p>" + escape(text) + "</p>");
     }
+    @Override public void sendPasswordReset(String email, String username, String link, String language) {
+        String subject, body;
+        switch (language == null ? "en" : language) {
+            case "es" -> { subject = "Restablece tu contraseña de FastBite"; body = "Usa este enlace para restablecer tu contraseña. Caduca en una hora. Si no lo solicitaste, ignora este correo."; }
+            case "pt" -> { subject = "Redefina a sua palavra-passe FastBite"; body = "Use este link para redefinir a palavra-passe. Expira numa hora. Se não pediu, ignore este email."; }
+            default -> { subject = "Reset your FastBite password"; body = "Use this link to reset your password. It expires in one hour. If you did not request it, ignore this email."; }
+        }
+        send(email, subject, body + "\n\n" + link, "<p>" + escape(body) + "</p><p><a href=\"" + escape(link) + "\">" + escape(link) + "</a></p>");
+    }
     @Override public void sendSignupNotice(String email, String language) {
         String subject, body;
         switch (language == null ? "en" : language) {

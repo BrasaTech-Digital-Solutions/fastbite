@@ -22,7 +22,7 @@ class OwnerVerificationFilterTest {
     OwnerEmailService owners = mock(OwnerEmailService.class);
     StaticMessageSource messages = new StaticMessageSource();
     OwnerVerificationFilter filter = new OwnerVerificationFilter(owners, new PlatformEnvironment("production"), messages);
-    @AfterEach void clear() { SecurityContextHolder.clearContext(); }
+    @AfterEach void clear() { SecurityContextHolder.clearContext(); org.springframework.context.i18n.LocaleContextHolder.resetLocaleContext(); }
     private void login(String username, String tenant, String role) {
         var roles = AuthorityUtils.createAuthorityList(role);
         var principal = new TenantUser(username, "hash", true, roles, tenant);
@@ -59,6 +59,7 @@ class OwnerVerificationFilterTest {
     }
     @Test void unverifiedSessionsAreCheckedAgainAndJsonRequestsGetTranslated403() throws Exception {
         login(); messages.addMessage("account.email.required", Locale.forLanguageTag("es"), "Verifica tu correo.");
+        org.springframework.context.i18n.LocaleContextHolder.setLocale(Locale.forLanguageTag("es"));
         when(owners.status("owner")).thenReturn(Optional.of(new OwnerEmailPort.Status("id", null, null, false)));
         var session = new MockHttpSession();
         for (String path : new String[]{"/api/order", "/cafe/api/order", "/counter/api/order", "/owner/workspace/cafe/promote/preview"}) {

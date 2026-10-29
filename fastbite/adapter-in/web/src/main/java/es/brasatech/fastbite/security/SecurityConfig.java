@@ -64,7 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
                                 "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()
-                        .requestMatchers("/login", "/error", "/*/login", "/set-password").permitAll()
+                        .requestMatchers("/login", "/error", "/*/login", "/set-password", "/forgot-password", "/reset-password").permitAll()
 
                         // Platform-admin pages answer 404 to non-admins and anonymous users so their existence stays private
                         .requestMatchers("/owner/platform/**").permitAll()

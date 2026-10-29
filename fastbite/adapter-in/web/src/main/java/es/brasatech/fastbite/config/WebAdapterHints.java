@@ -27,6 +27,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         hints.reflection().registerType(ThemeCatalog.Theme.class, MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.office.StaffAccountPort.Staff.class, MemberCategory.values());
         hints.resources().registerPattern("themes/**");
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SetupProgress.class, org.springframework.aot.hint.MemberCategory.values());
         // Read by the business details page and the VAT lines of guest carts
