@@ -72,7 +72,7 @@ public class SignupController {
             return "fastfood/signup";
         } catch (Exception error) {
             log.error("Pending registration could not be created ({})", error.getClass().getSimpleName());
-            model.addAttribute("error", "We could not finish creating your restaurant. Please try again.");
+            model.addAttribute("error", messages.getMessage("signup.error.unavailable", null, LocaleContextHolder.getLocale()));
             return "fastfood/signup";
         }
     }

@@ -20,7 +20,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(OwnerPasswordSetupController.class)
+@WebMvcTest(controllers = OwnerPasswordSetupController.class, properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, OwnerPasswordSetupController.class, SecurityConfig.class})
 class OwnerPasswordSetupControllerTest {
     @Autowired MockMvc mvc;
@@ -69,5 +69,12 @@ class OwnerPasswordSetupControllerTest {
                 .param("password", "a-strong-password").param("confirmation", "a-strong-password"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(encoder);
+    }
+    @Test void setupPageUsesConfiguredTranslations() throws Exception {
+        when(setup.isValid(TOKEN)).thenReturn(true);
+        for (String[] locale : new String[][]{{"en", "Set your FastBite password"}, {"es", "Establece tu contraseña de FastBite"}, {"pt", "Defina a sua palavra-passe FastBite"}}) {
+            mvc.perform(get("/set-password").param("token", TOKEN).locale(java.util.Locale.forLanguageTag(locale[0])))
+                    .andExpect(status().isOk()).andExpect(content().string(containsString(locale[1])));
+        }
     }
 }
