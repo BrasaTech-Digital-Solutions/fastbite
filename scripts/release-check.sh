@@ -34,6 +34,12 @@ for arg in "$@"; do
   esac
 done
 
+PY=$(command -v python3 || command -v python || true)
+if [ -z "$PY" ]; then
+  echo "Release check requires Python (python3 or python) to read Mailpit links." >&2
+  exit 2
+fi
+
 SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 if [ "$COLD" -eq 1 ]; then
@@ -173,7 +179,7 @@ check() {
 
 # Read only the verification token for a unique test address; never print message bodies or tokens.
 verification_token() {
-  python3 - "$1" <<'PYCODE'
+  "$PY" - "$1" <<'PYCODE'
 import json, re, sys, time, urllib.parse, urllib.request
 email = sys.argv[1]
 for _ in range(15):
@@ -194,7 +200,7 @@ PYCODE
 
 # Read reset links only for the unique throwaway address; never print a token or message body.
 reset_token() {
-  python3 - "$1" <<'PYCODE'
+  "$PY" - "$1" <<'PYCODE'
 import json, re, sys, time, urllib.parse, urllib.request
 for _ in range(15):
     try:
