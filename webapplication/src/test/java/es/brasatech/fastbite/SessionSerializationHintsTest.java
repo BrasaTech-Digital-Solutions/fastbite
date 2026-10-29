@@ -69,7 +69,47 @@ class SessionSerializationHintsTest {
     }
 
     @Test
+    void explicitlyStoredSessionValuesHaveNativeSerializationHints() throws Exception {
+        // SignupController: pendingSignupId, pendingSignupEmail, pendingSignupReal.
+        // MenuController: tableNumber, tableName. OrderController: cart, orderNumber, orderId.
+        var customizations = new java.util.ArrayList<es.brasatech.fastbite.domain.product.ProductCustomizer>();
+        customizations.add(new es.brasatech.fastbite.domain.product.ProductCustomizer("extra", "Extra", java.math.BigDecimal.ONE, 1));
+        var cart = new java.util.ArrayList<es.brasatech.fastbite.domain.order.CartItem>();
+        cart.add(new es.brasatech.fastbite.domain.order.CartItem("id", "item", "Item", "description", "image", 1,
+                customizations, java.math.BigDecimal.TEN, java.math.BigDecimal.ONE));
+        var values = java.util.Map.of("pendingSignupId", "id", "pendingSignupEmail", "owner@example.test",
+                "pendingSignupReal", Boolean.TRUE, "tableNumber", "table-id", "tableName", "Table",
+                "cart", cart, "orderNumber", 123, "orderId", "order-id");
+        TreeSet<String> classes = new TreeSet<>();
+        for (var value : values.values()) {
+            var bytes = new java.io.ByteArrayOutputStream();
+            try (var out = new java.io.ObjectOutputStream(bytes)) { out.writeObject(value); }
+            try (var in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())) {
+                @Override protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+                    classes.add(desc.getName());
+                    return super.resolveClass(desc);
+                }
+            }) { in.readObject(); }
+        }
+        // String has a special stream encoding and does not pass through resolveClass.
+        classes.add(String.class.getName());
+        assertThat(classes).contains(Boolean.class.getName(), Integer.class.getName(), Number.class.getName());
+        RuntimeHints hints = new RuntimeHints();
+        new es.brasatech.fastbite.config.WebAdapterHints().registerHints(hints, getClass().getClassLoader());
+        assertThat(classes).as("types used by explicitly stored session attributes")
+                .filteredOn(type -> !RuntimeHintsPredicates.serialization().onType(type.equals("[B") ? TypeReference.of(byte[].class) : TypeReference.of(type)).test(hints))
+                .isEmpty();
+    }
+
+    @Test
     void everyClassOfASignedInSessionCanBeSerializedInTheNativeImage() throws Exception {
+        // SignupController stores pendingSignupId and pendingSignupEmail (String),
+        // and pendingSignupReal (Boolean). Exercise the real browser flow before collecting sessions.
+        var pendingBrowser = HttpClient.newBuilder().cookieHandler(new CookieManager()).build();
+        var signupPage = get(pendingBrowser, "/signup");
+        var pending = post(pendingBrowser, "/signup", "tenantId=pendingprobe&username=pendingowner&fullName=Pending"
+                + "&email=pendingprobe%40example.test&password=local-probe-password&acceptTerms=true&_csrf=" + csrf(signupPage.body()));
+        assertThat(pending.statusCode()).isEqualTo(302);
         var owner = HttpClient.newBuilder().cookieHandler(new CookieManager()).build();
         // A protected page first, so a saved request is kept in the session
         get(owner, "/owner/console");
@@ -88,7 +128,7 @@ class SessionSerializationHintsTest {
         TreeSet<String> classes = new TreeSet<>();
         var rows = jdbc.queryForList("SELECT ATTRIBUTE_NAME, ATTRIBUTE_BYTES FROM PUBLIC.SPRING_SESSION_ATTRIBUTES");
         assertThat(rows).as("sessions are stored in the database").extracting(row -> row.get("ATTRIBUTE_NAME"))
-                .contains("SPRING_SECURITY_CONTEXT");
+                .contains("SPRING_SECURITY_CONTEXT", "pendingSignupId", "pendingSignupEmail", "pendingSignupReal");
         for (var row : rows) {
             try (InputStream in = new ByteArrayInputStream((byte[]) row.get("ATTRIBUTE_BYTES"));
                  ObjectInputStream objects = new ObjectInputStream(in) {
@@ -104,7 +144,7 @@ class SessionSerializationHintsTest {
         RuntimeHints hints = new RuntimeHints();
         new es.brasatech.fastbite.config.WebAdapterHints().registerHints(hints, getClass().getClassLoader());
         assertThat(classes).as("classes stored in a session but not registered for native serialization")
-                .filteredOn(type -> !RuntimeHintsPredicates.serialization().onType(TypeReference.of(type)).test(hints))
+                .filteredOn(type -> !RuntimeHintsPredicates.serialization().onType(type.equals("[B") ? TypeReference.of(byte[].class) : TypeReference.of(type)).test(hints))
                 .isEmpty();
     }
 }

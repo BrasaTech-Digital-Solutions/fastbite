@@ -110,6 +110,10 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.resources().registerPattern("declarations/*");
 
         // Serialization hints for session-stored objects
+        hints.serialization().registerType(Boolean.class);
+        hints.serialization().registerType(Integer.class);
+        hints.serialization().registerType(Number.class);
+        hints.serialization().registerType(byte[].class);
         hints.serialization().registerType(java.math.BigDecimal.class);
         hints.serialization().registerType(java.math.BigInteger.class);
         hints.serialization().registerType(java.util.ArrayList.class);
