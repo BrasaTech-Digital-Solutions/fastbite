@@ -101,4 +101,19 @@ class AllergenChartEndpointTest {
                         containsString("Extra cheese"),
                         not(containsString("Onion")))));
     }
+    @Test
+    void platformHostReturns404WithoutReadingRestaurantData() throws Exception {
+        org.mockito.Mockito.clearInvocations(productService, groupService, customizationService, fiscalProfileService);
+        mockMvc.perform(get("/allergens")).andExpect(status().isNotFound());
+        org.mockito.Mockito.verifyNoInteractions(productService, groupService, customizationService, fiscalProfileService);
+    }
+
+    @Test
+    void customDomainServesTheSameAllergenChart() throws Exception {
+        var location = new es.brasatech.fastbite.domain.tenant.TenantLocation("1", "owner", "pizza", "RESTAURANT", "menu.pizza.example");
+        when(tenantLocationService.getLocationByCustomDomain("menu.pizza.example")).thenReturn(Optional.of(location));
+        when(tenantLocationService.getLocation("pizza")).thenReturn(Optional.of(location));
+        mockMvc.perform(get("/allergens").with(req -> { req.setServerName("menu.pizza.example"); return req; }).locale(Locale.ENGLISH))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Pizza Mozzarella")));
+    }
 }
