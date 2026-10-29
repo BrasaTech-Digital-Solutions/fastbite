@@ -3,30 +3,30 @@
 <head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Start your free trial — FastBite</title>
+<title th:text="#{signup.page.title}">Start your free trial — FastBite</title>
 <link rel="stylesheet" href="/css/platform.css">
+<script src="/js/signup-username.js" defer></script>
 </head>
 <body>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
 <header class="site-header">
 <a class="brand" href="/">
 <span class="brand-mark">f.</span>fastbite</a>
-<a class="text-link" href="/login">Already with us? Log in ↗</a>
+<a class="text-link" href="/login" th:text="#{signup.login}">Already with us? Log in ↗</a>
 </header>
 <main class="wrap form-layout">
 <section>
-<p class="eyebrow">A LITTLE LESS ADMIN STARTS HERE</p>
-<h1>Your restaurant.<br>Your first <em>30 days, free.</em>
-</h1>
-<p>Set up your menu, bring your team together and try your first service. No card required.</p>
+<p class="eyebrow" th:text="#{signup.eyebrow}">A LITTLE LESS ADMIN STARTS HERE</p>
+<h1><span th:text="#{signup.hero.first}">Your restaurant.</span><br><span th:text="#{signup.hero.second}">Your first </span><em th:text="#{signup.hero.free}">30 days, free.</em></h1>
+<p th:text="#{signup.hero.body}">Set up your menu, bring your team together and try your first service. No card required.</p>
 <ul class="feature-list">
-<li>Table, takeaway and counter ordering</li>
-<li>Kitchen display and staff accounts</li>
-<li>€<span th:text="${monthlyPrice}">49</span>/month per location if you choose to continue</li>
-<li>No automatic charge when your trial ends</li>
+<li th:text="#{signup.feature.ordering}">Table, takeaway and counter ordering</li>
+<li th:text="#{signup.feature.team}">Kitchen display and staff accounts</li>
+<li th:text="#{signup.feature.price(${monthlyPrice})}">€49/month per location if you choose to continue</li>
+<li th:text="#{signup.feature.nocharge}">No automatic charge when your trial ends</li>
 </ul>
-<p class="fine" th:if="${param.group != null}">Opening three locations or more? Start here with your first location. Request volume pricing from your owner console before subscribing.</p>
-<a class="text-link" href="/#pricing">Review the plan details ↗</a>
+<p class="fine" th:if="${param.group != null}" th:text="#{signup.group}">Opening three locations or more? Start here with your first location. Request volume pricing from your owner console before subscribing.</p>
+<a class="text-link" href="/#pricing" th:text="#{signup.pricing}">Review the plan details ↗</a>
 </section>
 <section class="form-card">
 <div th:if="${error}" class="alert error" role="alert" th:text="${error}">
@@ -37,59 +37,59 @@
 <a class="button" th:href="${subdomainUrl}">Open your owner console ↗</a>
 </div>
 <form th:if="${success == null}" th:action="@{/signup}" method="post">
-<h2 style="font-size:27px">Let’s make it yours.</h2>
+<h2 style="font-size:27px" th:text="#{signup.form.title}">Let’s make it yours.</h2>
 <div class="field">
-<label>Choose your plan</label>
+<label th:text="#{signup.plan.label}">Choose your plan</label>
 <div class="plan-choices">
   <label class="plan-card">
     <input type="radio" name="plan" value="FREE" th:checked="${plan == 'FREE'}">
-    <strong>Free Plan (0€/mo)</strong>
-    <p>Zero monthly fee. Online payments stay on, with a small 2.5% platform fee on every order paid online.</p>
+    <strong th:text="#{signup.plan.free}">Free Plan (0€/mo)</strong>
+    <p th:text="#{signup.plan.free.body}">Zero monthly fee. Online payments stay on, with a small 2.5% platform fee on every order paid online.</p>
   </label>
   <label class="plan-card">
     <input type="radio" name="plan" value="RESTAURANT" th:checked="${plan == null || plan == 'RESTAURANT'}">
-    <strong>Restaurant Pro</strong>
-    <p>30-day free trial. Then €49/month. 0% platform order cut.</p>
+    <strong th:text="#{signup.plan.pro}">Restaurant Pro</strong>
+    <p th:text="#{signup.plan.pro.body}">30-day free trial. Then €49/month. 0% platform order cut.</p>
   </label>
 </div>
 </div>
 <div class="field">
-<label for="tenantId">Restaurant web address</label>
+<label for="tenantId" th:text="#{signup.address}">Restaurant web address</label>
 <input id="tenantId" name="tenantId" th:value="${tenantId}" placeholder="yourcafe" pattern="[a-zA-Z0-9]{1,56}" maxlength="56" required autocomplete="off" aria-describedby="address-help">
-<small id="address-help">Letters and numbers only. Your menu will be at /yourcafe/menu. System addresses, including kebab (the legacy demo), are reserved.</small>
+<small id="address-help" th:text="#{signup.address.help}">Letters and numbers only. Your menu will be at /yourcafe/menu. System addresses, including kebab (the legacy demo), are reserved.</small>
 </div>
 <div class="field">
-<label for="fullName">Your name</label>
+<label for="fullName" th:text="#{signup.name}">Your name</label>
 <input id="fullName" name="fullName" th:value="${fullName}" maxlength="255" autocomplete="name" required>
 </div>
 <div class="field">
-<label for="username">Owner username</label>
-<input id="username" name="username" th:value="${username}" maxlength="100" pattern="[a-zA-Z0-9_.@\-]+" autocomplete="username" required>
+<label for="email" th:text="#{signup.email}">Email address</label>
+<input id="email" name="email" type="email" th:value="${email}" maxlength="254" autocomplete="email" required>
 </div>
 <div class="field">
-<label for="password">Password</label>
+<label for="username" th:text="#{signup.username}">Owner username</label>
+<input id="username" name="username" th:value="${username}" maxlength="100" pattern="[a-zA-Z0-9_.\-]+" autocomplete="username" aria-describedby="username-status" required>
+<small id="username-status" aria-live="polite" th:attr="data-available=#{signup.username.available},data-unavailable=#{signup.username.unavailable}"></small>
+</div>
+<div class="field">
+<label for="password" th:text="#{signup.password}">Password</label>
 <input id="password" name="password" type="password" minlength="10" maxlength="72" autocomplete="new-password" required aria-describedby="password-help">
-<small id="password-help">Use at least 10 characters.</small>
+<small id="password-help" th:text="#{signup.password.help}">Use at least 10 characters.</small>
 </div>
 <div class="field">
 <label class="check-row">
 <input type="checkbox" name="acceptTerms" value="true" required>
-<span>I sign up as a business or self-employed professional, not as a consumer, and I accept the
-<a href="/legal/terms" target="_blank" rel="noopener">Terms of service</a> and the
-<a href="/legal/data-processing" target="_blank" rel="noopener">Data processing agreement</a>. I have read the
-<a href="/legal/privacy" target="_blank" rel="noopener">Privacy policy</a> and the
-<a href="/verifactu/declaracion-responsable" target="_blank" rel="noopener">VERI*FACTU declaration</a>.</span>
+<span><span th:text="#{signup.terms.prefix}">I sign up as a business and accept the</span> <a href="/legal/terms" target="_blank" rel="noopener" th:text="#{signup.terms.terms}">Terms of service</a> <span th:text="#{signup.terms.and}">and the</span> <a href="/legal/data-processing" target="_blank" rel="noopener" th:text="#{signup.terms.dpa}">Data processing agreement</a>. <span th:text="#{signup.terms.read}">I have read the</span> <a href="/legal/privacy" target="_blank" rel="noopener" th:text="#{signup.terms.privacy}">Privacy policy</a> <span th:text="#{signup.terms.and}">and the</span> <a href="/verifactu/declaracion-responsable" target="_blank" rel="noopener" th:text="#{signup.terms.declaration}">VERI*FACTU declaration</a>.</span>
 </label>
 </div>
 <div class="field">
 <label class="check-row">
 <input type="checkbox" name="marketing" value="true" th:checked="${marketing}">
-<span>Optional: email me offers about Brasatech products and services. You can withdraw at any time by writing to
-<a href="mailto:privacidad@brasatech.es">privacidad@brasatech.es</a> or with the link in any of those emails.</span>
+<span><span th:text="#{signup.marketing.prefix}">Optional: email me offers about Brasatech products and services. You can withdraw by writing to</span> <a href="mailto:privacidad@brasatech.es">privacidad@brasatech.es</a> <span th:text="#{signup.marketing.suffix}">or with the link in any of those emails.</span></span>
 </label>
 </div>
-<button class="button" type="submit">Get started ↗</button>
-<p class="form-note">Activate or change your plan at any time from your owner console. VAT and payment-processing fees are separate.</p>
+<button class="button" type="submit" th:text="#{signup.submit}">Get started ↗</button>
+<p class="form-note" th:text="#{signup.form.note}">Activate or change your plan at any time from your owner console. VAT and payment-processing fees are separate.</p>
 </form>
 </section>
 </main>

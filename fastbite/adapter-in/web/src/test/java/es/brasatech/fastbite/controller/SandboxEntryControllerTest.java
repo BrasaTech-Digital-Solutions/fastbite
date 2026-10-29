@@ -67,12 +67,14 @@ class SandboxEntryControllerTest {
         @MockitoBean SandboxEntryService entry;
         @MockitoBean SandboxSignInService signIn;
         @MockitoBean UserService users;
-        @MockitoBean TenantSignupService signup;
+        @MockitoBean es.brasatech.fastbite.application.tenant.PendingSignupService signup;
         @MockitoBean TenantLocationService tenantLocationService;
 
         @BeforeEach
         void setUp() {
             when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
+            when(signup.normalizeEmail(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+            when(signup.start(any())).thenReturn(new es.brasatech.fastbite.application.tenant.PendingSignupPort.Start("test-id", true));
         }
 
         static MockHttpSession owner(String username) {
@@ -235,9 +237,9 @@ class SandboxEntryControllerTest {
         void signupHappensInProduction() throws Exception {
             mockMvc.perform(get("/signup")).andExpect(redirectedUrl("https://fastbite.example/signup"));
             mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
-                            .param("password", "a-long-password").param("fullName", "Ana"))
+                            .param("password", "a-long-password").param("fullName", "Ana").param("email", "ana@example.test"))
                     .andExpect(redirectedUrl("https://fastbite.example/signup"));
-            verify(signup, never()).registerTenant(anyString(), anyString(), anyString(), anyString(), anyString(), any());
+            verify(signup, never()).start(any());
         }
 
         @Test
@@ -261,28 +263,27 @@ class SandboxEntryControllerTest {
         @Test
         void signupNeedsTheTermsAccepted() throws Exception {
             mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
-                            .param("password", "a-long-password").param("fullName", "Ana"))
+                            .param("password", "a-long-password").param("fullName", "Ana").param("email", "ana@example.test"))
                     .andExpect(status().isOk())
                     .andExpect(model().attribute("error",
                             "Accept the terms of service and the data processing agreement to create your restaurant."));
-            verify(signup, never()).registerTenant(anyString(), anyString(), anyString(), anyString(), anyString(), any());
+            verify(signup, never()).start(any());
         }
 
         @Test
         void signupRecordsTheVersionAcceptedAndWhetherTheOwnerOptedIn() throws Exception {
             mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "anacafe").param("username", "ana")
-                            .param("password", "a-long-password").param("fullName", "Ana")
+                            .param("password", "a-long-password").param("fullName", "Ana").param("email", "ana@example.test")
                             .param("acceptTerms", "true").param("marketing", "true"))
                     .andExpect(model().attributeDoesNotExist("error"));
-            verify(signup).registerTenant(eq("anacafe"), eq("ana"), anyString(), eq("Ana"), eq("RESTAURANT"),
-                    argThat(consents -> "27/10/2026".equals(consents.termsVersion()) && consents.marketing()
-                            && consents.at() != null));
+            verify(signup).start(argThat(consents -> "anacafe".equals(consents.tenantId())
+                    && "ana".equals(consents.username()) && "27/10/2026".equals(consents.termsVersion())
+                    && consents.marketing() && consents.acceptedAt() != null));
 
             mockMvc.perform(post("/signup").with(csrf()).param("tenantId", "bencafe").param("username", "ben")
-                            .param("password", "a-long-password").param("fullName", "Ben").param("acceptTerms", "true"))
+                            .param("password", "a-long-password").param("fullName", "Ben").param("email", "ben@example.test").param("acceptTerms", "true"))
                     .andExpect(model().attributeDoesNotExist("error"));
-            verify(signup).registerTenant(eq("bencafe"), eq("ben"), anyString(), eq("Ben"), eq("RESTAURANT"),
-                    argThat(consents -> !consents.marketing()));
+            verify(signup).start(argThat(consents -> "bencafe".equals(consents.tenantId()) && !consents.marketing()));
         }
     }
 }

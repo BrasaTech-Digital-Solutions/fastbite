@@ -67,4 +67,9 @@ class OwnerStaffServiceTest {
                 .hasMessageContaining("do not own");
         verify(userService, never()).save(any());
     }
+    @Test void newStaffUsernameCannotLookLikeAnEmail() {
+        when(tenantLocationService.isOwnerOf("alice", "pizza")).thenReturn(true);
+        assertThatThrownBy(() -> service.createStaff("alice", "pizza", "alice@example.test", "Alice", "hash", Role.COOK))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("without @");
+    }
 }

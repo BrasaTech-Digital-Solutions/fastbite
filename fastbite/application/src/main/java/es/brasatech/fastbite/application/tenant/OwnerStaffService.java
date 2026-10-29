@@ -41,6 +41,9 @@ public class OwnerStaffService {
 
     public List<UserDto> createStaff(String ownerUsername, String tenantId, String username, String fullName, String encodedPassword, Role role) {
         checkOwnership(ownerUsername, tenantId);
+        if (username == null || !username.matches("[a-zA-Z0-9_.-]{1,100}")) {
+            throw new IllegalArgumentException("Choose a username without @.");
+        }
         if (role == Role.OWNER) {
             throw new IllegalArgumentException("Owners are platform accounts and can't be added as staff.");
         }

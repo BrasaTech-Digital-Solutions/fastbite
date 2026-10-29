@@ -22,11 +22,11 @@ class AccountMailOutboxServiceTest {
 
     @Test void storesOnlyTheHashBeforeSendingAndMarksSuccess() throws Exception {
         when(outbox.claim(any())).thenReturn(Optional.of(claim));
-        when(outbox.issueOwnerSetup(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
+        when(outbox.issue(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
         var service = new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://fastbite.example");
         assertEquals(1, service.run(1));
         var hash = ArgumentCaptor.forClass(String.class); var link = ArgumentCaptor.forClass(String.class);
-        verify(outbox).issueOwnerSetup(eq(claim), hash.capture(), any());
+        verify(outbox).issue(eq(claim), hash.capture(), any());
         verify(mail).sendSetupLink(eq("owner@example.test"), eq("owner"), link.capture(), eq("en"));
         String token = link.getValue().substring(link.getValue().indexOf("token=") + 6);
         assertEquals(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8))), hash.getValue());
@@ -35,7 +35,7 @@ class AccountMailOutboxServiceTest {
     }
     @Test void failedDeliveryIsRecordedForRetryWithoutEscaping() {
         when(outbox.claim(any())).thenReturn(Optional.of(claim));
-        when(outbox.issueOwnerSetup(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
+        when(outbox.issue(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
         doThrow(new IllegalStateException("smtp unavailable")).when(mail).sendSetupLink(anyString(), anyString(), anyString(), anyString());
         assertEquals(0, new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://example.test").run(1));
         verify(outbox).failed(eq(claim), any());
@@ -62,7 +62,7 @@ class AccountMailOutboxServiceTest {
         captured.start(); logger.addAppender(captured);
         try {
             when(outbox.claim(any())).thenReturn(Optional.of(claim));
-            when(outbox.issueOwnerSetup(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
+            when(outbox.issue(eq(claim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
             when(outbox.failed(eq(claim), any())).thenReturn("PENDING");
             doThrow(new IllegalStateException("secret-token-private")).when(mail).sendSetupLink(anyString(), anyString(), anyString(), anyString());
             new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://example.test").run(1);
@@ -83,7 +83,7 @@ class AccountMailOutboxServiceTest {
         try {
             var finalClaim = new AccountMailOutboxPort.Claim("last-id", "lease", "checkout", 5);
             when(outbox.claim(any())).thenReturn(Optional.of(finalClaim));
-            when(outbox.issueOwnerSetup(eq(finalClaim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
+            when(outbox.issue(eq(finalClaim), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "owner", "en")));
             when(outbox.failed(eq(finalClaim), any())).thenReturn("FAILED");
             doThrow(new IllegalStateException("private")).when(mail).sendSetupLink(anyString(), anyString(), anyString(), anyString());
             new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://example.test").run(1);

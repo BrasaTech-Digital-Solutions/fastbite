@@ -41,6 +41,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         "stripe.secret.key=", "stripe.webhook.secret=", "stripe.platform.webhook.secret=", "stripe.restaurant-price-id=",
         "stripe.connected-account="})
 class DayReportFlowTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
+
 
     @Value("${local.server.port}") int port;
     @Autowired FiscalTicketRepository tickets;
@@ -102,8 +107,7 @@ class DayReportFlowTest {
     @Test
     void theDayIsWorkedOutFromItsTicketsAndTheCashCheckStartsFromTheOwnersFloat() throws Exception {
         var owner = client();
-        post(owner, "/signup", "acceptTerms=true&tenantId=daycafe&username=dayowner&fullName=Test+Owner&password=local-test-password&_csrf="
-                + csrf(get(owner, "/signup").body()));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "daycafe", "dayowner", "Test Owner", "local-test-password");
         post(owner, "/login", "username=dayowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
 
         var sale = ticket(TicketKind.SIMPLIFIED, "TEST-DC-T26", PaymentMethod.CASH, "11.00", "0.50", null);

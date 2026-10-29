@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink;
+import es.brasatech.fastbite.application.tenant.PendingSignupService;
 import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
 import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
@@ -70,6 +71,7 @@ public class InternalJobsController {
     private final ContractLifecycleJob contractLifecycle;
     private final es.brasatech.fastbite.application.platform.PromotionService promotionService;
     private final AccountMailOutboxService accountMail;
+    private final PendingSignupService pendingSignup;
     private final String secret;
     private final Clock clock;
 
@@ -80,6 +82,7 @@ public class InternalJobsController {
             ContractLifecycleJob contractLifecycle,
             @Autowired(required = false) es.brasatech.fastbite.application.platform.PromotionService promotionService,
             @Autowired(required = false) AccountMailOutboxService accountMail,
+            @Autowired(required = false) PendingSignupService pendingSignup,
             @Value("${fastbite.jobs.secret:}") String secret,
             Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
@@ -88,6 +91,7 @@ public class InternalJobsController {
         this.contractLifecycle = contractLifecycle;
         this.promotionService = promotionService;
         this.accountMail = accountMail;
+        this.pendingSignup = pendingSignup;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
@@ -100,14 +104,14 @@ public class InternalJobsController {
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, secret, Clock.systemUTC());
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, secret, Clock.systemUTC());
     }
 
     InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret, Clock clock) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, secret, clock);
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, secret, clock);
     }
 
     @PostMapping("/internal/jobs/run")
@@ -121,6 +125,7 @@ public class InternalJobsController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         Instant deadline = clock.instant().plus(VerifactuSubmissionJob.TIME_BUDGET);
+        if (pendingSignup != null) pendingSignup.expire();
         if (accountMail != null) accountMail.run(5);
         int provisioned = sandboxProvisioning.run();
         VerifactuSubmissionJob.Summary verifactu = verifactuSubmission.run(deadline);

@@ -190,7 +190,7 @@ public class TenantRoutingResolver {
     }
 
     private static boolean isEntryPage(String path) {
-        return path.equals("/") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/logout") || path.equals("/set-password");
+        return path.equals("/") || path.startsWith("/login") || path.startsWith("/signup") || path.startsWith("/logout") || path.equals("/set-password") || path.equals("/verify-email");
     }
 
     private static String queryParameter(HttpServletRequest request, String name) {

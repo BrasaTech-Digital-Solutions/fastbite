@@ -32,6 +32,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         // A sandbox nobody answers at: production must work regardless
         "fastbite.link.url=http://127.0.0.1:9", "fastbite.link.secret=a-secret-of-at-least-thirty-two-characters"})
 class LinkedProductionFlowTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
+
 
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;
@@ -104,8 +109,7 @@ class LinkedProductionFlowTest {
     @Test
     void theOwnerIsSentToTheSandboxToSetUpAndDemoConceptsStayThere() throws Exception {
         var owner = client();
-        post(owner, "/signup", "acceptTerms=true&tenantId=linkedcafe&username=linkedowner&fullName=Linked+Owner&password=local-test-password&_csrf="
-                + csrf(get(owner, "/signup").body()));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "linkedcafe", "linkedowner", "Linked Owner", "local-test-password");
         post(owner, "/login", "username=linkedowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
 
         var overview = get(owner, "/owner/console");
@@ -138,8 +142,7 @@ class LinkedProductionFlowTest {
     @Test
     void promotionAndUndoPreserveProductionOrdersAndStaff() throws Exception {
         var owner = client();
-        post(owner, "/signup", "acceptTerms=true&tenantId=promocafe&username=promoowner&fullName=Promo+Owner&password=local-test-password&_csrf="
-                + csrf(get(owner, "/signup").body()));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "promocafe", "promoowner", "Promo Owner", "local-test-password");
         post(owner, "/login", "username=promoowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
 
         // Add a staff member, an order, and a trusted dining table in production

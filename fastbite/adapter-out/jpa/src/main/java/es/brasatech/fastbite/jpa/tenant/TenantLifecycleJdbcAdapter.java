@@ -60,6 +60,14 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
 
     private ClaimResult claim(String tenant, String operationId, String owner) {
         return transaction(dataSource, connection -> {
+            // Serialize lifecycle claims with pending-signup reservations.
+            try (var lock = statement(connection, "SELECT id FROM public.signup_reservation_lock WHERE id = 1 FOR UPDATE"); var row = lock.executeQuery()) {
+                if (!row.next()) throw new IllegalStateException("Signup lock is missing");
+            }
+            try (var pending = statement(connection, "SELECT username FROM public.pending_registrations WHERE tenant_id = ? AND expires_at > ?", tenant, Instant.now().toEpochMilli()); var row = pending.executeQuery()) {
+                if (row.next() && !(operationId.equals("signup:" + tenant) && owner.equals(row.getString(1))))
+                    throw new IllegalArgumentException("Restaurant identifier is already reserved.");
+            }
             try (var query = statement(connection,
                     "SELECT operation_id, owner_username, state, updated_at FROM public.tenant_lifecycle WHERE tenant_id = ? FOR UPDATE", tenant);
                  var rows = query.executeQuery()) {

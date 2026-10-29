@@ -26,6 +26,10 @@ import static org.junit.jupiter.api.Assertions.*;
     "fastbite.migrations.mode=migrate","spring.jpa.hibernate.ddl-auto=none","spring.session.jdbc.initialize-schema=never",
     "stripe.secret.key=","stripe.webhook.secret=","stripe.platform.webhook.secret=","stripe.restaurant-price-id=","stripe.connected-account="})
 class SubscriptionFlowTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean SubscriptionGateway gateway;
@@ -37,7 +41,7 @@ class SubscriptionFlowTest {
         var owner=client();
         var home=get(owner,"/");assertEquals(200,home.statusCode());assertTrue(home.body().contains("hospitality."));assertTrue(home.body().contains(">49</span>"));
         var signup=get(owner,"/signup");
-        var rejected=post(owner,"/signup","acceptTerms=true&tenantId=kebab&username=billingflowowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(signup.body()));
+        var rejected=post(owner,"/signup","acceptTerms=true&tenantId=kebab&username=billingflowowner&fullName=Test+Owner&email=billingflowowner%40example.test&password=local-test-password&_csrf="+csrf(signup.body()));
         assertEquals(200,rejected.statusCode());
         assertTrue(rejected.body().contains("is reserved"));
         assertTrue(rejected.body().contains("value=\"kebab\""));
@@ -45,10 +49,9 @@ class SubscriptionFlowTest {
         assertTrue(rejected.body().contains("value=\"Test Owner\""));
         assertFalse(rejected.body().contains("local-test-password"));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM public.tenant_locations WHERE tenant_id='kebab'",Integer.class));
-        var created=post(owner,"/signup","acceptTerms=true&tenantId=BillingCafe&username=billingflowowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(signup.body()));
-        assertEquals(200,created.statusCode());assertTrue(created.body().contains("successfully registered"));assertTrue(created.body().contains("/billingcafe/login"));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "billingcafe", "billingflowowner", "Test Owner", "local-test-password");
         var started=jdbc.queryForObject("SELECT trial_started_at FROM public.tenant_billing WHERE tenant_id='billingcafe'",java.sql.Timestamp.class);
-        post(owner,"/signup","acceptTerms=true&tenantId=billingcafe&username=billingflowowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
+        post(owner,"/signup","acceptTerms=true&tenantId=billingcafe&username=billingflowowner&fullName=Test+Owner&email=billingflowowner%40example.test&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
         assertEquals(started,jdbc.queryForObject("SELECT trial_started_at FROM public.tenant_billing WHERE tenant_id='billingcafe'",java.sql.Timestamp.class));
         var login=get(owner,"/login");assertEquals(302,post(owner,"/login","username=billingflowowner&password=local-test-password&_csrf="+csrf(login.body())).statusCode());
         String token=csrf(get(owner,"/owner/console").body());

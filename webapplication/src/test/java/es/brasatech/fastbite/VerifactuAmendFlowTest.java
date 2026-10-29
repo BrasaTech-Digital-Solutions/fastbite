@@ -43,6 +43,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         "stripe.secret.key=", "stripe.webhook.secret=", "stripe.platform.webhook.secret=", "stripe.restaurant-price-id=",
         "stripe.connected-account="})
 class VerifactuAmendFlowTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
+
 
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;
@@ -102,8 +107,7 @@ class VerifactuAmendFlowTest {
     @Test
     void anOwnerSendsARefusedRecordAgainAsASubsanacion() throws Exception {
         var owner = client();
-        post(owner, "/signup", "acceptTerms=true&tenantId=amendcafe&username=amendowner&fullName=Test+Owner&password=local-test-password&_csrf="
-                + csrf(get(owner, "/signup").body()));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "amendcafe", "amendowner", "Test Owner", "local-test-password");
         post(owner, "/login", "username=amendowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
         var refused = refusedRecord("amendcafe");
 

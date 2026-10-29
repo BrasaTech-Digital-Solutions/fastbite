@@ -20,6 +20,11 @@ import static org.junit.jupiter.api.Assertions.*;
     "fastbite.migrations.mode=migrate","spring.jpa.hibernate.ddl-auto=none","spring.session.jdbc.initialize-schema=never",
     "stripe.secret.key=","stripe.webhook.secret=","stripe.platform.webhook.secret=","stripe.restaurant-price-id=","stripe.connected-account="})
 class OwnerWorkspaceFlowTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
+
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean SubscriptionGateway gateway;
@@ -35,8 +40,7 @@ class OwnerWorkspaceFlowTest {
     }
     @Test void workspacePersistsScopedProgressAndPreviewsBackupsWithoutChangingData()throws Exception {
         var owner=client();
-        var created=post(owner,"/signup","acceptTerms=true&tenantId=workspacecafe&username=workspaceowner&fullName=Test+Owner&password=local-test-password&_csrf="+csrf(get(owner,"/signup").body()));
-        assertTrue(created.body().contains("successfully registered"));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "workspacecafe", "workspaceowner", "Test Owner", "local-test-password");
         post(owner,"/login","username=workspaceowner&password=local-test-password&_csrf="+csrf(get(owner,"/login").body()));
         var overview=get(owner,"/owner/console");assertEquals(200,overview.statusCode());assertTrue(overview.body().contains("What kind of restaurant are you running?"));
         assertFalse(overview.body().contains("name=\"stripeAccountId\""));assertFalse(overview.body().contains("Request volume pricing"));

@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
                         .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/verifactu/declaracion-responsable/*.pdf", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
-                                "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/api/webhooks/stripe", "/api/stripe/**",
+                                "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/signup/**", "/verify-email", "/api/webhooks/stripe", "/api/stripe/**",
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",
                                 // Scheduled background jobs triggered with X-FastBite-Jobs-Secret (InternalJobsController)

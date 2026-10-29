@@ -41,6 +41,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         "stripe.secret.key=", "stripe.webhook.secret=", "stripe.platform.webhook.secret=", "stripe.restaurant-price-id=",
         "stripe.connected-account="})
 class SessionSerializationHintsTest {
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupPort pendingSignup;
+    @Autowired es.brasatech.fastbite.application.tenant.PendingSignupService signupService;
+    @Autowired es.brasatech.fastbite.application.mail.AccountMailOutboxPort accountOutbox;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder fixturePasswords;
+
 
     @Value("${local.server.port}") int port;
     @Autowired JdbcTemplate jdbc;
@@ -68,8 +73,7 @@ class SessionSerializationHintsTest {
         var owner = HttpClient.newBuilder().cookieHandler(new CookieManager()).build();
         // A protected page first, so a saved request is kept in the session
         get(owner, "/owner/console");
-        post(owner, "/signup", "acceptTerms=true&tenantId=probecafe&username=probeowner&fullName=Probe&password=local-probe-password&_csrf="
-                + csrf(get(owner, "/signup").body()));
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "probecafe", "probeowner", "Probe", "local-probe-password");
         get(owner, "/owner/console");
         post(owner, "/login", "username=probeowner&password=local-probe-password&_csrf=" + csrf(get(owner, "/login").body()));
         get(owner, "/owner/console");

@@ -15,7 +15,7 @@ import java.util.HexFormat;
 @Service
 public class AccountMailOutboxService {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AccountMailOutboxService.class);
-   private static final SecureRandom RANDOM = new SecureRandom();
+    private static final SecureRandom RANDOM = new SecureRandom();
     private final AccountMailOutboxPort outbox;
     private final OwnerSetupMailPort mail;
     private final PlatformEnvironment environment;
@@ -40,6 +40,10 @@ public class AccountMailOutboxService {
         if (!deliveryAllowed()) return;
         outbox.claimForSubject(checkoutId, clock.instant()).ifPresent(this::deliver);
     }
+    public void runForSignup(String signupId) {
+        if (!deliveryAllowed()) return;
+        outbox.claimForSubject(signupId, clock.instant()).ifPresent(this::deliver);
+    }
     private boolean deliveryAllowed() {
         return !environment.sandbox() && !TransactionSynchronizationManager.isActualTransactionActive();
     }
@@ -48,9 +52,15 @@ public class AccountMailOutboxService {
             byte[] random = new byte[32]; RANDOM.nextBytes(random);
             String token = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
             String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-            var recipient = outbox.issueOwnerSetup(item, hash, clock.instant());
+            var recipient = outbox.issue(item, hash, clock.instant());
             if (recipient.isEmpty()) return false;
-            mail.sendSetupLink(recipient.get().email(), recipient.get().username(), origin + "/set-password?token=" + token, recipient.get().language());
+            var target = recipient.get();
+            switch (item.purpose()) {
+                case "OWNER_SETUP" -> mail.sendSetupLink(target.email(), target.username(), origin + "/set-password?token=" + token, target.language());
+                case "SIGNUP_VERIFY" -> mail.sendSignupVerification(target.email(), target.username(), origin + "/verify-email?token=" + token, target.language());
+                case "SIGNUP_NOTICE" -> mail.sendSignupNotice(target.email(), target.language());
+                default -> throw new IllegalStateException("Unknown account email purpose");
+            }
             outbox.sent(item, clock.instant());
             return true;
         } catch (Exception error) {
@@ -59,8 +69,8 @@ public class AccountMailOutboxService {
             try {
                 state = outbox.failed(item, clock.instant());
             } finally {
-                log.warn("Account email delivery failed: outbox={} purpose=OWNER_SETUP attempt={} error={} state={}",
-                        item.id(), item.attempts(), error.getClass().getSimpleName(), state);
+                log.warn("Account email delivery failed: outbox={} purpose={} attempt={} error={} state={}",
+                        item.id(), item.purpose(), item.attempts(), error.getClass().getSimpleName(), state);
             }
             return false;
         }

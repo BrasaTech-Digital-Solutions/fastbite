@@ -171,6 +171,27 @@ check() {
   record "${code:-000}" 200 "$url"
 }
 
+# Read only the verification token for a unique test address; never print message bodies or tokens.
+verification_token() {
+  python3 - "$1" <<'PYCODE'
+import json, re, sys, time, urllib.parse, urllib.request
+email = sys.argv[1]
+for _ in range(15):
+    try:
+        q = urllib.parse.quote('to:' + email)
+        search = json.load(urllib.request.urlopen('http://localhost:8027/api/v1/search?query=' + q, timeout=3))
+        for item in search.get('messages', []):
+            detail = json.load(urllib.request.urlopen('http://localhost:8027/api/v1/message/' + item['ID'], timeout=3))
+            match = re.search(r'/verify-email\?token=([A-Za-z0-9_-]{43})', detail.get('Text', '') or '')
+            if match:
+                print(match.group(1)); sys.exit(0)
+    except Exception:
+        pass
+    time.sleep(1)
+sys.exit(1)
+PYCODE
+}
+
 echo "== [0/6] Host header & redirect isolation"
 check_redirect "$P/owner/console" "$P" "/login"
 check_redirect "$P/cake/counter" "$P" "/cake/login"
@@ -186,8 +207,29 @@ SIGNUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/signup"
   --data-urlencode "username=${T}owner" \
   --data-urlencode "password=$PASS" \
   --data-urlencode "fullName=Release Owner" \
+  --data-urlencode "email=${T}-wrong@example.test" \
   --data-urlencode "acceptTerms=true")
-record "$SIGNUP_CODE" 200 "POST $P/signup"
+record "$SIGNUP_CODE" 302 "POST $P/signup (pending verification)"
+PENDING_LOCATION=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.tenant_locations where tenant_id='$T'" 2>/dev/null | tr -d '\r')
+[[ "$PENDING_LOCATION" == "0" ]] && PENDING_OK=1 || PENDING_OK=0
+record_match "$PENDING_OK" "signup creates no location before verification"
+OLD_VERIFY=$(verification_token "${T}-wrong@example.test" || true)
+PENDING_LOGIN_HTML=$(curl -s -c "$J" -b "$J" "$P/login")
+PENDING_LOGIN=$(curl -s -D - -o /dev/null -c "$J" -b "$J" "$P/login" --data-urlencode "_csrf=$(echo "$PENDING_LOGIN_HTML" | csrf)" --data-urlencode "username=${T}owner" --data-urlencode "password=$PASS")
+[[ "$(echo "$PENDING_LOGIN" | loc)" == *"error"* ]] && PENDING_LOGIN_OK=1 || PENDING_LOGIN_OK=0
+record_match "$PENDING_LOGIN_OK" "owner cannot sign in before verification"
+CHECK_EMAIL_HTML=$(curl -s -c "$J" -b "$J" "$P/signup/check-email")
+echo "$CHECK_EMAIL_HTML" | grep -qF "${T}-wrong@example.test" && CHECK_EMAIL_OK=1 || CHECK_EMAIL_OK=0
+record_match "$CHECK_EMAIL_OK" "check-email page displays the full address"
+CHANGE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/signup/check-email/change" --data-urlencode "_csrf=$(echo "$CHECK_EMAIL_HTML" | csrf)" --data-urlencode "email=${T}@example.test")
+record "$CHANGE_CODE" 302 "POST change signup email"
+NEW_VERIFY=$(verification_token "${T}@example.test" || true)
+OLD_VERIFY_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/verify-email?token=$OLD_VERIFY")
+record "$OLD_VERIFY_CODE" 400 "previous verification link is invalid after correction"
+VERIFY_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/verify-email?token=$NEW_VERIFY")
+record "$VERIFY_CODE" 302 "verify corrected signup address"
+VERIFY_AGAIN=$(curl -s -o /dev/null -w '%{http_code}' "$P/verify-email?token=$NEW_VERIFY")
+record "$VERIFY_AGAIN" 302 "verification link remains idempotent after success"
 TERMS_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.legal_acceptances where username='${T}owner' and document='terms' and version <> ''" 2>/dev/null | tr -d '\r')
 [[ "$TERMS_ROWS" == "1" ]] && TERMS_OK=1 || TERMS_OK=0
 record_match "$TERMS_OK" "signup recorded the owner's acceptance of the terms, with its date and version"
@@ -826,8 +868,11 @@ JF="free_owner.cookies"
 GF="free_guest.cookies"
 FREE_SIGNUP_HTML=$(curl -s -c "$JF" -b "$JF" "$P/signup")
 FREE_CSRF=$(echo "$FREE_SIGNUP_HTML" | csrf)
-FREE_SIGNUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$JF" -b "$JF" "$P/signup"   --data-urlencode "_csrf=$FREE_CSRF"   --data-urlencode "tenantId=$TF"   --data-urlencode "username=${TF}owner"   --data-urlencode "password=$PASS"   --data-urlencode "fullName=Free Plan Owner"   --data-urlencode "plan=FREE"   --data-urlencode "acceptTerms=true"   --data-urlencode "marketing=true")
-record "$FREE_SIGNUP_CODE" 200 "POST $P/signup (plan=FREE, marketing=true)"
+FREE_SIGNUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$JF" -b "$JF" "$P/signup"   --data-urlencode "_csrf=$FREE_CSRF"   --data-urlencode "tenantId=$TF"   --data-urlencode "username=${TF}owner"   --data-urlencode "password=$PASS"   --data-urlencode "fullName=Free Plan Owner"   --data-urlencode "email=${TF}@example.test"   --data-urlencode "plan=FREE"   --data-urlencode "acceptTerms=true"   --data-urlencode "marketing=true")
+record "$FREE_SIGNUP_CODE" 302 "POST $P/signup (plan=FREE, marketing=true)"
+FREE_VERIFY=$(verification_token "${TF}@example.test" || true)
+FREE_VERIFY_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$P/verify-email?token=$FREE_VERIFY")
+record "$FREE_VERIFY_CODE" 302 "verify Free plan signup"
 
 FREE_MENU_CSRF=$(curl -s -b "$GF" -c "$GF" "$P/$TF/menu" | meta)
 FREE_ORDER_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$GF" -c "$GF"   -H "Content-Type: application/json"   -H "X-CSRF-TOKEN: $FREE_MENU_CSRF"   -H "Referer: $P/$TF/menu"   -d '{"items":[{"id":"f1","itemId":"1","quantity":1,"price":5.00}],"customerName":"Free Guest"}'   "$P/$TF/api/create-order")
@@ -981,7 +1026,7 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
 done
 
 # The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="account_email_limits account_email_outbox account_tokens fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens pending_registrations sandbox_provisioning sandbox_sign_in spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+PLATFORM_TABLES="account_email_limits account_email_outbox account_tokens fiscal_issuers flyway_schema_history group_quote_requests legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens pending_registrations sandbox_provisioning sandbox_sign_in signup_reservation_lock spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

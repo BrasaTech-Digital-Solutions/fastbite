@@ -5,4 +5,6 @@ public interface OwnerSetupMailPort {
     default void sendSetupLink(String email, String username, String link, String language) {
         sendSetupLink(email, username, link);
     }
+    void sendSignupVerification(String email, String username, String link, String language);
+    void sendSignupNotice(String email, String language);
 }
