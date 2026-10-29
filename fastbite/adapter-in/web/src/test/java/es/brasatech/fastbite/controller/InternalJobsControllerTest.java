@@ -82,6 +82,7 @@ class InternalJobsControllerTest {
             when(fiscalIssuerBackfill.run(any())).thenReturn(4);
             when(contractLifecycle.run(any())).thenReturn(2);
             when(promotionService.sweep()).thenReturn(3);
+            when(accountMail.cleanup()).thenReturn(new es.brasatech.fastbite.application.mail.AccountMailOutboxPort.Cleanup(6, 7, 8));
 
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, SECRET))
@@ -92,9 +93,13 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.verifactuLocationsRemaining").value(1))
                     .andExpect(jsonPath("$.fiscalIssuersBackfilled").value(4))
                     .andExpect(jsonPath("$.contractLifecycleActions").value(2))
-                    .andExpect(jsonPath("$.promotionsSwept").value(3));
+                    .andExpect(jsonPath("$.promotionsSwept").value(3))
+                    .andExpect(jsonPath("$.accountTokensDeleted").value(6))
+                    .andExpect(jsonPath("$.accountEmailLimitsDeleted").value(7))
+                    .andExpect(jsonPath("$.accountEmailOutboxDeleted").value(8));
 
             verify(accountMail).run(5);
+            verify(accountMail).cleanup();
 
             String expectedToken = new es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink(SECRET, "http://localhost:8080")
                     .issueToken("ana").orElseThrow();

@@ -26,6 +26,7 @@ public class AccountMailOutboxService {
         this.outbox = outbox; this.mail = mail; this.environment = environment; this.clock = clock;
         this.origin = origin.replaceAll("/+$", "");
     }
+    public AccountMailOutboxPort.Cleanup cleanup() { return outbox.cleanup(clock.instant()); }
     public int run(int limit) {
         if (!deliveryAllowed()) return 0;
         int sent = 0;

@@ -37,7 +37,7 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
             }
             // A newer signup at the same unverified address replaces the earlier one.
             String oldId = scalar(connection, "SELECT id FROM public.pending_registrations WHERE email = ?", signup.email());
-            if (oldId != null) removePending(connection, oldId);
+            if (oldId != null) removePending(connection, oldId, now);
             update(connection, "INSERT INTO public.pending_registrations (id, tenant_id, username, full_name, password_hash, plan, email, language, terms_version, accepted_at, marketing, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     id, signup.tenantId(), signup.username(), signup.fullName(), signup.passwordHash(), signup.plan(), signup.email(), signup.language(), signup.termsVersion(), signup.acceptedAt().toEpochMilli(), signup.marketing(), now.plus(Duration.ofHours(48)).toEpochMilli());
             enqueue(connection, id, "SIGNUP_VERIFY", signup.email(), signup.language(), now);
@@ -50,13 +50,13 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
             Pending existing = load(connection, id);
             if (existing == null) return false;
             if (emailOwnedOrUsername(connection, email)) {
-                removePending(connection, id);
+                removePending(connection, id, now);
                 if (verifiedEmailExists(connection, email)) enqueue(connection, id, "SIGNUP_NOTICE", email, existing.signup().language(), now);
                 return true;
             }
             String old = scalar(connection, "SELECT id FROM public.pending_registrations WHERE email = ?", email);
-            if (old != null && !old.equals(id)) removePending(connection, old);
-            cancelMessages(connection, id);
+            if (old != null && !old.equals(id)) removePending(connection, old, now);
+            cancelMessages(connection, id, now);
             update(connection, "DELETE FROM public.account_tokens WHERE subject_type = 'PENDING' AND subject_id = ?", id);
             update(connection, "UPDATE public.pending_registrations SET email = ? WHERE id = ?", email, id);
             enqueue(connection, id, "SIGNUP_VERIFY", email, existing.signup().language(), now);
@@ -120,7 +120,7 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
             if (data.marketing()) recordConsent(connection, data, "marketing");
             update(connection, "UPDATE public.account_tokens SET subject_type = 'OWNER', subject_id = ?, consumed_at = ? WHERE token_hash = ?", userId, now.toEpochMilli(), hash);
             update(connection, "DELETE FROM public.account_tokens WHERE subject_type = 'PENDING' AND subject_id = ?", id);
-            cancelMessages(connection, id);
+            cancelMessages(connection, id, now);
             update(connection, "DELETE FROM public.pending_registrations WHERE id = ?", id);
             update(connection, "UPDATE public.tenant_lifecycle SET state = 'ACTIVE', updated_at = ? WHERE tenant_id = ? AND operation_id = ?", now.toEpochMilli(), data.tenantId(), "signup:" + data.tenantId());
             return true;
@@ -163,15 +163,15 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
     private static int expireLocked(Connection c, Instant now) throws SQLException {
         java.util.List<String> expired = new java.util.ArrayList<>();
         try (var query = statement(c, "SELECT id FROM public.pending_registrations WHERE expires_at <= ?", now.toEpochMilli()); var rows = query.executeQuery()) { while (rows.next()) expired.add(rows.getString(1)); }
-        for (String id : expired) removePending(c, id);
+        for (String id : expired) removePending(c, id, now);
         return expired.size();
     }
-    private static void removePending(Connection c, String id) throws SQLException {
-        cancelMessages(c, id);
+    private static void removePending(Connection c, String id, Instant now) throws SQLException {
+        cancelMessages(c, id, now);
         update(c, "DELETE FROM public.account_tokens WHERE subject_type = 'PENDING' AND subject_id = ?", id);
         update(c, "DELETE FROM public.pending_registrations WHERE id = ?", id);
     }
-    private static void cancelMessages(Connection c, String id) throws SQLException {
-        update(c, "UPDATE public.account_email_outbox SET state = 'CANCELLED', claim_id = NULL, claimed_at = NULL WHERE subject_id = ? AND subject_type = 'PENDING' AND state IN ('PENDING', 'CLAIMED')", id);
+    private static void cancelMessages(Connection c, String id, Instant now) throws SQLException {
+        update(c, "UPDATE public.account_email_outbox SET state = 'CANCELLED', finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE subject_id = ? AND subject_type = 'PENDING' AND state IN ('PENDING', 'CLAIMED')", now.toEpochMilli(), id);
     }
 }

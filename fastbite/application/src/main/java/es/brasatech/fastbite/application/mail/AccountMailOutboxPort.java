@@ -5,6 +5,8 @@ import java.util.Optional;
 
 /** Short database operations; implementations must not perform SMTP. */
 public interface AccountMailOutboxPort {
+    record Cleanup(int tokens, int limits, int outbox) { }
+    Cleanup cleanup(Instant now);
     record Claim(String id, String claimId, String subjectId, int attempts, String purpose) {
         public Claim(String id, String claimId, String subjectId, int attempts) { this(id, claimId, subjectId, attempts, "OWNER_SETUP"); }
     }

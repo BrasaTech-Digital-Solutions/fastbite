@@ -20,6 +20,18 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
     private final DataSource source;
     public AccountMailOutboxJdbcAdapter(DataSource source) { this.source = source; }
 
+    @Override public Cleanup cleanup(Instant now) {
+        return transaction(connection -> {
+            long cutoff = now.minus(Duration.ofDays(30)).toEpochMilli();
+            // Legacy rows with no known finish time start retention on the first sweep.
+            update(connection, "UPDATE public.account_email_outbox SET finished_at = COALESCE(sent_at, ?) WHERE state IN ('SENT', 'FAILED', 'CANCELLED') AND finished_at IS NULL", now.toEpochMilli());
+            int tokens = update(connection, "DELETE FROM public.account_tokens WHERE (consumed_at IS NOT NULL AND consumed_at < ?) OR expires_at < ?", cutoff, cutoff);
+            int limits = update(connection, "DELETE FROM public.account_email_limits WHERE sent_at < ?", cutoff);
+            int outbox = update(connection, "DELETE FROM public.account_email_outbox WHERE state IN ('SENT', 'FAILED', 'CANCELLED') AND finished_at < ?", cutoff);
+            return new Cleanup(tokens, limits, outbox);
+        });
+    }
+
     @Override public Optional<Claim> claim(Instant now) { return claim(null, now); }
     @Override public Optional<Claim> claimForSubject(String subjectId, Instant now) { return claim(subjectId, now); }
 
@@ -36,7 +48,7 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                 int attempts = rows.getInt(3) + 1;
                 String purpose = rows.getString(4);
                 if (attempts > MAX_ATTEMPTS) {
-                    update(connection, "UPDATE public.account_email_outbox SET state = 'FAILED', claim_id = NULL, claimed_at = NULL WHERE id = ?", id);
+                    update(connection, "UPDATE public.account_email_outbox SET state = 'FAILED', finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ?", now.toEpochMilli(), id);
                     log.warn("Account email delivery failed: outbox={} purpose={} attempt={} reason=lease-expired state=FAILED", id, purpose, attempts - 1);
                     return Optional.empty();
                 }
@@ -62,20 +74,20 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
             String email, username, limitKey;
             if ("OWNER_SETUP".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT t.email, t.username, t.completed, COALESCE(u.account_language, 'en') FROM public.owner_setup_tokens t JOIN public.users u ON u.id = t.user_id WHERE t.checkout_id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next() || row.getBoolean(3)) return cancel(connection, claim);
+                    if (!row.next() || row.getBoolean(3)) return cancel(connection, claim, now);
                     email = row.getString(1); username = row.getString(2); language = row.getString(4);
                 }
                 limitKey = claim.subjectId();
             } else if ("SIGNUP_VERIFY".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT email, username, language, expires_at FROM public.pending_registrations WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next() || row.getLong(4) <= now.toEpochMilli() || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    if (!row.next() || row.getLong(4) <= now.toEpochMilli() || !row.getString(1).equals(destination)) return cancel(connection, claim, now);
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = "signup:" + email;
             } else if ("STAFF_VERIFY".equals(claim.purpose())) {
-                if (!"STAFF".equals(subjectType) || tenantId == null || !tenantId.matches("[a-z0-9]{1,56}") || java.util.Set.of("default", "admin", "kebab").contains(tenantId)) return cancel(connection, claim);
+                if (!"STAFF".equals(subjectType) || tenantId == null || !tenantId.matches("[a-z0-9]{1,56}") || java.util.Set.of("default", "admin", "kebab").contains(tenantId)) return cancel(connection, claim, now);
                 try (var query = statement(connection, "SELECT pending_email, username, COALESCE(account_language, 'en') FROM tenant_" + tenantId + ".users WHERE id = ? AND active = TRUE FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim, now);
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = "STAFF:" + tenantId + ":" + claim.subjectId();
@@ -83,31 +95,31 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                 String schema;
                 if ("OWNER".equals(subjectType)) schema = "public";
                 else if ("STAFF".equals(subjectType) && tenantId != null && tenantId.matches("[a-z0-9]{1,56}") && !java.util.Set.of("default", "admin", "kebab").contains(tenantId)) schema = "tenant_" + tenantId;
-                else return cancel(connection, claim);
+                else return cancel(connection, claim, now);
                 try (var query = statement(connection, "SELECT email, username, COALESCE(account_language, 'en') FROM " + schema + ".users WHERE id = ? AND active = TRUE AND email_verified_at IS NOT NULL FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim, now);
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = subjectType + ":" + (tenantId == null ? "" : tenantId + ":") + claim.subjectId();
             } else if ("OWNER_VERIFY".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT pending_email, username, COALESCE(account_language, 'en') FROM public.users WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim);
+                    if (!row.next() || row.getString(1) == null || !row.getString(1).equals(destination)) return cancel(connection, claim, now);
                     email = row.getString(1); username = row.getString(2); language = row.getString(3);
                 }
                 limitKey = "owner:" + claim.subjectId();
             } else if ("OWNER_EMAIL_NOTICE".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT username FROM public.users WHERE id = ? FOR UPDATE", claim.subjectId()); var row = query.executeQuery()) {
-                    if (!row.next()) return cancel(connection, claim);
+                    if (!row.next()) return cancel(connection, claim, now);
                     username = row.getString(1); email = destination;
                 }
                 limitKey = "owner:" + claim.subjectId();
             } else if ("SIGNUP_NOTICE".equals(claim.purpose())) {
                 try (var query = statement(connection, "SELECT username, COALESCE(account_language, 'en') FROM public.users WHERE email = ? AND email_verified_at IS NOT NULL FOR UPDATE", destination); var row = query.executeQuery()) {
-                    if (!row.next()) return cancel(connection, claim);
+                    if (!row.next()) return cancel(connection, claim, now);
                     username = row.getString(1); language = row.getString(2); email = destination;
                 }
                 limitKey = "signup:" + email;
-            } else return cancel(connection, claim);
+            } else return cancel(connection, claim, now);
             long time = now.toEpochMilli(), window = time - Duration.ofDays(1).toMillis();
             try (var query = statement(connection, "SELECT COUNT(*), MAX(sent_at), MIN(sent_at) FROM public.account_email_limits WHERE subject_key = ? AND purpose = ? AND sent_at > ?", limitKey, claim.purpose(), window); var row = query.executeQuery()) {
                 row.next(); int count = row.getInt(1); long latest = row.getLong(2), first = row.getLong(3);
@@ -139,14 +151,14 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
             return Optional.of(new Recipient(email, username, language));
         });
     }
-    private static Optional<Recipient> cancel(Connection connection, Claim claim) throws SQLException {
-        update(connection, "UPDATE public.account_email_outbox SET state = 'CANCELLED', claim_id = NULL, claimed_at = NULL WHERE id = ? AND claim_id = ?", claim.id(), claim.claimId());
+    private static Optional<Recipient> cancel(Connection connection, Claim claim, Instant now) throws SQLException {
+        update(connection, "UPDATE public.account_email_outbox SET state = 'CANCELLED', finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND claim_id = ?", now.toEpochMilli(), claim.id(), claim.claimId());
         return Optional.empty();
     }
 
     @Override public void sent(Claim claim, Instant now) {
         transaction(connection -> {
-            update(connection, "UPDATE public.account_email_outbox SET state = 'SENT', sent_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND state = 'CLAIMED' AND claim_id = ?", now.toEpochMilli(), claim.id(), claim.claimId());
+            update(connection, "UPDATE public.account_email_outbox SET state = 'SENT', sent_at = ?, finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND state = 'CLAIMED' AND claim_id = ?", now.toEpochMilli(), now.toEpochMilli(), claim.id(), claim.claimId());
             return null;
         });
     }
@@ -154,7 +166,7 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
         return transaction(connection -> {
             long backoff = Duration.ofMinutes(1L << Math.min(claim.attempts() - 1, 5)).toMillis();
             String state = claim.attempts() >= MAX_ATTEMPTS ? "FAILED" : "PENDING";
-            int updated = update(connection, "UPDATE public.account_email_outbox SET state = ?, available_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND state = 'CLAIMED' AND claim_id = ?", state, now.toEpochMilli() + backoff, claim.id(), claim.claimId());
+            int updated = update(connection, "UPDATE public.account_email_outbox SET state = ?, available_at = ?, finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND state = 'CLAIMED' AND claim_id = ?", state, now.toEpochMilli() + backoff, "FAILED".equals(state) ? now.toEpochMilli() : null, claim.id(), claim.claimId());
             return updated == 1 ? state : "STALE";
         });
     }

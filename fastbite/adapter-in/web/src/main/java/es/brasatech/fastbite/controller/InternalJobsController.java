@@ -43,7 +43,10 @@ public class InternalJobsController {
             int verifactuLocationsRemaining,
             int fiscalIssuersBackfilled,
             int contractLifecycleActions,
-            int promotionsSwept) {
+            int promotionsSwept,
+            int accountTokensDeleted,
+            int accountEmailLimitsDeleted,
+            int accountEmailOutboxDeleted) {
         public JobRunSummary(
                 int sandboxProvisioned,
                 int verifactuSubmitted,
@@ -52,7 +55,7 @@ public class InternalJobsController {
                 int fiscalIssuersBackfilled,
                 int contractLifecycleActions) {
             this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
-                    fiscalIssuersBackfilled, contractLifecycleActions, 0);
+                    fiscalIssuersBackfilled, contractLifecycleActions, 0, 0, 0, 0);
         }
         public JobRunSummary(
                 int sandboxProvisioned,
@@ -61,7 +64,7 @@ public class InternalJobsController {
                 int verifactuLocationsRemaining,
                 int fiscalIssuersBackfilled) {
             this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
-                    fiscalIssuersBackfilled, 0, 0);
+                    fiscalIssuersBackfilled, 0, 0, 0, 0, 0);
         }
     }
 
@@ -127,6 +130,7 @@ public class InternalJobsController {
         Instant deadline = clock.instant().plus(VerifactuSubmissionJob.TIME_BUDGET);
         if (pendingSignup != null) pendingSignup.expire();
         if (accountMail != null) accountMail.run(5);
+        var cleaned = accountMail == null ? null : accountMail.cleanup();
         int provisioned = sandboxProvisioning.run();
         VerifactuSubmissionJob.Summary verifactu = verifactuSubmission.run(deadline);
         int backfilled = fiscalIssuerBackfill.run(deadline);
@@ -139,7 +143,10 @@ public class InternalJobsController {
                 verifactu.locationsRemaining(),
                 backfilled,
                 contractActions,
-                promotionsSwept));
+                promotionsSwept,
+                cleaned == null ? 0 : cleaned.tokens(),
+                cleaned == null ? 0 : cleaned.limits(),
+                cleaned == null ? 0 : cleaned.outbox()));
     }
 
     @GetMapping(value = "/internal/jobs/unsubscribe-token", produces = MediaType.TEXT_PLAIN_VALUE)
