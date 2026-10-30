@@ -1,4 +1,4 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><link rel="icon" type="image/svg+xml" href="/images/favicon.svg"><link rel="stylesheet" href="/css/platform.css"><title th:text="#{signup.verify.invalid.title}">Verification link unavailable</title></head>
-<body><div th:replace="~{fastfood/fragments/environment :: banner}"></div><header class="site-header"><a class="brand" href="/"><span class="brand-mark">f.</span>fastbite</a></header><main class="wrap"><section class="form-card" style="max-width:620px;margin:4rem auto"><h1 th:text="#{signup.verify.invalid.title}">Verification link unavailable</h1><p th:text="#{signup.verify.invalid.body}">This link is invalid or expired. Return to the signup page and request another link.</p><a class="button" href="/signup" th:text="#{signup.expired.action}">Start again</a></section></main></body></html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{fastfood/fragments/account :: layout(#{signup.verify.invalid.title}, #{signup.verify.invalid.title}, #{account.layout.emailLead}, ~{::section}, null, false)}"><body><section>
+<div class="account-empty"><span class="account-icon" aria-hidden="true">!</span><h2 th:text="#{signup.verify.invalid.title}"></h2><p th:text="#{signup.verify.invalid.body}"></p><a class="button" href="/signup" th:text="#{signup.expired.action}"></a></div>
+</section></body></html>

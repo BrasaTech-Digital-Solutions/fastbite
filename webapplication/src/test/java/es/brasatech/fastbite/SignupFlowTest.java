@@ -80,4 +80,35 @@ class SignupFlowTest {
         assertThat(get(browser, uri.getRawPath() + "?" + uri.getRawQuery()).headers().firstValue("Location")).contains("/owner/console");
         assertThat(jdbc.queryForObject("SELECT email FROM public.users WHERE id = ?", String.class, id)).isEqualTo(email);
     }
+    @Test void accountPagesRenderSharedLayoutInAllLanguages() throws Exception {
+        for (String lang : new String[]{"en", "es", "pt"}) {
+            var browser = client();
+            for (String path : new String[]{"/login?lang=" + lang, "/forgot-password?lang=" + lang,
+                    "/reset-password?token=invalid&lang=" + lang, "/verify-email?token=invalid&lang=" + lang}) {
+                var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                        .header("Accept-Language", lang).GET().build();
+                var page = browser.send(request, HttpResponse.BodyHandlers.ofString());
+                assertThat(page.statusCode()).isIn(200, 400);
+                if (path.startsWith("/login")) {
+                    String expected = switch (lang) {
+                        case "es" -> "Correo o usuario";
+                        case "pt" -> "Email ou utilizador";
+                        default -> "Email or username";
+                    };
+                    assertThat(page.body()).contains(expected);
+                }
+                assertThat(page.body()).contains("account-header", "account-main", "account-card", "account-footer", "/css/platform.css");
+                assertThat(page.body()).doesNotContain("class=\"panel\"", "login-logo");
+            }
+        }
+    }
+    @Test void loginAndSetupHideRedundantHeaderLinkAndLoginNamesBothIdentifiers() throws Exception {
+        var browser = client();
+        var login = get(browser, "/login?lang=es");
+        assertThat(login.body()).contains("Email or username", "name=\"username\"", "autocomplete=\"username\"")
+                .doesNotContain("account-header-link");
+        var setup = get(browser, "/set-password?token=invalid");
+        assertThat(setup.body()).doesNotContain("account-header-link");
+        assertThat(get(browser, "/forgot-password").body()).contains("account-header-link");
+    }
 }

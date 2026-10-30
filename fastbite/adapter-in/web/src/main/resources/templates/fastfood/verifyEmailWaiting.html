@@ -1,13 +1,4 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" th:attr="content=|3;url=@{/verify-email(token=${token})}|">
-<link rel="icon" type="image/svg+xml" href="/images/favicon.svg"><link rel="stylesheet" href="/css/platform.css">
-<title th:text="#{signup.verify.wait}">We're setting up your restaurant…</title>
-</head>
-<body><div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-<main class="wrap"><section class="form-card" style="max-width:620px;margin:4rem auto">
-<h1 th:text="#{signup.verify.wait}">We're setting up your restaurant…</h1>
-<p th:text="#{signup.verify.refresh}">This page will refresh shortly.</p>
-</section></main></body></html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{fastfood/fragments/account :: layout(#{signup.verify.wait}, #{signup.verify.wait}, #{signup.verify.refresh}, ~{::section}, @{/verify-email(token=${token})}, false)}"><body><section>
+<div class="account-empty" role="status"><span class="account-icon" aria-hidden="true">…</span><h2 th:text="#{signup.verify.wait}"></h2><p th:text="#{signup.verify.refresh}"></p></div>
+</section></body></html>

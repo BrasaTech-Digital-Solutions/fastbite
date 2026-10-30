@@ -1,1 +1,4 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title th:text="#{staff.account.team}">Team</title><link rel="stylesheet" href="/css/platform.css"></head><body><main class="panel"><h1 th:text="#{staff.account.team}">Team</h1><ul><li th:each="person : ${staff}"><a th:href="@{/{tenant}/backoffice/team/{id}(tenant=${tenant},id=${person.id})}" th:text="${person.fullName}"></a></li></ul><a th:href="@{/{tenant}/backoffice(tenant=${tenant})}" th:text="#{staff.account.back}">Back</a></main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{fastfood/fragments/account :: layout(#{staff.account.team}, #{staff.account.team}, #{account.layout.staffLead}, ~{::section}, null, false)}"><body><section>
+<ul class="account-team"><li th:each="person : ${staff}"><a th:href="@{/{tenant}/backoffice/team/{id}(tenant=${tenant},id=${person.id})}" th:text="${person.fullName}"></a></li></ul><a class="account-link" th:href="@{/{tenant}/backoffice(tenant=${tenant})}" th:text="#{staff.account.back}"></a>
+</section></body></html>
