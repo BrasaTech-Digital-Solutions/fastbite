@@ -59,7 +59,7 @@ public class CloudFileStorageService implements FileStorageService {
         String tenantId = TenantContext.getCurrentTenant();
         String safeTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId.trim() : "default";
         String safeFolder = (folder != null && !folder.isBlank()) ? folder.trim() : "";
-        String filename = System.currentTimeMillis() + "_" + originalFilename;
+        String filename = image.filename();
 
         String objectPath = safeTenant + "/" + (safeFolder.isEmpty() ? "" : safeFolder + "/") + filename;
 

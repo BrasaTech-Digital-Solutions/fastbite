@@ -2,6 +2,8 @@ package es.brasatech.fastbite.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -35,6 +37,14 @@ public class WebConfig implements WebMvcConfigurer {
 
         // System images are already served from /static/images by Spring Boot's default
         // configuration
+    }
+
+    @Bean
+    public FilterRegistrationBean<ImageCacheControlFilter> imageCacheControlFilter() {
+        FilterRegistrationBean<ImageCacheControlFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new ImageCacheControlFilter());
+        registration.addUrlPatterns("/user-images/*");
+        return registration;
     }
 
     @org.springframework.context.annotation.Bean

@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 /**
@@ -45,6 +46,7 @@ public class DiskFileStorageService implements FileStorageService {
 
         try {
             Files.createDirectories(uploadPath);
+            Files.createDirectories(stagingPath());
         } catch (IOException e) {
             log.error("Failed to create upload directory: {}", e.getMessage());
         }
@@ -64,11 +66,24 @@ public class DiskFileStorageService implements FileStorageService {
         }
         Files.createDirectories(uploadPath);
 
-        String extension = getFileExtension(originalFilename);
-        String filename = System.currentTimeMillis() + "_" + originalFilename;
+        String filename = image.filename();
 
         Path filePath = uploadPath.resolve(filename);
-        Files.write(filePath, image.bytes());
+        if (Files.exists(filePath)) {
+            if (!Arrays.equals(Files.readAllBytes(filePath), image.bytes())) {
+                throw new IOException("Image path already exists with different contents");
+            }
+        } else {
+            Path staging = stagingPath();
+            Files.createDirectories(staging);
+            Path temporary = Files.createTempFile(staging, "image-", ".tmp");
+            try {
+                Files.write(temporary, image.bytes());
+                Files.move(temporary, filePath, StandardCopyOption.ATOMIC_MOVE);
+            } finally {
+                Files.deleteIfExists(temporary);
+            }
+        }
 
         log.info("Stored file: {} to {}", filename, filePath);
 
@@ -83,6 +98,10 @@ public class DiskFileStorageService implements FileStorageService {
                 folder != null ? folder : "",
                 "user",
                 Files.size(filePath));
+    }
+
+    private Path stagingPath() {
+        return Paths.get(uploadDirectory).toAbsolutePath().normalize().resolveSibling(".image-staging");
     }
 
     @Override

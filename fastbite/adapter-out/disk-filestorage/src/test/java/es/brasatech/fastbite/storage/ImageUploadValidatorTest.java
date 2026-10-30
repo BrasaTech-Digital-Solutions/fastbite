@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -31,6 +32,13 @@ class ImageUploadValidatorTest {
         assertThatThrownBy(() -> ImageUploadValidator.validate(new ByteArrayInputStream(PNG), "a.png", "../other", ALLOWED, 2)).isInstanceOf(ImageUploadRejection.class);
     }
 
+    @Test void contentNameUsesCanonicalExtensionAndSha256Prefix() throws Exception {
+        assertThat(validate(PNG, "a.png").filename()).isEqualTo("38517b3f73391766f8fa677bbeeaf183.png");
+        assertThat(validate(JPEG, "a.jpeg").filename()).endsWith(".jpg");
+        assertThat(validate(JPEG, "b.jpg").filename()).isEqualTo(validate(JPEG, "a.jpeg").filename());
+        assertThat(validate(WEBP, "a.webp").filename()).endsWith(".webp");
+    }
+
     @Test void limitReadsOnlyOneBytePastConfiguredMaximum() throws Exception {
         byte[] boundary = new byte[1024 * 1024];
         System.arraycopy(PNG, 0, boundary, 0, PNG.length);
@@ -45,16 +53,51 @@ class ImageUploadValidatorTest {
 
     @Test void diskRejectsInvalidBytesWithoutWritingAndKeepsOldGifVisible() throws Exception {
         DiskFileStorageService disk = new DiskFileStorageService();
-        ReflectionTestUtils.setField(disk, "uploadDirectory", directory.toString());
+        ReflectionTestUtils.setField(disk, "uploadDirectory", directory.resolve("images").toString());
         ReflectionTestUtils.setField(disk, "allowedExtensions", ALLOWED);
         TenantContext.setCurrentTenant("testtenant");
         assertThatThrownBy(() -> disk.uploadImage(new ByteArrayInputStream("not image".getBytes()), "x.png", ""))
                 .isInstanceOf(ImageUploadRejection.class);
-        try (var files = Files.list(directory)) { assertThat(files.count()).isZero(); }
-        Path existing = Files.createDirectories(directory.resolve("testtenant")).resolve("old.gif");
+        assertThat(directory.resolve("images")).doesNotExist();
+        Path existing = Files.createDirectories(directory.resolve("images/testtenant")).resolve("old.gif");
         Files.write(existing, new byte[]{'G','I','F'});
         assertThat(disk.listUserImages()).containsKey("root");
         assertThat(disk.uploadImage(new ByteArrayInputStream(PNG), "a.png", "menu").url()).contains("/user-images/testtenant/menu/");
+    }
+
+    @Test void contentAddressedNamesChangeOnlyWhenBytesChangeAndNeverOverwrite() throws Exception {
+        DiskFileStorageService disk = new DiskFileStorageService();
+        ReflectionTestUtils.setField(disk, "uploadDirectory", directory.resolve("images").toString());
+        ReflectionTestUtils.setField(disk, "allowedExtensions", ALLOWED);
+        TenantContext.setCurrentTenant("tenant");
+        var first = disk.uploadImage(new ByteArrayInputStream(PNG), "first.png", "menu");
+        var same = disk.uploadImage(new ByteArrayInputStream(PNG), "renamed.png", "menu");
+        byte[] changed = PNG.clone(); changed[changed.length - 1] ^= 1;
+        var replacement = disk.uploadImage(new ByteArrayInputStream(changed), "first.png", "menu");
+        assertThat(first.name()).matches("[0-9a-f]{32}\\.png");
+        assertThat(same.url()).isEqualTo(first.url());
+        assertThat(replacement.url()).isNotEqualTo(first.url());
+        assertThat(Files.readAllBytes(directory.resolve("images/tenant/menu").resolve(first.name()))).isEqualTo(PNG);
+        assertThat(Files.readAllBytes(directory.resolve("images/tenant/menu").resolve(replacement.name()))).isEqualTo(changed);
+        try (var files = Files.list(directory.resolve(".image-staging"))) {
+            assertThat(files).isEmpty();
+        }
+        Files.write(directory.resolve("images/tenant/menu").resolve(first.name()), changed);
+        assertThatThrownBy(() -> disk.uploadImage(new ByteArrayInputStream(PNG), "again.png", "menu"))
+                .isInstanceOf(IOException.class);
+        assertThat(Files.readAllBytes(directory.resolve("images/tenant/menu").resolve(first.name()))).isEqualTo(changed);
+        try (var files = Files.list(directory.resolve(".image-staging"))) { assertThat(files).isEmpty(); }
+    }
+
+    @Test void failedStagingDoesNotPublishAHashFile() throws Exception {
+        DiskFileStorageService disk = new DiskFileStorageService();
+        ReflectionTestUtils.setField(disk, "uploadDirectory", directory.resolve("images").toString());
+        ReflectionTestUtils.setField(disk, "allowedExtensions", ALLOWED);
+        Files.writeString(directory.resolve(".image-staging"), "not a directory");
+        TenantContext.setCurrentTenant("tenant");
+        assertThatThrownBy(() -> disk.uploadImage(new ByteArrayInputStream(PNG), "first.png", "menu"))
+                .isInstanceOf(IOException.class);
+        assertThat(directory.resolve("images/tenant/menu").resolve(validate(PNG, "first.png").filename())).doesNotExist();
     }
 
     private static ImageUploadValidator.ValidatedImage validate(byte[] data, String name) throws Exception {

@@ -107,4 +107,15 @@ class AllergenStorageIntegrationTest {
         assertThat(in(target, () -> customizations.findById(sauce.id())).orElseThrow().options().getFirst().allergens())
                 .containsExactly(Allergen.EGGS);
     }
+    @Test
+    void replacingOneProductImageChangesItsUrlWithoutRewritingOtherProducts() {
+        String tenant = tenant();
+        String oldUrl = "/user-images/" + tenant + "/0123456789abcdef0123456789abcdef.webp";
+        String newUrl = "/user-images/" + tenant + "/fedcba9876543210fedcba9876543210.webp";
+        var first = in(tenant, () -> products.create(new ProductDto(null, "First", BigDecimal.ONE, "", oldUrl, Set.of(), true)));
+        var second = in(tenant, () -> products.create(new ProductDto(null, "Second", BigDecimal.ONE, "", oldUrl, Set.of(), true)));
+        in(tenant, () -> products.update(first.id(), new ProductDto(first.id(), "First", BigDecimal.ONE, "", newUrl, Set.of(), true)));
+        assertThat(in(tenant, () -> products.findById(first.id())).orElseThrow().image()).isEqualTo(newUrl);
+        assertThat(in(tenant, () -> products.findById(second.id())).orElseThrow().image()).isEqualTo(oldUrl);
+    }
 }

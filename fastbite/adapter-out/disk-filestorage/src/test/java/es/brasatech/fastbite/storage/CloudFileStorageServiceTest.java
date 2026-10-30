@@ -29,7 +29,7 @@ class CloudFileStorageServiceTest {
     void setUp() {
         TenantContext.clear();
         diskStorage = new DiskFileStorageService();
-        ReflectionTestUtils.setField(diskStorage, "uploadDirectory", tempDir.toString());
+        ReflectionTestUtils.setField(diskStorage, "uploadDirectory", tempDir.resolve("images").toString());
         ReflectionTestUtils.setField(diskStorage, "allowedExtensions", "jpg,jpeg,png,gif,webp");
         diskStorage.init();
 
@@ -58,7 +58,7 @@ class CloudFileStorageServiceTest {
         ImageInfo info = cloudStorage.uploadImage(is, "burger.png", "menu");
 
         assertNotNull(info);
-        assertTrue(info.name().endsWith("burger.png"));
+        assertTrue(info.name().matches("[0-9a-f]{32}\\.png"));
         assertTrue(info.url().contains("/user-images/testrestaurant/menu/"));
         assertEquals("menu", info.folder());
     }

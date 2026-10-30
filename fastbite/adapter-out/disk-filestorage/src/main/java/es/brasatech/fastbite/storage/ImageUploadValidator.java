@@ -3,7 +3,10 @@ package es.brasatech.fastbite.storage;
 import es.brasatech.fastbite.domain.exception.ImageUploadRejection;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 
@@ -11,7 +14,22 @@ import java.util.Locale;
 final class ImageUploadValidator {
     private ImageUploadValidator() { }
 
-    record ValidatedImage(byte[] bytes, String contentType) { }
+    record ValidatedImage(byte[] bytes, String contentType) {
+        String filename() {
+            try {
+                String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+                String extension = switch (contentType) {
+                    case "image/jpeg" -> "jpg";
+                    case "image/png" -> "png";
+                    case "image/webp" -> "webp";
+                    default -> throw new IllegalStateException("Unsupported validated image type");
+                };
+                return digest.substring(0, 32) + "." + extension;
+            } catch (NoSuchAlgorithmException error) {
+                throw new IllegalStateException("SHA-256 is unavailable", error);
+            }
+        }
+    }
 
     static ValidatedImage validate(InputStream input, String filename, String folder, String allowedExtensions,
             int maxMiB) throws IOException {
