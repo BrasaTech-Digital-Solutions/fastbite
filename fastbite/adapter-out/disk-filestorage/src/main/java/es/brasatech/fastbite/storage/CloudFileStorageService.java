@@ -33,16 +33,19 @@ public class CloudFileStorageService implements FileStorageService {
     private final String publicBaseUrl;
     private final String allowedExtensions;
     private final HttpClient httpClient;
+    private final int maxFileSizeMiB;
 
     public CloudFileStorageService(
             DiskFileStorageService diskFallback,
             @Value("${fastbite.storage.cloud.bucket}") String bucketName,
             @Value("${fastbite.storage.cloud.public-url:https://storage.googleapis.com}") String publicBaseUrl,
-            @Value("${image.upload.allowed-extensions:jpg,jpeg,png,gif,webp}") String allowedExtensions) {
+            @Value("${image.upload.allowed-extensions:jpg,jpeg,png,webp}") String allowedExtensions,
+            @Value("${image.upload.max-file-size:2}") int maxFileSizeMiB) {
         this.diskFallback = diskFallback;
         this.bucketName = bucketName;
         this.publicBaseUrl = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
         this.allowedExtensions = allowedExtensions;
+        this.maxFileSizeMiB = maxFileSizeMiB;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -51,7 +54,7 @@ public class CloudFileStorageService implements FileStorageService {
 
     @Override
     public ImageInfo uploadImage(InputStream data, String originalFilename, String folder) throws IOException {
-        validateFile(originalFilename);
+        var image = ImageUploadValidator.validate(data, originalFilename, folder, allowedExtensions, maxFileSizeMiB);
 
         String tenantId = TenantContext.getCurrentTenant();
         String safeTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId.trim() : "default";
@@ -60,8 +63,8 @@ public class CloudFileStorageService implements FileStorageService {
 
         String objectPath = safeTenant + "/" + (safeFolder.isEmpty() ? "" : safeFolder + "/") + filename;
 
-        byte[] bytes = data.readAllBytes();
-        String contentType = detectContentType(originalFilename);
+        byte[] bytes = image.bytes();
+        String contentType = image.contentType();
 
         // Upload to Google Cloud Storage JSON API or compatible endpoint
         boolean uploadedToCloud = false;
@@ -122,24 +125,4 @@ public class CloudFileStorageService implements FileStorageService {
         return "gs://" + bucketName;
     }
 
-    private void validateFile(String filename) throws IOException {
-        if (filename == null || filename.isBlank()) {
-            throw new IOException("Invalid filename");
-        }
-        int dot = filename.lastIndexOf('.');
-        String ext = (dot != -1) ? filename.substring(dot + 1).toLowerCase() : "";
-        List<String> allowed = Arrays.asList(allowedExtensions.split(","));
-        if (!allowed.contains(ext)) {
-            throw new IOException("File type not allowed. Allowed types: " + allowedExtensions);
-        }
-    }
-
-    private String detectContentType(String filename) {
-        String lower = filename.toLowerCase();
-        if (lower.endsWith(".png")) return "image/png";
-        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-        if (lower.endsWith(".webp")) return "image/webp";
-        if (lower.endsWith(".gif")) return "image/gif";
-        return "application/octet-stream";
-    }
 }

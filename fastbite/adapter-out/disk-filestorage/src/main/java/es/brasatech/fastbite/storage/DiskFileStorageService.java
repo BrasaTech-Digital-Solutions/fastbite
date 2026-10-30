@@ -15,7 +15,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 /**
@@ -31,6 +30,9 @@ public class DiskFileStorageService implements FileStorageService {
 
     @Value("${image.upload.allowed-extensions}")
     private String allowedExtensions;
+
+    @Value("${image.upload.max-file-size:2}")
+    private int maxFileSizeMiB = 2;
 
     private static final String SYSTEM_IMAGES_PATH = "static/images";
 
@@ -50,7 +52,7 @@ public class DiskFileStorageService implements FileStorageService {
 
     @Override
     public ImageInfo uploadImage(InputStream data, String originalFilename, String folder) throws IOException {
-        validateFile(originalFilename);
+        var image = ImageUploadValidator.validate(data, originalFilename, folder, allowedExtensions, maxFileSizeMiB);
 
         Path uploadPath = Paths.get(uploadDirectory);
         String tenantId = TenantContext.getCurrentTenant();
@@ -66,7 +68,7 @@ public class DiskFileStorageService implements FileStorageService {
         String filename = System.currentTimeMillis() + "_" + originalFilename;
 
         Path filePath = uploadPath.resolve(filename);
-        Files.copy(data, filePath, StandardCopyOption.REPLACE_EXISTING);
+        Files.write(filePath, image.bytes());
 
         log.info("Stored file: {} to {}", filename, filePath);
 
@@ -153,23 +155,10 @@ public class DiskFileStorageService implements FileStorageService {
         }
     }
 
-    private void validateFile(String filename) throws IOException {
-        if (filename == null || filename.isEmpty()) {
-            throw new IOException("Invalid filename");
-        }
-
-        String extension = getFileExtension(filename).toLowerCase();
-        List<String> allowed = Arrays.asList(allowedExtensions.split(","));
-
-        if (!allowed.contains(extension)) {
-            throw new IOException("File type not allowed. Allowed types: " + allowedExtensions);
-        }
-    }
-
     private boolean isImageFile(String filename) {
         String extension = getFileExtension(filename).toLowerCase();
         List<String> allowed = Arrays.asList(allowedExtensions.split(","));
-        return allowed.contains(extension);
+        return allowed.contains(extension) || "gif".equals(extension);
     }
 
     private String getFileExtension(String filename) {

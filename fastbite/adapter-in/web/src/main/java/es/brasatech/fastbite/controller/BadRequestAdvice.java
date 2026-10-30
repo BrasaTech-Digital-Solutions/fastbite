@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.domain.exception.ImageUploadRejection;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -39,6 +40,13 @@ public class BadRequestAdvice {
             return messages.getMessage(localized.key(), localized.args(), localized.getMessage(), locale);
         }
         return rejection.getMessage();
+    }
+
+    @ExceptionHandler(ImageUploadRejection.class)
+    public ResponseEntity<Map<String, String>> rejectedImage(ImageUploadRejection rejection, Locale locale) {
+        log.warn("Rejected invalid image upload");
+        String message = messages.getMessage(rejection.key(), rejection.args(), rejection.getMessage(), locale);
+        return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 
     @ExceptionHandler({MultipartException.class,

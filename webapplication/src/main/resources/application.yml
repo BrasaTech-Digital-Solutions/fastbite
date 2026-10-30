@@ -116,9 +116,9 @@ image:
     # Can be absolute path or relative to application directory
     directory: ${IMAGE_UPLOAD_DIR:uploads/images}
     # Maximum file size (in MB)
-    max-file-size: 5
-    # Allowed extensions
-    allowed-extensions: jpg,jpeg,png,gif,webp
+    max-file-size: 2
+    # Allowed extensions for new image uploads (existing GIFs remain available)
+    allowed-extensions: jpg,jpeg,png,webp
 
 # Cloud Storage configuration
 fastbite:

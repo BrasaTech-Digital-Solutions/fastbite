@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.storage;
 
+import es.brasatech.fastbite.domain.exception.ImageUploadRejection;
 import es.brasatech.fastbite.domain.image.ImageInfo;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -12,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,7 +37,8 @@ class CloudFileStorageServiceTest {
                 diskStorage,
                 "test-fastbite-bucket",
                 "https://storage.googleapis.com",
-                "jpg,jpeg,png,gif,webp"
+                "jpg,jpeg,png,webp",
+                2
         );
     }
 
@@ -48,7 +51,7 @@ class CloudFileStorageServiceTest {
     void testUploadWithDiskFallbackWhenCloudUnavailable() throws IOException {
         TenantContext.setCurrentTenant("testrestaurant");
 
-        byte[] fakeImageContent = "fake-png-content".getBytes(StandardCharsets.UTF_8);
+        byte[] fakeImageContent = Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/6X8AAAAASUVORK5CYII=");
         ByteArrayInputStream is = new ByteArrayInputStream(fakeImageContent);
 
         // When GCP endpoint is not reachable or unauthenticated, it must cleanly fall back to local disk storage
@@ -65,7 +68,7 @@ class CloudFileStorageServiceTest {
         TenantContext.setCurrentTenant("testrestaurant");
         byte[] fakeFile = "malicious-exe".getBytes(StandardCharsets.UTF_8);
 
-        assertThrows(IOException.class, () ->
+        assertThrows(ImageUploadRejection.class, () ->
                 cloudStorage.uploadImage(new ByteArrayInputStream(fakeFile), "evil.exe", ""));
     }
 
