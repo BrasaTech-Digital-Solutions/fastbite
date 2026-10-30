@@ -978,6 +978,11 @@ let imageSelectionCallback = null;
 function openImageSelector(callback = null) {
     imageSelectionCallback = callback;
     const modal = new bootstrap.Modal(document.getElementById('imageSelectorModal'));
+    const modalElement = document.getElementById('imageSelectorModal');
+    if (!modalElement.dataset.uploadCleanup) {
+        modalElement.addEventListener('hidden.bs.modal', resetImageUpload);
+        modalElement.dataset.uploadCleanup = 'true';
+    }
 
     // Load images when modal opens
     loadSystemImages();
@@ -1084,72 +1089,126 @@ function selectImage(imageUrl) {
     showToast('Image selected successfully!', 'success');
 }
 
-/**
- * Preview image before upload
- */
-function previewUploadImage(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            document.getElementById('imagePreview').src = e.target.result;
-            document.getElementById('imagePreviewContainer').style.display = 'block';
+// Each selection owns a generation; a slower previous decode must never overwrite the latest.
+let imageUploadGeneration = 0;
+let optimisedImage = null;
+let imagePreviewUrl = null;
+let imageUploadInFlight = false;
+
+function clearImagePreview() {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    imagePreviewUrl = null;
+    const preview = document.getElementById('imagePreview');
+    preview.removeAttribute('src');
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+    document.getElementById('imageOptimisedSize').textContent = '';
+}
+
+function resetImageUpload() {
+    imageUploadGeneration++;
+    optimisedImage = null;
+    clearImagePreview();
+    document.getElementById('imageUploadForm').reset();
+    document.getElementById('imageUploadError').textContent = '';
+    if (!imageUploadInFlight) document.getElementById('imageUploadSubmit').disabled = false;
+}
+
+function canvasBlob(canvas, type, quality) {
+    return new Promise((resolve, reject) => canvas.toBlob(blob => {
+        if (blob) resolve(blob); else reject(new Error('Image encoding failed'));
+    }, type, quality));
+}
+
+async function previewUploadImage(event) {
+    const generation = ++imageUploadGeneration;
+    const file = event.target.files && event.target.files[0];
+    const submit = document.getElementById('imageUploadSubmit');
+    const error = document.getElementById('imageUploadError');
+    optimisedImage = null;
+    clearImagePreview();
+    error.textContent = '';
+    if (!file) { submit.disabled = false; return; }
+    submit.disabled = true;
+    try {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type.toLowerCase())) throw new Error('Unsupported image');
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        let blob;
+        try {
+            const scale = Math.min(1, 600 / bitmap.width, 800 / bitmap.height);
+            if (!Number.isFinite(scale) || scale <= 0) throw new Error('Invalid image dimensions');
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Canvas unavailable');
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            // Re-encoding deliberately removes EXIF metadata, including GPS coordinates.
+            blob = await canvasBlob(canvas, 'image/webp', 0.8);
+            if (blob.type !== 'image/webp') {
+                // JPEG has no alpha channel; use a white background for transparent source pixels.
+                context.globalCompositeOperation = 'destination-over';
+                context.fillStyle = '#fff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                blob = await canvasBlob(canvas, 'image/jpeg', 0.82);
+                if (blob.type !== 'image/jpeg') throw new Error('JPEG encoding unavailable');
+            }
+        } finally { bitmap.close(); }
+        if (generation !== imageUploadGeneration) return;
+        const base = file.name.replace(/\.[^.]*$/, '') || 'image';
+        optimisedImage = { blob, filename: base + (blob.type === 'image/webp' ? '.webp' : '.jpg') };
+        imagePreviewUrl = URL.createObjectURL(blob);
+        document.getElementById('imagePreview').src = imagePreviewUrl;
+        document.getElementById('imagePreviewContainer').style.display = 'block';
+        const locale = document.documentElement.lang || undefined;
+        const formatSize = size => {
+            const mb = size >= 1024 * 1024;
+            const n = new Intl.NumberFormat(locale, { maximumFractionDigits: mb ? 1 : 0 }).format(size / (mb ? 1024 * 1024 : 1024));
+            return n + (mb ? ' MB' : ' KB');
         };
-        reader.readAsDataURL(file);
+        document.getElementById('imageOptimisedSize').textContent = (i18n.imageOptimised || 'Optimised: {0} → {1}')
+            .replace('{0}', formatSize(file.size)).replace('{1}', formatSize(blob.size));
+        submit.disabled = false;
+    } catch (failure) {
+        if (generation !== imageUploadGeneration) return;
+        error.textContent = i18n.imageUnsupported || 'Please choose a JPG, PNG or WebP image your browser can open.';
+        submit.disabled = true;
     }
 }
 
-/**
- * Handle image upload
- */
+/** Upload only the re-encoded image, never the original. */
 async function handleImageUpload(event) {
     event.preventDefault();
-
-    const fileInput = document.getElementById('imageFile');
+    if (!optimisedImage || imageUploadInFlight) return;
+    const submit = document.getElementById('imageUploadSubmit');
+    const input = document.getElementById('imageFile');
     const folderInput = document.getElementById('imageFolder');
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showToast('Please select a file', 'error');
-        return;
-    }
-
     const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-    if (folderInput.value.trim()) {
-        formData.append('folder', folderInput.value.trim());
-    }
-
+    formData.append('file', optimisedImage.blob, optimisedImage.filename);
+    if (folderInput.value.trim()) formData.append('folder', folderInput.value.trim());
+    imageUploadInFlight = true;
+    submit.disabled = true;
+    input.disabled = true;
     try {
         const response = await fetch('/api/backoffice/images/upload', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': getCsrfToken()
-            },
-            body: formData
+            method: 'POST', headers: { 'X-CSRF-TOKEN': getCsrfToken() }, body: formData
         });
-
         if (!response.ok) {
             const error = await response.json();
-            showToast(error.error || 'Upload failed', 'error');
+            showToast(error.error || error.message || 'Upload failed', 'error');
             return;
         }
-
         const imageInfo = await response.json();
-
-        // Select the newly uploaded image
         selectImage(imageInfo.url);
-
-        // Reset form
-        document.getElementById('imageUploadForm').reset();
-        document.getElementById('imagePreviewContainer').style.display = 'none';
-
-        // Reload user images
+        resetImageUpload();
         loadUserImages();
-
         showToast('Image uploaded successfully!', 'success');
     } catch (error) {
         console.error('Error uploading image:', error);
         showToast('Error uploading image', 'error');
+    } finally {
+        imageUploadInFlight = false;
+        input.disabled = false;
+        submit.disabled = !optimisedImage && input.files.length > 0;
     }
 }
 
