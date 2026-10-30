@@ -13,7 +13,7 @@ class OwnerSetupMailAdapterTest {
         var sender = mock(JavaMailSender.class);
         var message = new MimeMessage(Session.getInstance(new Properties()));
         when(sender.createMimeMessage()).thenReturn(message);
-        new OwnerSetupMailAdapter(sender, "service@example.test").sendSetupLink("owner@example.test", "<owner>", "https://example.test/set-password?token=abc", "es");
+        new OwnerSetupMailAdapter(sender, "service@example.test", new AccountMailRenderer("BRASATECH", "Test address", "https://example.test")).sendSetupLink("owner@example.test", "<owner>", "https://example.test/set-password?token=abc", "es");
         verify(sender).send(message);
         message.saveChanges();
         assertThat(message.getSubject()).contains("contraseña");

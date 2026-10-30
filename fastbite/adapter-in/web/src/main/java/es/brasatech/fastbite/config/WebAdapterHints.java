@@ -96,6 +96,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.resources().registerPattern("db/migration/platform/**");
         hints.resources().registerPattern("static/**");
         hints.resources().registerPattern("templates/**");
+        hints.resources().registerPattern("templates/mail/**");
         hints.resources().registerPattern("schema.sql");
         hints.resources().registerPattern("*_demo.zip");
         hints.resources().registerPattern("demo-templates.list");
