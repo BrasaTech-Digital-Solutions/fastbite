@@ -151,6 +151,7 @@ public class FiscalTicketService {
      * Issues a full invoice in place of a simplified ticket, for a customer who asks for one after paying.
      */
     public FiscalTicket replace(String ticketId, TicketRecipient recipient, String issuedBy) {
+        tickets.lock(ticketId);
         FiscalTicket original = find(ticketId);
         requireNotCancelled(original);
         if (original.kind() != TicketKind.SIMPLIFIED) {
@@ -177,6 +178,7 @@ public class FiscalTicketService {
      * Refunds a ticket in full by issuing a rectifying ticket that reverses it, and marks its orders refunded.
      */
     public FiscalTicket refund(String ticketId, String reason, String issuedBy) {
+        tickets.lock(ticketId);
         FiscalTicket original = find(ticketId);
         requireNotCancelled(original);
         if (original.kind() == TicketKind.RECTIFYING) {
@@ -214,6 +216,7 @@ public class FiscalTicketService {
     public record CancellationResult(TicketCancellation cancellation, boolean ordersMissing) {}
 
     public CancellationResult cancel(String ticketId, String reason, String cancelledBy) {
+        tickets.lock(ticketId);
         FiscalTicket ticket = find(ticketId);
         if (ticket.kind() != TicketKind.SIMPLIFIED && ticket.kind() != TicketKind.FULL) {
             throw new LocalizedRejection("ticket.error.cancelKind",

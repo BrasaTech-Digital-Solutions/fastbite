@@ -2,6 +2,7 @@ package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.TestConfig;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
+import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
@@ -9,12 +10,14 @@ import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.fiscal.*;
 import es.brasatech.fastbite.domain.order.Order;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.verifactu.Verifactu;
 import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.security.SecurityConfig;
 import es.brasatech.fastbite.service.GuestTicketSignature;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.mock.web.MockHttpSession;
@@ -27,11 +30,17 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = {GuestTicketController.class, TicketController.class}, properties = "spring.messages.basename=i18n/messages")
@@ -41,6 +50,7 @@ class GuestTicketEndpointTest {
     @Autowired MockMvc mvc;
     @Autowired GuestTicketSignature signatures;
     @MockitoBean FiscalTicketService tickets;
+    @MockitoBean GuestInvoiceRateLimit invoiceLimit;
     @MockitoBean OrderService orders;
     @MockitoBean VerifactuService verifactu;
     @MockitoBean TenantLocationService locations;
@@ -120,7 +130,8 @@ class GuestTicketEndpointTest {
         when(tickets.corrections("abc")).thenReturn(List.of(replacement));
         mvc.perform(get("/kebab/ticket/abc").param("s", signatures.sign("kebab", "abc")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("FULL-001")))
-                .andExpect(content().string(not(containsString("/kebab/ticket/replacement?s="))));
+                .andExpect(content().string(not(containsString("/kebab/ticket/replacement?s="))))
+                .andExpect(content().string(not(containsString("name=\"taxId\""))));
         FiscalTicket refund = mock(FiscalTicket.class);
         when(refund.kind()).thenReturn(TicketKind.RECTIFYING);
         when(refund.fullNumber()).thenReturn("REFUND-001");
@@ -128,13 +139,80 @@ class GuestTicketEndpointTest {
         when(tickets.corrections("abc")).thenReturn(List.of(refund));
         mvc.perform(get("/kebab/ticket/abc").param("s", signatures.sign("kebab", "abc")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("REFUND-001")))
-                .andExpect(content().string(containsString("/kebab/ticket/refund?s=" + signatures.sign("kebab", "refund"))));
+                .andExpect(content().string(containsString("/kebab/ticket/refund?s=" + signatures.sign("kebab", "refund"))))
+                .andExpect(content().string(not(containsString("name=\"taxId\""))));
     }
 
     @Test void cancelledGuestTicketDoesNotRevealStaffOrReason() throws Exception {
         when(tickets.cancellation("abc")).thenReturn(Optional.of(new TicketCancellation("abc", OffsetDateTime.now(), "staff-secret", "private-reason")));
         mvc.perform(get("/kebab/ticket/abc").param("s", signatures.sign("kebab", "abc")))
                 .andExpect(status().isOk()).andExpect(content().string(allOf(containsString("cancelled"),
-                        not(containsString("staff-secret")), not(containsString("private-reason")))));
+                        not(containsString("staff-secret")), not(containsString("private-reason")), not(containsString("name=\"taxId\"")))));
     }
+
+    @Test void guestInvoiceRequiresSignatureAndCsrfAndReturnsItsOwnLink() throws Exception {
+        String sig = signatures.sign("kebab", "abc");
+        when(invoiceLimit.tryAcquire(anyString(), anyString())).thenReturn(true);
+        FiscalTicket replacement = mock(FiscalTicket.class);
+        when(replacement.id()).thenReturn("full-invoice");
+        when(tickets.replace(eq("abc"), any(), eq("cliente online"))).thenReturn(replacement);
+        mvc.perform(get("/kebab/ticket/abc").param("s", sig))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("name=\"_csrf\"")))
+                .andExpect(content().string(containsString("Need an invoice for your business?")));
+        mvc.perform(post("/kebab/ticket/abc/invoice").param("s", sig)).andExpect(status().isForbidden());
+        mvc.perform(post("/kebab/ticket/abc/invoice").with(csrf()).param("s", "wrong"))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/kebab/ticket/abc/invoice").with(csrf()).param("s", sig)
+                        .param("name", "Acme").param("taxId", "12345678Z").param("country", "ES").param("address", "Madrid"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/kebab/ticket/full-invoice?s=" + signatures.sign("kebab", "full-invoice")))
+                .andExpect(header().string("Cache-Control", containsString("no-store")));
+        verify(tickets).replace(eq("abc"), any(), eq("cliente online"));
+        var hashedTicket = ArgumentCaptor.forClass(String.class);
+        var hashedClient = ArgumentCaptor.forClass(String.class);
+        verify(invoiceLimit).tryAcquire(hashedTicket.capture(), hashedClient.capture());
+        assertThat(hashedTicket.getValue()).startsWith("v1.").doesNotContain("abc");
+        assertThat(hashedClient.getValue()).startsWith("v1.").doesNotContain("127.0.0.1");
+    }
+
+    @Test void guestInvoiceShowsLocalizedFieldErrorsAndRateLimit() throws Exception {
+        String sig = signatures.sign("kebab", "abc");
+        when(invoiceLimit.tryAcquire(anyString(), anyString())).thenReturn(true);
+        when(tickets.replace(eq("abc"), any(), eq("cliente online"))).thenThrow(
+                new LocalizedRejection("recipient.error.taxIdInvalid", "Invalid tax number"));
+        mvc.perform(post("/kebab/ticket/abc/invoice").with(csrf()).param("s", sig)
+                        .param("name", "Acme").param("taxId", "bad").locale(java.util.Locale.forLanguageTag("es")))
+                .andExpect(status().isBadRequest()).andExpect(content().string(containsString("invoice-error")))
+                .andExpect(content().string(containsString("value=\"bad\"")));
+        when(invoiceLimit.tryAcquire(anyString(), anyString())).thenReturn(false);
+        mvc.perform(post("/kebab/ticket/abc/invoice").with(csrf()).param("s", sig))
+                .andExpect(status().isTooManyRequests()).andExpect(content().string(containsString("Too many attempts")));
+    }
+
+
+    @Test void customDomainInvoicePostIssuesOnlyItsOwnTenantLink() throws Exception {
+        String sig = signatures.sign("kebab", "abc");
+        when(invoiceLimit.tryAcquire(anyString(), anyString())).thenReturn(true);
+        FiscalTicket replacement = mock(FiscalTicket.class);
+        when(replacement.id()).thenReturn("full-invoice");
+        when(tickets.replace(eq("abc"), any(), eq("cliente online"))).thenReturn(replacement);
+        mvc.perform(post("/ticket/abc/invoice").with(request -> { request.setServerName("restaurant.example"); return request; })
+                        .with(csrf()).param("s", sig).param("name", "Acme").param("taxId", "12345678Z"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ticket/full-invoice?s=" + signatures.sign("kebab", "full-invoice")));
+        mvc.perform(post("/other/ticket/abc/invoice").with(csrf()).param("s", sig))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test void guestInvoiceShowsOverlongAddressErrorBesideAddress() throws Exception {
+        String sig = signatures.sign("kebab", "abc");
+        when(invoiceLimit.tryAcquire(anyString(), anyString())).thenReturn(true);
+        when(tickets.replace(eq("abc"), any(), eq("cliente online"))).thenThrow(
+                new LocalizedRejection("recipient.error.length", "The customer's details are too long"));
+        mvc.perform(post("/kebab/ticket/abc/invoice").with(csrf()).param("s", sig)
+                        .param("name", "Acme").param("taxId", "12345678Z").param("address", "x".repeat(201)))
+                .andExpect(status().isBadRequest()).andExpect(content().string(containsString("invoice-address")))
+                .andExpect(content().string(containsString("too long for the invoice")));
+    }
+
 }

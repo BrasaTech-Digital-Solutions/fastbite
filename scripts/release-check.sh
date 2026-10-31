@@ -431,6 +431,12 @@ if [ -n "$TICKET" ]; then
   record "$MISSING_TICKET_CODE" 404 "GET guest ticket without signature"
 fi
 
+# Guest invoice requests require CSRF, even when the request targets a known ticket.
+if [ -n "$TICKET" ]; then
+  INVOICE_CSRF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$S/$T/ticket/$TICKET/invoice?s=v1.invalid")
+  record "$INVOICE_CSRF_CODE" 403 "POST guest invoice without CSRF"
+fi
+
 echo "== [2/6] Team member & Cashier flow"
 OWNER_CSRF=$(curl -s -c "$J" -b "$J" "$S/owner/console?view=team&location=$T" | meta)
 ADD_STAFF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \

@@ -22,6 +22,9 @@ public interface FiscalTicketRepository {
 
     Optional<FiscalTicket> findById(String id);
 
+    /** Serializes correction and cancellation of one original ticket until commit. */
+    default void lock(String id) { }
+
     /** The ticket that charged for an order, if it was charged. */
     Optional<FiscalTicket> findSaleByOrderId(String orderId);
 

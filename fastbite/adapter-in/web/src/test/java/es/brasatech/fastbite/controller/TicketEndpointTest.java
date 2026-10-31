@@ -107,6 +107,17 @@ class TicketEndpointTest {
     }
 
     @Test
+    void onlineGuestReplacementIsIdentifiedOnTheTicketsList() throws Exception {
+        FiscalTicket online = new FiscalTicket("online", TicketKind.REPLACEMENT, SALE.series(), SALE.number(), SALE.fullNumber(),
+                SALE.training(), SALE.issuedAt(), "cliente online", SALE.issuer(), SALE.recipient(), SALE.lines(), SALE.discount(),
+                SALE.total(), SALE.vat(), SALE.tip(), PaymentMethod.ONLINE, null, null, null, SALE.orderIds(),
+                SALE.orderNumbers(), SALE.tableName(), "pi_online");
+        when(tickets.issuedOn(any())).thenReturn(List.of(online));
+        mockMvc.perform(as("ROLE_CASHIER", get("/kebab/counter/tickets")).locale(Locale.forLanguageTag("es")))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Solicitada por el cliente online")));
+    }
+
+    @Test
     void thePrintedTicketCarriesTheLegalDetails() throws Exception {
         mockMvc.perform(as("ROLE_CASHIER", get("/kebab/counter/tickets/t1")).locale(Locale.forLanguageTag("es")))
                 .andExpect(status().isOk())

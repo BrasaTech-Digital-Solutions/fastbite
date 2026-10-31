@@ -99,6 +99,8 @@
                               th:text="#{${ticket.kind().messageKey()}}">Simplified invoice</span>
                         <div class="small text-muted mt-1" th:if="${#maps.containsKey(correctedBy, ticket.id())}"
                              th:text="#{tickets.corrected(${correctedBy.get(ticket.id())})}">Corrected by KHC-R26-000001</div>
+                        <div class="small text-muted mt-1" th:if="${ticket.issuedBy() == 'cliente online'}"
+                             th:text="#{tickets.invoice.online}">Requested online</div>
                         <div class="small text-muted mt-1" th:if="${ticket.corrects() != null}"
                              th:text="${ticket.corrects().fullNumber()}">KHC-T26-000001</div>
                         <div class="mt-1" th:if="${#maps.containsKey(cancelled, ticket.id())}">

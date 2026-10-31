@@ -12,6 +12,7 @@ import es.brasatech.fastbite.domain.fiscal.TicketLine;
 import es.brasatech.fastbite.domain.fiscal.TicketRecipient;
 import es.brasatech.fastbite.domain.fiscal.VatBreakdown;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
 import org.springframework.stereotype.Repository;
@@ -63,6 +64,11 @@ public class FiscalTicketRepositoryJpa implements FiscalTicketRepository {
                 : "INSERT INTO fiscal_series (series, last_number) SELECT :series, 0 "
                         + "WHERE NOT EXISTS (SELECT 1 FROM fiscal_series WHERE series = :series)";
         entityManager.createNativeQuery(insert).setParameter("series", series).executeUpdate();
+    }
+
+    @Override
+    public void lock(String id) {
+        entityManager.find(FiscalTicketEntity.class, id, LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Override
