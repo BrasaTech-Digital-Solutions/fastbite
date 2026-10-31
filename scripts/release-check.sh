@@ -169,6 +169,13 @@ record_match() {
   fi
 }
 
+# Guest ticket polling: exercise the bounded wait and the ready state on every release check.
+if node --test "$ROOT/fastbite/adapter-in/web/src/test/js/guest-ticket.test.js"; then
+  record_match 1 "guest ticket polling script tests pass"
+else
+  record_match 0 "guest ticket polling script tests pass"
+fi
+
 check() {
   local cookie_jar="$1"
   local url="$2"

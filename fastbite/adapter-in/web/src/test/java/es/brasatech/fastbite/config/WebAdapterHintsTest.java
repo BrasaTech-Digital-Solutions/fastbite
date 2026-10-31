@@ -38,6 +38,26 @@ class WebAdapterHintsTest {
         }
     }
 
+    @Test
+    void guestTicketsAndTheirAssetsAreAvailableInNativeImages() {
+        for (String file : new String[]{"templates/fastfood/ticket.html", "templates/fastfood/confirmation.html",
+                "static/js/guest-ticket.js", "static/css/ticket.css"}) {
+            assertThat(RuntimeHintsPredicates.resource().forResource(file)).as(file).accepts(hints);
+        }
+        for (Class<?> type : new Class<?>[]{es.brasatech.fastbite.domain.fiscal.FiscalTicket.class,
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.Issuer.class,
+                es.brasatech.fastbite.domain.fiscal.FiscalTicket.Correction.class,
+                es.brasatech.fastbite.domain.fiscal.TicketCancellation.class,
+                es.brasatech.fastbite.domain.verifactu.VerifactuRecord.class}) {
+            for (var method : type.getDeclaredMethods()) {
+                if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
+                    assertThat(RuntimeHintsPredicates.reflection().onMethodInvocation(method))
+                            .as(type.getSimpleName() + "." + method.getName()).accepts(hints);
+                }
+            }
+        }
+    }
+
     /**
      * Lists, sets, maps and strings are often JDK classes the native image cannot call through
      * reflection (List.of, toList(), EnumSet, reversed views). Registering those classes is no way out:
