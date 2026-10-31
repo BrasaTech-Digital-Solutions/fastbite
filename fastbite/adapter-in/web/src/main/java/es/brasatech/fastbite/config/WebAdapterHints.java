@@ -77,6 +77,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
             hints.reflection().registerType(type, MemberCategory.values());
         }
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class, org.springframework.aot.hint.MemberCategory.values());
+        hints.reflection().registerType(es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.PracticeTable.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.BackupPreview.class, org.springframework.aot.hint.MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.class, MemberCategory.values());
         hints.reflection().registerType(es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.PromotionPreview.EntityDiff.class, MemberCategory.values());

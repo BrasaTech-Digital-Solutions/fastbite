@@ -344,7 +344,7 @@ window.addEventListener('hashchange',openSection);openSection();
   event.preventDefault();trigger=button;
   const url=new URL(button.dataset.url,window.location.origin);
   if(url.origin!==window.location.origin)return;
-  document.getElementById('guest-preview-open').href=url.pathname;
+  document.getElementById('guest-preview-open').href=button.dataset.url;
   url.searchParams.set('preview','guest');frame.src=url.pathname+url.search;
   dialog.showModal();
  });

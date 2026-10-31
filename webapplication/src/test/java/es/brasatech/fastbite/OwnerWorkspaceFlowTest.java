@@ -82,6 +82,8 @@ class OwnerWorkspaceFlowTest {
         assertTrue(jdbc.queryForObject("SELECT service_reviewed FROM public.owner_onboarding WHERE tenant_id='workspacecafe'",Boolean.class));
         assertEquals(false,jdbc.queryForObject("SELECT takeaway FROM tenant_workspacecafe.restaurant_settings",Boolean.class));
         post(owner,"/owner/add-location","tenantId=workspacesecond&_csrf="+token);
+        var emptyOverview = get(owner, "/owner/console?location=workspacesecond");
+        assertTrue(emptyOverview.body().contains("name=\"template\" value=\"empty\""));
         String global = get(owner,"/owner/console").body();
         assertTrue(global.contains("id=\"add-location\""), "two locations show the global list");
         assertFalse(global.contains("class=\"workspace-location-card\""));

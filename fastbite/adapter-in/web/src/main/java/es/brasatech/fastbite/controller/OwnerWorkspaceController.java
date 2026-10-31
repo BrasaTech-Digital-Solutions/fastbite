@@ -165,28 +165,44 @@ public class OwnerWorkspaceController {
     public String setup(@PathVariable String tenant,@RequestParam String action,
             @RequestParam(required=false) String template,
             @RequestParam(required=false) String theme,
-            Principal owner, RedirectAttributes flash) {
+            Principal owner, RedirectAttributes flash, Locale locale) {
         checkOpen(owner,tenant);
         if("adopt".equals(action) && template != null && !template.isBlank()) {
             if(link.linkedProduction()) {
                 // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
-                flash.addFlashAttribute("error", "Concepts are loaded in the sandbox. Open it with Practise in the sandbox.");
+                flash.addFlashAttribute("error", messages.getMessage("workspace.adopt.concepts.sandbox", null, "Concepts are loaded in the sandbox. Open it with Practise in the sandbox.", locale));
+                return "redirect:/owner/console?location=" + tenant;
+            }
+            if ("empty".equalsIgnoreCase(template.strip())) {
+                workspace.action(owner.getName(), tenant, "start");
+                workspace.ensureSampleTable(owner.getName(), tenant);
+                flash.addFlashAttribute("notice", messages.getMessage("workspace.adopt.empty.ready", null, "Your workspace is ready with an empty menu. Add your first dishes to get started.", locale));
                 return "redirect:/owner/console?location=" + tenant;
             }
             try {
-                backups.importDemoTemplate(tenant, template);
-                if(theme != null && !theme.isBlank()) {
-                    appearance.saveLocationTheme(tenant, theme);
+                backups.importDemoTemplate(tenant, template.strip());
+                String appliedTheme = theme;
+                if (appliedTheme == null || appliedTheme.isBlank()) {
+                    appliedTheme = switch (template.toLowerCase().strip()) {
+                        case "kebab" -> "fastfood";
+                        case "cafe" -> "cafe";
+                        case "michelin" -> "modern";
+                        default -> "fastfood";
+                    };
+                }
+                if(appliedTheme != null && !appliedTheme.isBlank()) {
+                    appearance.saveLocationTheme(tenant, appliedTheme);
                 }
                 workspace.action(owner.getName(), tenant, "start");
-                flash.addFlashAttribute("notice", "Your restaurant menu and visual style are ready! Explore your kitchen, counter and tables below.");
+                flash.addFlashAttribute("notice", messages.getMessage("workspace.adopt.concept.ready", null, "Your restaurant menu and visual style are ready! Explore your kitchen, counter and tables below.", locale));
             } catch(Exception e) {
-                flash.addFlashAttribute("error", "Could not load selected concept: " + e.getMessage());
+                log.error("Could not load concept {} for tenant {}", template, tenant, e);
+                flash.addFlashAttribute("error", messages.getMessage("workspace.adopt.concept.failed", null, "Could not load that sample menu. Try again or start with an empty menu.", locale));
             }
             return "redirect:/owner/console?location=" + tenant;
         }
         workspace.action(owner.getName(),tenant,action);
-        return action.equals("start")?"redirect:/"+tenant+"/backoffice":"redirect:/owner/console?location="+tenant;
+        return "redirect:/owner/console?location="+tenant;
     }
     @PostMapping("/owner/workspace/{tenant}/cash-float")
     public String cashFloat(@PathVariable String tenant,@RequestParam(defaultValue="") String cashFloat,Principal owner,RedirectAttributes flash) {

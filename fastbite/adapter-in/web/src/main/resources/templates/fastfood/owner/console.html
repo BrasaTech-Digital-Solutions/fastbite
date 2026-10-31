@@ -13,103 +13,193 @@
 <div th:if="${freePlanPaymentsMissing}" class="alert error" role="status">New orders are paused on the Free Plan until diner payments (Stripe) are connected and able to charge. <a th:href="@{/owner/console(view='location-settings',section='payments',location=${selected.tenantId})}">Connect diner payments →</a></div>
 <p id="workspace-feedback" class="alert" role="status" hidden></p>
 <section th:if="${view=='overview' && workspaceArea!='menu' && selected!=null && (locationClosed==null || !locationClosed)}">
-<div class="page-heading"><div><p class="eyebrow">A LITTLE MORE FLOW, EVERY DAY</p><h1 th:text="${setup.ready()?'Welcome back.':'Let’s get '+selected.tenantId+' ready.'}">Let’s get your restaurant ready.</h1><p th:text="${setup.ready()?'Your daily tools, together in one place.':'A few simple steps, at your pace. We’ll save your progress as you go.'}"></p></div><a class="status-pill" th:unless="${linkedSandbox}" th:href="@{/owner/billing/{tenant}(tenant=${selected.tenantId})}" th:text="${billing.displayStatus()+' · Billing →'}"></a><a class="status-pill" th:if="${linkedSandbox}" th:href="${platform.productionUrl()+'/owner/billing/'+selected.tenantId}" target="_blank" rel="noopener">Billing in FastBite ↗</a></div>
-<section class="welcome-panel" th:if="${linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
+<div class="page-heading"><div><p class="eyebrow" th:text="#{workspace.heading.eyebrow}">A LITTLE MORE FLOW, EVERY DAY</p><h1 th:text="${setup.ready() ? #messages.msg('workspace.heading.ready.title') : #messages.msg('workspace.heading.setup.title', selected.tenantId)}">Let’s get your restaurant ready.</h1><p th:text="${setup.ready() ? #messages.msg('workspace.heading.ready.subtitle') : #messages.msg('workspace.heading.setup.subtitle')}">A few simple steps, at your pace. We’ll save your progress as you go.</p></div><a class="status-pill" th:unless="${linkedSandbox}" th:href="@{/owner/billing/{tenant}(tenant=${selected.tenantId})}" th:text="${#messages.msg('workspace.heading.billing.status', billing.displayStatus())}"></a><a class="status-pill" th:if="${linkedSandbox}" th:href="${platform.productionUrl()+'/owner/billing/'+selected.tenantId}" target="_blank" rel="noopener" th:text="#{workspace.heading.billing.sandbox}">Billing in FastBite ↗</a></div>
+<section class="production-sandbox-card" th:if="${linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
 <div>
-<p class="eyebrow">START IN THE SANDBOX</p>
-<h2 th:text="${'Set up '+selected.tenantId+' in the sandbox'}">Set up your restaurant in the sandbox</h2>
-<p>Choose your concept, build your menu, tables and team, and practise a service there. Nothing in the sandbox is real: no payments, invoices or orders count.</p>
-<p>When you are ready to open, export your production bundle in the sandbox and restore it here. Your orders, staff accounts and payment settings stay behind.</p>
+<p class="eyebrow" th:text="#{workspace.prod.sandbox.eyebrow}">START IN THE SANDBOX</p>
+<h2 th:text="${#messages.msg('workspace.prod.sandbox.title', selected.tenantId)}">Set up your restaurant in the sandbox</h2>
+<p th:text="#{workspace.prod.sandbox.desc}">We set up a practice space where nothing counts: no orders, no payments, no tickets. In ten minutes you can try the guest menu, kitchen and counter.</p>
 </div>
-<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 18px;">
-<a class="button" th:href="@{/owner/sandbox(location=${selected.tenantId})}" target="_blank" rel="noopener">Open the sandbox ↗</a>
-<a class="button secondary" th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}">Restore my production bundle</a>
+<div class="production-sandbox-actions">
+<a class="button" th:href="@{/owner/sandbox(location=${selected.tenantId})}" target="_blank" rel="noopener" th:text="#{workspace.prod.sandbox.open}">Open the sandbox ↗</a>
+<form th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
+<input type="hidden" name="action" value="start">
+<button type="submit" class="quiet-button" th:text="#{workspace.prod.sandbox.direct}">I prefer to set up the location directly here</button>
+</form>
+<a class="button secondary" th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}" th:text="#{workspace.prod.sandbox.restore}">Restore my production bundle</a>
 </div>
 </section>
-<section class="welcome-panel" th:if="${!linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
-<div>
-<p class="eyebrow">TEST YOUR SERVICE TURNAROUND IN SANDBOX</p>
-<h2>What kind of restaurant are you running?</h2>
-<p>Choose your concept to preload realistic dishes, photos, and visual theme. See how zero-delay table ordering eliminates kitchen runner trips.</p>
+
+<section class="concept-picker-section" th:if="${!linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
+<div class="concept-picker-header">
+<span class="concept-picker-step" th:text="#{onboarding.concept.step}">Step 1 of 2</span>
+<h2 class="concept-picker-title" th:text="#{onboarding.concept.title}">What kind of restaurant are you running?</h2>
+<p class="concept-picker-lead" th:text="#{onboarding.concept.lead}">We set up your practice space with a sample menu close to yours. You can change everything later.</p>
 </div>
 
-<form id="onboarding-adopt-form" th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
+<form id="onboarding-adopt-form" class="concept-picker-form" th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
 <input type="hidden" name="action" value="adopt">
-<input type="hidden" id="selected-template-input" name="template" value="kebab">
-<input type="hidden" id="selected-theme-input" name="theme" value="fastfood">
 
-<div class="archetype-picker">
-<div class="archetype-card selected" data-archetype="kebab" data-theme="fastfood" data-dish="Double Truffle Smashburger + Fries">
-<div class="icon">🍔</div>
-<h4>Casual / Fast Food</h4>
-<p>Smashburgers, loaded fries, sodas and fast casual dining.</p>
-<div><span class="archetype-tag">Fast Casual Theme</span></div>
+<div class="concept-cards-grid">
+<label class="concept-card">
+<input type="radio" name="template" value="kebab" checked>
+<div class="concept-card-body">
+<strong class="concept-card-title" th:text="#{onboarding.concept.kebab.title}">Kebab &amp; Fast Food</strong>
+<span class="concept-card-desc" th:text="#{onboarding.concept.kebab.desc}">Döner, dürüm, falafel and combo meals with drinks.</span>
 </div>
+</label>
 
-<div class="archetype-card" data-archetype="cafe" data-theme="cafe" data-dish="Oat Flat White + Cardamom Bun">
-<div class="icon">☕</div>
-<h4>Specialty Café &amp; Bakery</h4>
-<p>Flat whites, sourdough brunch, bakery treats, warm cafe vibes.</p>
-<div><span class="archetype-tag">Warm Bakery Theme</span></div>
+<label class="concept-card">
+<input type="radio" name="template" value="cafe">
+<div class="concept-card-body">
+<strong class="concept-card-title" th:text="#{onboarding.concept.cafe.title}">Specialty Café &amp; Bakery</strong>
+<span class="concept-card-desc" th:text="#{onboarding.concept.cafe.desc}">Specialty coffee, pastries, toast and brunch.</span>
 </div>
+</label>
 
-<div class="archetype-card" data-archetype="michelin" data-theme="modern" data-dish="A5 Wagyu Carpaccio + Blue Lobster">
-<div class="icon">🍽️</div>
-<h4>Fine Dining &amp; Bistro</h4>
-<p>Tasting menus, wine pairings, premium courses and elegant style.</p>
-<div><span class="archetype-tag">Minimal Luxury Theme</span></div>
+<label class="concept-card">
+<input type="radio" name="template" value="michelin">
+<div class="concept-card-body">
+<strong class="concept-card-title" th:text="#{onboarding.concept.michelin.title}">Fine Dining &amp; Bistro</strong>
+<span class="concept-card-desc" th:text="#{onboarding.concept.michelin.desc}">Tasting menus, signature dishes and wine pairings.</span>
 </div>
-</div>
+</label>
 
-<div class="onboarding-motion-box">
-<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-<strong style="font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;">⏱️ See the turnaround difference in your dining room</strong>
-<span style="font-size: 11px; color: #a4b7ab;">Live motion comparison</span>
+<label class="concept-card">
+<input type="radio" name="template" value="empty">
+<div class="concept-card-body">
+<strong class="concept-card-title" th:text="#{onboarding.concept.empty.title}">Start with an empty menu</strong>
+<span class="concept-card-desc" th:text="#{onboarding.concept.empty.desc}">No sample items. You can load a template or build your own later.</span>
 </div>
-
-<div class="motion-track-grid">
-<div class="motion-track">
-<div style="display: flex; justify-content: space-between; align-items: center;">
-<span class="motion-badge traditional">⏳ Traditional Waiter Running</span>
-<span style="font-size: 11px; color: #f58d8d;">14m 30s wait</span>
-</div>
-<div class="motion-step"><span class="icon">📝</span><div><strong>Table 4 orders</strong><em>Waiter writes on paper pad</em></div></div>
-<div class="motion-step"><span class="icon">🚶‍♂️</span><div><strong style="color: #f58d8d;">Walking to other tables &amp; kitchen...</strong><em>+8 to 12 minutes delayed ticket transmission</em></div></div>
-<div class="motion-step"><span class="icon">🔥</span><div><strong>Chef finally starts cooking</strong><em>Customer waits hungrily, food delays</em></div></div>
+</label>
 </div>
 
-<div class="motion-track fastbite">
-<div style="display: flex; justify-content: space-between; align-items: center;">
-<span class="motion-badge fastbite">⚡ With FastBite</span>
-<span style="font-size: 11px; color: #7ee09e;">0.3s ticket sent</span>
-</div>
-<div class="motion-step"><span class="icon">📱</span><div><strong>Table 4 orders via QR or Tablet</strong><em id="motion-current-dish">Double Truffle Smashburger + Fries</em></div></div>
-<div class="motion-step"><span class="icon">🔔</span><div><strong style="color: #7ee09e;">Instant Kitchen Screen Alert (KDS)</strong><em>Chef cooks immediately while waiter serves guests</em></div></div>
-<div class="motion-step"><span class="icon">🍽️</span><div><strong>Order Ready Notification</strong><em>Waiter walks straight to Table 4 with hot food</em></div></div>
-</div>
-</div>
-
-<div class="motion-bar-track"><div class="motion-bar-fill"></div></div>
-</div>
-
-<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 22px; flex-wrap: wrap; gap: 12px;">
-<span class="fine">Choose a concept above to automatically seed sample items &amp; style into this location.</span>
-<div style="display: flex; gap: 12px; align-items: center;">
-<a class="button secondary" th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}">Bring my backup ZIP</a>
-<button type="submit" class="button">Apply concept →</button>
-</div>
-</div>
+<button type="submit" class="concept-submit-button" th:text="#{onboarding.concept.submit}">Prepare my practice space</button>
+<p class="concept-picker-note" th:text="#{onboarding.concept.sandbox.note}">Nothing in the sandbox counts: no orders, no payments, no tickets.</p>
 </form>
 </section>
-<section class="panel promote-panel" th:if="${linkedSandbox && !setup.needsStart()}">
-<p class="eyebrow">READY TO OPEN?</p>
-<h2>Take your setup to production</h2>
-<ol>
-<li>Here, export your production bundle: <a th:href="@{/owner/console(view='location-settings',section='backup',location=${selected.tenantId})}">Location settings → Backup &amp; restore</a>. It carries your menu, settings, look and business details; never practice orders, staff accounts or payment settings.</li>
-<li>In FastBite, restore it into <strong th:text="${selected.tenantId}"></strong>: <a th:href="@{${platform.productionUrl()+'/owner/console'}(view='location-settings',section='backup',location=${selected.tenantId})}" target="_blank" rel="noopener">Backup &amp; restore in FastBite ↗</a></li>
+
+<div class="practice-tour-container" th:if="${linkedSandbox && !setup.needsStart()}">
+<section class="practice-tour-main">
+<p class="practice-tour-eyebrow" th:text="#{workspace.tour.eyebrow}">YOUR PRACTICE SPACE IS READY</p>
+<h2 class="practice-tour-title" th:text="#{workspace.tour.title}">Practise a service with the sample menu</h2>
+<p class="practice-tour-lead" th:text="#{workspace.tour.lead}">We loaded a sample menu with photos. Follow the steps in order: in ten minutes you’ll see an order from start to finish.</p>
+
+<div class="practice-progress-row">
+<progress class="practice-progress-bar" max="6" th:value="${setup.progress.practiceCompletedCount()}" aria-label="Practice tour progress"></progress>
+<span class="practice-progress-count" th:text="${#messages.msg('workspace.tour.progress', setup.progress.practiceCompletedCount())}">2 of 6</span>
+</div>
+
+<div class="practice-allready-banner" th:if="${setup.progress.practiceReady()}">
+<span th:text="#{workspace.tour.allready.banner}">Your menu and flow are tested. Bring your menu to production.</span>
+<a th:href="${platform.productionUrl() + '/owner/console?view=location-settings&amp;section=backup&amp;location=' + selected.tenantId}" target="_blank" rel="noopener" th:text="#{workspace.tour.allready.link}">Take to production ↗</a>
+</div>
+
+<ol class="practice-steps">
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceGuestViewed()} ? 'done' : 'todo'" th:text="${setup.progress.practiceGuestViewed()} ? '✓' : '1'" th:attr="aria-label=${setup.progress.practiceGuestViewed()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step1.title}">See your menu as a guest sees it</h3>
+<p th:if="${setup.firstTable != null}" th:text="${#messages.msg('workspace.tour.step1.desc', setup.firstTable.name)}">Open table 4’s menu on your phone or on this screen. Orders placed here are practice orders.</p>
+<p th:unless="${setup.firstTable != null}" th:text="#{workspace.tour.step1.desc.notable}">Open your menu on your phone or on this screen. Orders placed here are practice orders.</p>
+</div>
+<div class="practice-step-actions">
+<button type="button" class="practice-step-btn" data-guest-preview th:data-url="${setup.firstTable != null ? setup.firstTable.url : ('/' + selected.tenantId + '/menu')}" th:text="#{workspace.tour.step1.preview}">Preview guest menu →</button>
+<form th:unless="${setup.progress.practiceGuestViewed()}" th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
+<input type="hidden" name="action" value="practice_guest">
+<button type="submit" class="practice-step-btn" th:text="#{workspace.tour.step1.action}">Mark as viewed</button>
+</form>
+</div>
+</li>
+
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceTableOrdered()} ? 'done' : 'todo'" th:text="${setup.progress.practiceTableOrdered()} ? '✓' : '2'" th:attr="aria-label=${setup.progress.practiceTableOrdered()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step2.title}">Place a practice order from the table</h3>
+<p th:if="${setup.firstTable != null}" th:text="#{workspace.tour.step2.desc}">Choose a dish and a drink. It reaches the kitchen instantly.</p>
+<p th:unless="${setup.firstTable != null}" th:text="#{workspace.tour.step2.notable}">Add a table first to practise ordering from one.</p>
+</div>
+<div class="practice-step-actions" th:unless="${setup.progress.practiceTableOrdered()}">
+<a th:if="${setup.firstTable != null}" class="practice-step-link" th:href="${setup.firstTable.url}" target="_blank" rel="noopener" th:text="#{workspace.tour.step2.action}">Open guest menu ↗</a>
+<a th:unless="${setup.firstTable != null}" class="practice-step-link" th:href="@{/owner/console(view='menu',location=${selected.tenantId})}" th:text="#{workspace.tour.step2.addtable}">Add a table →</a>
+</div>
+</li>
+
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceKitchenPrepared()} ? 'done' : 'todo'" th:text="${setup.progress.practiceKitchenPrepared()} ? '✓' : '3'" th:attr="aria-label=${setup.progress.practiceKitchenPrepared()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step3.title}">Prepare it on the kitchen screen</h3>
+<p th:text="#{workspace.tour.step3.desc}">Mark it in preparation, then mark it ready.</p>
+</div>
+<div class="practice-step-actions" th:unless="${setup.progress.practiceKitchenPrepared()}">
+<a class="practice-step-link" th:href="@{/{tenant}/dashboard(tenant=${selected.tenantId})}" target="_blank" rel="noopener" th:text="#{workspace.tour.step3.action}">Open kitchen ↗</a>
+</div>
+</li>
+
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceCounterCharged()} ? 'done' : 'todo'" th:text="${setup.progress.practiceCounterCharged()} ? '✓' : '4'" th:attr="aria-label=${setup.progress.practiceCounterCharged()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step4.title}">Charge it at the counter</h3>
+<p th:text="#{workspace.tour.step4.desc}">Pay with cash or card and see the practice receipt.</p>
+</div>
+<div class="practice-step-actions" th:unless="${setup.progress.practiceCounterCharged()}">
+<a class="practice-step-link" th:href="@{/{tenant}/counter(tenant=${selected.tenantId})}" target="_blank" rel="noopener" th:text="#{workspace.tour.step4.action}">Open counter ↗</a>
+</div>
+</li>
+
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceMenuPersonalized()} ? 'done' : 'todo'" th:text="${setup.progress.practiceMenuPersonalized()} ? '✓' : '5'" th:attr="aria-label=${setup.progress.practiceMenuPersonalized()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step5.title}">Make the menu yours</h3>
+<p th:text="#{workspace.tour.step5.desc}">Change names, prices and photos, and delete items you don’t sell. This is what will go to production.</p>
+</div>
+<div class="practice-step-actions">
+<a class="practice-step-link" th:href="@{/{tenant}/backoffice(tenant=${selected.tenantId})}" th:text="#{workspace.tour.step5.action}">Edit menu →</a>
+<form th:unless="${setup.progress.practiceMenuPersonalized()}" th:action="@{/owner/workspace/{tenant}/setup(tenant=${selected.tenantId})}" method="post">
+<input type="hidden" name="action" value="practice_menu">
+<button type="submit" class="practice-step-btn" th:text="#{workspace.tour.step5.done}">Mark as personalized</button>
+</form>
+</div>
+</li>
+
+<li class="practice-step">
+<span class="practice-step-dot" th:classappend="${setup.progress.practiceTeamTested()} ? 'done' : 'todo'" th:text="${setup.progress.practiceTeamTested()} ? '✓' : '6'" th:attr="aria-label=${setup.progress.practiceTeamTested()} ? #{workspace.tour.done} : null"></span>
+<div class="practice-step-body">
+<h3 th:text="#{workspace.tour.step6.title}">Practise with your team</h3>
+<p th:text="#{workspace.tour.step6.desc}">Create practice accounts for your team to rehearse. They do not pass to production.</p>
+</div>
+<div class="practice-step-actions" th:unless="${setup.progress.practiceTeamTested()}">
+<a class="practice-step-link" th:href="@{/owner/console(view='team',location=${selected.tenantId})}" th:text="#{workspace.tour.step6.action}">Manage team →</a>
+</div>
+</li>
 </ol>
 </section>
-<div class="overview-grid">
+
+<aside class="practice-tour-aside">
+<h2 class="practice-aside-heading" th:text="#{workspace.tour.tools.title}">Your tools</h2>
+<a class="practice-tool-card" th:href="@{/{tenant}/counter(tenant=${selected.tenantId})}" target="_blank" rel="noopener">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path></svg>
+<div><strong th:text="#{workspace.tour.tools.counter}">Counter</strong><span th:text="#{workspace.tour.tools.counter.desc}">Take orders and manage collection</span></div>
+</a>
+
+<a class="practice-tool-card" th:href="@{/{tenant}/dashboard(tenant=${selected.tenantId})}" target="_blank" rel="noopener">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 13h12l-1 8H7z"></path><path d="M8 13a4 4 0 1 1 8 0"></path><path d="M12 3v2"></path></svg>
+<div><strong th:text="#{workspace.tour.tools.kitchen}">Kitchen</strong><span th:text="#{workspace.tour.tools.kitchen.desc}">Follow orders through preparation</span></div>
+</a>
+
+<a class="practice-tool-card" data-guest-preview th:data-url="${setup.firstTable != null ? setup.firstTable.url : ('/' + selected.tenantId + '/menu')}" th:href="${setup.firstTable != null ? setup.firstTable.url : ('/' + selected.tenantId + '/menu')}">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"></rect><path d="M10 18h4"></path></svg>
+<div><strong th:text="#{workspace.tour.tools.guest}">Guest menu</strong><span th:text="#{workspace.tour.tools.guest.desc}">Your restaurant, from the guest’s side</span></div>
+</a>
+
+<div class="practice-ready-panel">
+<h2 th:text="#{workspace.tour.ready.title}">Take your setup to production</h2>
+<p th:text="#{workspace.tour.ready.desc}">When the menu is yours, return to FastBite. Bring this setup in with one click and finish the required steps.</p>
+<a class="practice-ready-link" th:href="${platform.productionUrl() + '/owner/console?view=location-settings&amp;section=backup&amp;location=' + selected.tenantId}" target="_blank" rel="noopener" th:text="#{workspace.tour.ready.action}">Open in FastBite ↗</a>
+</div>
+</aside>
+</div>
+<div class="overview-grid" th:unless="${linkedSandbox}">
 <section class="panel setup-panel" th:unless="${setup.progress.dismissed}">
 <div class="panel-heading"><h2>Your opening checklist</h2><span class="status-pill" th:text="${setup.completed()+' of '+setup.steps()+' ready'}"></span></div><progress th:max="${setup.steps()}" th:value="${setup.completed()}" aria-label="Setup progress"></progress>
 <ol class="setup-list">
@@ -188,7 +278,7 @@
 <div th:replace="~{fastfood/owner/legal :: legal}"></div><div th:replace="~{fastfood/owner/appearance :: location}"></div><div th:replace="~{fastfood/owner/location-settings :: settings}"></div></section>
 <section th:if="${view=='settings'}"><div class="page-heading"><div><p class="eyebrow">YOUR FASTBITE ACCOUNT</p><h1>Your account, your way.</h1><p>Choose your default appearance and manage subscriptions. Diner payments live in location settings.</p></div></div><th:block th:if="${workspaceArea=='account' && !linkedSandbox}"><div th:replace="~{fastfood/owner/appearance :: owner}"></div></th:block><div class="panel" th:if="${linkedSandbox}"><h2>Restaurant subscriptions</h2><p>Your locations, subscriptions and billing are managed in FastBite. The sandbox has no billing of its own.</p><a class="button secondary" th:href="${platform.productionUrl()+'/owner/console?view=settings'}" target="_blank" rel="noopener">Account &amp; billing in FastBite ↗</a></div><th:block th:unless="${linkedSandbox}"><div th:if="${workspaceArea=='account'}"><a class="button secondary" href="/owner/console?view=billing" th:text="#{workspace.nav.billing}">Billing</a></div><div class="panel" th:if="${workspaceArea=='account'}"><h2 th:text="#{account.email.title}">Verify email</h2><a class="button secondary" href="/owner/account/verify" th:text="#{account.email.send}">Manage email</a></div><div class="panel" th:if="${workspaceArea=='account'}"><h2 th:text="#{account.password.title}">Change password</h2><p th:if="${param.passwordChanged}" th:text="#{account.password.changed}"></p><p th:if="${param.passwordError}" role="alert" th:text="#{account.password.error}"></p><form class="compact-form" th:action="@{/owner/account/password}" method="post"><label for="current-password" th:text="#{account.password.current}">Current password</label><input id="current-password" name="currentPassword" type="password" required autocomplete="current-password"><label for="new-password" th:text="#{account.password.new}">New password</label><input id="new-password" name="password" type="password" required autocomplete="new-password"><label for="confirm-password" th:text="#{account.password.confirm}">Confirm password</label><input id="confirm-password" name="confirmation" type="password" required autocomplete="new-password"><p th:text="#{password.policy}"></p><button class="button" th:text="#{account.password.save}">Change password</button></form></div><div class="panel" th:if="${workspaceArea=='billing'}"><h2>Restaurant subscriptions</h2><p>€<span th:text="${monthlyPrice}">49</span>/month per location, excluding VAT. Each location has its own subscription.</p><div class="billing-row" th:each="loc:${locations}"><strong th:text="${loc.tenantId}"></strong><span class="fine" th:text="${loc.closed ? loc.closedLabel() : 'Plan: ' + (loc.plan != null ? loc.plan : 'RESTAURANT')}"></span><a class="button secondary" th:href="@{/owner/billing/{tenant}(tenant=${loc.tenantId})}">Trial &amp; billing →</a></div></div><details class="panel disclosure" th:if="${workspaceArea=='billing'}"><summary>Planning three or more locations?</summary><p>Request volume pricing before subscribing. We’ll use your email to follow up. Billing remains separate per location.</p><form class="compact-form" th:action="@{/owner/group-quote}" method="post"><label for="quote-email">Contact email</label><input id="quote-email" name="email" type="email" maxlength="254" required autocomplete="email"><label for="quote-locations">Number of locations</label><input id="quote-locations" name="locations" type="number" min="3" max="1000" value="3" required><button class="button">Request volume pricing</button></form></details><div class="panel" th:if="${workspaceArea=='account'}"><h2>Commercial communications</h2><p>Optional offers and product news from Brasatech by email (privacy policy §5). You can withdraw your consent at any time without affecting your service.</p><form class="compact-form" th:action="@{/owner/marketing-consent}" method="post"><label class="check-row" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;"><input type="checkbox" name="marketing" value="true" th:checked="${marketingConsent}"><span>Receive offers from Brasatech by email</span></label><button class="button secondary" type="submit" style="margin-top:0.5rem;">Save preference</button></form></div><div class="panel" th:if="${platformAdmin && workspaceArea=='account'}"><h2>Platform administration</h2><p>Extend restaurant trial periods for pilots or commercial agreements.</p><a class="button secondary" href="/owner/platform/trials">Manage restaurant trials →</a></div></th:block></section>
 <section class="panel empty-state" th:if="${selected==null && view!='locations' && view!='settings'}"><h1>Your first location starts here.</h1><p>Create your restaurant, then choose a demo, restore a backup or build your menu.</p><a th:unless="${linkedSandbox}" class="button" href="/owner/console?view=locations#add-location">Add your first location</a><a th:if="${linkedSandbox}" class="button" th:href="${platform.productionUrl()+'/owner/console?view=locations'}" target="_blank" rel="noopener">Add your first location in FastBite ↗</a></section>
-</main><nav th:replace="~{fastfood/owner/workspace-shell :: mobile-tabs}"></nav><footer class="workspace-footer">Made for independent hospitality. <a href="/owner/console?view=settings">Account &amp; billing</a> · <a href="/legal/terms">Terms</a> · <a href="/legal/data-processing">Data processing</a> · <a href="/legal/privacy">Privacy</a> · <a href="/verifactu/declaracion-responsable">VERI*FACTU declaration</a></footer></div>
+</main><nav th:replace="~{fastfood/owner/workspace-shell :: mobile-tabs}"></nav><footer class="workspace-footer"><span th:text="#{home.footer.tagline}">Made for independent hospitality.</span> <span><a href="/owner/console?view=settings" th:text="#{workspace.footer.account_billing}">Account &amp; billing</a> · <a href="/legal/terms" th:text="#{home.footer.legal.terms}">Terms</a> · <a href="/legal/data-processing" th:text="#{workspace.footer.data_processing}">Data processing</a> · <a href="/legal/privacy" th:text="#{home.footer.legal.privacy}">Privacy</a> · <a href="/verifactu/declaracion-responsable" th:text="#{home.footer.legal.declaration}">VERI*FACTU declaration</a></span></footer></div>
 <dialog id="maintenance-dialog" aria-labelledby="maintenance-title"><form id="maintenance-confirm"><p class="eyebrow">REVIEW BEFORE CONTINUING</p><h2 id="maintenance-title">Replace restaurant data?</h2><p id="maintenance-description"></p><div id="maintenance-template-group" hidden style="margin-bottom: 1rem;"><label for="maintenance-template-select">Demo template</label><select id="maintenance-template-select" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;"><option th:each="tpl : ${demoTemplates}" th:value="${tpl.id}" th:data-desc="${tpl.description}" th:text="${tpl.icon + ' ' + tpl.name + ' (' + tpl.productsCount + ' items)'}"></option></select><p id="maintenance-template-desc" class="fine" style="margin-top: 0.25rem;"></p></div><p><strong>This affects only <span id="maintenance-location"></span>.</strong> Download a backup first. Your owner account and subscription remain.</p><a id="maintenance-export" class="text-link">Download backup ZIP →</a><label for="confirmation-name">Type the location address to confirm</label><input id="confirmation-name" autocomplete="off" required><div class="dialog-actions"><button type="button" class="button secondary" id="maintenance-cancel">Keep my data</button><button class="danger-button" id="maintenance-apply">Confirm replacement</button></div><p id="maintenance-error" role="alert"></p></form></dialog>
 <dialog id="guest-preview-dialog" aria-labelledby="guest-preview-title">
 <div class="preview-toolbar"><div><h2 id="guest-preview-title">Your guest menu</h2><p class="fine" th:text="${platform != null && platform.sandbox()}?'Live menu · Orders placed here are practice orders.':'Live menu · Orders placed here are real.'">Live menu · Orders placed here are real.</p></div><div class="preview-controls"><button type="button" class="button secondary" data-preview-width="mobile" aria-pressed="false">Mobile</button><button type="button" class="button secondary" data-preview-width="desktop" aria-pressed="true">Desktop</button><a id="guest-preview-open" class="text-link" target="_blank" rel="noopener">Open in new tab ↗</a><button type="button" class="button secondary" id="guest-preview-close">Close preview</button></div></div>

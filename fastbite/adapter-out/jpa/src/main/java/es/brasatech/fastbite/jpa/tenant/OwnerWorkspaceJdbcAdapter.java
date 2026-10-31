@@ -12,7 +12,7 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
     public SetupProgress read(String tenant) { return transaction(source,c->read(c,tenant)); }
     private SetupProgress read(Connection c,String tenant)throws SQLException {
         try(var q=statement(c,"SELECT * FROM public.owner_onboarding WHERE tenant_id=?",tenant); var r=q.executeQuery()) {
-            return r.next()?new SetupProgress(r.getBoolean("started"),r.getBoolean("service_reviewed"),r.getBoolean("preview_reviewed"),r.getBoolean("dismissed")):SetupProgress.EMPTY;
+            return r.next()?new SetupProgress(r.getBoolean("started"),r.getBoolean("service_reviewed"),r.getBoolean("preview_reviewed"),r.getBoolean("dismissed"),r.getBoolean("practice_guest_viewed"),r.getBoolean("practice_table_ordered"),r.getBoolean("practice_kitchen_prepared"),r.getBoolean("practice_counter_charged"),r.getBoolean("practice_menu_personalized"),r.getBoolean("practice_team_tested")):SetupProgress.EMPTY;
         }
     }
     public void update(String tenant,UnaryOperator<SetupProgress> change) {
@@ -22,7 +22,7 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
             }
             var next=change.apply(read(c,tenant));
             RegistrationJdbc.update(c,"INSERT INTO public.owner_onboarding (tenant_id) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM public.owner_onboarding WHERE tenant_id=?)",tenant,tenant);
-            RegistrationJdbc.update(c,"UPDATE public.owner_onboarding SET started=?,service_reviewed=?,preview_reviewed=?,dismissed=? WHERE tenant_id=?",next.started(),next.serviceReviewed(),next.previewReviewed(),next.dismissed(),tenant);
+            RegistrationJdbc.update(c,"UPDATE public.owner_onboarding SET started=?,service_reviewed=?,preview_reviewed=?,dismissed=?,practice_guest_viewed=?,practice_table_ordered=?,practice_kitchen_prepared=?,practice_counter_charged=?,practice_menu_personalized=?,practice_team_tested=? WHERE tenant_id=?",next.started(),next.serviceReviewed(),next.previewReviewed(),next.dismissed(),next.practiceGuestViewed(),next.practiceTableOrdered(),next.practiceKitchenPrepared(),next.practiceCounterCharged(),next.practiceMenuPersonalized(),next.practiceTeamTested(),tenant);
             return null;
         });
     }

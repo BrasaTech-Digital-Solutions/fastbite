@@ -17,9 +17,18 @@ class OwnerWorkspaceServiceTest {
     FiscalProfileService fiscal=mock(FiscalProfileService.class);
     es.brasatech.fastbite.application.fiscal.FiscalTicketRepository tickets=mock(es.brasatech.fastbite.application.fiscal.FiscalTicketRepository.class);
     es.brasatech.fastbite.application.fiscal.FiscalIssuerPort issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
-    OwnerWorkspaceService service=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
-            mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
-            issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), java.time.Clock.systemUTC());
+    es.brasatech.fastbite.application.order.OrderService orders=mock(es.brasatech.fastbite.application.order.OrderService.class);
+    es.brasatech.fastbite.application.office.UserService users=mock(es.brasatech.fastbite.application.office.UserService.class);
+    es.brasatech.fastbite.application.table.TableService tables=mock(es.brasatech.fastbite.application.table.TableService.class);
+    es.brasatech.fastbite.application.table.TableSignatureUtil tableSignatures=new es.brasatech.fastbite.application.table.TableSignatureUtil("test-table-secret");
+
+    OwnerWorkspaceService createService(es.brasatech.fastbite.application.platform.PlatformEnvironment env, es.brasatech.fastbite.application.fiscal.FiscalIssuerPort issuerPort) {
+        return new OwnerWorkspaceService(locations, port, products, settings, fiscal, tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuerPort, env, java.time.Clock.systemUTC(), orders, users, tables, tableSignatures);
+    }
+
+    OwnerWorkspaceService service = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), issuers);
     static final FiscalProfile COMPLETE=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Mayor 1","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
     @AfterEach void clear(){TenantContext.clear();}
     @Test void deniesForeignLocationBeforeReadingOrWriting(){
@@ -80,9 +89,7 @@ class OwnerWorkspaceServiceTest {
     }
     @Test void recordsValidNifInProductionOnly(){
         var issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
-        var prodService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
-                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
-                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), java.time.Clock.systemUTC());
+        var prodService=createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
         when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
 
         assertTrue(prodService.saveFiscalProfile("owner","cafe",COMPLETE).isEmpty());
@@ -90,9 +97,7 @@ class OwnerWorkspaceServiceTest {
 
         // In sandbox:
         var sandboxIssuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
-        var sandboxService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
-                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
-                sandboxIssuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), java.time.Clock.systemUTC());
+        var sandboxService=createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), sandboxIssuers);
         assertTrue(sandboxService.saveFiscalProfile("owner","cafe",COMPLETE).isEmpty());
         verifyNoInteractions(sandboxIssuers);
     }
@@ -102,11 +107,122 @@ class OwnerWorkspaceServiceTest {
         when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
         when(issuers.findPriorUsageByOwner("owner","12345678Z","cafe")).thenReturn(java.util.Optional.of(instant));
 
-        var prodService=new OwnerWorkspaceService(locations,port,products,settings,fiscal,tickets,
-                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
-                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), java.time.Clock.systemUTC());
+        var prodService=createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
 
         assertEquals(java.util.Optional.of(instant), prodService.priorNifUsage("owner","12345678Z","cafe"));
         assertEquals(java.util.Optional.empty(), prodService.priorNifUsage("owner","invalid-nif","cafe"));
+    }
+    @Test void practiceTourMilestonesLatchMonotonicallyWhenFactTrueAndStayWhenFactGone() {
+        var ordersMock = mock(es.brasatech.fastbite.application.order.OrderService.class);
+        var usersMock = mock(es.brasatech.fastbite.application.office.UserService.class);
+        var latchService = new OwnerWorkspaceService(locations, port, products, settings, fiscal, tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"),
+                java.time.Clock.systemUTC(), ordersMock, usersMock, tables, tableSignatures);
+
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(fiscal.get()).thenReturn(FiscalProfile.EMPTY);
+        when(products.findAll()).thenReturn(java.util.List.of());
+
+        var progressHolder = new java.util.concurrent.atomic.AtomicReference<>(SetupProgress.EMPTY);
+        when(port.read("cafe")).thenAnswer(inv -> progressHolder.get());
+        doAnswer(inv -> {
+            java.util.function.UnaryOperator<SetupProgress> op = inv.getArgument(1);
+            progressHolder.set(op.apply(progressHolder.get()));
+            return null;
+        }).when(port).update(eq("cafe"), any());
+
+        // Fact 1: Table order is present
+        var tableOrder = mock(es.brasatech.fastbite.domain.order.Order.class);
+        when(tableOrder.orderChannel()).thenReturn(es.brasatech.fastbite.domain.order.OrderChannel.TABLE);
+        when(ordersMock.findAll()).thenReturn(java.util.List.of(tableOrder));
+
+        var summary1 = latchService.summary("owner", "cafe");
+        assertTrue(summary1.progress().practiceTableOrdered(), "table order latched when fact true");
+        assertFalse(summary1.progress().practiceKitchenPrepared());
+        assertFalse(summary1.progress().practiceCounterCharged());
+        assertFalse(summary1.progress().practiceTeamTested());
+
+        // Fact 1 gone: Order is cancelled/removed
+        when(ordersMock.findAll()).thenReturn(java.util.List.of());
+
+        var summary2 = latchService.summary("owner", "cafe");
+        assertTrue(summary2.progress().practiceTableOrdered(), "table order remains latched even after fact is gone");
+
+        // Fact 2: Kitchen prepared order exists
+        var kitchenOrder = mock(es.brasatech.fastbite.domain.order.Order.class);
+        when(kitchenOrder.status()).thenReturn(es.brasatech.fastbite.domain.order.OrderStatus.DONE);
+        when(ordersMock.findAll()).thenReturn(java.util.List.of(kitchenOrder));
+
+        var summary3 = latchService.summary("owner", "cafe");
+        assertTrue(summary3.progress().practiceKitchenPrepared(), "kitchen prepared latched when fact true");
+
+        // Fact 2 gone
+        when(ordersMock.findAll()).thenReturn(java.util.List.of());
+        var summary4 = latchService.summary("owner", "cafe");
+        assertTrue(summary4.progress().practiceKitchenPrepared(), "kitchen prepared remains latched when fact gone");
+
+        // Fact 3: Paid counter order exists
+        var paidOrder = mock(es.brasatech.fastbite.domain.order.Order.class);
+        when(paidOrder.paymentStatus()).thenReturn(es.brasatech.fastbite.domain.order.OrderPaymentStatus.PAID);
+        when(ordersMock.findAll()).thenReturn(java.util.List.of(paidOrder));
+
+        var summary5 = latchService.summary("owner", "cafe");
+        assertTrue(summary5.progress().practiceCounterCharged(), "counter charged latched when paid order exists");
+
+        // Fact 3 gone
+        when(ordersMock.findAll()).thenReturn(java.util.List.of());
+        var summary6 = latchService.summary("owner", "cafe");
+        assertTrue(summary6.progress().practiceCounterCharged(), "counter charged remains latched when order gone");
+
+        // Fact 4: Non-owner active staff member exists
+        var staffMember = mock(es.brasatech.fastbite.domain.user.UserDto.class);
+        when(staffMember.isOwner()).thenReturn(false);
+        when(staffMember.active()).thenReturn(true);
+        when(usersMock.findAll()).thenReturn(java.util.List.of(staffMember));
+
+        var summary7 = latchService.summary("owner", "cafe");
+        assertTrue(summary7.progress().practiceTeamTested(), "team tested latched when staff member exists");
+
+        // Fact 4 gone: Staff member removed
+        when(usersMock.findAll()).thenReturn(java.util.List.of());
+        var summary8 = latchService.summary("owner", "cafe");
+        assertTrue(summary8.progress().practiceTeamTested(), "team tested remains latched when staff removed");
+
+        // Manual actions: practice_guest and practice_menu
+        latchService.action("owner", "cafe", "practice_guest");
+        assertTrue(progressHolder.get().practiceGuestViewed(), "practice_guest action sets practiceGuestViewed");
+
+        latchService.action("owner", "cafe", "practice_menu");
+        assertTrue(progressHolder.get().practiceMenuPersonalized(), "practice_menu action sets practiceMenuPersonalized");
+
+        // All 6 milestones complete
+        var finalSummary = latchService.summary("owner", "cafe");
+        assertEquals(6, finalSummary.progress().practiceCompletedCount());
+        assertTrue(finalSummary.progress().practiceReady());
+    }
+
+    @Test
+    void productionWorkspaceSummaryDoesNotReadOrdersUsersOrTickets() {
+        var prodOrders = mock(es.brasatech.fastbite.application.order.OrderService.class);
+        var prodUsers = mock(es.brasatech.fastbite.application.office.UserService.class);
+        var prodTickets = mock(es.brasatech.fastbite.application.fiscal.FiscalTicketRepository.class);
+        var prodTables = mock(es.brasatech.fastbite.application.table.TableService.class);
+        var prodService = new OwnerWorkspaceService(locations, port, products, settings, fiscal, prodTickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"),
+                java.time.Clock.systemUTC(), prodOrders, prodUsers, prodTables, tableSignatures);
+
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(port.read("cafe")).thenReturn(SetupProgress.EMPTY);
+        when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(fiscal.get()).thenReturn(FiscalProfile.EMPTY);
+        when(products.findAll()).thenReturn(java.util.List.of());
+        when(prodTables.findAll()).thenReturn(java.util.List.of());
+
+        var summary = prodService.summary("owner", "cafe");
+        assertNotNull(summary);
+        verifyNoInteractions(prodOrders, prodUsers, prodTickets);
     }
 }

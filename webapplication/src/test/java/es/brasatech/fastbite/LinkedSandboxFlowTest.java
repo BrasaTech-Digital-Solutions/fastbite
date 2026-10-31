@@ -104,6 +104,13 @@ class LinkedSandboxFlowTest {
         assertTrue(ready.contains("Take your setup to production"));
         assertTrue(ready.contains(PRODUCTION + "/owner/console?view=location-settings&section=backup&location=practicecafe"));
         assertTrue(ready.contains("Orders placed here are practice orders."));
+        assertTrue(ready.contains("practice-tour-container"));
+        assertTrue(ready.contains("practice-steps"));
+        post(owner, "/owner/workspace/practicecafe/setup", "action=practice_guest&_csrf=" + csrf(ready));
+        var afterGuest = get(owner, "/owner/console?location=practicecafe").body();
+        post(owner, "/owner/workspace/practicecafe/setup", "action=practice_menu&_csrf=" + csrf(afterGuest));
+        var afterMenu = get(owner, "/owner/console?location=practicecafe").body();
+        assertTrue(afterMenu.contains("2 of 6") || afterMenu.contains("2 de 6"));
 
         byte[] bundleReqBody = "{\"tenantId\":\"practicecafe\",\"ownerUsername\":\"practiceowner\"}".getBytes(StandardCharsets.UTF_8);
         var bundleResp = client().send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/internal/link/production-bundle"))
