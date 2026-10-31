@@ -202,6 +202,15 @@ public class OrderController {
     @GetMapping({"/{tenantId}/order-confirmation", "/order-confirmation"})
     public String confirmation(@RequestParam(name = "session_id", required = false) String checkoutSessionId,
             HttpSession session, HttpServletRequest request, Model model) {
+        if (session.getAttribute(SESSION_ORDER_ID) == null && checkoutSessionId != null) {
+            orderCheckoutService.recoverReturn(checkoutSessionId).ifPresent(order -> {
+                session.setAttribute(SESSION_ORDER_ID, order.id());
+                session.setAttribute("orderNumber", order.orderNumber());
+                session.setAttribute("orderTenant", TenantContext.getCurrentTenant());
+                session.setAttribute("guestCheckoutOrder", order.id());
+                session.setAttribute("guestCheckoutSession", checkoutSessionId);
+            });
+        }
         var orderNumber = session.getAttribute("orderNumber");
         model.addAttribute("orderNumber", orderNumber);
         String orderId = (String) session.getAttribute(SESSION_ORDER_ID);

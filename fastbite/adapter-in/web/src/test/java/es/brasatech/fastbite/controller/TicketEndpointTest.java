@@ -95,6 +95,18 @@ class TicketEndpointTest {
     }
 
     @Test
+    void onlineSaleAppearsOnTheTicketsListWithOnlinePaymentLabel() throws Exception {
+        FiscalTicket online = new FiscalTicket("online", SALE.kind(), SALE.series(), SALE.number(), SALE.fullNumber(),
+                SALE.training(), SALE.issuedAt(), "online", SALE.issuer(), SALE.recipient(), SALE.lines(), SALE.discount(),
+                SALE.total(), SALE.vat(), SALE.tip(), PaymentMethod.ONLINE, null, null, null, SALE.orderIds(),
+                SALE.orderNumbers(), SALE.tableName(), "pi_online");
+        when(tickets.issuedOn(any())).thenReturn(List.of(online));
+        mockMvc.perform(as("ROLE_CASHIER", get("/kebab/counter/tickets")).locale(Locale.forLanguageTag("es")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(containsString("KH-T26-000007"), containsString("Pagado online"))));
+    }
+
+    @Test
     void thePrintedTicketCarriesTheLegalDetails() throws Exception {
         mockMvc.perform(as("ROLE_CASHIER", get("/kebab/counter/tickets/t1")).locale(Locale.forLanguageTag("es")))
                 .andExpect(status().isOk())

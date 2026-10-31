@@ -195,6 +195,37 @@ class OrderCheckoutServiceTest {
         verify(fiscal).settleOnline(eq(order.id()), any(), any());
     }
 
+    @Test
+    void lostGuestSessionCanRecoverOnlyItsOwnRestaurantOrderAndSettleIt() throws Exception {
+        Session paid = session("paid", 1350, StripeService.RESTAURANT_ORDER);
+        when(stripe.retrieveSession("cs_test_1")).thenReturn(paid);
+        TenantContext.setCurrentTenant("pizza");
+        assertThat(checkout.recoverReturn("cs_test_1")).isEmpty();
+        TenantContext.setCurrentTenant("kebab");
+        assertThat(checkout.recoverReturn("cs_test_1")).contains(order);
+        assertThat(checkout.confirmReturn("cs_test_1")).isTrue();
+        verify(fiscal).settleOnline(eq(order.id()), any(), any());
+    }
+
+    @Test
+    void recoveryRejectsBillingUnknownAndMissingOrderAndSupportsClientReference() throws Exception {
+        TenantContext.setCurrentTenant("kebab");
+        Session billing = session("paid", 1350, "SUBSCRIPTION");
+        when(stripe.retrieveSession("billing")).thenReturn(billing);
+        when(stripe.retrieveSession("unknown")).thenThrow(new IllegalStateException("not found"));
+        assertThat(checkout.recoverReturn("billing")).isEmpty();
+        assertThat(checkout.recoverReturn("unknown")).isEmpty();
+        Session fallback = session("paid", 1350, StripeService.RESTAURANT_ORDER);
+        fallback.setMetadata(Map.of("tenantId", "kebab", "type", StripeService.RESTAURANT_ORDER));
+        fallback.setClientReferenceId(order.id());
+        when(stripe.retrieveSession("fallback")).thenReturn(fallback);
+        assertThat(checkout.recoverReturn("fallback")).contains(order);
+        assertThat(checkout.confirmReturn("fallback")).isTrue();
+        verify(fiscal).settleOnline(eq(order.id()), any(), any());
+        fallback.setClientReferenceId("missing");
+        assertThat(checkout.recoverReturn("fallback")).isEmpty();
+    }
+
     // ---- webhook signatures
 
     @Test

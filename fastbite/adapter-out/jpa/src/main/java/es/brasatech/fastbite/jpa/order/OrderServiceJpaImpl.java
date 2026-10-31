@@ -5,6 +5,7 @@ import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.table.TableService;
 import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
+import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.order.OrderStatus;
 import es.brasatech.fastbite.domain.order.ServiceType;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -203,6 +205,19 @@ public class OrderServiceJpaImpl implements OrderService {
                 // Online orders are paid online, not at pickup; until then they are nobody's to collect
                 .filter(order -> !order.heldUntilPaid())
                 .toList();
+    }
+
+    @Override
+    public List<Order> findTakeawayForCollection() {
+        List<Order> result = new ArrayList<>(findTakeawayAwaitingPayment());
+        repository.findByServiceTypeAndPaymentStatusAndStatusNotInOrderByCreatedAt(ServiceType.TAKEAWAY,
+                        OrderPaymentStatus.PAID, List.of(OrderStatus.COMPLETE, OrderStatus.CANCELLED))
+                .stream()
+                .filter(order -> order.getOrderChannel() == OrderChannel.ONLINE)
+                .map(this::toOrderWithTranslation)
+                .forEach(result::add);
+        result.sort(Comparator.comparing(Order::createdAt));
+        return result;
     }
 
     @Override

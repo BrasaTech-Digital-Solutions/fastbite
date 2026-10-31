@@ -9,6 +9,8 @@ import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.payment.PaymentService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
+import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
 import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.order.OrderChannel;
@@ -28,6 +30,7 @@ import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -140,8 +143,8 @@ public class CounterController {
 
     @ResponseBody
     @GetMapping("/counter/api/takeaway/orders")
-    public List<Order> getTakeawayOrdersAwaitingPayment() {
-        return orderService.findTakeawayAwaitingPayment();
+    public List<Order> getTakeawayOrdersForCollection() {
+        return orderService.findTakeawayForCollection();
     }
 
     @ResponseBody
@@ -300,7 +303,8 @@ public class CounterController {
                 "orderNumber", o.orderNumber(),
                 "total", o.total(),
                 "items", o.items(),
-                "createdAt", o.createdAt())).toList();
+                "createdAt", o.createdAt(),
+                "onlineTicket", onlineTicketId(o).orElse(""))).toList();
         model.addAttribute("orders", enriched);
         return "fastfood/fragments/counter :: active-orders";
     }
@@ -351,7 +355,7 @@ public class CounterController {
     public String getTableSessionCartFragment(Model model, @PathVariable(required = false) String tableId,
             @RequestParam(required = false) List<Integer> expandedIndices,
             jakarta.servlet.http.HttpServletResponse response) {
-        var orders = tableId != null ? orderService.findActiveByTableId(tableId) : orderService.findTakeawayAwaitingPayment();
+        var orders = tableId != null ? orderService.findActiveByTableId(tableId) : orderService.findTakeawayForCollection();
 
         // Wrap orders to include expansion state and simplify data for fragment
         var wrappedOrders = new java.util.ArrayList<Map<String, Object>>();
@@ -383,6 +387,7 @@ public class CounterController {
             map.put("status", order.status() != null ? order.status().name() : "CREATED");
             map.put("paymentStatus", order.paymentStatus() != null ? order.paymentStatus().name() : "UNPAID");
             map.put("items", itemMaps);
+            map.put("onlineTicket", onlineTicketId(order).orElse(""));
             map.put("expanded", expandedIndices != null && expandedIndices.contains(i));
 
             wrappedOrders.add(map);
@@ -412,6 +417,14 @@ public class CounterController {
         model.addAttribute("orders", wrappedOrders);
         model.addAttribute("takeaway", tableId == null);
         return "fastfood/fragments/counter :: table-session-cart";
+    }
+
+    /** The sale ticket determines whether this payment was made online, not the order channel. */
+    private Optional<String> onlineTicketId(Order order) {
+        if (order.paymentStatus() != OrderPaymentStatus.PAID) return Optional.empty();
+        return fiscalTicketService.findForOrder(order.id())
+                .filter(ticket -> ticket.paymentMethod() == PaymentMethod.ONLINE)
+                .map(FiscalTicket::id);
     }
 
     @GetMapping("/counter/fragments/customization-options/{productId}")

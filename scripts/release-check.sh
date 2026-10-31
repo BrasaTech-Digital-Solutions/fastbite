@@ -453,6 +453,10 @@ if [ -n "$TICKET" ]; then
   check "$C" "$S/$T/counter/tickets/$TICKET"
 fi
 
+# Cashiers can load the collection list, including online-paid takeaway orders.
+PICKUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/counter/api/takeaway/orders")
+record "$PICKUP_CODE" 200 "GET takeaway collection orders as cashier"
+
 # The counter page loads its menu and tables from the counter catalog, which cashiers may read
 for kind in products groups customizations tables; do
   CATALOG_OUT=$(curl -s -w '\n%{http_code}' -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/counter/api/catalog/$kind" || true)

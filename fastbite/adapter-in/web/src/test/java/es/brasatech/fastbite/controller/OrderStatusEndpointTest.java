@@ -27,6 +27,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
@@ -110,7 +113,7 @@ class OrderStatusEndpointTest {
         mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_other"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("id=\"paymentResult\""))));
-        org.mockito.Mockito.verify(orderCheckoutService, org.mockito.Mockito.never()).confirmReturn("cs_other");
+        verify(orderCheckoutService, never()).confirmReturn("cs_other");
     }
 
     @Test
@@ -131,6 +134,33 @@ class OrderStatusEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"order-success-title\" hidden=\"hidden\"")))
                 .andExpect(content().string(containsString("id=\"guest-ticket\"")));
+    }
+
+    @Test
+    void stripeReturnRestoresAnExpiredGuestSession() throws Exception {
+        Order order = new Order(List.of(), 42, OrderPaymentStatus.PAID, OrderChannel.ONLINE, "en", null, "Marta", ServiceType.TAKEAWAY);
+        when(orderCheckoutService.recoverReturn("cs_paid")).thenReturn(Optional.of(order));
+        when(orderCheckoutService.confirmReturn("cs_paid")).thenReturn(true);
+        when(orderService.findById(order.id())).thenReturn(Optional.of(order));
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_paid"))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("id=\"guest-ticket\"")))
+                .andExpect(content().string(containsString(">42</h1>")));
+        assertThat(session.getAttribute("orderId")).isEqualTo(order.id());
+        assertThat(session.getAttribute("orderTenant")).isEqualTo("kebab");
+        assertThat(session.getAttribute("guestCheckoutOrder")).isEqualTo(order.id());
+        assertThat(session.getAttribute("guestCheckoutSession")).isEqualTo("cs_paid");
+        verify(orderCheckoutService).confirmReturn("cs_paid");
+    }
+
+    @Test
+    void unknownReturnDoesNotRestoreAnyGuestOrder() throws Exception {
+        when(orderCheckoutService.recoverReturn("unknown")).thenReturn(Optional.empty());
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "unknown"))
+                .andExpect(status().isOk()).andExpect(content().string(not(containsString("id=\"guest-ticket\""))));
+        assertThat(session.getAttribute("orderId")).isNull();
+        verify(orderCheckoutService, never()).confirmReturn("unknown");
     }
 
     @Test

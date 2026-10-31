@@ -110,6 +110,27 @@ public class OrderCheckoutService {
         return stripeService.createOrderCheckoutSession(tenantId, order, tip, connectedAccount, applicationFeeCents, successUrl, cancelUrl);
     }
 
+    /** Restore a lost guest session from Stripe's unguessable checkout return identifier. */
+    public Optional<Order> recoverReturn(String checkoutSessionId) {
+        try {
+            Session checkout = stripeService.retrieveSession(checkoutSessionId);
+            Map<String, String> metadata = checkout.getMetadata();
+            String tenant = TenantContext.getCurrentTenant();
+            if (metadata == null || tenant == null || !StripeService.RESTAURANT_ORDER.equals(metadata.get("type"))
+                    || !tenant.equalsIgnoreCase(metadata.get("tenantId"))) return Optional.empty();
+            String orderId = checkoutOrderId(checkout);
+            return orderId == null ? Optional.empty() : orderService.findById(orderId);
+        } catch (StripeException | IllegalStateException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static String checkoutOrderId(Session checkout) {
+        String id = checkout.getMetadata() == null ? null : checkout.getMetadata().get("orderId");
+        if (id == null || id.isBlank()) id = checkout.getClientReferenceId();
+        return id == null || id.isBlank() ? null : id;
+    }
+
     /**
      * For the page a guest lands on after paying: confirms the checkout with Stripe, as long as it
      * belongs to the restaurant this page is for.
@@ -142,7 +163,7 @@ public class OrderCheckoutService {
             return false;
         }
         String tenantId = metadata.get("tenantId");
-        String orderId = metadata.get("orderId");
+        String orderId = checkoutOrderId(session);
         if (tenantId == null || tenantId.isBlank() || orderId == null || orderId.isBlank()) {
             log.warn("Paid checkout {} names no restaurant order", session.getId());
             return false;
