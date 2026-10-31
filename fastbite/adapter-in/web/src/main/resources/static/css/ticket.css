@@ -67,3 +67,6 @@ body.paper {
     .day-report .cash input { border: 0; padding: 0; }
     .day-report .cash input:placeholder-shown { color: transparent; }
 }
+
+/* Guest ticket actions remain easy to tap on a phone. */
+.paper .print-bar button, .paper .box a { min-height: 44px; display: inline-flex; align-items: center; }

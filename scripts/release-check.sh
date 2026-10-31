@@ -416,6 +416,14 @@ if [ -n "$PRODUCT" ]; then
   fi
 fi
 
+# Guest ticket links are bearer credentials: invalid and missing signatures reveal nothing.
+if [ -n "$TICKET" ]; then
+  BAD_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/ticket/$TICKET?s=v1.invalid")
+  record "$BAD_TICKET_CODE" 404 "GET guest ticket with invalid signature"
+  MISSING_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/ticket/$TICKET")
+  record "$MISSING_TICKET_CODE" 404 "GET guest ticket without signature"
+fi
+
 echo "== [2/6] Team member & Cashier flow"
 OWNER_CSRF=$(curl -s -c "$J" -b "$J" "$S/owner/console?view=team&location=$T" | meta)
 ADD_STAFF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
@@ -659,6 +667,10 @@ for path in /legal/terms "/$T/privacy"; do
   check "$G" "$P$path"
 done
 
+# A new browser session cannot inspect another guest's ticket.
+FRESH_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/api/guest-ticket")
+record "$FRESH_TICKET_CODE" 404 "GET guest ticket status without an order session"
+
 # Guest calculate cart: verify 200 and IVA/VAT mention
 if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
   GT=$(curl -s -b "$G" -c "$G" "$S/$T/menu" | meta)
@@ -686,6 +698,14 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
       -d "$ORDER_PAYLOAD" \
       "$S/$T/api/create-order")
     record "$GUEST_ORDER_CODE" 200 "POST $S/$T/api/create-order (guest takeaway order)"
+
+    # The guest's own unpaid order has no ticket yet.
+    PENDING_TICKET=$(curl -s -b "$G" -c "$G" "$S/$T/api/guest-ticket")
+    if [ "$PENDING_TICKET" = '{"state":"pending"}' ]; then
+      record_match 1 "Guest ticket status is pending for unpaid order"
+    else
+      record_match 0 "Guest ticket status is pending for unpaid order"
+    fi
 
     CHECKOUT_OUT="checkout_session.json"
     CHECKOUT_CODE=$(curl -s -o "$CHECKOUT_OUT" -w '%{http_code}' -b "$G" -c "$G" \

@@ -11,6 +11,7 @@ import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.order.ServiceType;
 import es.brasatech.fastbite.domain.table.Table;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.dto.order.OrderCancelReason;
 import es.brasatech.fastbite.dto.order.OrderStatusChange;
 import es.brasatech.fastbite.service.OrderCheckoutService;
@@ -67,6 +68,7 @@ public class OrderController {
             session.setAttribute("cart", order.items());
             session.setAttribute("orderNumber", order.orderNumber());
             session.setAttribute(SESSION_ORDER_ID, order.id());
+            session.setAttribute("orderTenant", TenantContext.getCurrentTenant());
 
             return Map.of("status", "success", "payFirst", order.heldUntilPaid());
         } catch (IllegalArgumentException e) {
@@ -85,7 +87,7 @@ public class OrderController {
     /** Saved now, but held back from the kitchen until the guest has paid online. */
     private Order takeawayOrder(CreateOrderRequest request, Locale locale) {
         var settings = settingsService.get();
-        String currentTenant = es.brasatech.fastbite.domain.tenant.TenantContext.getCurrentTenant();
+        String currentTenant = TenantContext.getCurrentTenant();
         boolean paymentAvailable = orderCheckoutService.isAvailableForTenant(currentTenant);
         if (!settings.takeaway() || !paymentAvailable) {
             throw new IllegalArgumentException(settings.dineIn()
@@ -202,16 +204,20 @@ public class OrderController {
             HttpSession session, HttpServletRequest request, Model model) {
         var orderNumber = session.getAttribute("orderNumber");
         model.addAttribute("orderNumber", orderNumber);
-        if (checkoutSessionId != null) {
-            // Back from Stripe: ask Stripe whether the payment went through
+        String orderId = (String) session.getAttribute(SESSION_ORDER_ID);
+        boolean checkoutForOrder = orderId != null && orderId.equals(session.getAttribute("guestCheckoutOrder"));
+        boolean matchingReturn = checkoutForOrder && checkoutSessionId != null
+                && checkoutSessionId.equals(session.getAttribute("guestCheckoutSession"));
+        if (matchingReturn) {
             model.addAttribute("paidOnline", orderCheckoutService.confirmReturn(checkoutSessionId));
         }
-        boolean stillToPay = Optional.ofNullable((String) session.getAttribute(SESSION_ORDER_ID))
-                .flatMap(orderService::findById)
-                .filter(Order::heldUntilPaid)
-                .isPresent();
-        if (stillToPay) {
-            // Nothing is being prepared yet, so there is nothing to confirm: back to the payment page
+        boolean paymentPending = checkoutForOrder && Optional.ofNullable(orderId).flatMap(orderService::findById)
+                .map(order -> order.paymentStatus() == OrderPaymentStatus.UNPAID).orElse(true);
+        model.addAttribute("paymentPending", paymentPending);
+        model.addAttribute("guestTicketExpected", checkoutForOrder);
+        boolean stillToPay = Optional.ofNullable(orderId).flatMap(orderService::findById)
+                .filter(Order::heldUntilPaid).isPresent();
+        if (stillToPay && !matchingReturn) {
             Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
             return "redirect:" + (prefix != null ? prefix : "") + "/select-payment";
         }

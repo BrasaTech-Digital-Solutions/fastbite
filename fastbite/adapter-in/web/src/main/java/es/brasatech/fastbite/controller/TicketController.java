@@ -105,6 +105,7 @@ public class TicketController {
     /** The ticket as printed; the counter loads it into a hidden frame and prints it. */
     @GetMapping({"/{tenantId}/counter/tickets/{ticketId}", "/counter/tickets/{ticketId}"})
     public String print(@PathVariable String ticketId, Model model) {
+        if (!model.containsAttribute("guestTicket")) model.addAttribute("guestTicket", false);
         FiscalTicket ticket = tickets.findById(ticketId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         model.addAttribute("ticket", ticket);

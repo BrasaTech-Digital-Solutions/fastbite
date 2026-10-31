@@ -63,6 +63,8 @@ public class StripeCheckoutController {
                     baseUrl + "/order-confirmation?session_id={CHECKOUT_SESSION_ID}",
                     baseUrl + "/select-payment");
 
+            httpSession.setAttribute("guestCheckoutSession", session.getId());
+            httpSession.setAttribute("guestCheckoutOrder", order.get().id());
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "checkoutUrl", session.getUrl(),

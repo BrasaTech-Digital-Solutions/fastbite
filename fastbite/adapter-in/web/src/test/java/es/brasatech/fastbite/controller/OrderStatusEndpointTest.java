@@ -93,19 +93,44 @@ class OrderStatusEndpointTest {
     }
 
     @Test
-    void comingBackFromStripeThePaymentIsCheckedAndShown() throws Exception {
+    void comingBackFromStripeOnlyTheSessionsOwnCheckoutIsChecked() throws Exception {
+        Order order = new Order(List.of(), 8, OrderPaymentStatus.PAID, OrderChannel.ONLINE, "en", null, "Marta",
+                ServiceType.TAKEAWAY);
+        when(orderService.findById("order-8")).thenReturn(Optional.of(order));
         when(orderCheckoutService.confirmReturn("cs_paid")).thenReturn(true);
-        when(orderCheckoutService.confirmReturn("cs_open")).thenReturn(false);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("orderId", "order-8");
+        session.setAttribute("guestCheckoutOrder", "order-8");
+        session.setAttribute("guestCheckoutSession", "cs_paid");
 
-        mockMvc.perform(get("/kebab/order-confirmation").param("session_id", "cs_paid"))
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_paid"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("alert mt-3 mb-0 alert-success")));
-        mockMvc.perform(get("/kebab/order-confirmation").param("session_id", "cs_open"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("alert mt-3 mb-0 alert-warning")));
-        mockMvc.perform(get("/kebab/order-confirmation"))
+                .andExpect(content().string(containsString("alert mt-3 mb-0 alert-success")))
+                .andExpect(content().string(containsString("id=\"guest-ticket\"")));
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_other"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("id=\"paymentResult\""))));
+        org.mockito.Mockito.verify(orderCheckoutService, org.mockito.Mockito.never()).confirmReturn("cs_other");
+    }
+
+    @Test
+    void pendingCheckoutDoesNotSayThatTheOrderIsBeingPrepared() throws Exception {
+        Order order = new Order(List.of(), 8, OrderPaymentStatus.UNPAID, OrderChannel.ONLINE, "en", null, "Marta",
+                ServiceType.TAKEAWAY);
+        when(orderService.findById("order-8")).thenReturn(Optional.of(order));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("orderId", "order-8");
+        session.setAttribute("guestCheckoutOrder", "order-8");
+        session.setAttribute("guestCheckoutSession", "cs_open");
+        // Opening checkout is not a payment: only its matching return may show pending.
+        mockMvc.perform(get("/kebab/order-confirmation").session(session))
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/kebab/select-payment"));
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_other"))
+                .andExpect(status().isFound()).andExpect(redirectedUrl("/kebab/select-payment"));
+        mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_open"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"order-success-title\" hidden=\"hidden\"")))
+                .andExpect(content().string(containsString("id=\"guest-ticket\"")));
     }
 
     @Test
