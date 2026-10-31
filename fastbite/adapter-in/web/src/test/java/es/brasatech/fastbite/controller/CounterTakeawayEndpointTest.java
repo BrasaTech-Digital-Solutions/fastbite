@@ -352,4 +352,44 @@ class CounterTakeawayEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("customizations", List.of(valid)));
     }
+
+    @Test
+    void onlinePaidCollectionOrderShowsTicketInListAndDetails() throws Exception {
+        Order online = new Order(List.of(), 22, OrderPaymentStatus.PAID, OrderChannel.ONLINE, "en", null, "Marta", ServiceType.TAKEAWAY);
+        var onlineTicket = org.mockito.Mockito.mock(es.brasatech.fastbite.domain.fiscal.FiscalTicket.class);
+        when(onlineTicket.id()).thenReturn("online-ticket");
+        when(onlineTicket.paymentMethod()).thenReturn(es.brasatech.fastbite.domain.fiscal.PaymentMethod.ONLINE);
+        when(fiscalTicketService.findForOrder(online.id())).thenReturn(Optional.of(onlineTicket));
+        when(orderService.findTakeawayForCollection()).thenReturn(List.of(online));
+        mockMvc.perform(asCashier(get("/counter/api/takeaway/orders")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(online.id()));
+        String expanded = mockMvc.perform(asCashier(get("/counter/fragments/takeaway-session-cart")).param("expandedIndices", "0"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(expanded).containsOnlyOnce("data-ticket=\"online-ticket\"")
+                .contains("printTicket(this.dataset.ticket, true)").doesNotContain("printProforma(");
+        String collapsed = mockMvc.perform(asCashier(get("/counter/fragments/takeaway-session-cart")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(collapsed).containsOnlyOnce("data-ticket=\"online-ticket\"");
+    }
+
+    @Test
+    void onlinePaidTableOrderHasPrintActionButCounterCashDoesNot() throws Exception {
+        Order online = new Order(List.of(), 23, OrderPaymentStatus.PAID, OrderChannel.TABLE, "en");
+        Order cash = new Order(List.of(), 24, OrderPaymentStatus.PAID, OrderChannel.TABLE, "en");
+        var onlineTicket = org.mockito.Mockito.mock(es.brasatech.fastbite.domain.fiscal.FiscalTicket.class);
+        when(onlineTicket.id()).thenReturn("online-ticket");
+        when(onlineTicket.paymentMethod()).thenReturn(es.brasatech.fastbite.domain.fiscal.PaymentMethod.ONLINE);
+        when(fiscalTicketService.findForOrder(online.id())).thenReturn(Optional.of(onlineTicket));
+        when(fiscalTicketService.findForOrder(cash.id())).thenReturn(Optional.of(TICKET));
+        when(orderService.findActiveByTableId("table-1")).thenReturn(List.of(online, cash));
+        mockMvc.perform(asCashier(get("/counter/fragments/active-orders/table-1")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ticket=\"online-ticket\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-ticket=\"ticket-1\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("printProforma(this.dataset.id)")));
+        when(orderService.findActiveByTableId("table-1")).thenReturn(List.of(online));
+        mockMvc.perform(asCashier(get("/counter/fragments/active-orders/table-1")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("printProforma("))));
+    }
 }

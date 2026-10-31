@@ -38,12 +38,12 @@
                     <div class="confirmation-card text-center">
                         <div class="confirmation-header">
                             <i class="fas fa-check-circle text-success fa-5x mb-3"></i>
-                            <h2 class="text-success mb-2" th:text="#{message.order.submitted.successfully}">Order
+                            <h2 class="text-success mb-2" id="order-success-title" th:hidden="${paymentPending}" th:text="#{message.order.submitted.successfully}">Order
                                 Submitted Successfully!</h2>
-                            <p class="text-muted" th:text="#{message.thank.you.details}">Gracias por tu pedido. Lo
+                            <p class="text-muted" id="order-success-detail" th:hidden="${paymentPending}" th:text="#{message.thank.you.details}">Gracias por tu pedido. Lo
                                 estamos preparando ya.</p>
                             <!-- Shown when the guest comes back from paying online -->
-                            <div th:if="${paidOnline != null}" class="alert mt-3 mb-0" id="paymentResult"
+                            <div th:if="${paidOnline != null and !paymentPending}" class="alert mt-3 mb-0" id="paymentResult"
                                 th:classappend="${paidOnline} ? 'alert-success' : 'alert-warning'">
                                 <i class="fas me-2" th:classappend="${paidOnline} ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
                                 <span th:text="${paidOnline} ? #{message.payment.received} : #{message.payment.not.confirmed}">Payment received</span>
@@ -58,7 +58,7 @@
                         </div>
 
                         <!-- Live 4-Stage Visual Order Progress Bar (F-21) -->
-                        <div class="card mb-4 border-0 bg-light rounded-4 p-4 shadow-sm text-start">
+                        <div id="order-progress-card" th:hidden="${paymentPending}" class="card mb-4 border-0 bg-light rounded-4 p-4 shadow-sm text-start">
                             <h6 class="fw-bold mb-3 text-dark text-center"><i class="fas fa-signal me-2 text-danger"></i>Live Kitchen Status Tracker</h6>
                             
                             <div class="progress mb-3" style="height: 12px; border-radius: 10px;">
@@ -81,13 +81,11 @@
                             </div>
                         </div>
 
-                        <div class="bg-light p-3 rounded-4 mb-4 border">
-                            <p class="mb-0 text-muted">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <span th:text="#{message.you.will.receive.a.confirmation.email.shortly}">You will
-                                    receive a confirmation email shortly.</span>
-                            </p>
-                        </div>
+                        <section th:if="${guestTicketExpected}" id="guest-ticket" class="bg-light p-3 rounded-4 mb-4 border"
+                                 th:attr="data-pending=#{guest.ticket.pending},data-timeout=#{guest.ticket.timeout},data-label=#{guest.ticket.number}">
+                            <p id="guest-ticket-status" role="status" th:text="#{guest.ticket.pending}">Preparing your ticket…</p>
+                            <a id="guest-ticket-link" class="btn btn-pos-primary btn-lg" hidden th:text="#{guest.ticket.open}">View and save your ticket</a>
+                        </section>
 
                         <div class="d-grid gap-3">
                             <a th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" class="btn btn-pos-primary btn-lg rounded-pill" id="startNewOrderBtn">
@@ -101,6 +99,7 @@
         </div>
     </div>
     <script th:src="@{/js/live-updates.js}"></script>
+    <script th:src="@{/js/guest-ticket.js}" defer></script>
     <script>
 
 

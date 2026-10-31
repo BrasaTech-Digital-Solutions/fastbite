@@ -33,6 +33,11 @@ public interface OrderService {
     /** Takeaway orders the customer still has to pay for when collecting them. */
     List<Order> findTakeawayAwaitingPayment();
 
+    /** Takeaway orders awaiting pickup, including those already paid online. */
+    default List<Order> findTakeawayForCollection() {
+        return findTakeawayAwaitingPayment();
+    }
+
     void setTableStatus(String tableId, TableStatus status);
 
     void publishEvent(Object event);

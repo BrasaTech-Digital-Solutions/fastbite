@@ -92,7 +92,11 @@
                     <span th:text="${#numbers.formatDecimal(order.total, 1, 2)}">10.00</span>
                 </div>
             </div>
-            <button class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)">
+            <button th:if="${!#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-success"
+                    th:data-ticket="${order.onlineTicket}" onclick="printTicket(this.dataset.ticket, true)">
+                <span th:text="#{ticket.payment.online}">Paid online</span> · <span th:text="#{counter.ticket.print}">Print ticket</span>
+            </button>
+            <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)">
                 <i class="fas fa-print me-1"></i><span th:text="#{button.proforma} ?: 'Proforma'">Proforma</span>
             </button>
         </div>
@@ -171,6 +175,11 @@
                     </div>
                     <span class="fw-bold ms-2" th:text="${#numbers.formatDecimal(order.total, 1, 2)}">20.00</span>
                 </div>
+                <div th:if="${!#strings.isEmpty(order.onlineTicket)}" class="px-2 py-2 border-top">
+                    <span class="me-2" th:text="#{ticket.payment.online}">Paid online</span> ·
+                    <button type="button" class="btn btn-sm btn-outline-success" th:data-ticket="${order.onlineTicket}"
+                            onclick="printTicket(this.dataset.ticket, true)" th:text="#{counter.ticket.print}">Print ticket</button>
+                </div>
                 <div th:if="${order.expanded}" class="card-body p-2 border-top">
                     <div class="order-items-list mb-3">
                         <div th:each="item : ${order.items}"
@@ -223,7 +232,7 @@
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
                             <i class="fas fa-times"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)"
+                        <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)"
                             th:disabled="${order.status == 'CANCELLED'}">
                             <i class="fas fa-print"></i>
                         </button>

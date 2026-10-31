@@ -8,9 +8,15 @@
     <link rel="stylesheet" th:href="@{/css/ticket.css}">
 </head>
 <body class="paper" th:with="issuer=${ticket.issuer()}">
-<div class="training" th:if="${cancellation != null}"
+<div class="training" th:if="${cancellation != null and guestTicket != true}"
      th:text="#{ticket.cancelled(${#temporals.format(cancellation.at(), 'dd/MM/yyyy HH:mm')}, ${cancellation.reason()})}">CANCELLED</div>
 
+<div class="training" th:if="${cancellation != null and guestTicket == true}" th:text="#{guest.ticket.cancelled}">Cancelled</div>
+<div class="box" th:if="${guestCorrection != null}">
+    <p th:if="${guestCorrectionUrl == null}" th:text="#{guest.ticket.replaced(${guestCorrection.fullNumber()})}">Replaced</p>
+    <p th:if="${guestCorrectionUrl != null}" th:text="#{guest.ticket.refunded(${guestCorrection.fullNumber()})}">Refunded</p>
+    <a th:if="${guestCorrectionUrl != null}" th:href="${guestCorrectionUrl}" th:text="#{guest.ticket.correction}">View correction</a>
+</div>
 <div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
 
 <header class="center">
@@ -42,7 +48,7 @@
        th:text="#{ticket.corrects(${ticket.corrects().fullNumber()}, ${#temporals.format(ticket.corrects().issuedOn(), 'dd/MM/yyyy')})}">Corrects invoice KHC-T26-000001 of 09/10/2026</p>
     <p th:unless="${ticket.refund()}"
        th:text="#{ticket.replaces(${ticket.corrects().fullNumber()}, ${#temporals.format(ticket.corrects().issuedOn(), 'dd/MM/yyyy')})}">Replaces simplified invoice KHC-T26-000001</p>
-    <p th:if="${ticket.corrects().reason() != null}" th:text="#{ticket.reason} + ': ' + ${ticket.corrects().reason()}">Reason: wrong dish</p>
+    <p th:if="${guestTicket != true and ticket.corrects().reason() != null}" th:text="#{ticket.reason} + ': ' + ${ticket.corrects().reason()}">Reason: wrong dish</p>
 </div>
 
 <p th:if="${ticket.tableName() != null}" th:text="#{ticket.table} + ': ' + ${ticket.tableName()}">Table: Terrace 4</p>
@@ -141,10 +147,34 @@
 <div class="training" th:if="${ticket.training()}" th:text="#{ticket.training}">TRAINING TICKET — NOT VALID AS AN INVOICE</div>
 
 <footer class="footer">
-    <p th:if="${ticket.issuedBy() != null && ticket.issuedBy() != 'online'}" th:text="#{ticket.served.by(${ticket.issuedBy()})}">Served by ana</p>
+    <p th:if="${guestTicket != true && ticket.issuedBy() != null && ticket.issuedBy() != 'online'}" th:text="#{ticket.served.by(${ticket.issuedBy()})}">Served by ana</p>
     <p th:text="#{ticket.thanks}">Thank you for your visit!</p>
 </footer>
 
-<div class="print-bar"><button type="button" onclick="window.print()" th:text="#{ticket.print}">Print</button></div>
+<!-- Guest invoice request: the original bearer link never grants access to the replacement. -->
+<section class="guest-invoice screen-only" th:if="${guestTicket == true}">
+    <p th:if="${ticket.kind().name() == 'REPLACEMENT'}" th:text="#{guest.invoice.keep}">Save or print this invoice now.</p>
+    <p class="invoice-error" role="alert" th:if="${invoiceError != null and (invoiceErrorField == null or invoiceErrorField == 'form' or guestInvoiceAction == null)}" th:text="${invoiceError}"></p>
+    <details th:if="${guestInvoiceAction != null}" th:open="${invoiceError != null}">
+        <summary th:text="#{guest.invoice.prompt}">Need an invoice for your business?</summary>
+        <form method="post" th:action="${guestInvoiceAction}">
+            <label for="invoice-name" th:text="#{guest.invoice.name}">Business name</label>
+            <input id="invoice-name" name="name" maxlength="120" required th:value="${invoiceName}">
+            <p class="invoice-error" th:if="${invoiceErrorField == 'name'}" th:text="${invoiceError}"></p>
+            <label for="invoice-tax" th:text="#{guest.invoice.tax}">Tax number</label>
+            <input id="invoice-tax" name="taxId" maxlength="32" required th:value="${invoiceTaxId}">
+            <p class="invoice-error" th:if="${invoiceErrorField == 'taxId'}" th:text="${invoiceError}"></p>
+            <label for="invoice-country" th:text="#{guest.invoice.country}">Tax number country code</label>
+            <input id="invoice-country" name="country" maxlength="2" th:value="${invoiceCountry == null ? 'ES' : invoiceCountry}">
+            <p class="invoice-error" th:if="${invoiceErrorField == 'country'}" th:text="${invoiceError}"></p>
+            <label for="invoice-address" th:text="#{guest.invoice.address}">Address</label>
+            <input id="invoice-address" name="address" maxlength="200" th:value="${invoiceAddress}">
+            <p class="invoice-error" th:if="${invoiceErrorField == 'address'}" th:text="${invoiceError}"></p>
+            <button type="submit" th:text="#{guest.invoice.submit}">Create invoice</button>
+        </form>
+    </details>
+</section>
+
+<div class="print-bar"><button type="button" onclick="window.print()" th:text="${guestTicket == true} ? #{guest.ticket.print} : #{ticket.print}">Print</button></div>
 </body>
 </html>

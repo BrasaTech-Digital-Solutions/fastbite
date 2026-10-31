@@ -60,7 +60,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public areas
                         .requestMatchers("/", "/menu/**", "/allergens", "/verifactu/declaracion-responsable", "/verifactu/declaracion-responsable/*.pdf", "/api/calculate-cart", "/api/calculate-confirmation", "/api/toast",
-                                "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/signup/**", "/verify-email", "/api/webhooks/stripe", "/api/stripe/**",
+                                "/ticket/**", "/api/guest-ticket", "/api/create-order", "/api/order-status", "/api/order-status/live", "/order-confirmation/**", "/select-payment", "/signup", "/signup/**", "/verify-email", "/api/webhooks/stripe", "/api/stripe/**",
                                 // Calls from the other environment, signed with the shared secret (LinkController)
                                 "/internal/link/**",
                                 // Scheduled background jobs triggered with X-FastBite-Jobs-Secret (InternalJobsController)
@@ -70,7 +70,7 @@ public class SecurityConfig {
                                 // Legal pages, and each restaurant's privacy notice for its guests (LegalController)
                                 "/legal/**", "/privacy", "/*/privacy", "/privacy/pdf", "/*/privacy/pdf").permitAll()
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
-                                "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
+                                "/*/ticket/**", "/*/api/guest-ticket", "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()
                         .requestMatchers("/login", "/error", "/*/login", "/set-password", "/forgot-password", "/reset-password").permitAll()
 

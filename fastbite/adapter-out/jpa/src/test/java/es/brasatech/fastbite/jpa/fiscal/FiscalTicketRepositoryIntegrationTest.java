@@ -129,6 +129,26 @@ class FiscalTicketRepositoryIntegrationTest {
     }
 
     @Test
+    void lockingOriginalSerializesConcurrentReplacementChecks() throws Exception {
+        String tenant = tenant();
+        FiscalTicket sale = ticket(TicketKind.SIMPLIFIED, 1, "locked-order", null);
+        in(tenant, () -> tickets.add(sale));
+        var correction = new FiscalTicket.Correction(sale.id(), sale.fullNumber(), sale.issuedOn(), null);
+        Callable<Boolean> replace = () -> in(tenant, () -> {
+            tickets.lock(sale.id());
+            if (tickets.findCorrection(sale.id(), TicketKind.REPLACEMENT).isPresent()) return false;
+            tickets.add(ticket(TicketKind.REPLACEMENT, tickets.nextNumber("KH-F26"), "locked-order", correction));
+            return true;
+        });
+        try (var pool = Executors.newFixedThreadPool(4)) {
+            var futures = pool.invokeAll(java.util.Collections.nCopies(4, replace));
+            int issued = 0;
+            for (var result : futures) if (result.get()) issued++;
+            assertThat(issued).isEqualTo(1);
+        }
+    }
+
+    @Test
     void correctionsAreFoundFromTheTicketTheyCorrect() {
         String tenant = tenant();
         FiscalTicket sale = ticket(TicketKind.SIMPLIFIED, 1, "order-1", null);

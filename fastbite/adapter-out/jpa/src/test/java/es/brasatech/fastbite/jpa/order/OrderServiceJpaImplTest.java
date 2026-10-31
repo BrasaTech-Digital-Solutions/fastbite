@@ -7,6 +7,7 @@ import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.order.OrderStatus;
+import es.brasatech.fastbite.domain.order.ServiceType;
 import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.product.ProductCustomizer;
 import es.brasatech.fastbite.jpa.customization.CustomizationOptionEntity;
@@ -410,6 +411,22 @@ class OrderServiceJpaImplTest {
         when(repository.findForUpdate("o-missing")).thenReturn(Optional.empty());
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.markOrderUnpaid("o-missing"));
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void collectionIncludesUnpaidCounterAndPaidOnlineButNotUnpaidOnlineOrPaidCounter() {
+        Order counterUnpaid = new Order(List.of(), 1, OrderPaymentStatus.UNPAID, OrderChannel.COUNTER, DEFAULT_LANG, null, "Ana", ServiceType.TAKEAWAY);
+        Order onlineUnpaid = new Order(List.of(), 2, OrderPaymentStatus.UNPAID, OrderChannel.ONLINE, DEFAULT_LANG, null, "Ben", ServiceType.TAKEAWAY);
+        Order onlinePaid = new Order(List.of(), 3, OrderPaymentStatus.PAID, OrderChannel.ONLINE, DEFAULT_LANG, null, "Cris", ServiceType.TAKEAWAY);
+        Order counterPaid = new Order(List.of(), 4, OrderPaymentStatus.PAID, OrderChannel.COUNTER, DEFAULT_LANG, null, "Dani", ServiceType.TAKEAWAY);
+        var unpaid = List.of(createOrderEntity(counterUnpaid), createOrderEntity(onlineUnpaid));
+        unpaid.forEach(entity -> entity.setServiceType(ServiceType.TAKEAWAY));
+        var paid = List.of(createOrderEntity(onlinePaid), createOrderEntity(counterPaid));
+        paid.forEach(entity -> entity.setServiceType(ServiceType.TAKEAWAY));
+        when(repository.findByServiceTypeAndPaymentStatusAndStatusNotInOrderByCreatedAt(any(), eq(OrderPaymentStatus.UNPAID), any())).thenReturn(unpaid);
+        when(repository.findByServiceTypeAndPaymentStatusAndStatusNotInOrderByCreatedAt(any(), eq(OrderPaymentStatus.PAID), any())).thenReturn(paid);
+        assertThat(service.findTakeawayForCollection()).extracting(Order::id)
+                .containsExactlyInAnyOrder(counterUnpaid.id(), onlinePaid.id());
     }
 
     private OrderEntity createOrderEntity(Order order) {

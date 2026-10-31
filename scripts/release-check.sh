@@ -169,6 +169,13 @@ record_match() {
   fi
 }
 
+# Guest ticket polling: exercise the bounded wait and the ready state on every release check.
+if node --test "$ROOT/fastbite/adapter-in/web/src/test/js/guest-ticket.test.js"; then
+  record_match 1 "guest ticket polling script tests pass"
+else
+  record_match 0 "guest ticket polling script tests pass"
+fi
+
 check() {
   local cookie_jar="$1"
   local url="$2"
@@ -416,6 +423,20 @@ if [ -n "$PRODUCT" ]; then
   fi
 fi
 
+# Guest ticket links are bearer credentials: invalid and missing signatures reveal nothing.
+if [ -n "$TICKET" ]; then
+  BAD_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/ticket/$TICKET?s=v1.invalid")
+  record "$BAD_TICKET_CODE" 404 "GET guest ticket with invalid signature"
+  MISSING_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/ticket/$TICKET")
+  record "$MISSING_TICKET_CODE" 404 "GET guest ticket without signature"
+fi
+
+# Guest invoice requests require CSRF, even when the request targets a known ticket.
+if [ -n "$TICKET" ]; then
+  INVOICE_CSRF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$S/$T/ticket/$TICKET/invoice?s=v1.invalid")
+  record "$INVOICE_CSRF_CODE" 403 "POST guest invoice without CSRF"
+fi
+
 echo "== [2/6] Team member & Cashier flow"
 OWNER_CSRF=$(curl -s -c "$J" -b "$J" "$S/owner/console?view=team&location=$T" | meta)
 ADD_STAFF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
@@ -444,6 +465,10 @@ done
 if [ -n "$TICKET" ]; then
   check "$C" "$S/$T/counter/tickets/$TICKET"
 fi
+
+# Cashiers can load the collection list, including online-paid takeaway orders.
+PICKUP_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$C" -c "$C" -H "Referer: $S/$T/counter" "$S/counter/api/takeaway/orders")
+record "$PICKUP_CODE" 200 "GET takeaway collection orders as cashier"
 
 # The counter page loads its menu and tables from the counter catalog, which cashiers may read
 for kind in products groups customizations tables; do
@@ -659,6 +684,10 @@ for path in /legal/terms "/$T/privacy"; do
   check "$G" "$P$path"
 done
 
+# A new browser session cannot inspect another guest's ticket.
+FRESH_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/api/guest-ticket")
+record "$FRESH_TICKET_CODE" 404 "GET guest ticket status without an order session"
+
 # Guest calculate cart: verify 200 and IVA/VAT mention
 if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
   GT=$(curl -s -b "$G" -c "$G" "$S/$T/menu" | meta)
@@ -686,6 +715,14 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
       -d "$ORDER_PAYLOAD" \
       "$S/$T/api/create-order")
     record "$GUEST_ORDER_CODE" 200 "POST $S/$T/api/create-order (guest takeaway order)"
+
+    # The guest's own unpaid order has no ticket yet.
+    PENDING_TICKET=$(curl -s -b "$G" -c "$G" "$S/$T/api/guest-ticket")
+    if [ "$PENDING_TICKET" = '{"state":"pending"}' ]; then
+      record_match 1 "Guest ticket status is pending for unpaid order"
+    else
+      record_match 0 "Guest ticket status is pending for unpaid order"
+    fi
 
     CHECKOUT_OUT="checkout_session.json"
     CHECKOUT_CODE=$(curl -s -o "$CHECKOUT_OUT" -w '%{http_code}' -b "$G" -c "$G" \

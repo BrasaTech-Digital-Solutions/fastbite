@@ -44,9 +44,9 @@ function selectPaymentMethod(method) {
 }
 
 // The ticket issued for a payment, exactly as stored; printing is optional, the ticket is issued anyway
-function printTicket(ticketId) {
+function printTicket(ticketId, requested = false) {
     const doPrint = document.getElementById('print-receipt-toggle').checked;
-    if (!doPrint || !ticketId) return;
+    if ((!doPrint && !requested) || !ticketId) return;
 
     const url = `/counter/tickets/${encodeURIComponent(ticketId)}?t=${Date.now()}`;
     const printFrame = document.getElementById('print-frame');
@@ -765,7 +765,7 @@ function showTableCount() {
     badge.classList.toggle('d-none', busy === 0);
 }
 
-// How many takeaway orders are waiting to be paid at pickup
+// How many takeaway orders are waiting for collection
 async function refreshPickupCount() {
     const badge = document.getElementById('pickup-count');
     try {

@@ -67,3 +67,15 @@ body.paper {
     .day-report .cash input { border: 0; padding: 0; }
     .day-report .cash input:placeholder-shown { color: transparent; }
 }
+
+/* Guest ticket actions remain easy to tap on a phone. */
+.paper .print-bar button, .paper .box a { min-height: 44px; display: inline-flex; align-items: center; }
+
+/* Guest invoice request */
+.paper .guest-invoice { border-top: 1px dashed #000; margin-top: 16px; padding-top: 10px; }
+.paper .guest-invoice summary { cursor: pointer; font-weight: bold; padding: 10px 0; }
+.paper .guest-invoice label { display: block; margin-top: 10px; font-weight: bold; }
+.paper .guest-invoice input { display: block; width: 100%; min-height: 44px; font: inherit; padding: 6px; }
+.paper .guest-invoice button { min-height: 44px; margin-top: 12px; padding: 8px; font: inherit; }
+.paper .invoice-error { color: #a00000; font-weight: bold; margin-top: 5px; }
+@media print { .paper .guest-invoice { display: none; } }
