@@ -124,6 +124,11 @@ class LinkedSandboxFlowTest {
 
         var locations = get(owner, "/owner/console?view=locations").body();
         assertTrue(locations.contains("Add a location in FastBite"));
+        for (String area : new String[]{"billing", "account"}) {
+            var links = Pattern.compile("<a\\b(?=[^>]*href=\"" + PRODUCTION + "/owner/console\\?view=" + area + "\")(?=[^>]*target=\"_blank\")(?=[^>]*rel=\"noopener\")[^>]*>[^<]*↗</a>").matcher(locations);
+            assertEquals(2, links.results().count(), area + " desktop and mobile links");
+        }
+        assertTrue(Pattern.compile("<a\\b(?=[^>]*href=\"" + PRODUCTION + "/owner/console\\?view=locations\")(?=[^>]*target=\"_blank\")(?=[^>]*rel=\"noopener\")[^>]*>Add a location in FastBite ↗</a>").matcher(locations).find());
         assertFalse(locations.contains("Create trial location"));
         assertTrue(get(owner, "/owner/console?view=settings").body().contains("managed in FastBite"));
         assertFalse(get(owner, "/owner/console?view=location-settings&location=practicecafe").body().contains("section=domain"));

@@ -43,6 +43,8 @@ class OwnerWorkspaceFlowTest {
         VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "workspacecafe", "workspaceowner", "Test Owner", "local-test-password");
         post(owner,"/login","username=workspaceowner&password=local-test-password&_csrf="+csrf(get(owner,"/login").body()));
         var overview=get(owner,"/owner/console");assertEquals(200,overview.statusCode());assertTrue(overview.body().contains("What kind of restaurant are you running?"));
+        assertTrue(overview.body().contains("workspace-location-card"), "one open location enters its workspace");
+        assertTrue(overview.body().contains("workspace-mobile-tabs"));
         assertFalse(overview.body().contains("name=\"stripeAccountId\""));assertFalse(overview.body().contains("Request volume pricing"));
         String token=csrf(overview.body());
         assertEquals(302,post(owner,"/owner/appearance","theme=cafe&_csrf="+token).statusCode());
@@ -80,6 +82,40 @@ class OwnerWorkspaceFlowTest {
         assertTrue(jdbc.queryForObject("SELECT service_reviewed FROM public.owner_onboarding WHERE tenant_id='workspacecafe'",Boolean.class));
         assertEquals(false,jdbc.queryForObject("SELECT takeaway FROM tenant_workspacecafe.restaurant_settings",Boolean.class));
         post(owner,"/owner/add-location","tenantId=workspacesecond&_csrf="+token);
+        String global = get(owner,"/owner/console").body();
+        assertTrue(global.contains("id=\"add-location\""), "two locations show the global list");
+        assertFalse(global.contains("class=\"workspace-location-card\""));
+        assertTrue(global.contains("view=billing"));
+        assertFalse(global.contains("class=\"workspace-mobile-back\""));
+        assertEquals(2, Pattern.compile("aria-current=\"page\"").matcher(global).results().count());
+        for (String area : new String[]{"today", "menu", "team", "tickets", "location-config", "data"}) {
+            String page = get(owner, "/owner/console?view=" + area + "&location=workspacecafe").body();
+            assertTrue(page.contains("class=\"workspace-mobile-back\""), area);
+            int sidebarStart = page.indexOf("<nav aria-label=\"Location\">");
+            int mobileStart = page.indexOf("<nav class=\"workspace-mobile-tabs\"");
+            assertTrue(sidebarStart >= 0 && mobileStart >= 0, area);
+            String navigation = page.substring(sidebarStart, page.indexOf("</nav>", sidebarStart))
+                    + page.substring(mobileStart, page.indexOf("</nav>", mobileStart));
+            assertEquals(area.equals("tickets") || area.equals("location-config") || area.equals("data") ? 3 : 2,
+                    Pattern.compile("aria-current=\"page\"").matcher(navigation).results().count(), area);
+            if (area.equals("tickets") || area.equals("location-config") || area.equals("data")) {
+                assertTrue(Pattern.compile("<summary[^>]*aria-current=\"page\"").matcher(page).find(), area);
+            }
+        }
+        for (String area : new String[]{"billing", "account"}) {
+            String page = get(owner, "/owner/console?view=" + area).body();
+            assertFalse(page.contains("class=\"workspace-mobile-back\""), area);
+            assertEquals(2, Pattern.compile("aria-current=\"page\"").matcher(page).results().count(), area);
+        }
+        String account = get(owner,"/owner/console?view=settings").body();
+        assertTrue(account.contains("/owner/account/password"));
+        assertTrue(account.contains("view=billing"));
+        assertTrue(get(owner,"/owner/console?view=billing").body().contains("/owner/group-quote"));
+        assertTrue(get(owner,"/owner/console?view=menu&location=workspacecafe").body().contains("/workspacecafe/backoffice"));
+        assertTrue(get(owner,"/owner/console?view=team&location=workspacecafe").body().contains("id=\"add-staff\""));
+        assertTrue(get(owner,"/owner/console?view=tickets&location=workspacecafe").body().contains("seriesPrefix"));
+        assertTrue(get(owner,"/owner/console?view=location-config&location=workspacecafe").body().contains("cashFloat"));
+        assertTrue(get(owner,"/owner/console?view=data&location=workspacecafe").body().contains("backup-preview"));
         assertTrue(get(guest,"/workspacesecond/menu").body().contains("data-theme=\"fastfood\""));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM public.owner_onboarding WHERE tenant_id='workspacesecond'",Integer.class));
         var staff=post(owner,"/owner/locations/workspacecafe/users","username=testcashier&fullName=Test+Cashier&password=local-staff-password&role=CASHIER&_csrf="+token);assertEquals(200,staff.statusCode());assertTrue(staff.body().contains("testcashier"));
@@ -118,5 +154,21 @@ class OwnerWorkspaceFlowTest {
         assertEquals(200, afterRedirect.statusCode());
         assertTrue(afterRedirect.body().contains("INVALID_NIF"));
         assertTrue(afterRedirect.body().contains("Please check the highlighted fields."));
+
+        // Closed-only accounts stay on the global list, with fiscal archives available.
+        jdbc.update("UPDATE public.tenant_billing SET closed_at=CURRENT_TIMESTAMP WHERE tenant_id IN ('workspacecafe','workspacesecond')");
+        var closedList = get(owner,"/owner/console");
+        assertEquals(200,closedList.statusCode());
+        assertTrue(closedList.body().contains("Closed locations"));
+        assertTrue(closedList.body().contains("workspacecafe"));
+        var archive = get(owner,"/owner/console?location=workspacecafe");
+        assertEquals(200,archive.statusCode());
+        assertTrue(archive.body().contains("tickets.json"));
+        // A zero-location owner still reaches global account navigation.
+        jdbc.update("DELETE FROM public.tenant_locations WHERE owner_username='workspaceowner'");
+        var empty = get(owner,"/owner/console");
+        assertEquals(200,empty.statusCode());
+        assertTrue(empty.body().contains("id=\"add-location\""));
+        assertFalse(empty.body().contains("class=\"workspace-location-card\""));
     }
 }

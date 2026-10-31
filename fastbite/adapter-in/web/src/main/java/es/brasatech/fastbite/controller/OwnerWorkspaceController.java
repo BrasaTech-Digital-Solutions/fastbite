@@ -64,14 +64,49 @@ public class OwnerWorkspaceController {
             @RequestParam(required=false) String location,@RequestParam(defaultValue="general") String section,
             Locale locale) {
         if(owner==null) return "redirect:/login";
-        if(!Set.of("overview","locations","team","location-settings","settings").contains(view)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(!Set.of("overview","locations","team","location-settings","settings", "restaurants", "billing", "account", "today", "menu", "tickets", "location-config", "data").contains(view)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if(!Set.of("general","legal","appearance","payments","domain","backup","advanced").contains(section)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         var list=locations.getLocationsByOwner(owner.getName()).stream().sorted(Comparator.comparing(es.brasatech.fastbite.domain.tenant.TenantLocation::tenantId)).toList();
-        var selected=location==null?(list.isEmpty()?null:list.getFirst()):list.stream().filter(l->l.tenantId().equals(location)).findFirst().orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+        String requestedView = view;
+        String area = switch (view) {
+            case "locations", "restaurants" -> "restaurants";
+            case "settings", "account" -> "account";
+            case "billing" -> "billing";
+            case "team" -> "team";
+            case "menu" -> "menu";
+            case "tickets" -> "tickets";
+            case "location-config" -> "location-config";
+            case "data" -> "data";
+            case "location-settings" -> switch (section) {
+                case "legal" -> "tickets";
+                case "backup", "advanced" -> "data";
+                default -> "location-config";
+            };
+            default -> "today";
+        };
+        boolean global = Set.of("restaurants", "billing", "account").contains(area);
+        var selected = location == null ? (global || list.isEmpty() ? null : list.getFirst())
+                : list.stream().filter(l -> l.tenantId().equals(location)).findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        // Global account pages do not imply a selected location; explicit legacy location links remain authorized above.
+        if (global) selected = null;
+        if (location == null && requestedView.equals("overview")) {
+            if (list.size() == 1 && !list.getFirst().isClosed() && !subscriptions.isClosed(list.getFirst().tenantId()) && !locations.isClosed(list.getFirst().tenantId())) selected = list.getFirst();
+            else { selected = null; area = "restaurants"; }
+        }
+        view = switch (area) {
+            case "restaurants" -> "locations";
+            case "account", "billing" -> "settings";
+            case "team" -> "team";
+            case "tickets", "location-config", "data" -> "location-settings";
+            default -> "overview";
+        };
+        if (requestedView.equals("tickets")) section = "legal";
+        if (requestedView.equals("data") && !Set.of("backup", "advanced").contains(section)) section = "backup";
+        if (requestedView.equals("location-config") && !Set.of("general", "appearance", "payments", "domain").contains(section)) section = "general";
         model.addAttribute("ownerUsername",owner.getName());model.addAttribute("locations",list);
         model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
         model.addAttribute("marketingConsent",acceptances.mayReceiveOffers(owner.getName()));
-        model.addAttribute("selected",selected);model.addAttribute("view",view);model.addAttribute("section",section);
+        model.addAttribute("selected",selected);model.addAttribute("view",view);model.addAttribute("section",section);model.addAttribute("workspaceArea",area);
         model.addAttribute("themes",themes.all());
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
         model.addAttribute("demoTemplates",backups.getAvailableTemplates(locale!=null?locale:Locale.getDefault()));
