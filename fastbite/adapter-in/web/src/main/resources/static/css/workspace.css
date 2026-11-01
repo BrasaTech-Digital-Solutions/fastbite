@@ -377,3 +377,25 @@
 /* Opening requirements */
 .opening-tag{display:inline-block;max-width:100%;margin-left:6px;padding:3px 8px;border-radius:999px;background:#fbe9e4;color:#8f3322;font-size:12px;font-weight:700;vertical-align:middle}
 .opening-tag-conditional{background:#efeee6;color:#3f4b44}
+
+/* Today shortcuts */
+.today-shortcuts{margin-top:24px;border-top:1px solid #dedfd5}
+.today-shortcuts a{display:flex;align-items:center;min-height:44px;border-bottom:1px solid #e7e8df;font-weight:600}
+
+/* Owner workspace layouts */
+.ws-title-large{font-size:30px}.ws-mt-half{margin-top:.5rem}.ws-mt{margin-top:1rem}.ws-mt-two{margin-top:2rem}.ws-mt-large{margin-top:1.5rem}.ws-mt-quarter{margin-top:.25rem}.ws-mb{margin-bottom:1rem}.ws-plan-form{margin-top:1rem;max-width:320px}.ws-dialog-select{width:100%;padding:.5rem;margin-top:.25rem}.ws-consent-row{display:flex;align-items:center;gap:.5rem;cursor:pointer}.ws-status-active{background:#e6f4ea;color:#137333}.ws-status-pending{background:#fef7e0;color:#8a5000}.ws-row-between{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem}.ws-row-mt,.ws-row-mb{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}.ws-row-mt{margin-top:1rem}.ws-row-mb{margin-bottom:1rem}.ws-warning{font-weight:600;color:#8a5000;margin-top:.75rem}.ws-list-spaced{margin:.5rem 0;padding-left:1.2rem}.ws-spaced{margin:.5rem 0}.ws-trial-form{display:flex;align-items:center;gap:.5rem;margin:0}.ws-trial-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.75rem 0}.ws-days{width:5.5rem}
+
+/* An open location puts daily work before the optional opening checklist. */
+.opening-layout:has(.daily-tools) { display: flex; flex-direction: column; }
+.today-tools-grid, .today-detail-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.today-detail-grid { margin-top: 1.5rem; align-items: start; }
+.today-shortcuts a { display: block; min-height: 44px; padding: .7rem 0; border-bottom: 1px solid var(--ws-border, #dedfd5); }
+
+
+/* Keep controls usable and long account data contained on small screens. */
+.workspace .location-switcher select, .disclosure summary { min-height: 44px; }
+.disclosure summary { display: list-item; padding: 10px 0; }
+.workspace-main, .workspace-main section, .workspace-main article { min-width: 0; }
+.workspace-main p, .workspace-main h1, .workspace-main h2, .workspace-main h3, .billing-row { overflow-wrap: anywhere; }
+.today-tools-grid .tool-link { min-width: 0; gap: 12px; border: 1px solid #dedfd5; border-radius: 12px; padding: 14px; }
+.today-tools-grid .tool-preview { max-width: 42%; height: auto; }

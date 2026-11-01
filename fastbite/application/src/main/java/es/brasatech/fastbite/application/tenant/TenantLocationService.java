@@ -1,5 +1,7 @@
 package es.brasatech.fastbite.application.tenant;
 
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import org.springframework.stereotype.Service;
 
@@ -36,7 +38,7 @@ public class TenantLocationService {
 
     public void registerLocation(String ownerUsername, String tenantId, String plan) {
         if (tenantLocationPort.findByTenantId(tenantId).isPresent()) {
-            throw new IllegalArgumentException("Tenant location prefix '" + tenantId + "' is already registered.");
+            throw new LocalizedRejection("location.error.registered", "Tenant location prefix '" + tenantId + "' is already registered.", tenantId);
         }
         TenantLocation location = new TenantLocation(null, ownerUsername, tenantId, plan, null);
         tenantLocationPort.save(location);
@@ -53,7 +55,7 @@ public class TenantLocationService {
             String domainLower = customDomain.trim().toLowerCase();
             Optional<TenantLocation> existing = tenantLocationPort.findByCustomDomain(domainLower);
             if (existing.isPresent() && !existing.get().tenantId().equals(tenantId)) {
-                throw new IllegalArgumentException("Custom domain '" + customDomain + "' is already mapped to another location.");
+                throw new LocalizedRejection("location.error.domainUsed", "Custom domain '" + customDomain + "' is already mapped to another location.", customDomain);
             }
         }
         

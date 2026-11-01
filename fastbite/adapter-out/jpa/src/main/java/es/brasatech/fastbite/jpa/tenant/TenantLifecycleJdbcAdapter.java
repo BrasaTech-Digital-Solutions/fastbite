@@ -3,6 +3,7 @@ package es.brasatech.fastbite.jpa.tenant;
 import es.brasatech.fastbite.application.tenant.TenantLifecyclePort;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
 import es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -66,7 +67,7 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
             }
             try (var pending = statement(connection, "SELECT username FROM public.pending_registrations WHERE tenant_id = ? AND expires_at > ?", tenant, Instant.now().toEpochMilli()); var row = pending.executeQuery()) {
                 if (row.next() && !(operationId.equals("signup:" + tenant) && owner.equals(row.getString(1))))
-                    throw new IllegalArgumentException("Restaurant identifier is already reserved.");
+                    throw new LocalizedRejection("location.error.reserved", "Restaurant identifier is already reserved.");
             }
             try (var query = statement(connection,
                     "SELECT operation_id, owner_username, state, updated_at FROM public.tenant_lifecycle WHERE tenant_id = ? FOR UPDATE", tenant);
@@ -76,7 +77,7 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
                             "SELECT tenant_id FROM public.tenant_locations WHERE LOWER(tenant_id) = ?", tenant);
                          var locRows = locQuery.executeQuery()) {
                         if (locRows.next()) {
-                            throw new IllegalArgumentException("Restaurant identifier is already registered.");
+                            throw new LocalizedRejection("location.error.registered", "Restaurant identifier is already registered.", tenant);
                         }
                     }
                     var savepoint = connection.setSavepoint();
@@ -108,7 +109,7 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
                 }
 
                 if (!operationId.equals(existingOp) || !owner.equals(existingOwner)) {
-                    throw new IllegalArgumentException("Restaurant identifier is already reserved.");
+                    throw new LocalizedRejection("location.error.reserved", "Restaurant identifier is already reserved.");
                 }
 
                 if (State.ACTIVE.name().equals(state)) {

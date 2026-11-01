@@ -7,6 +7,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import es.brasatech.fastbite.service.StripeService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.MessageSource;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +28,14 @@ public class OwnerConsoleController {
     private final es.brasatech.fastbite.config.TenantRoutingResolver tenantResolver;
     private final StripeService stripeService;
     private final es.brasatech.fastbite.config.PublicOrigin publicOrigin;
+    private MessageSource messages;
+
+    @Autowired
+    void setMessages(MessageSource messages) { this.messages = messages; }
+
+    private String notice(String key, String fallback) {
+        return messages == null ? fallback : messages.getMessage(key, null, fallback, LocaleContextHolder.getLocale());
+    }
 
     @ProductionOnly
     @PostMapping("/owner/add-location")
@@ -41,11 +53,11 @@ public class OwnerConsoleController {
             return "redirect:/owner/console?location=" + tenantId.trim().toLowerCase(java.util.Locale.ROOT);
         } catch (IllegalArgumentException e) {
             log.warn("Location creation rejected for tenant {}", tenantId);
-            model.addFlashAttribute("error", e.getMessage());
+            model.addFlashAttribute("error", e instanceof LocalizedRejection && messages != null ? RejectionMessages.resolve(e, messages) : (e instanceof LocalizedRejection ? e.getMessage() : notice("workspace.flash.failed", "The action could not be completed. Check the details and try again.")));
             return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to add location: " + tenantId, e);
-            model.addFlashAttribute("error", e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=locations";
         }
     }
@@ -97,11 +109,13 @@ public class OwnerConsoleController {
             return "redirect:/owner/console?view=location-settings&section=domain&location=" + tenantId;
         } catch (IllegalArgumentException e) {
             log.warn("Custom domain change rejected for tenant {}", tenantId);
-            model.addFlashAttribute("error", e.getMessage());
+            String fallback = "Could not update the domain: " + customDomain;
+            model.addFlashAttribute("error", e instanceof LocalizedRejection && messages != null ? RejectionMessages.resolve(e, messages) : (e instanceof LocalizedRejection ? e.getMessage() : (messages == null ? fallback : messages.getMessage(
+                    "workspace.flash.domain.failed", new Object[]{customDomain}, fallback, LocaleContextHolder.getLocale()))));
             return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to bind custom domain: " + customDomain, e);
-            model.addFlashAttribute("error", e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=locations";
         }
     }
@@ -122,11 +136,11 @@ public class OwnerConsoleController {
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         } catch (IllegalArgumentException e) {
             log.warn("Stripe account update rejected for tenant {}", tenantId);
-            model.addFlashAttribute("error", e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=locations";
         } catch (Exception e) {
             log.error("Failed to update Stripe account ID for location: " + tenantId, e);
-            model.addFlashAttribute("error", e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=locations";
         }
     }
@@ -142,11 +156,11 @@ public class OwnerConsoleController {
         }
         String ownerUsername = principal.getName();
         if (!tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
-            model.addFlashAttribute("error", "You do not own this location.");
+            model.addFlashAttribute("error", notice("workspace.flash.unauthorized", "You do not own this location."));
             return "redirect:/owner/console?view=locations";
         }
         if (!stripeService.isConfigured()) {
-            model.addFlashAttribute("error", "Online payment platform is not configured by the administrator.");
+            model.addFlashAttribute("error", notice("workspace.flash.stripe.unconfigured", "Online payment platform is not configured by the administrator."));
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         }
 
@@ -168,11 +182,11 @@ public class OwnerConsoleController {
             return "redirect:" + accountLink.getUrl();
         } catch (IllegalArgumentException e) {
             log.warn("Stripe onboarding rejected for tenant {}", tenantId);
-            model.addFlashAttribute("error", "Failed to connect with Stripe: " + e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         } catch (Exception e) {
             log.error("Failed to initiate Stripe onboarding for location: " + tenantId, e);
-            model.addFlashAttribute("error", "Failed to connect with Stripe: " + e.getMessage());
+            model.addFlashAttribute("error", notice("workspace.flash.failed", "The action could not be completed. Check the details and try again."));
             return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
         }
     }
@@ -188,7 +202,8 @@ public class OwnerConsoleController {
         var locationOpt = tenantLocationService.getLocation(tenantId);
         String accountId = locationOpt.map(es.brasatech.fastbite.domain.tenant.TenantLocation::stripeAccountId).orElse(null);
         refreshStripeStatus(accountId);
-        model.addFlashAttribute("success", "Stripe connection updated for " + tenantId);
+        model.addFlashAttribute("success", messages == null ? "Stripe connection updated for " + tenantId : messages.getMessage(
+                "workspace.flash.stripe.updated", new Object[]{tenantId}, "Stripe connection updated for " + tenantId, LocaleContextHolder.getLocale()));
         return "redirect:/owner/console?view=location-settings&section=payments&location=" + tenantId;
     }
 

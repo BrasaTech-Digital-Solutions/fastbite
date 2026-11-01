@@ -1,74 +1,74 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Restaurant billing — FastBite</title>
+<title th:text="#{workspace.billing.title}">Restaurant billing — FastBite</title>
 <link rel="stylesheet" href="/css/platform.css">
 <link rel="stylesheet" href="/css/workspace.css">
 </head>
 <body class="workspace">
-<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main">Skip to content</a>
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main" th:text="#{workspace.rebuild.more.51}">Skip to content</a>
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
 <div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
 <main class="workspace-main" id="workspace-main">
-<a class="text-link" href="/owner/console?view=settings">← Account &amp; billing</a>
-<p class="eyebrow">YOUR RESTAURANT SUBSCRIPTION</p>
-<h1>Simple, clear billing.</h1>
+<a class="text-link" href="/owner/console?view=settings" th:text="#{workspace.rebuild.more.52}">← Account &amp; billing</a>
+<p class="eyebrow" th:text="#{workspace.rebuild.more.53}">YOUR RESTAURANT SUBSCRIPTION</p>
+<h1 th:text="#{workspace.rebuild.more.54}">Simple, clear billing.</h1>
 <div th:if="${error}" class="alert error" role="alert" th:text="${error}">
 </div>
 <div th:if="${notice}" class="alert success" role="status" th:text="${notice}"></div>
-<div th:if="${param.checkout != null}" class="alert success" role="status">Back from checkout? Use “Refresh status” to check Stripe’s confirmation. Returning here does not itself activate a subscription.</div>
+<div th:if="${param.checkout != null}" class="alert success" role="status" th:text="#{workspace.billing.checkout.return}">Back from checkout? Use “Refresh status” to check Stripe’s confirmation. Returning here does not itself activate a subscription.</div>
 <section class="billing-card">
-<h2 style="font-size:30px" th:text="${billing.tenantId}">Restaurant</h2>
-<p th:if="${billing.status == 'FREE' || billing.status == 'free'}">Free Plan · 0€/month · online payments stay on, with a 2.5% platform fee on every order paid online</p>
-<p th:unless="${billing.status == 'FREE' || billing.status == 'free'}">Restaurant · €<span th:text="${monthlyPrice}">49</span> per month, per location, excluding VAT</p>
+<h2 th:text="${billing.tenantId}" class="ws-title-large">Restaurant</h2>
+<p th:if="${billing.status == 'FREE' || billing.status == 'free'}" th:text="#{workspace.rebuild.more.55}">Free Plan · 0€/month · online payments stay on, with a 2.5% platform fee on every order paid online</p>
+<p th:unless="${billing.status == 'FREE' || billing.status == 'free'}" th:text="#{workspace.billing.price(${monthlyPrice})}">Restaurant · €49 per month, per location, excluding VAT</p>
 <dl class="billing-meta">
 <div>
-<dt>Billing status</dt>
-<dd th:text="${billing.displayStatus()}">Free trial</dd>
+<dt th:text="#{workspace.rebuild.more.56}">Billing status</dt>
+<dd th:text="${billingStatusLabel}">Free trial</dd>
 </div>
 <div th:if="${billing.status != 'FREE' && billing.status != 'free'}">
-<dt>Free trial ends (UTC)</dt>
+<dt th:text="#{workspace.rebuild.more.57}">Free trial ends (UTC)</dt>
 <dd th:text="${#temporals.format(billing.trialEndsAt(), 'd MMMM yyyy, HH:mm', 'UTC')}">
 </dd>
 </div>
 <div th:if="${billing.periodEnd > 0}">
-<dt>Current subscription period ends (UTC)</dt>
+<dt th:text="#{workspace.rebuild.more.58}">Current subscription period ends (UTC)</dt>
 <dd th:text="${#temporals.format(T(java.time.Instant).ofEpochSecond(billing.periodEnd), 'd MMMM yyyy, HH:mm', 'UTC')}">
 </dd>
 </div>
 </dl>
-<p class="fine" th:if="${billing.status == 'FREE' || billing.status == 'free'}">You can take unlimited orders on the Free Plan. Upgrade to Restaurant Pro at any time to remove the 2.5% platform fee.</p>
-<p class="fine" th:unless="${billing.status == 'FREE' || billing.status == 'free'}">If your trial or subscription ends, new orders pause. Existing orders, owner access and data export remain available.</p>
-<p class="fine" th:if="${billing.closed}">This location’s contract has ended and its operational data has been deleted. <a th:href="@{/owner/console(location=${billing.tenantId})}">View and download fiscal records &amp; tickets →</a></p>
+<p class="fine" th:if="${billing.status == 'FREE' || billing.status == 'free'}" th:text="#{workspace.rebuild.more.59}">You can take unlimited orders on the Free Plan. Upgrade to Restaurant Pro at any time to remove the 2.5% platform fee.</p>
+<p class="fine" th:unless="${billing.status == 'FREE' || billing.status == 'free'}" th:text="#{workspace.rebuild.more.60}">If your trial or subscription ends, new orders pause. Existing orders, owner access and data export remain available.</p>
+<p class="fine" th:if="${billing.closed}"><span th:text="#{workspace.billing.closed.desc}">This location’s contract has ended and its operational data has been deleted.</span> <a th:href="@{/owner/console(location=${billing.tenantId})}" th:text="#{workspace.rebuild.more.61}">View and download fiscal records &amp; tickets →</a></p>
 <th:block th:unless="${billing.closed}">
-<div th:unless="${billingConfigured}" class="alert error">Subscription checkout is not configured yet. Contact the platform operator before your trial ends.</div>
+<div th:unless="${billingConfigured}" class="alert error" th:text="#{workspace.billing.not.configured}">Subscription checkout is not configured yet. Contact the platform operator before your trial ends.</div>
 <div class="billing-actions">
 <form th:if="${billing.subscriptionId == null || billing.status == 'canceled' || billing.status == 'incomplete_expired'}" th:action="@{/owner/billing/{tenant}/checkout(tenant=${billing.tenantId})}" method="post">
-<button class="button" th:disabled="${!billingConfigured}">Activate Restaurant — €<span th:text="${monthlyPrice}">49</span>/month ↗</button>
+<button class="button" th:disabled="${!billingConfigured}" th:text="#{workspace.billing.activate(${monthlyPrice})}">Activate Restaurant</button>
 </form>
 <form th:if="${billing.customerId != null}" th:action="@{/owner/billing/{tenant}/portal(tenant=${billing.tenantId})}" method="post">
-<button class="button secondary" th:disabled="${!billingConfigured}">Manage payments & cancellation ↗</button>
+<button class="button secondary" th:disabled="${!billingConfigured}" th:text="#{workspace.rebuild.more.62}">Manage payments & cancellation ↗</button>
 </form>
 <form th:if="${billing.checkoutId != null || billing.subscriptionId != null}" th:action="@{/owner/billing/{tenant}/refresh(tenant=${billing.tenantId})}" method="post">
-<button class="button secondary" th:disabled="${!billingConfigured}">Refresh status</button>
+<button class="button secondary" th:disabled="${!billingConfigured}" th:text="#{workspace.rebuild.more.63}">Refresh status</button>
 </form>
 </div>
-<p class="form-note">Activating a subscription starts paid billing immediately and ends your free trial. Stripe shows your total, applicable taxes and any approved promotion before you confirm. Payment-processing fees for customer orders are separate.</p>
+<p class="form-note" th:text="#{workspace.rebuild.more.64}">Activating a subscription starts paid billing immediately and ends your free trial. Stripe shows your total, applicable taxes and any approved promotion before you confirm. Payment-processing fees for customer orders are separate.</p>
 </th:block>
 </section>
-<details class="panel disclosure" style="margin-top: 1.5rem;" th:unless="${billing.closed}"><summary>Change plan</summary>
-<form class="compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post" style="margin-top: 1rem; max-width: 320px;">
-<label for="select-plan">Switch location plan</label>
+<details class="ws-mt-large panel disclosure" th:unless="${billing.closed}"><summary th:text="#{workspace.rebuild.more.65}">Change plan</summary>
+<form class="ws-plan-form compact-form" th:action="@{/owner/billing/{tenant}/override-plan(tenant=${billing.tenantId})}" method="post">
+<label for="select-plan" th:text="#{workspace.rebuild.more.66}">Switch location plan</label>
 <select id="select-plan" name="plan">
-<option value="FREE" th:selected="${billing.status == 'FREE'}">Free (0€/mo + 2.5% card fee)</option>
-<option value="RESTAURANT" th:selected="${billing.status != 'FREE'}">Restaurant (€<span th:text="${monthlyPrice}">49</span>/mo)</option>
+<option value="FREE" th:selected="${billing.status == 'FREE'}" th:text="#{workspace.rebuild.more.67}">Free (0€/mo + 2.5% card fee)</option>
+<option value="RESTAURANT" th:selected="${billing.status != 'FREE'}" th:text="#{workspace.billing.plan.restaurant(${monthlyPrice})}">Restaurant</option>
 </select>
-<button class="button secondary" style="margin-top: 0.5rem;">Update plan</button>
+<button class="ws-mt-half button secondary" th:text="#{workspace.rebuild.more.68}">Update plan</button>
 </form>
 </details>
-<p class="fine">Subscriptions are billed separately for each location. For 3+ locations, request volume pricing in Account &amp; billing before you subscribe.</p>
+<p class="fine" th:text="#{workspace.rebuild.more.69}">Subscriptions are billed separately for each location. For 3+ locations, request volume pricing in Account &amp; billing before you subscribe.</p>
 </main>
 </div>
 </body>

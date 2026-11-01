@@ -103,7 +103,7 @@ public class TenantMaintenanceController {
             return ResponseEntity.ok(Map.of("status", "success", "message", "Production bundle successfully imported into location."));
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "VERSION_MISMATCH", "message", e.getMessage()));
         } catch (IllegalArgumentException e) {
             log.warn("Production bundle import rejected for tenant {}", tenantId);
             return ResponseEntity.badRequest().body(Map.of("message", Objects.toString(e.getMessage(), "Invalid bundle.")));
@@ -139,7 +139,7 @@ public class TenantMaintenanceController {
             return ResponseEntity.ok(response);
         } catch (es.brasatech.fastbite.application.tenant.TenantBackupRestorePort.VersionMismatch e) {
             log.warn("Refused a production bundle of another version for tenant {}: {}", tenantId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "VERSION_MISMATCH", "message", e.getMessage()));
         } catch (IllegalArgumentException e) {
             log.warn("Backup restore rejected for tenant {}", tenantId);
             return ResponseEntity.badRequest().body(Map.of("message", Objects.toString(e.getMessage(), "Invalid backup.")));
@@ -188,7 +188,7 @@ public class TenantMaintenanceController {
             java.util.Locale locale) {
         if (link.linkedProduction()) {
             // Concepts are for practising: a production linked to its sandbox gets its menu by promotion
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "DEMO_SANDBOX_ONLY", "message",
                     "Demo templates are loaded in the sandbox. Set up there, then restore your production bundle here."));
         }
         String templateName = (template != null && !template.isBlank()) ? template : "kebab";

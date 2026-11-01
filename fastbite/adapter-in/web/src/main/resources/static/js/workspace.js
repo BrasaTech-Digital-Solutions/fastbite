@@ -3,11 +3,16 @@
 const token=document.querySelector('meta[name="csrf-token"]').content;
 const header=document.querySelector('meta[name="csrf-header"]').content;
 const feedback=document.getElementById('workspace-feedback');
+const ui=document.body.dataset;
+// Open the location form when a link points to its disclosure.
+function openLocationForm(){if(location.hash==='#add-location'){const details=document.getElementById('add-location');if(details) details.open=true;}}
+window.addEventListener('hashchange',openLocationForm);openLocationForm();
+const fill=(text,...values)=>values.reduce((result,value,index)=>result.replaceAll('{'+index+'}',String(value)),text);
 function message(text,error=false){feedback.textContent=text;feedback.hidden=false;feedback.className='alert '+(error?'error':'success');feedback.scrollIntoView({block:'center',behavior:'smooth'});}
 async function request(url,body,html=false){const response=await fetch(url,{method:'POST',headers:{[header]:token},body});if(!response.ok || response.redirected){
  // A conflict explains itself, such as a production bundle from another FastBite version
- let reason='The action could not be completed. Check your session and try again.';
- if(response.status===409){try{reason=(await response.json()).message||reason;}catch(e){}}
+ let reason=ui.actionError;
+ if(response.status===409){try{const conflict=await response.json();if(conflict.code==='VERSION_MISMATCH')reason=ui.versionMismatch;else if(conflict.code==='DEMO_SANDBOX_ONLY')reason=ui.demoSandboxOnly;}catch(e){}}
  throw new Error(reason);}
  return html?response.text():response.json();}
 function busy(form,value){form.querySelectorAll('button').forEach(b=>b.disabled=value);form.setAttribute('aria-busy',String(value));}
@@ -32,8 +37,8 @@ const tplGroup=document.getElementById('maintenance-template-group');const tplSe
 let pending=null;let reviewedFile=null;
 async function review(tenant,action,file){
  pending={tenant,action,file};confirmForm.reset();confirmName.setCustomValidity('');document.getElementById('maintenance-error').textContent='';
- document.getElementById('maintenance-title').textContent=action==='clean'?'Reset this restaurant?':action==='restore-demo'?'Load the demo template?':'Restore your backup?';
- document.getElementById('maintenance-description').textContent=action==='clean'?'This permanently removes this location’s menu, orders, staff and uploaded files. Tickets and tax records are kept by law and won’t be deleted.':action==='restore-demo'?'This replaces this location’s menu, settings and files with the sample restaurant and clears existing orders and staff. No sample logins or historical orders are imported.':'This replaces this location’s menu, orders, staff, settings and uploaded files with the backup you checked.';
+ document.getElementById('maintenance-title').textContent=action==='clean'?ui.cleanTitle:action==='restore-demo'?ui.demoTitle:ui.restoreTitle;
+ document.getElementById('maintenance-description').textContent=action==='clean'?ui.cleanDesc:action==='restore-demo'?ui.demoDesc:ui.restoreDesc;
  document.getElementById('maintenance-location').textContent=tenant;document.getElementById('maintenance-export').href='/'+encodeURIComponent(tenant)+'/api/backoffice/maintenance/backup';
  if(tplGroup){
   tplGroup.hidden=(action!=='restore-demo');
@@ -44,7 +49,7 @@ async function review(tenant,action,file){
      if(res.ok){
       const list=await res.json();
       tplSelect.innerHTML='';
-      list.forEach(t=>{const opt=document.createElement('option');opt.value=t.id;opt.dataset.desc=t.description||'';opt.textContent=(t.icon?t.icon+' ':'')+t.name+' ('+t.productsCount+' items)';tplSelect.appendChild(opt);});
+      list.forEach(t=>{const opt=document.createElement('option');opt.value=t.id;opt.dataset.desc=t.description||'';opt.textContent=(t.icon?t.icon+' ':'')+t.name+' ('+t.productsCount+' '+ui.items+')';tplSelect.appendChild(opt);});
      }
     }catch(err){}
    }
@@ -58,7 +63,7 @@ document.querySelectorAll('[data-maintenance]').forEach(button=>button.addEventL
 document.getElementById('maintenance-cancel').addEventListener('click',()=>dialog.close());
 confirmName.addEventListener('input',()=>confirmName.setCustomValidity(''));
 confirmForm.addEventListener('submit',async event=>{
- event.preventDefault();if(confirmName.value!==pending.tenant){confirmName.setCustomValidity('Enter '+pending.tenant+' exactly to confirm.');confirmName.reportValidity();return;}
+ event.preventDefault();if(confirmName.value!==pending.tenant){confirmName.setCustomValidity(fill(ui.confirmName,pending.tenant));confirmName.reportValidity();return;}
  busy(confirmForm,true);
  try{
   let endpoint='/'+encodeURIComponent(pending.tenant)+'/api/backoffice/maintenance/'+pending.action;
@@ -70,13 +75,13 @@ confirmForm.addEventListener('submit',async event=>{
   }
   const res=await request(endpoint,body);
   dialog.close();
-  if(res&&res.notice&&typeof fbNotice==='function'){await fbNotice({message:res.notice});}
+  if(res&&res.notice&&typeof fbNotice==='function'){await fbNotice({message:ui.maintenanceSuccess});}
   window.location.assign('/owner/console?location='+encodeURIComponent(pending.tenant));
- }catch(e){document.getElementById('maintenance-error').textContent=e.message+' Your setup has not been marked complete.';}finally{busy(confirmForm,false);}
+ }catch(e){document.getElementById('maintenance-error').textContent=(e.message===ui.versionMismatch || e.message===ui.demoSandboxOnly) ? e.message : ui.maintenanceError;}finally{busy(confirmForm,false);}
 });
 // Restore the exact File object reviewed, not a subsequently changed selection.
 const backupForm=document.getElementById('backup-preview');
-if(backupForm){const fileInput=document.getElementById('backup-file');const result=document.getElementById('backup-result');fileInput.addEventListener('change',()=>{reviewedFile=null;result.hidden=true;});backupForm.addEventListener('submit',async event=>{event.preventDefault();result.hidden=true;reviewedFile=null;const file=fileInput.files[0];if(!file)return;busy(backupForm,true);try{const body=new FormData();body.append('file',file);const summary=await request('/owner/workspace/'+encodeURIComponent(backupForm.dataset.tenant)+'/backup-preview',body);if(fileInput.files[0]!==file)return;reviewedFile=file;document.getElementById('backup-summary').textContent='Archive checked: '+summary.products+' menu items, '+summary.orders+' orders and '+summary.accounts+' account records.';result.hidden=false;}catch(e){message('We could not validate this backup. Use an exported FastBite ZIP and check that you are still signed in.',true);}finally{busy(backupForm,false);}});document.getElementById('restore-reviewed').addEventListener('click',()=>{if(reviewedFile)review(backupForm.dataset.tenant,'restore',reviewedFile);});}
+if(backupForm){const fileInput=document.getElementById('backup-file');const result=document.getElementById('backup-result');fileInput.addEventListener('change',()=>{reviewedFile=null;result.hidden=true;});backupForm.addEventListener('submit',async event=>{event.preventDefault();result.hidden=true;reviewedFile=null;const file=fileInput.files[0];if(!file)return;busy(backupForm,true);try{const body=new FormData();body.append('file',file);const summary=await request('/owner/workspace/'+encodeURIComponent(backupForm.dataset.tenant)+'/backup-preview',body);if(fileInput.files[0]!==file)return;reviewedFile=file;document.getElementById('backup-summary').textContent=fill(ui.backupSummary,summary.products,summary.orders,summary.accounts);result.hidden=false;}catch(e){message(ui.backupError,true);}finally{busy(backupForm,false);}});document.getElementById('restore-reviewed').addEventListener('click',()=>{if(reviewedFile)review(backupForm.dataset.tenant,'restore',reviewedFile);});}
 const promoteBtn = document.getElementById('promote-preview-btn');
 if (promoteBtn) {
  const tenant = promoteBtn.dataset.tenant;
@@ -122,29 +127,29 @@ if (promoteBtn) {
    const addDiff = (label, diff) => {
     if (!diff || (diff.added === 0 && diff.changed === 0 && diff.removed === 0)) return;
     const li = document.createElement('li');
-    li.textContent = label + ': ' + diff.added + ' added, ' + diff.changed + ' changed, ' + diff.removed + ' removed';
+    li.textContent = fill(ui.diff,label,diff.added,diff.changed,diff.removed);
     diffList.appendChild(li);
    };
-   addDiff('Products', data.products);
-   addDiff('Categories', data.categories);
-   addDiff('Customizations', data.customizations);
-   addDiff('Tables', data.tables);
-   addDiff('Discounts', data.discounts);
+   addDiff(ui.products, data.products);
+   addDiff(ui.categories, data.categories);
+   addDiff(ui.customizations, data.customizations);
+   addDiff(ui.tables, data.tables);
+   addDiff(ui.discounts, data.discounts);
    if (data.theme && data.theme.before !== data.theme.after) {
     const li = document.createElement('li');
-    const tBefore = data.theme.before || 'default';
-    const tAfter = data.theme.after || 'default';
-    li.textContent = 'Visual theme: ' + tBefore + ' → ' + tAfter;
+    const tBefore = data.theme.before || ui.default;
+    const tAfter = data.theme.after || ui.default;
+    li.textContent = fill(ui.theme,tBefore,tAfter);
     diffList.appendChild(li);
    }
    if (data.serviceSettingsReplaced) {
     const li = document.createElement('li');
-    li.textContent = 'Business details and service settings will be replaced from the sandbox';
+    li.textContent = ui.serviceReplaced;
     diffList.appendChild(li);
    }
    if (diffList.children.length === 0) {
     const li = document.createElement('li');
-    li.textContent = 'No changes to menu or configuration detected.';
+    li.textContent = ui.noChanges;
     diffList.appendChild(li);
    }
 
@@ -163,15 +168,14 @@ if (promoteBtn) {
    productChangesDiv.innerHTML = '';
    if (priceChanges.length > 0) {
     const title = document.createElement('strong');
-    title.textContent = 'Price changes:';
+    title.textContent = ui.prices;
     productChangesDiv.appendChild(title);
     const ul = document.createElement('ul');
-    ul.style.paddingLeft = '1.2rem';
-    ul.style.margin = '0.25rem 0';
+    ul.className = 'ws-list-spaced';
     priceChanges.forEach(pc => {
      const li = document.createElement('li');
      let desc = pc.name + ': ' + fmtPrice(pc.priceBefore) + ' → ' + fmtPrice(pc.priceAfter);
-     if (pc.allergensChanged) desc += ' (allergens changed)';
+     if (pc.allergensChanged) desc += ui.allergens;
      li.textContent = desc;
      ul.appendChild(li);
     });
@@ -179,14 +183,14 @@ if (promoteBtn) {
    }
    if (otherChanges.length > 0) {
     const p = document.createElement('p');
-    p.style.margin = '0.25rem 0';
-    p.innerHTML = '<strong>Other product changes:</strong> ' + otherChanges.join(', ');
+    p.className = 'ws-mt-quarter';
+    p.textContent = ui.otherChanges + ' ' + otherChanges.join(', ');
     productChangesDiv.appendChild(p);
    }
    productChangesDiv.hidden = (priceChanges.length === 0 && otherChanges.length === 0);
 
    if (data.products && data.products.removedNames && data.products.removedNames.length > 0) {
-    removedProductsDiv.innerHTML = '<strong>Removed products:</strong> ' + data.products.removedNames.join(', ');
+    removedProductsDiv.textContent = ui.removed + ' ' + data.products.removedNames.join(', ');
     removedProductsDiv.hidden = false;
    } else {
     removedProductsDiv.hidden = true;
@@ -260,7 +264,7 @@ if (promoteBtn) {
      throw new Error((data && data.message) ? data.message : genericErr);
     }
     if (typeof fbNotice === 'function') {
-     await fbNotice({ message: 'Promotion applied successfully. Pre-promotion snapshot saved.' });
+     await fbNotice({ message: ui.promotionSuccess });
     }
     window.location.assign('/owner/console?view=location-settings&section=backup&location=' + encodeURIComponent(tenant));
    } catch (err) {
@@ -288,7 +292,7 @@ if (undoBtn) {
    confirmed = await fbConfirm({
     message: msg,
     confirmText: undoBtn.textContent.trim(),
-    cancelText: 'Cancel',
+    cancelText: ui.cancel,
     danger: true
    });
   } else {
@@ -314,7 +318,7 @@ if (undoBtn) {
     throw new Error((data && data.message) ? data.message : genericErr);
    }
    if (typeof fbNotice === 'function') {
-    await fbNotice({ message: 'Last promotion has been undone.' });
+    await fbNotice({ message: ui.undoSuccess });
    }
    window.location.assign('/owner/console?view=location-settings&section=backup&location=' + encodeURIComponent(tenant));
   } catch (err) {

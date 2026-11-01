@@ -1,6 +1,13 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.tenant.SubscriptionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import java.time.Clock;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +21,9 @@ public class BillingController {
     private final es.brasatech.fastbite.application.tenant.TenantLocationService locations;
     private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
     private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
+    @Autowired private MessageSource messages;
+    @Autowired private Clock clock;
+    @Value("${fastbite.orders.time-zone:Europe/Madrid}") private String ordersTimeZone;
     public BillingController(SubscriptionService subscriptions,
             es.brasatech.fastbite.application.tenant.TenantLocationService locations,
             es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
@@ -23,10 +33,18 @@ public class BillingController {
         this.environment = java.util.Objects.requireNonNull(environment, "environment");
         this.admins = java.util.Objects.requireNonNull(admins, "admins");
     }
+    private String workspaceMessage(String key, Object... args) {
+        return messages.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
     @es.brasatech.fastbite.config.ProductionOnly
     @GetMapping("/owner/billing/{tenant}")
     public String show(@PathVariable String tenant, Principal owner, Model model) {
-        try { model.addAttribute("billing", subscriptions.account(tenant, owner.getName())); }
+        try {
+            var account = subscriptions.account(tenant, owner.getName());
+            model.addAttribute("billing", account);
+            model.addAttribute("billingStatusLabel", OwnerWorkspaceController.localizedBillingStatus(account,
+                    LocaleContextHolder.getLocale(), messages, clock, ordersTimeZone));
+        }
         catch (IllegalArgumentException e) { throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND); }
         model.addAttribute("billingConfigured", subscriptions.configured());
         model.addAttribute("ownerUsername", owner.getName());
@@ -46,15 +64,28 @@ public class BillingController {
                 default -> throw new IllegalArgumentException("Unknown billing action.");
             };
         } catch (IllegalArgumentException | IllegalStateException e) {
-            flash.addFlashAttribute("error", e.getMessage());
+            flash.addFlashAttribute("error", workspaceMessage(billingErrorKey(e)));
             return "redirect:/owner/billing/" + tenant;
         }
+    }
+    private String billingErrorKey(Exception error) {
+        String detail = error.getMessage();
+        if (detail == null) return "workspace.flash.failed";
+        return switch (detail) {
+            case "Subscription checkout is not available yet. Contact the platform operator." -> "workspace.billing.error.unconfigured";
+            case "Activate a subscription before managing billing." -> "workspace.billing.error.activate";
+            case "A subscription already exists. Use Manage billing to update it." -> "workspace.billing.error.exists";
+            case "Your subscription is being confirmed. Refresh billing shortly." -> "workspace.billing.error.confirming";
+            case "This checkout needs a billing review. Contact support before trying again." -> "workspace.billing.error.review";
+            case "This location is closed and its contract has ended." -> "workspace.billing.error.closed";
+            default -> "workspace.flash.failed";
+        };
     }
     @es.brasatech.fastbite.config.ProductionOnly
     @PostMapping("/owner/group-quote")
     public String groupQuote(@RequestParam String email, @RequestParam int locations, Principal owner, RedirectAttributes flash) {
-        try { subscriptions.requestGroupQuote(owner.getName(), email, locations); flash.addFlashAttribute("notice", "Your group pricing request has been saved. We will use your email to follow up."); }
-        catch (IllegalArgumentException e) { flash.addFlashAttribute("error", e.getMessage()); }
+        try { subscriptions.requestGroupQuote(owner.getName(), email, locations); flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.quote.saved")); }
+        catch (IllegalArgumentException e) { flash.addFlashAttribute("error", workspaceMessage("workspace.flash.quote.invalid")); }
         return "redirect:/owner/console?view=settings";
     }
 
@@ -63,9 +94,9 @@ public class BillingController {
     public String overridePlan(@PathVariable String tenant, @RequestParam String plan, Principal owner, RedirectAttributes flash) {
         try {
             subscriptions.updateTenantPlan(tenant, owner != null ? owner.getName() : null, plan);
-            flash.addFlashAttribute("notice", "Plan for " + tenant + " updated to " + plan + ".");
+            flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.plan.saved", tenant, plan));
         } catch (IllegalArgumentException e) {
-            flash.addFlashAttribute("error", e.getMessage());
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
         }
         return "redirect:/owner/billing/" + tenant;
     }
@@ -78,7 +109,12 @@ public class BillingController {
         model.addAttribute("locations", ownerLocations);
         model.addAttribute("selected", ownerLocations.isEmpty() ? null : ownerLocations.getFirst());
         model.addAttribute("view", "settings");
-        model.addAttribute("accounts", subscriptions.listAllAccounts(admin));
+        var accounts = subscriptions.listAllAccounts(admin);
+        model.addAttribute("accounts", accounts);
+        Map<String, String> trialLabels = new LinkedHashMap<>();
+        for (var account : accounts) trialLabels.put(account.tenantId(), OwnerWorkspaceController.localizedBillingStatus(
+                account, LocaleContextHolder.getLocale(), messages, clock, ordersTimeZone));
+        model.addAttribute("trialLabels", trialLabels);
         return "fastfood/owner/platform-trials";
     }
 
@@ -88,9 +124,9 @@ public class BillingController {
         String admin = requirePlatformAdmin(auth);
         try {
             subscriptions.extendTenantTrial(tenant, admin, days);
-            flash.addFlashAttribute("notice", "Trial for " + tenant + " extended by " + days + " days.");
+            flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.trial.extended", tenant, days));
         } catch (IllegalArgumentException e) {
-            flash.addFlashAttribute("error", e.getMessage());
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
         }
         return "redirect:/owner/platform/trials";
     }

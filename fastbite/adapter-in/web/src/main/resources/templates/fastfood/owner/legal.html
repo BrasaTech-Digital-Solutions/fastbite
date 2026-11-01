@@ -204,6 +204,14 @@
        th:text="#{owner.verifactu.declaration}">Software declaration (declaración responsable) →</a>
   </p>
 </section>
+<section class="panel" aria-labelledby="issued-tickets-title">
+  <div class="panel-heading"><h2 id="issued-tickets-title" th:text="#{workspace.rebuild.more.4}">Issued tickets and invoices</h2>
+    <a class="button secondary" th:href="@{/owner/workspace/{tenant}/tickets.json(tenant=${selected.tenantId})}" th:text="#{workspace.rebuild.more.5}">Download tickets (JSON)</a></div>
+  <p class="fine" th:if="${#lists.isEmpty(issuedTickets)}" th:text="#{workspace.rebuild.more.6}">No tickets yet.</p>
+  <div class="billing-row" th:each="t : ${issuedTickets}"><strong th:text="${t.fullNumber()}"></strong>
+    <span class="fine" th:text="${#temporals.format(t.issuedAt(), 'dd/MM/yyyy HH:mm') + ' · ' + t.kind().name() + ' · ' + t.total() + ' €'}"></span>
+    <a class="text-link" th:href="@{/owner/workspace/{tenant}/tickets/{id}(tenant=${selected.tenantId},id=${t.id()})}" target="_blank" rel="noopener" th:text="#{workspace.rebuild.more.7}">View ticket</a></div>
+</section>
 <div th:replace="~{fastfood/fragments/guest-privacy-notice :: panel(
     uploadAction=@{/owner/workspace/{tenant}/privacy-notice(tenant=${selected.tenantId})},
     revertAction=@{/owner/workspace/{tenant}/privacy-notice/generated(tenant=${selected.tenantId})},

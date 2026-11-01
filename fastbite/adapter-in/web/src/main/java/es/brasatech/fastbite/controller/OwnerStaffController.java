@@ -2,9 +2,11 @@ package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.tenant.OwnerStaffService;
 import es.brasatech.fastbite.domain.user.Role;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.user.UserDto;
 import es.brasatech.fastbite.application.tenant.PasswordPolicy;
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -65,14 +67,15 @@ public class OwnerStaffController {
             model.addAttribute("users", users);
             model.addAttribute("tenantId", tenantId);
             model.addAttribute("roles", STAFF_ROLES);
-            model.addAttribute("success", "User '" + username + "' created successfully!");
+            model.addAttribute("success", messages.getMessage("workspace.flash.staff.created", new Object[]{username}, LocaleContextHolder.getLocale()));
         } catch (Exception e) {
             if (e instanceof IllegalArgumentException) {
                 log.warn("Staff account creation rejected for tenant {}", tenantId);
             } else {
                 log.error("Failed to create staff user for tenant {}", tenantId, e);
             }
-            model.addAttribute("error", RejectionMessages.resolve(e, messages));
+            model.addAttribute("error", e instanceof LocalizedRejection ? RejectionMessages.resolve(e, messages)
+                    : messages.getMessage("workspace.flash.failed", null, "The action could not be completed. Check the details and try again.", LocaleContextHolder.getLocale()));
             
             List<UserDto> users = ownerStaffService.listStaff(ownerUsername, tenantId);
             model.addAttribute("users", users);
@@ -94,7 +97,7 @@ public class OwnerStaffController {
         model.addAttribute("users", users);
         model.addAttribute("tenantId", tenantId);
         model.addAttribute("roles", STAFF_ROLES);
-        model.addAttribute("success", "User deleted successfully!");
+        model.addAttribute("success", messages.getMessage("workspace.flash.staff.deleted", null, LocaleContextHolder.getLocale()));
         return "fastfood/owner/fragments :: staff-list";
     }
 }

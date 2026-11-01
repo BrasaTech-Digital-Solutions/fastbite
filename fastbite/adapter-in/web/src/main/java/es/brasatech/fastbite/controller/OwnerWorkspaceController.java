@@ -5,6 +5,8 @@ import es.brasatech.fastbite.domain.fiscal.SpanishProvinces;
 import es.brasatech.fastbite.domain.fiscal.VatRates;
 import es.brasatech.fastbite.domain.user.Role;
 import org.springframework.context.MessageSource;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,12 @@ import org.springframework.http.HttpStatus;
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.time.Year;
+import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import es.brasatech.fastbite.domain.tenant.BillingAccount;
 import java.util.*;
 @Controller
 public class OwnerWorkspaceController {
@@ -93,6 +101,26 @@ public class OwnerWorkspaceController {
             if (list.size() == 1 && !list.getFirst().isClosed() && !subscriptions.isClosed(list.getFirst().tenantId()) && !locations.isClosed(list.getFirst().tenantId())) selected = list.getFirst();
             else { selected = null; area = "restaurants"; }
         }
+        if (area.equals("restaurants") || area.equals("billing")) {
+            Map<String, OwnerWorkspaceService.Summary> locationSummaries = new LinkedHashMap<>();
+            Map<String, String> locationBilling = new LinkedHashMap<>();
+            for (var loc : list) {
+                if (area.equals("restaurants") && !loc.isClosed() && !subscriptions.isClosed(loc.tenantId()) && !locations.isClosed(loc.tenantId())) {
+                    var locationSummary = workspace.summary(owner.getName(), loc.tenantId());
+                    if (locationSummary != null) locationSummaries.put(loc.tenantId(), locationSummary);
+                }
+                if (area.equals("billing")) {
+                    try {
+                        var account = subscriptions.account(loc.tenantId(), owner.getName());
+                        if (account != null) locationBilling.put(loc.tenantId(), localizedBillingStatus(account, locale, messages, clock, ordersTimeZone));
+                    } catch (IllegalArgumentException e) {
+                        log.warn("Billing status unavailable for location {}", loc.tenantId());
+                    }
+                }
+            }
+            model.addAttribute("locationSummaries", locationSummaries);
+            model.addAttribute("locationBilling", locationBilling);
+        }
         view = switch (area) {
             case "restaurants" -> "locations";
             case "account", "billing" -> "settings";
@@ -103,6 +131,14 @@ public class OwnerWorkspaceController {
         if (requestedView.equals("tickets")) section = "legal";
         if (requestedView.equals("data") && !Set.of("backup", "advanced").contains(section)) section = "backup";
         if (requestedView.equals("location-config") && !Set.of("general", "appearance", "payments", "domain").contains(section)) section = "general";
+        Map<String, String> closedLabels = new LinkedHashMap<>();
+        for (var loc : list) {
+            if (loc.closedAt() != null) {
+                String date = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.of(ordersTimeZone)).format(loc.closedAt());
+                closedLabels.put(loc.tenantId(), messages.getMessage("workspace.closed.on", new Object[]{date}, "Closed on " + date, locale));
+            }
+        }
+        model.addAttribute("closedLabels", closedLabels);
         model.addAttribute("ownerUsername",owner.getName());model.addAttribute("locations",list);
         model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
         model.addAttribute("marketingConsent",acceptances.mayReceiveOffers(owner.getName()));
@@ -113,6 +149,10 @@ public class OwnerWorkspaceController {
         if(selected!=null) {
             var billing=subscriptions.account(selected.tenantId(),owner.getName());
             model.addAttribute("billing",billing);
+            model.addAttribute("billingStatusLabel", localizedBillingStatus(billing, locale, messages, clock, ordersTimeZone));
+            Instant trialEnd = trialEnd(billing);
+            model.addAttribute("trialEndsSoon", trialEnd != null && trialEnd.isAfter(clock.instant())
+                    && !trialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
             boolean locationClosed=(billing!=null && billing.isClosed()) || selected.isClosed() || subscriptions.isClosed(selected.tenantId()) || locations.isClosed(selected.tenantId());
             model.addAttribute("locationClosed",locationClosed);
             if(locationClosed) {
@@ -124,6 +164,9 @@ public class OwnerWorkspaceController {
                 model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
                 var setup=workspace.summary(owner.getName(),selected.tenantId());
                 model.addAttribute("setup",setup);
+                if (view.equals("overview") && setup.opened() && !environment.sandbox()) {
+                    model.addAttribute("todayVerifactu", workspace.verifactuSummary(owner.getName(), selected.tenantId(), false));
+                }
                 if(view.equals("location-settings") && section.equals("general")) {
                     model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
                 }
@@ -146,6 +189,7 @@ public class OwnerWorkspaceController {
                     addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
                     model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
                     model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
+                    model.addAttribute("issuedTickets", workspace.fiscalTickets(owner.getName(), selected.tenantId()));
                     model.addAttribute("activePrivacyNotice",privacyNotices.findActive(selected.tenantId()).orElse(null));
                     model.addAttribute("privacyNoticeHistory",privacyNotices.history(selected.tenantId()));
                 }
@@ -161,6 +205,39 @@ public class OwnerWorkspaceController {
         }
         return "fastfood/owner/console";
     }
+    private String workspaceMessage(String key, Object... args) {
+        return messages.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
+
+    private static Instant trialEnd(BillingAccount account) {
+        if (account == null) return null;
+        if ("LOCAL_TRIAL".equals(account.status()) && account.trialStartedAt() != null) return account.trialEndsAt();
+        if ("trialing".equals(account.status()) && account.stripeTrialEnd() > 0) return Instant.ofEpochSecond(account.stripeTrialEnd());
+        return null;
+    }
+
+    static String localizedBillingStatus(BillingAccount account, Locale locale, MessageSource messages, Clock clock, String ordersTimeZone) {
+        if (account == null) return "";
+        Instant end = trialEnd(account);
+        if (end != null && end.isAfter(clock.instant())) {
+            String date = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.of(ordersTimeZone)).format(end);
+            return messages.getMessage("workspace.billing.trial.until", new Object[]{date}, "Free trial until " + date, locale);
+        }
+        String key;
+        if (account.isClosed()) key = "closed";
+        else if (account.isContractEnded()) key = "ended";
+        else if (account.isFreePlan()) key = "free";
+        else if (end != null) key = "trial.ended";
+        else key = switch (account.status()) {
+            case "active" -> "active";
+            case "past_due", "unpaid" -> "payment.due";
+            case "canceled", "incomplete_expired" -> "canceled";
+            case "paused" -> "paused";
+            default -> "pending";
+        };
+        return messages.getMessage("workspace.billing.status." + key, null, account.displayStatus(), locale);
+    }
+
     @PostMapping("/owner/workspace/{tenant}/setup")
     public String setup(@PathVariable String tenant,@RequestParam String action,
             @RequestParam(required=false) String template,
@@ -209,11 +286,11 @@ public class OwnerWorkspaceController {
         checkOpen(owner,tenant);
         try {
             workspace.saveCashFloat(owner.getName(),tenant,new BigDecimal(cashFloat.strip().replace(',','.')));
-            flash.addFlashAttribute("notice","Starting cash saved. The counter offers it when the cash is checked.");
+            flash.addFlashAttribute("notice",workspaceMessage("workspace.flash.cash.saved"));
         } catch(NumberFormatException e) {
-            flash.addFlashAttribute("error","Enter the starting cash in euros, such as 150 or 150.50.");
+            flash.addFlashAttribute("error",workspaceMessage("workspace.flash.cash.invalid"));
         } catch(IllegalArgumentException e) {
-            flash.addFlashAttribute("error",e.getMessage());
+            flash.addFlashAttribute("error",workspaceMessage("workspace.flash.cash.invalid"));
         }
         return "redirect:/owner/console?view=location-settings&location="+tenant;
     }
@@ -221,8 +298,8 @@ public class OwnerWorkspaceController {
     public String service(@PathVariable String tenant,@RequestParam(defaultValue="false") boolean dineIn,@RequestParam(defaultValue="false") boolean takeaway,
             @RequestParam(defaultValue="0") int yellow,@RequestParam(defaultValue="0") int red,@RequestParam(defaultValue="false") boolean tableQrTrusted,Principal owner,RedirectAttributes flash) {
         checkOpen(owner,tenant);
-        try { workspace.saveService(owner.getName(),tenant,dineIn,takeaway,yellow,red,tableQrTrusted);flash.addFlashAttribute("notice","Service preferences saved. Your setup progress has been updated."); }
-        catch(IllegalArgumentException e) { flash.addFlashAttribute("error",e.getMessage()); }
+        try { workspace.saveService(owner.getName(),tenant,dineIn,takeaway,yellow,red,tableQrTrusted);flash.addFlashAttribute("notice",workspaceMessage("workspace.flash.service.saved")); }
+        catch(IllegalArgumentException e) { flash.addFlashAttribute("error",workspaceMessage("workspace.flash.service.invalid")); }
         return "redirect:/owner/console?view=location-settings&location="+tenant;
     }
     /** A draft the owner just tried to save wins over the saved profile, so nothing typed is lost. */
@@ -339,7 +416,7 @@ public class OwnerWorkspaceController {
         try {
             return ResponseEntity.ok(promotionService.preview(tenant, owner.getName()));
         } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
-            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            String msg = messages.getMessage(e.code(), null, workspaceMessage("workspace.flash.failed"), locale);
             return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
         } catch (Exception e) {
             log.error("Promotion preview failed unexpectedly for tenant {}", tenant, e);
@@ -366,7 +443,7 @@ public class OwnerWorkspaceController {
             var result = promotionService.confirm(tenant, owner.getName(), actualToken);
             return ResponseEntity.ok(Map.of("status", "applied", "snapshot", result.snapshotName(), "summary", result.summary()));
         } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
-            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            String msg = messages.getMessage(e.code(), null, workspaceMessage("workspace.flash.failed"), locale);
             return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
         } catch (Exception e) {
             log.error("Promotion confirm failed unexpectedly for tenant {}", tenant, e);
@@ -384,7 +461,7 @@ public class OwnerWorkspaceController {
             var result = promotionService.undo(tenant, owner.getName());
             return ResponseEntity.ok(Map.of("status", "undone", "snapshot", result.snapshotName()));
         } catch (es.brasatech.fastbite.application.platform.PromotionException e) {
-            String msg = messages.getMessage(e.code(), null, e.getMessage(), locale);
+            String msg = messages.getMessage(e.code(), null, workspaceMessage("workspace.flash.failed"), locale);
             return ResponseEntity.status(e.statusCode()).body(new PromotionErrorResponse(e.code(), msg));
         } catch (Exception e) {
             log.error("Promotion undo failed unexpectedly for tenant {}", tenant, e);
@@ -399,10 +476,10 @@ public class OwnerWorkspaceController {
         if (owner == null) return "redirect:/login";
         if (marketing) {
             acceptances.record(owner.getName(), LegalAcceptancePort.MARKETING, termsVersion, clock.instant());
-            flash.addFlashAttribute("notice", "You have opted in to receive offers from Brasatech by email.");
+            flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.marketing.on"));
         } else {
             acceptances.withdraw(owner.getName(), LegalAcceptancePort.MARKETING, clock.instant());
-            flash.addFlashAttribute("notice", "Your consent to receive offers from Brasatech has been withdrawn.");
+            flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.marketing.off"));
         }
         return "redirect:/owner/console?view=settings";
     }
@@ -415,9 +492,9 @@ public class OwnerWorkspaceController {
             byte[] bytes = file != null ? file.getBytes() : new byte[0];
             String originalName = file != null ? file.getOriginalFilename() : "privacy.pdf";
             var saved = privacyNotices.upload(tenant, originalName, bytes, owner.getName());
-            flash.addFlashAttribute("notice", "Privacy notice PDF uploaded (v" + saved.version() + ") and published at /" + tenant + "/privacy.");
+            flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.privacy.uploaded", saved.version(), tenant));
         } catch (IllegalArgumentException | java.io.IOException e) {
-            flash.addFlashAttribute("error", e.getMessage());
+            flash.addFlashAttribute("error", e instanceof LocalizedRejection ? RejectionMessages.resolve(e, messages) : workspaceMessage("workspace.flash.failed"));
         }
         return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
     }
@@ -426,7 +503,7 @@ public class OwnerWorkspaceController {
     public String useGeneratedPrivacyNotice(@PathVariable String tenant, Principal owner, RedirectAttributes flash) {
         checkOpen(owner, tenant);
         privacyNotices.useGeneratedNotice(tenant);
-        flash.addFlashAttribute("notice", "Switched back to the generated privacy notice. All previously uploaded PDF versions remain on file.");
+        flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.privacy.restored"));
         return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
     }
 

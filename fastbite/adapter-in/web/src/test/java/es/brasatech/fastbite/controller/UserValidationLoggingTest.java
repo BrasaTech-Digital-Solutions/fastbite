@@ -14,6 +14,11 @@ import es.brasatech.fastbite.service.StripeService;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.StaticMessageSource;
+import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.ui.ExtendedModelMap;
@@ -52,6 +57,38 @@ class UserValidationLoggingTest {
             assertThat(appender.list.getFirst().getThrowableProxy()).isNull();
             verify(port, never()).save(any());
         } finally { detach(OwnerConsoleController.class, appender); }
+    }
+    @Test void registeredAddressShowsItsSpanishReasonAndAddress() throws Exception {
+        var port = mock(TenantLocationPort.class);
+        when(port.findByTenantId("pizza")).thenReturn(Optional.of(new TenantLocation("1", "alice", "pizza", "RESTAURANT", null)));
+        var locations = new TenantLocationService(port);
+        var signup = mock(TenantSignupService.class);
+        doAnswer(call -> { locations.registerLocation("alice", "pizza", "RESTAURANT"); return null; })
+                .when(signup).registerAdditionalLocation("pizza", "alice", "RESTAURANT");
+        var controller = new OwnerConsoleController(locations, signup, mock(TenantRoutingResolver.class),
+                mock(StripeService.class), mock(PublicOrigin.class));
+        var messages = new ResourceBundleMessageSource(); messages.setBasename("i18n/messages"); messages.setDefaultEncoding("UTF-8");
+        controller.setMessages(messages);
+        MockMvcBuilders.standaloneSetup(controller).build()
+                .perform(post("/owner/add-location").principal(() -> "alice").locale(Locale.forLanguageTag("es"))
+                        .param("tenantId", "pizza"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("error", "La dirección del local pizza ya está registrada."));
+    }
+    @Test void plainRegistrationExceptionShowsOnlyGenericSpanishError() throws Exception {
+        var signup = mock(TenantSignupService.class);
+        doThrow(new IllegalArgumentException("secret internal detail"))
+                .when(signup).registerAdditionalLocation("pizza", "alice", "RESTAURANT");
+        var controller = new OwnerConsoleController(mock(TenantLocationService.class), signup,
+                mock(TenantRoutingResolver.class), mock(StripeService.class), mock(PublicOrigin.class));
+        var messages = new StaticMessageSource();
+        messages.addMessage("workspace.flash.failed", Locale.forLanguageTag("es"), "No se pudo completar la acción.");
+        controller.setMessages(messages);
+        MockMvcBuilders.standaloneSetup(controller).build()
+                .perform(post("/owner/add-location").principal(() -> "alice").locale(Locale.forLanguageTag("es"))
+                        .param("tenantId", "pizza"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("error", "No se pudo completar la acción."));
     }
     @Test void unexpectedDomainFailureStillLogsErrorWithCause() {
         var locations = mock(TenantLocationService.class);

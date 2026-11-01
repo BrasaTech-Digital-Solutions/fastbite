@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"><body>
 <section th:fragment="location" class="panel" th:if="${section=='appearance'}">
-<p class="eyebrow">YOUR RESTAURANT’S LOOK</p><h2>Make it feel like you.</h2>
-<p>The menu, counter and kitchen share this appearance. Your guests and team see the same theme on every device.</p>
+<p class="eyebrow" th:text="#{workspace.rebuild.58}">YOUR RESTAURANT’S LOOK</p><h2 th:text="#{workspace.rebuild.59}">Make it feel like you.</h2>
+<p th:text="#{workspace.rebuild.60}">The menu, counter and kitchen share this appearance. Your guests and team see the same theme on every device.</p>
 <form th:action="@{/owner/workspace/{tenant}/appearance(tenant=${selected.tenantId})}" method="post">
-<label class="theme-inherit"><input type="radio" name="theme" value="inherit" th:checked="${themeOverride==null}"> Use my owner default: <strong th:text="${ownerTheme.name}"></strong></label>
+<label class="theme-inherit"><input type="radio" name="theme" value="inherit" th:checked="${themeOverride==null}"><span th:text="#{workspace.appearance.inherit}"> Use my owner default: </span> <strong th:text="${#messages.msgOrNull('workspace.theme.name.' + ownerTheme.id) ?: ownerTheme.name}"></strong></label>
 <div class="theme-grid"><label class="theme-choice" th:each="theme:${themes}">
 <input type="radio" name="theme" th:value="${theme.id}" th:checked="${theme.id==themeOverride}">
-<img th:src="${theme.menuPreview()}" th:alt="${theme.name+' sample menu'}" width="380" height="190" loading="lazy">
-<strong th:text="${theme.name}"></strong><span th:text="${theme.description}"></span>
-</label></div><button class="button">Save location theme</button>
-</form><p class="fine">Illustrations show the style, not your menu items. Save, then open the live guest preview to see your actual menu.</p>
-<button class="button secondary" data-guest-preview th:data-url="@{/{tenant}/menu(tenant=${selected.tenantId})}">Preview this location’s menu</button>
+<img th:src="${theme.menuPreview()}" th:alt="${#messages.msg('workspace.appearance.preview', #messages.msgOrNull('workspace.theme.name.' + theme.id) ?: theme.name)}" width="380" height="190" loading="lazy">
+<strong th:text="${#messages.msgOrNull('workspace.theme.name.' + theme.id) ?: theme.name}"></strong><span th:text="${#messages.msgOrNull('workspace.theme.description.' + theme.id) ?: theme.description}"></span>
+</label></div><button class="button" th:text="#{workspace.rebuild.61}">Save location theme</button>
+</form><p class="fine" th:text="#{workspace.rebuild.62}">Illustrations show the style, not your menu items. Save, then open the live guest preview to see your actual menu.</p>
+<button class="button secondary" data-guest-preview th:data-url="@{/{tenant}/menu(tenant=${selected.tenantId})}" th:text="#{workspace.rebuild.63}">Preview this location’s menu</button>
 </section>
-<section th:fragment="owner" class="panel"><p class="eyebrow">YOUR DEFAULT APPEARANCE</p><h2>A familiar look across your locations.</h2>
-<p>New locations use this theme. Each location can keep its own override under Location settings → Appearance.</p>
+<section th:fragment="owner" class="panel"><p class="eyebrow" th:text="#{workspace.rebuild.64}">YOUR DEFAULT APPEARANCE</p><h2 th:text="#{workspace.rebuild.65}">A familiar look across your locations.</h2>
+<p th:text="#{workspace.rebuild.66}">New locations use this theme. Each location can keep its own override under Location settings → Appearance.</p>
 <form action="/owner/appearance" th:action="@{/owner/appearance}" method="post"><div class="theme-grid">
 <label class="theme-choice" th:each="theme:${themes}"><input type="radio" name="theme" th:value="${theme.id}" th:checked="${theme.id==ownerTheme.id}">
-<img th:src="${theme.menuPreview()}" th:alt="${theme.name+' sample menu'}" width="380" height="190" loading="lazy"><strong th:text="${theme.name}"></strong><span th:text="${theme.description}"></span>
-</label></div><button class="button">Save owner default</button></form></section>
+<img th:src="${theme.menuPreview()}" th:alt="${#messages.msg('workspace.appearance.preview', #messages.msgOrNull('workspace.theme.name.' + theme.id) ?: theme.name)}" width="380" height="190" loading="lazy"><strong th:text="${#messages.msgOrNull('workspace.theme.name.' + theme.id) ?: theme.name}"></strong><span th:text="${#messages.msgOrNull('workspace.theme.description.' + theme.id) ?: theme.description}"></span>
+</label></div><button class="button" th:text="#{workspace.rebuild.67}">Save owner default</button></form></section>
 </body></html>

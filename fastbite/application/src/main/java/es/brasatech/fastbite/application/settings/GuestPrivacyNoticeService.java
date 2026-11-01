@@ -1,5 +1,7 @@
 package es.brasatech.fastbite.application.settings;
 
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+
 import es.brasatech.fastbite.domain.settings.GuestPrivacyNotice;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 
@@ -78,13 +80,13 @@ public interface GuestPrivacyNoticeService {
     /** Validates that the uploaded bytes are a valid PDF (header {@code %PDF-}, size <= 5 MB). */
     static void validatePdf(byte[] bytes) {
         if (bytes == null || bytes.length < 5) {
-            throw new IllegalArgumentException("Choose a valid PDF file (at most 5 MB).");
+            throw new LocalizedRejection("guest.notice.error.choose", "Choose a valid PDF file (at most 5 MB).");
         }
         if (bytes.length > MAX_PDF_BYTES) {
-            throw new IllegalArgumentException("The PDF file must not exceed 5 MB.");
+            throw new LocalizedRejection("guest.notice.error.size", "The PDF file must not exceed 5 MB.");
         }
         if (bytes[0] != 0x25 || bytes[1] != 0x50 || bytes[2] != 0x44 || bytes[3] != 0x46 || bytes[4] != 0x2D) {
-            throw new IllegalArgumentException("Only PDF files are accepted (checked by content, %PDF- header required).");
+            throw new LocalizedRejection("guest.notice.error.notPdf", "The selected file is not a PDF.");
         }
     }
 

@@ -88,6 +88,19 @@ class OwnerWorkspaceFlowTest {
         assertTrue(global.contains("id=\"add-location\""), "two locations show the global list");
         assertFalse(global.contains("class=\"workspace-location-card\""));
         assertTrue(global.contains("view=billing"));
+        // A legacy/incomplete billing row must not take down the account's other locations.
+        jdbc.update("UPDATE public.tenant_billing SET tenant_id='temporary-missing-billing' WHERE tenant_id='workspacesecond'");
+        try {
+            var locationsWithoutBilling = get(owner, "/owner/console?view=locations");
+            assertEquals(200, locationsWithoutBilling.statusCode());
+            assertTrue(locationsWithoutBilling.body().contains("workspacesecond"));
+            var billingWithoutRow = get(owner, "/owner/console?view=billing");
+            assertEquals(200, billingWithoutRow.statusCode());
+            assertTrue(billingWithoutRow.body().contains("Billing status unavailable"));
+        } finally {
+            jdbc.update("UPDATE public.tenant_billing SET tenant_id='workspacesecond' WHERE tenant_id='temporary-missing-billing'");
+        }
+
         assertFalse(global.contains("class=\"workspace-mobile-back\""));
         assertEquals(2, Pattern.compile("aria-current=\"page\"").matcher(global).results().count());
         for (String area : new String[]{"today", "menu", "team", "tickets", "location-config", "data"}) {

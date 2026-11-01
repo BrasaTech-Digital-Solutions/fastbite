@@ -8,6 +8,7 @@ import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
+import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.security.SecurityConfig;
 import es.brasatech.fastbite.security.TenantUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
@@ -38,6 +40,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,7 +62,8 @@ class PlatformTrialsControllerTest {
             PlatformEnvironment.class, PlatformAdmins.class})
     @TestPropertySource(properties = {
             "fastbite.environment=production",
-            "fastbite.platform.admins=brasatech"
+            "fastbite.platform.admins=brasatech",
+            "spring.messages.basename=i18n/messages"
     })
     class InProductionWithConfiguredAdmin {
 
@@ -76,6 +80,45 @@ class PlatformTrialsControllerTest {
         void setUp() {
             es.brasatech.fastbite.config.RegisteredTenants.all(tenantLocationService);
             when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
+        }
+
+        @Test
+        void closedLocationsDoNotBreakBillingOrPlatformTrialsTopbar() throws Exception {
+            var open = new TenantLocation("1", "brasatech", "cafe", "RESTAURANT", null);
+            var closed = new TenantLocation("2", "brasatech", "oldcafe", "RESTAURANT", null,
+                    null, false, false, Instant.now());
+            var account = new BillingAccount("cafe", "brasatech", "key", Instant.now(), "LOCAL_TRIAL",
+                    null, null, 0, 0, false, null, null, 0, 0);
+            when(tenantLocationService.getLocationsByOwner("brasatech")).thenReturn(List.of(open, closed));
+            when(tenantLocationService.getLocation("cafe")).thenReturn(Optional.of(open));
+            when(subscriptions.account("cafe", "brasatech")).thenReturn(account);
+            when(subscriptions.listAllAccounts("brasatech")).thenReturn(List.of(account));
+            mockMvc.perform(get("/owner/billing/cafe").locale(Locale.forLanguageTag("es"))
+                            .session(ownerSession("brasatech")))
+                    .andExpect(status().isOk()).andExpect(content().string(containsString("oldcafe (Cerrado)")));
+            mockMvc.perform(get("/owner/platform/trials").locale(Locale.forLanguageTag("es"))
+                            .session(ownerSession("brasatech")))
+                    .andExpect(status().isOk()).andExpect(content().string(containsString("oldcafe (Cerrado)")));
+        }
+
+        @Test
+        void billingRefusalsAreActionableAndTranslatedWithoutLeakingUnknownErrors() throws Exception {
+            when(subscriptions.checkout("cafe", "cafeowner"))
+                    .thenThrow(new IllegalArgumentException("Subscription checkout is not available yet. Contact the platform operator."));
+            when(subscriptions.portal("cafe", "cafeowner"))
+                    .thenThrow(new IllegalArgumentException("Activate a subscription before managing billing."));
+            when(subscriptions.checkout("other", "cafeowner"))
+                    .thenThrow(new IllegalStateException("internal secret"));
+            mockMvc.perform(post("/owner/billing/cafe/checkout").session(ownerSession("cafeowner")).with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("error", "Subscription checkout is not available yet. Contact the platform operator."));
+            mockMvc.perform(post("/owner/billing/cafe/portal").locale(Locale.forLanguageTag("es"))
+                            .session(ownerSession("cafeowner")).with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("error", "Activa una suscripción antes de gestionar la facturación."));
+            mockMvc.perform(post("/owner/billing/other/checkout").session(ownerSession("cafeowner")).with(csrf()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("error", "The action could not be completed. Check the details and try again."));
         }
 
         @Test
@@ -106,6 +149,11 @@ class PlatformTrialsControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("cafe")))
                     .andExpect(content().string(containsString("cafeowner")));
+
+            mockMvc.perform(get("/owner/platform/trials").locale(Locale.forLanguageTag("es"))
+                            .session(ownerSession("brasatech")))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Propietario: cafeowner")));
 
             mockMvc.perform(post("/owner/platform/trials/cafe/extend").param("days", "14")
                             .session(ownerSession("brasatech")).with(csrf()))

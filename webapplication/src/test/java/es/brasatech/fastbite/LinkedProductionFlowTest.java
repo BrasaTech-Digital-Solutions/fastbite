@@ -129,7 +129,7 @@ class LinkedProductionFlowTest {
         assertTrue(backup.contains("Bring in your sandbox setup"));
         assertFalse(backup.contains("Export Production Bundle"));
         assertFalse(get(owner, "/owner/console?view=location-settings&section=advanced&location=linkedcafe").body()
-                .contains("Load the demo template"));
+                .contains("data-maintenance=\"restore-demo\""));
 
         // The sandbox cannot be reached: the owner is told it is being prepared, and nothing fails
         var enter = get(owner, "/owner/sandbox?location=linkedcafe");

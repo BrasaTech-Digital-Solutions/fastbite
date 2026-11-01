@@ -1136,7 +1136,7 @@ fi
 BAD_PDF_PAGE=$(curl -s -b "$J" -c "$J" "$BAD_PDF_LOC")
 PDF_COUNT_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from tenant_$T.guest_privacy_notices" 2>/dev/null | tr -d '
 ')
-if echo "$BAD_PDF_PAGE" | grep -q "%PDF-" && [ "$PDF_COUNT_DB" = "1" ]; then
+if echo "$BAD_PDF_PAGE" | grep -q "The selected file is not a PDF." && [ "$PDF_COUNT_DB" = "1" ]; then
   record_match 1 "Non-PDF upload is refused and keeps active PDF unchanged"
 else
   record_match 0 "Non-PDF upload is refused and keeps active PDF unchanged (count=$PDF_COUNT_DB)"

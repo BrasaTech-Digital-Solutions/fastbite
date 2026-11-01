@@ -3,6 +3,8 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockMultipartFile;
+import java.util.Locale;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +19,14 @@ class TenantBackupDownloadTest {
             new es.brasatech.fastbite.application.platform.PlatformLink(
                     new es.brasatech.fastbite.application.platform.PlatformEnvironment("sandbox"), "", "", "", false),
             mock(org.springframework.context.MessageSource.class));
+
+    @Test void restoreVersionConflictHasStableCodeWithoutDependingOnErrorText() throws Exception {
+        when(backups.importRestore(eq("burger"), any())).thenThrow(new TenantBackupRestorePort.VersionMismatch("old", "new"));
+        var file = new MockMultipartFile("file", "bundle.zip", "application/zip", new byte[]{1});
+        var result = controller.uploadRestore("burger", file, null, Locale.ENGLISH);
+        assertEquals(409, result.getStatusCode().value());
+        assertEquals("VERSION_MISMATCH", result.getBody().get("code"));
+    }
 
     @Test void failedExportReturns500WithoutAPartialDownload() throws Exception {
         doAnswer(call -> {
