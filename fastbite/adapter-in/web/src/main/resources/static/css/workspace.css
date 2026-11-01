@@ -355,3 +355,25 @@
 .practice-tour-aside{min-width:0;width:100%}
 .production-sandbox-card{padding:20px 16px}
 }
+
+/* Production opening checklist */
+.opening-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:24px}
+.opening-layout .setup-list li>div{min-width:0}
+.opening-layout .setup-list a,.opening-layout button{min-height:44px;display:inline-flex;align-items:center}
+.opening-attention{padding:12px;border:1px solid #dedfd5;border-radius:12px;background:#fcfaf5}
+.opening-attention ul{padding-left:20px}
+@media(max-width:760px){.opening-layout{grid-template-columns:minmax(0,1fr)}.opening-layout .panel{min-width:0}}
+
+/* Opening checklist actions and transfer summary */
+.opening-layout .panel-heading{flex-wrap:wrap}
+.opening-layout .panel-heading h2{min-width:0;overflow-wrap:anywhere}
+.opening-next{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px}
+.opening-next a,.opening-next button,.opening-attention a,.opening-attention button{min-height:44px;display:inline-flex;align-items:center}
+.opening-transfer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:14px;background:#f5f4ed;border-radius:12px}
+.opening-transfer ul{padding-left:20px;margin:6px 0 0}
+.opening-layout .opening-transfer li{display:list-item;padding:0;border:0}
+@media(max-width:480px){.opening-transfer{grid-template-columns:minmax(0,1fr)}}
+
+/* Opening requirements */
+.opening-tag{display:inline-block;max-width:100%;margin-left:6px;padding:3px 8px;border-radius:999px;background:#fbe9e4;color:#8f3322;font-size:12px;font-weight:700;vertical-align:middle}
+.opening-tag-conditional{background:#efeee6;color:#3f4b44}

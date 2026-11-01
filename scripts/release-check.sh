@@ -742,6 +742,14 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
   fi
 fi
 
+# Production opening checklist: an owner can confirm and undo working alone.
+OPENING_PAGE=$(curl -s -c "$J" -b "$J" "$P/owner/console?location=$T")
+OPENING_CSRF=$(echo "$OPENING_PAGE" | meta)
+ALONE_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/owner/workspace/$T/setup" --data-urlencode "_csrf=$OPENING_CSRF" -d 'action=work_alone')
+record "$ALONE_CODE" 302 "owner confirms working alone"
+TEAM_CODE=$(curl -s -o /dev/null -w '%{http_code}' -c "$J" -b "$J" "$P/owner/workspace/$T/setup" --data-urlencode "_csrf=$OPENING_CSRF" -d 'action=work_with_team')
+record "$TEAM_CODE" 302 "owner undoes working alone"
+
 echo "== [4/6] Owner surfaces & Backoffice fragments"
 for path in "/$T/counter" "/$T/counter/tickets" "/$T/counter/day-report" "/$T/counter/api/cash" \
     "/$T/dashboard" "/$T/backoffice" \

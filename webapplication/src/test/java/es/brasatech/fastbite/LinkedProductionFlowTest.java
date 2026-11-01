@@ -140,6 +140,24 @@ class LinkedProductionFlowTest {
 
 
     @Test
+    void previouslyOpenedLocationWithNoProductsKeepsTodayInsteadOfSandboxIntro() throws Exception {
+        var owner = client();
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords,
+                "openedcafe", "openedowner", "Opened Owner", "local-test-password");
+        post(owner, "/login", "username=openedowner&password=local-test-password&_csrf=" + csrf(get(owner, "/login").body()));
+        var first = get(owner, "/owner/console?location=openedcafe");
+        assertTrue(first.body().contains("Set up openedcafe in the sandbox"), first.body());
+        jdbc.update("INSERT INTO public.owner_onboarding (tenant_id, opened) VALUES (?, TRUE)", "openedcafe");
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM tenant_openedcafe.products", Integer.class));
+        assertEquals(Boolean.FALSE, jdbc.queryForObject("SELECT started FROM public.owner_onboarding WHERE tenant_id='openedcafe'", Boolean.class));
+        var today = get(owner, "/owner/console?location=openedcafe");
+        assertEquals(200, today.statusCode());
+        assertTrue(today.body().contains("Open counter"), today.body());
+        assertTrue(today.body().contains("Needs your attention"), today.body());
+        assertFalse(today.body().contains("Set up openedcafe in the sandbox"));
+    }
+
+    @Test
     void promotionAndUndoPreserveProductionOrdersAndStaff() throws Exception {
         var owner = client();
         VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "promocafe", "promoowner", "Promo Owner", "local-test-password");

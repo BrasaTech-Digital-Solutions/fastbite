@@ -1,0 +1,2 @@
+ALTER TABLE public.owner_onboarding ADD COLUMN work_alone BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.owner_onboarding ADD COLUMN opened BOOLEAN NOT NULL DEFAULT FALSE;

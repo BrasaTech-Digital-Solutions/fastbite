@@ -74,9 +74,9 @@ class OwnerWorkspaceFlowTest {
         assertEquals(200,get(owner,"/owner/billing/workspacecafe").statusCode());
         post(owner,"/owner/workspace/workspacecafe/setup","action=start&_csrf="+token);
         post(owner,"/owner/workspace/workspacecafe/setup","action=dismiss&_csrf="+token);
-        assertTrue(get(owner,"/owner/console").body().contains("Show opening checklist"));
+        assertTrue(get(owner,"/owner/console").body().contains("practice-tour-container"));
         var secondSession=client();post(secondSession,"/login","username=workspaceowner&password=local-test-password&_csrf="+csrf(get(secondSession,"/login").body()));
-        assertTrue(get(secondSession,"/owner/console").body().contains("Show opening checklist"));
+        assertTrue(get(secondSession,"/owner/console").body().contains("practice-tour-container"));
         post(owner,"/owner/workspace/workspacecafe/setup","action=resume&_csrf="+token);
         post(owner,"/owner/workspace/workspacecafe/service","dineIn=true&yellow=5&red=10&_csrf="+token);
         assertTrue(jdbc.queryForObject("SELECT service_reviewed FROM public.owner_onboarding WHERE tenant_id='workspacecafe'",Boolean.class));

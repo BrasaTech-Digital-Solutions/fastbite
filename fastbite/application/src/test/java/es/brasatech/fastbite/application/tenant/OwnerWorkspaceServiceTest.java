@@ -56,7 +56,7 @@ class OwnerWorkspaceServiceTest {
         var checked=new SetupProgress(true,true,true,false);
         assertEquals(3,new OwnerWorkspaceService.Summary(checked,0,RestaurantSettings.DEFAULTS,COMPLETE).completed());
         assertFalse(new OwnerWorkspaceService.Summary(checked,0,RestaurantSettings.DEFAULTS,COMPLETE).ready());
-        assertTrue(new OwnerWorkspaceService.Summary(checked,1,RestaurantSettings.DEFAULTS,COMPLETE).ready());
+        assertTrue(new OwnerWorkspaceService.Summary(checked.withOpening(true,false),1,RestaurantSettings.DEFAULTS,COMPLETE,null,false,true,false).ready());
     }
     @Test void aLocationIsNotReadyUntilItsBusinessDetailsAreComplete(){
         var checked=new SetupProgress(true,true,true,false);
@@ -223,6 +223,70 @@ class OwnerWorkspaceServiceTest {
 
         var summary = prodService.summary("owner", "cafe");
         assertNotNull(summary);
-        verifyNoInteractions(prodOrders, prodUsers, prodTickets);
+        verifyNoInteractions(prodOrders);
+        verify(prodUsers).findAll();
+        verify(prodTickets).anyRealTicket();
+    }
+    @Test void openingRequiresTheApplicableStepsAndRemainsLatched() {
+        var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(settings.get()).thenReturn(new RestaurantSettings(true, false, 0, 0, false));
+        when(fiscal.get()).thenReturn(COMPLETE);
+        when(products.findAll()).thenReturn(java.util.List.of(mock(es.brasatech.fastbite.domain.product.ProductDto.class)));
+        var holder = new java.util.concurrent.atomic.AtomicReference<>(new SetupProgress(true,true,true,false).withOpening(true,false));
+        when(port.read("cafe")).thenAnswer(i -> holder.get());
+        doAnswer(i -> { java.util.function.UnaryOperator<SetupProgress> update = i.getArgument(1); holder.set(update.apply(holder.get())); return null; }).when(port).update(eq("cafe"), any());
+        assertTrue(production.summary("owner", "cafe").opened());
+        when(products.findAll()).thenReturn(java.util.List.of());
+        var after = production.summary("owner", "cafe");
+        assertTrue(after.opened());
+        assertFalse(after.menuDone());
+        production.action("owner", "cafe", "work_with_team");
+        assertFalse(production.summary("owner", "cafe").teamDone());
+    }
+    @Test void existingRealTicketLatchesOpeningWithoutCompletingChecklist() {
+        var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(fiscal.get()).thenReturn(FiscalProfile.EMPTY);
+        when(tickets.anyRealTicket()).thenReturn(true);
+        var holder = new java.util.concurrent.atomic.AtomicReference<>(SetupProgress.EMPTY);
+        when(port.read("cafe")).thenAnswer(i -> holder.get());
+        doAnswer(i -> { java.util.function.UnaryOperator<SetupProgress> update = i.getArgument(1); holder.set(update.apply(holder.get())); return null; }).when(port).update(eq("cafe"), any());
+        assertTrue(production.summary("owner", "cafe").opened());
+        assertFalse(production.summary("owner", "cafe").ready());
+    }
+    @Test void takeawayAddsPaymentStepAndOnlyActiveLocationStaffCounts() {
+        var progress = new SetupProgress(true,true,true,false);
+        var dineOnly = new RestaurantSettings(true,false,0,0,false);
+        var takeaway = new RestaurantSettings(true,true,0,0,false);
+        var dine = new OwnerWorkspaceService.Summary(progress,1,dineOnly,COMPLETE,null,true,false,false);
+        assertEquals(5,dine.steps());
+        assertTrue(dine.ready());
+        assertEquals("",dine.nextStep());
+        assertEquals("menu",new OwnerWorkspaceService.Summary(progress,0,dineOnly,COMPLETE,null,true,false,false).nextStep());
+        assertEquals("fiscal",new OwnerWorkspaceService.Summary(progress,1,dineOnly,FiscalProfile.EMPTY,null,true,false,false).nextStep());
+        var awaitingStripe = new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,false,false);
+        assertEquals(6,awaitingStripe.steps());
+        assertFalse(awaitingStripe.ready());
+        assertEquals("payments",awaitingStripe.nextStep());
+        assertTrue(new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,true,false).ready());
+    }
+    @Test void readingWithStaffDoesNotClearWorkAloneOrWriteProgress() {
+        var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(fiscal.get()).thenReturn(FiscalProfile.EMPTY);
+        var existing = SetupProgress.EMPTY.withOpening(true,true);
+        when(port.read("cafe")).thenReturn(existing);
+        var member = mock(es.brasatech.fastbite.domain.user.UserDto.class);
+        when(member.active()).thenReturn(true);
+        when(member.isOwner()).thenReturn(false);
+        when(users.findAll()).thenReturn(java.util.List.of(member));
+        var result = production.summary("owner", "cafe");
+        assertTrue(result.teamDone());
+        assertTrue(result.hasStaff());
+        assertTrue(result.progress().workAlone());
+        verify(port,never()).update(anyString(),any());
     }
 }

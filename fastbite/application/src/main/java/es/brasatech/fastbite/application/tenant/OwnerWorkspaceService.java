@@ -82,7 +82,20 @@ public class OwnerWorkspaceService {
             SetupProgress current = progress.read(tenant);
             SetupProgress updated = checkAndLatchMilestones(tenant, current);
             PracticeTable firstTable = findFirstTable(tenant);
-            return new Summary(updated, products.findAll().size(), settings.get(), fiscalProfiles.get(), firstTable);
+            int productCount = products.findAll().size();
+            RestaurantSettings serviceSettings = settings.get();
+            FiscalProfile fiscal = fiscalProfiles.get();
+            boolean hasStaff = users.findAll().stream().anyMatch(u -> !u.isOwner() && u.active());
+            boolean chargesEnabled = locations.getLocation(tenant).map(l -> l.isStripeVerified()).orElse(false);
+            Summary summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
+                    hasStaff, chargesEnabled, environment.sandbox());
+            if (!environment.sandbox() && !updated.opened() && (summary.ready() || tickets.anyRealTicket())) {
+                progress.update(tenant, p -> p.withOpening(p.workAlone(), true));
+                updated = progress.read(tenant);
+                summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
+                        hasStaff, chargesEnabled, false);
+            }
+            return summary;
         });
     }
 
@@ -168,7 +181,7 @@ public class OwnerWorkspaceService {
                     fKitchenPrepared || p.practiceKitchenPrepared(),
                     fCounterCharged || p.practiceCounterCharged(),
                     p.practiceMenuPersonalized(),
-                    fTeamTested || p.practiceTeamTested()
+                    fTeamTested || p.practiceTeamTested(), p.workAlone(), p.opened()
             ));
             return progress.read(tenant);
         }
@@ -179,22 +192,24 @@ public class OwnerWorkspaceService {
         progress.update(tenant,p->switch(action) {
             case "start" -> new SetupProgress(true,p.serviceReviewed(),p.previewReviewed(),false,
                     p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested());
+                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened());
             case "preview" -> new SetupProgress(true,p.serviceReviewed(),true,p.dismissed(),
                     p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested());
+                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened());
             case "dismiss" -> new SetupProgress(p.started(),p.serviceReviewed(),p.previewReviewed(),true,
                     p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested());
+                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened());
             case "resume" -> new SetupProgress(p.started(),p.serviceReviewed(),p.previewReviewed(),false,
                     p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested());
+                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened());
             case "practice_guest" -> new SetupProgress(true,p.serviceReviewed(),p.previewReviewed(),p.dismissed(),
                     true,p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested());
+                    p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened());
             case "practice_menu" -> new SetupProgress(true,p.serviceReviewed(),p.previewReviewed(),p.dismissed(),
                     p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                    p.practiceCounterCharged(),true,p.practiceTeamTested());
+                    p.practiceCounterCharged(),true,p.practiceTeamTested(),p.workAlone(),p.opened());
+            case "work_alone" -> p.withOpening(true, p.opened());
+            case "work_with_team" -> p.withOpening(false, p.opened());
             default -> throw new IllegalArgumentException("Unknown setup action.");
         });
     }
@@ -205,7 +220,7 @@ public class OwnerWorkspaceService {
         inTenant(tenant,()->settings.save(new RestaurantSettings(dineIn,takeaway,yellow,red,tableQrTrusted)));
         progress.update(tenant,p->new SetupProgress(true,true,p.previewReviewed(),p.dismissed(),
                 p.practiceGuestViewed(),p.practiceTableOrdered(),p.practiceKitchenPrepared(),
-                p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested()));
+                p.practiceCounterCharged(),p.practiceMenuPersonalized(),p.practiceTeamTested(),p.workAlone(),p.opened()));
     }
     public void saveService(String owner,String tenant,boolean dineIn,boolean takeaway,int yellow,int red) {
         requireOwner(owner,tenant);
@@ -332,14 +347,32 @@ public class OwnerWorkspaceService {
         finally { if(before==null) TenantContext.clear(); else TenantContext.setCurrentTenant(before); }
     }
     public record PracticeTable(String id, String name, String url) {}
-    public record Summary(SetupProgress progress,int products,RestaurantSettings settings,FiscalProfile fiscal,PracticeTable firstTable) {
-        public Summary(SetupProgress progress,int products,RestaurantSettings settings,FiscalProfile fiscal) {
-            this(progress, products, settings, fiscal, null);
+    public record Summary(SetupProgress progress, int products, RestaurantSettings settings, FiscalProfile fiscal,
+            PracticeTable firstTable, boolean hasStaff, boolean chargesEnabled, boolean sandbox) {
+        public Summary(SetupProgress progress, int products, RestaurantSettings settings, FiscalProfile fiscal) {
+            this(progress, products, settings, fiscal, null, false, false, false);
         }
-        public static final int STEPS = 4;
-        public int completed() { return (products>0?1:0)+(progress.serviceReviewed()?1:0)+(progress.previewReviewed()?1:0)+(fiscal.complete()?1:0); }
-        public boolean ready() { return completed()==STEPS; }
-        public int steps() { return STEPS; }
-        public boolean needsStart() { return products==0 && !progress.started(); }
+        public boolean menuDone() { return products > 0; }
+        public boolean fiscalDone() { return fiscal.complete(); }
+        public boolean serviceDone() { return progress.serviceReviewed(); }
+        public boolean paymentsRequired() { return settings.takeaway(); }
+        public boolean paymentsDone() { return !paymentsRequired() || chargesEnabled; }
+        public boolean teamDone() { return hasStaff || progress.workAlone(); }
+        public boolean previewDone() { return progress.previewReviewed(); }
+        public int completed() { return (menuDone()?1:0)+(fiscalDone()?1:0)+(serviceDone()?1:0)
+                +(paymentsRequired() && chargesEnabled?1:0)+(teamDone()?1:0)+(previewDone()?1:0); }
+        public int steps() { return paymentsRequired()?6:5; }
+        public boolean ready() { return completed()==steps(); }
+        public String nextStep() {
+            if (!menuDone()) return "menu";
+            if (!fiscalDone()) return "fiscal";
+            if (!serviceDone()) return "service";
+            if (!paymentsDone()) return "payments";
+            if (!teamDone()) return "team";
+            if (!previewDone()) return "preview";
+            return "";
+        }
+        public boolean opened() { return progress.opened(); }
+        public boolean needsStart() { return products==0 && !progress.started() && !progress.opened(); }
     }
 }
