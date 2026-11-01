@@ -1,0 +1,21 @@
+{
+  "id": "cafe",
+  "icon": "☕",
+  "version": 1,
+  "name": "Cafetería y panadería",
+  "description": "Cafés, tostadas y repostería para una cafetería.",
+  "translations": {
+    "es": {
+      "name": "Cafetería y panadería",
+      "description": "Cafés, tostadas y repostería para una cafetería."
+    },
+    "pt": {
+      "name": "Cafetaria e padaria",
+      "description": "Cafés, torradas e pastelaria para uma cafetaria."
+    },
+    "en": {
+      "name": "Café and bakery",
+      "description": "Coffee, toast and pastries for a café."
+    }
+  }
+}

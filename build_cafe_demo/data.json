@@ -2,8 +2,8 @@
   "groups": [
     {
       "id": "group-hot-coffee",
-      "name": "Hot Coffee",
-      "description": "Artisanal espresso and freshly steamed coffees",
+      "name": "Cafés calientes",
+      "description": "Espresso artesanal y cafés con leche cremosa",
       "icon": "fas fa-mug-hot",
       "products": [
         "prod-espresso",
@@ -15,8 +15,8 @@
     },
     {
       "id": "group-cold-coffee",
-      "name": "Iced & Cold Coffee",
-      "description": "Refreshing cold brew, iced lattes and blended frappes",
+      "name": "Cafés fríos y frappés",
+      "description": "Cold brew refrescante, lattes helados y frappés",
       "icon": "fas fa-glass-whiskey",
       "products": [
         "prod-iced-latte",
@@ -27,8 +27,8 @@
     },
     {
       "id": "group-tostadas",
-      "name": "Artisan Tostadas",
-      "description": "Crispy toasted country bread with gourmet savory toppings and olive oil",
+      "name": "Tostadas",
+      "description": "Pan de pueblo o mollete tostado con ingredientes de primera y aceite AOVE",
       "icon": "fas fa-bread-slice",
       "products": [
         "prod-tostada-jamon",
@@ -38,8 +38,8 @@
     },
     {
       "id": "group-bakery",
-      "name": "Bakery & Sweets",
-      "description": "Freshly baked artisanal pastries and cakes",
+      "name": "Pastelería y dulces",
+      "description": "Bollería recién horneada y tartas artesanales",
       "icon": "fas fa-cookie-bite",
       "products": [
         "prod-croissant",
@@ -50,8 +50,8 @@
     },
     {
       "id": "group-cold-drinks",
-      "name": "Refreshments",
-      "description": "Chilled mineral water and sodas",
+      "name": "Bebidas frías",
+      "description": "Agua mineral y refrescos fríos",
       "icon": "fas fa-wine-glass",
       "products": [
         "prod-mineral-water",
@@ -62,9 +62,9 @@
   "products": [
     {
       "id": "prod-espresso",
-      "name": "Espresso Solo",
+      "name": "Café solo",
       "price": 1.8,
-      "description": "Rich and intense single origin 100% Arabica espresso with golden hazelnut crema.",
+      "description": "Ingredientes: café y agua.",
       "image": "/user-images/kebab/cafe/espresso.webp",
       "customizations": [
         "cust-coffee-extras"
@@ -74,9 +74,9 @@
     },
     {
       "id": "prod-cafe-latte",
-      "name": "Caffè Latte",
+      "name": "Café con leche",
       "price": 2.8,
-      "description": "Balanced espresso and freshly steamed microfoam milk with silky latte art.",
+      "description": "Ingredientes: café y leche.",
       "image": "/user-images/kebab/cafe/cafe-latte.webp",
       "customizations": [
         "cust-milk",
@@ -90,9 +90,9 @@
     },
     {
       "id": "prod-cappuccino",
-      "name": "Cappuccino Clásico",
+      "name": "Capuchino",
       "price": 3.2,
-      "description": "Dark roast espresso topped with thick velvety milk foam and rich cocoa powder.",
+      "description": "Ingredientes: café, leche y cacao.",
       "image": "/user-images/kebab/cafe/cappuccino.webp",
       "customizations": [
         "cust-milk",
@@ -105,9 +105,9 @@
     },
     {
       "id": "prod-caramel-macchiato",
-      "name": "Caramel Macchiato",
+      "name": "Macchiato de caramelo",
       "price": 4.2,
-      "description": "Vanilla-scented steamed milk marked with rich espresso and drizzled with golden buttery caramel.",
+      "description": "Ingredientes: café, leche, vainilla y caramelo.",
       "image": "/user-images/kebab/cafe/caramel-macchiato.webp",
       "customizations": [
         "cust-milk",
@@ -120,9 +120,9 @@
     },
     {
       "id": "prod-iced-latte",
-      "name": "Iced Caffè Latte",
+      "name": "Café con leche con hielo",
       "price": 3.4,
-      "description": "Espresso poured over chilled fresh milk and clear crystalline ice cubes.",
+      "description": "Ingredientes: café, leche y hielo.",
       "image": "/user-images/kebab/cafe/iced-latte.webp",
       "customizations": [
         "cust-milk",
@@ -135,9 +135,9 @@
     },
     {
       "id": "prod-cold-brew",
-      "name": "Artisanal Cold Brew",
+      "name": "Cold brew",
       "price": 3.6,
-      "description": "Slow-steeped for 20 hours for an ultra-smooth, naturally sweet, low-acidity coffee served on ice.",
+      "description": "Ingredientes: café y agua.",
       "image": "/user-images/kebab/cafe/cold-brew.webp",
       "customizations": [
         "cust-coffee-extras"
@@ -147,9 +147,9 @@
     },
     {
       "id": "prod-caramel-frappe",
-      "name": "Caramel Cream Frappé",
+      "name": "Frappé de caramelo",
       "price": 4.8,
-      "description": "Decadent blended ice coffee with buttery caramel sauce, crowned with whipped cream and caramel drizzle.",
+      "description": "Ingredientes: café, leche, hielo, nata y caramelo.",
       "image": "/user-images/kebab/cafe/caramel-frappe.webp",
       "customizations": [
         "cust-milk",
@@ -162,9 +162,9 @@
     },
     {
       "id": "prod-matcha-latte",
-      "name": "Iced Japanese Matcha Latte",
+      "name": "Matcha latte con hielo",
       "price": 4.6,
-      "description": "Ceremonial grade green matcha tea layered over cold fresh milk and ice.",
+      "description": "Ingredientes: té matcha, leche y hielo.",
       "image": "/user-images/kebab/cafe/matcha-latte.webp",
       "customizations": [
         "cust-milk"
@@ -176,9 +176,9 @@
     },
     {
       "id": "prod-croissant",
-      "name": "Butter Croissant",
+      "name": "Cruasán de mantequilla",
       "price": 2.2,
-      "description": "Traditional French flaky pastry made with 100% pure Normandy butter.",
+      "description": "Ingredientes: harina de trigo, mantequilla, huevo y leche.",
       "image": "/user-images/kebab/cafe/croissant.webp",
       "customizations": [
         "cust-bakery-prep"
@@ -192,9 +192,9 @@
     },
     {
       "id": "prod-chocolate-cookie",
-      "name": "Double Chocolate Chunk Cookie",
+      "name": "Galleta de doble chocolate",
       "price": 2.6,
-      "description": "Warm and chewy artisanal cookie with melted dark chocolate chunks and a pinch of sea salt.",
+      "description": "Ingredientes: harina de trigo, huevo, leche y chocolate con soja.",
       "image": "/user-images/kebab/cafe/chocolate-cookie.webp",
       "customizations": [
         "cust-bakery-prep"
@@ -209,9 +209,9 @@
     },
     {
       "id": "prod-blueberry-muffin",
-      "name": "Wild Blueberry Muffin",
+      "name": "Muffin de arándanos",
       "price": 2.9,
-      "description": "Moist golden muffin packed with plump wild blueberries and sparkling sugar crunch topping.",
+      "description": "Ingredientes: harina de trigo, huevo, leche y arándanos.",
       "image": "/user-images/kebab/cafe/blueberry-muffin.webp",
       "customizations": [
         "cust-bakery-prep"
@@ -225,9 +225,9 @@
     },
     {
       "id": "prod-cheesecake",
-      "name": "New York Strawberry Cheesecake",
+      "name": "Tarta de queso con fresas",
       "price": 4.5,
-      "description": "Velvety cream cheesecake on a buttery biscuit base, finished with strawberry coulis.",
+      "description": "Ingredientes: queso crema, huevo, galleta de trigo y fresas.",
       "image": "/user-images/kebab/cafe/cheesecake.webp",
       "customizations": [],
       "active": true,
@@ -239,9 +239,9 @@
     },
     {
       "id": "prod-mineral-water",
-      "name": "Mineral Water 500ml",
+      "name": "Agua mineral 500 ml",
       "price": 1.6,
-      "description": "Natural mineral spring water, chilled.",
+      "description": "Ingredientes: agua mineral.",
       "image": "/user-images/kebab/cafe/water.webp",
       "customizations": [],
       "active": true,
@@ -249,9 +249,9 @@
     },
     {
       "id": "prod-coca-cola",
-      "name": "Coca-Cola Zero 330ml",
+      "name": "Coca-Cola 330 ml",
       "price": 2.4,
-      "description": "Refreshing cold Coca-Cola Zero in a glass bottle.",
+      "description": "Ingredientes: refresco de cola.",
       "image": "/user-images/kebab/cafe/coca-cola.webp",
       "customizations": [],
       "active": true,
@@ -259,9 +259,9 @@
     },
     {
       "id": "prod-cafe-bombon",
-      "name": "Café Bombón",
+      "name": "Café bombón",
       "price": 2.2,
-      "description": "Traditional Spanish layered coffee with sweet condensed milk on the bottom and dark espresso on top, served in a glass.",
+      "description": "Ingredientes: café y leche condensada.",
       "image": "/user-images/kebab/cafe/cafe-bombon.webp",
       "customizations": [
         "cust-coffee-extras"
@@ -273,9 +273,9 @@
     },
     {
       "id": "prod-tostada-jamon",
-      "name": "Tostada con Jamón Serrano y Tomate",
+      "name": "Tostada de tomate y jamón serrano",
       "price": 3.9,
-      "description": "Warm toasted bread with freshly grated ripe tomato, rich extra virgin olive oil, and sliced Spanish Jamón Serrano.",
+      "description": "Ingredientes: pan de trigo, tomate, aceite de oliva y jamón serrano.",
       "image": "/user-images/kebab/cafe/tostada-jamon.webp",
       "customizations": [
         "cust-bread-type",
@@ -288,9 +288,9 @@
     },
     {
       "id": "prod-tostada-salmon",
-      "name": "Tostada de Salmón Ahumado y Queso Crema",
+      "name": "Tostada de salmón ahumado y queso crema",
       "price": 5.2,
-      "description": "Toasted artisan country bread with velvety cream cheese, sliced smoked salmon, fresh avocado and capers.",
+      "description": "Ingredientes: pan de trigo, salmón, queso crema, aguacate y alcaparras.",
       "image": "/user-images/kebab/cafe/tostada-salmon.webp",
       "customizations": [
         "cust-bread-type",
@@ -305,9 +305,9 @@
     },
     {
       "id": "prod-tostada-mixta",
-      "name": "Tostada Mixta de Jamón York y Queso Fundido",
+      "name": "Tostada mixta de jamón york y queso",
       "price": 3.5,
-      "description": "Classic toasted sandwich toast with premium sliced ham (jamón york) and melted golden cheese.",
+      "description": "Ingredientes: pan de trigo, jamón cocido y queso.",
       "image": "/user-images/kebab/cafe/tostada-mixta.webp",
       "customizations": [
         "cust-bread-type",
@@ -323,13 +323,13 @@
   "customizations": [
     {
       "id": "cust-milk",
-      "name": "Choice of Milk",
+      "name": "Tipo de Leche",
       "type": "radio",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-milk-whole",
-          "name": "Whole Milk",
+          "name": "Leche Entera",
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
@@ -340,7 +340,7 @@
         },
         {
           "id": "cust-milk-skimmed",
-          "name": "Skimmed Milk",
+          "name": "Leche Desnatada",
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
@@ -351,7 +351,7 @@
         },
         {
           "id": "cust-milk-oat",
-          "name": "Oat Milk (Barista)",
+          "name": "Bebida de Avena Barista",
           "price": 0.45,
           "defaultValue": 0,
           "optionIndex": 2,
@@ -362,7 +362,7 @@
         },
         {
           "id": "cust-milk-almond",
-          "name": "Almond Milk",
+          "name": "Bebida de Almendra",
           "price": 0.45,
           "defaultValue": 0,
           "optionIndex": 3,
@@ -373,7 +373,7 @@
         },
         {
           "id": "cust-milk-soy",
-          "name": "Soy Milk",
+          "name": "Bebida de Soja",
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 4,
@@ -386,13 +386,13 @@
     },
     {
       "id": "cust-coffee-extras",
-      "name": "Coffee Extras",
+      "name": "Extras para el Café",
       "type": "checkbox",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-opt-extra-shot",
-          "name": "Extra Espresso Shot",
+          "name": "Shot Extra de Espresso",
           "price": 0.6,
           "defaultValue": 0,
           "optionIndex": 0,
@@ -401,7 +401,7 @@
         },
         {
           "id": "cust-opt-whipped-cream",
-          "name": "Whipped Cream",
+          "name": "Nata Montada",
           "price": 0.5,
           "defaultValue": 0,
           "optionIndex": 1,
@@ -412,7 +412,7 @@
         },
         {
           "id": "cust-opt-vanilla-syrup",
-          "name": "Vanilla Syrup Shot",
+          "name": "Sirope de Vainilla",
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 2,
@@ -421,7 +421,7 @@
         },
         {
           "id": "cust-opt-caramel-syrup",
-          "name": "Caramel Syrup Shot",
+          "name": "Sirope de Caramelo",
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 3,
@@ -432,13 +432,13 @@
     },
     {
       "id": "cust-temperature",
-      "name": "Temperature",
+      "name": "Temperatura",
       "type": "radio",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-temp-regular",
-          "name": "Hot (Standard)",
+          "name": "Caliente estándar",
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
@@ -447,7 +447,7 @@
         },
         {
           "id": "cust-temp-extra-hot",
-          "name": "Extra Hot",
+          "name": "Muy Caliente",
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
@@ -456,7 +456,7 @@
         },
         {
           "id": "cust-temp-iced",
-          "name": "With Extra Ice",
+          "name": "Con Hielo Extra",
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 2,
@@ -467,13 +467,13 @@
     },
     {
       "id": "cust-bakery-prep",
-      "name": "Bakery Preparation",
+      "name": "Preparación",
       "type": "radio",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-prep-room",
-          "name": "Serve as is",
+          "name": "Servir tal cual",
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
@@ -482,7 +482,7 @@
         },
         {
           "id": "cust-prep-warm",
-          "name": "Warm up",
+          "name": "Calentar / Templar",
           "price": 0.0,
           "defaultValue": 0,
           "optionIndex": 1,
@@ -493,13 +493,13 @@
     },
     {
       "id": "cust-bread-type",
-      "name": "Type of Bread",
+      "name": "Tipo de Pan",
       "type": "radio",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-bread-hogaza",
-          "name": "Artisan Sourdough / Hogaza",
+          "name": "Pan de Hogaza Artesano",
           "price": 0.0,
           "defaultValue": 1,
           "optionIndex": 0,
@@ -517,7 +517,7 @@
         },
         {
           "id": "cust-bread-multigrain",
-          "name": "Multigrain & Seeds",
+          "name": "Pan Integral de Semillas",
           "price": 0.3,
           "defaultValue": 0,
           "optionIndex": 2,
@@ -529,7 +529,7 @@
         },
         {
           "id": "cust-bread-glutenfree",
-          "name": "Gluten-Free Bread",
+          "name": "Pan Sin Gluten",
           "price": 0.5,
           "defaultValue": 0,
           "optionIndex": 3,
@@ -540,13 +540,13 @@
     },
     {
       "id": "cust-tostada-extras",
-      "name": "Extra Toppings",
+      "name": "Ingredientes Extra",
       "type": "checkbox",
       "usageCount": 0,
       "options": [
         {
           "id": "cust-top-tomate",
-          "name": "Grated Tomato & Olive Oil",
+          "name": "Tomate Rallado y AOVE",
           "price": 0.4,
           "defaultValue": 0,
           "optionIndex": 0,
@@ -555,7 +555,7 @@
         },
         {
           "id": "cust-top-queso-fresco",
-          "name": "Queso Fresco",
+          "name": "Queso Fresco del País",
           "price": 0.8,
           "defaultValue": 0,
           "optionIndex": 1,
@@ -566,7 +566,7 @@
         },
         {
           "id": "cust-top-aguacate",
-          "name": "Fresh Sliced Avocado",
+          "name": "Aguacate Fresco en Láminas",
           "price": 1.0,
           "defaultValue": 0,
           "optionIndex": 2,
@@ -584,7 +584,7 @@
         },
         {
           "id": "cust-top-jamon-york",
-          "name": "Extra Jamón York",
+          "name": "Extra Jamón York Cocido",
           "price": 1.0,
           "defaultValue": 0,
           "optionIndex": 4,
@@ -603,7 +603,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Whole Milk",
+      "name": "Leche Entera",
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
@@ -620,7 +620,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Skimmed Milk",
+      "name": "Leche Desnatada",
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
@@ -637,7 +637,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Oat Milk (Barista)",
+      "name": "Bebida de Avena Barista",
       "price": 0.45,
       "defaultValue": 0,
       "optionIndex": 2,
@@ -654,7 +654,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Almond Milk",
+      "name": "Bebida de Almendra",
       "price": 0.45,
       "defaultValue": 0,
       "optionIndex": 3,
@@ -671,7 +671,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Soy Milk",
+      "name": "Bebida de Soja",
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 4,
@@ -688,7 +688,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Extra Espresso Shot",
+      "name": "Shot Extra de Espresso",
       "price": 0.6,
       "defaultValue": 0,
       "optionIndex": 0,
@@ -703,7 +703,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Whipped Cream",
+      "name": "Nata Montada",
       "price": 0.5,
       "defaultValue": 0,
       "optionIndex": 1,
@@ -720,7 +720,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Vanilla Syrup Shot",
+      "name": "Sirope de Vainilla",
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 2,
@@ -735,7 +735,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Caramel Syrup Shot",
+      "name": "Sirope de Caramelo",
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 3,
@@ -750,7 +750,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Hot (Standard)",
+      "name": "Caliente estándar",
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
@@ -765,7 +765,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Extra Hot",
+      "name": "Muy Caliente",
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
@@ -780,7 +780,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "With Extra Ice",
+      "name": "Con Hielo Extra",
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 2,
@@ -795,7 +795,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Serve as is",
+      "name": "Servir tal cual",
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
@@ -810,7 +810,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Warm up",
+      "name": "Calentar / Templar",
       "price": 0.0,
       "defaultValue": 0,
       "optionIndex": 1,
@@ -825,7 +825,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Artisan Sourdough / Hogaza",
+      "name": "Pan de Hogaza Artesano",
       "price": 0.0,
       "defaultValue": 1,
       "optionIndex": 0,
@@ -855,7 +855,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Multigrain & Seeds",
+      "name": "Pan Integral de Semillas",
       "price": 0.3,
       "defaultValue": 0,
       "optionIndex": 2,
@@ -873,7 +873,7 @@
         "type": "radio",
         "usageCount": 0
       },
-      "name": "Gluten-Free Bread",
+      "name": "Pan Sin Gluten",
       "price": 0.5,
       "defaultValue": 0,
       "optionIndex": 3,
@@ -888,7 +888,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Grated Tomato & Olive Oil",
+      "name": "Tomate Rallado y AOVE",
       "price": 0.4,
       "defaultValue": 0,
       "optionIndex": 0,
@@ -903,7 +903,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Queso Fresco",
+      "name": "Queso Fresco del País",
       "price": 0.8,
       "defaultValue": 0,
       "optionIndex": 1,
@@ -920,7 +920,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Fresh Sliced Avocado",
+      "name": "Aguacate Fresco en Láminas",
       "price": 1.0,
       "defaultValue": 0,
       "optionIndex": 2,
@@ -950,7 +950,7 @@
         "type": "checkbox",
         "usageCount": 0
       },
-      "name": "Extra Jamón York",
+      "name": "Extra Jamón York Cocido",
       "price": 1.0,
       "defaultValue": 0,
       "optionIndex": 4,
@@ -961,7 +961,7 @@
   "tables": [
     {
       "id": "00000000-0000-0000-0000-000000000001",
-      "name": "Table 1",
+      "name": "Mesa 1",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -969,7 +969,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000002",
-      "name": "Table 2",
+      "name": "Mesa 2",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -977,7 +977,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000003",
-      "name": "Table 3",
+      "name": "Mesa 3",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -985,7 +985,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000004",
-      "name": "Table 4",
+      "name": "Mesa 4",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -993,7 +993,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000005",
-      "name": "Table 5",
+      "name": "Mesa 5",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1001,7 +1001,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000006",
-      "name": "Table 6",
+      "name": "Mesa 6",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1009,7 +1009,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000007",
-      "name": "Table 7",
+      "name": "Mesa 7",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1017,7 +1017,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000008",
-      "name": "Table 8",
+      "name": "Mesa 8",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1025,7 +1025,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000009",
-      "name": "Table 9",
+      "name": "Mesa 9",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1033,7 +1033,7 @@
     },
     {
       "id": "00000000-0000-0000-0000-000000000010",
-      "name": "Table 10",
+      "name": "Mesa 10",
       "seats": 4,
       "status": "AVAILABLE",
       "active": true,
@@ -1122,7 +1122,7 @@
         "id": "group-hot-coffee"
       },
       "language": "es",
-      "name": "Cafés Calientes",
+      "name": "Cafés calientes",
       "description": "Espresso artesanal y cafés con leche cremosa"
     },
     {
@@ -1131,7 +1131,7 @@
         "id": "group-hot-coffee"
       },
       "language": "pt",
-      "name": "Cafés Quentes",
+      "name": "Cafés quentes",
       "description": "Espresso artesanal e cafés com leite cremoso"
     },
     {
@@ -1140,7 +1140,7 @@
         "id": "group-cold-coffee"
       },
       "language": "es",
-      "name": "Cafés Fríos & Frappés",
+      "name": "Cafés fríos y frappés",
       "description": "Cold brew refrescante, lattes helados y frappés"
     },
     {
@@ -1149,7 +1149,7 @@
         "id": "group-cold-coffee"
       },
       "language": "pt",
-      "name": "Cafés Gelados & Frappés",
+      "name": "Cafés frios e frappés",
       "description": "Cold brew refrescante, lattes gelados e frappés"
     },
     {
@@ -1158,7 +1158,7 @@
         "id": "group-bakery"
       },
       "language": "es",
-      "name": "Pastelería & Dulces",
+      "name": "Pastelería y dulces",
       "description": "Bollería recién horneada y tartas artesanales"
     },
     {
@@ -1167,7 +1167,7 @@
         "id": "group-bakery"
       },
       "language": "pt",
-      "name": "Padaria & Doces",
+      "name": "Pastelaria e doces",
       "description": "Pastelaria fresca e bolos artesanais"
     },
     {
@@ -1176,7 +1176,7 @@
         "id": "group-cold-drinks"
       },
       "language": "es",
-      "name": "Bebidas Frías",
+      "name": "Bebidas frías",
       "description": "Agua mineral y refrescos fríos"
     },
     {
@@ -1185,7 +1185,7 @@
         "id": "group-cold-drinks"
       },
       "language": "pt",
-      "name": "Bebidas Geladas",
+      "name": "Bebidas frias",
       "description": "Água mineral e refrigerantes frescos"
     },
     {
@@ -1194,7 +1194,7 @@
         "id": "group-tostadas"
       },
       "language": "es",
-      "name": "Tostadas Artesanales",
+      "name": "Tostadas",
       "description": "Pan de pueblo o mollete tostado con ingredientes de primera y aceite AOVE"
     },
     {
@@ -1203,8 +1203,53 @@
         "id": "group-tostadas"
       },
       "language": "pt",
-      "name": "Torradas Artesanais",
+      "name": "Torradas",
       "description": "Pão rústico torrado com azeite virgem extra e coberturas frescas"
+    },
+    {
+      "id": "en-group-hot-coffee",
+      "group": {
+        "id": "group-hot-coffee"
+      },
+      "language": "en",
+      "name": "Hot coffee",
+      "description": "Artisanal espresso and freshly steamed coffees"
+    },
+    {
+      "id": "en-group-cold-coffee",
+      "group": {
+        "id": "group-cold-coffee"
+      },
+      "language": "en",
+      "name": "Iced coffee and frappés",
+      "description": "Refreshing cold brew, iced lattes and blended frappes"
+    },
+    {
+      "id": "en-group-tostadas",
+      "group": {
+        "id": "group-tostadas"
+      },
+      "language": "en",
+      "name": "Toast",
+      "description": "Crispy toasted country bread with gourmet savory toppings and olive oil"
+    },
+    {
+      "id": "en-group-bakery",
+      "group": {
+        "id": "group-bakery"
+      },
+      "language": "en",
+      "name": "Pastries and sweets",
+      "description": "Freshly baked artisanal pastries and cakes"
+    },
+    {
+      "id": "en-group-cold-drinks",
+      "group": {
+        "id": "group-cold-drinks"
+      },
+      "language": "en",
+      "name": "Cold drinks",
+      "description": "Chilled mineral water and sodas"
     }
   ],
   "productTranslations": [
@@ -1214,8 +1259,8 @@
         "id": "prod-espresso"
       },
       "language": "es",
-      "name": "Café Solo Espresso",
-      "description": "Espresso 100% Arábica con crema avellana dorada, intenso y aromático."
+      "name": "Café solo",
+      "description": "Ingredientes: café y agua."
     },
     {
       "id": "pt-espresso-pt",
@@ -1223,7 +1268,7 @@
         "id": "prod-espresso"
       },
       "language": "pt",
-      "name": "Café Espresso",
+      "name": "Café expresso",
       "description": "Espresso 100% Arábica com creme avelã dourado, intenso e aromático."
     },
     {
@@ -1232,8 +1277,8 @@
         "id": "prod-cafe-latte"
       },
       "language": "es",
-      "name": "Café con Leche (Latte)",
-      "description": "Espresso equilibrado con leche cremosa vaporizada y arte latte."
+      "name": "Café con leche",
+      "description": "Ingredientes: café y leche."
     },
     {
       "id": "pt-latte-pt",
@@ -1241,7 +1286,7 @@
         "id": "prod-cafe-latte"
       },
       "language": "pt",
-      "name": "Café com Leite (Latte)",
+      "name": "Café com leite",
       "description": "Espresso equilibrado com leite cremoso vaporizado e arte latte."
     },
     {
@@ -1250,8 +1295,8 @@
         "id": "prod-cappuccino"
       },
       "language": "es",
-      "name": "Cappuccino Italiano",
-      "description": "Espresso con densa espuma de leche aterciopelada y cacao puro en polvo."
+      "name": "Capuchino",
+      "description": "Ingredientes: café, leche y cacao."
     },
     {
       "id": "pt-cappuccino-pt",
@@ -1259,7 +1304,7 @@
         "id": "prod-cappuccino"
       },
       "language": "pt",
-      "name": "Cappuccino Italiano",
+      "name": "Capuchino",
       "description": "Espresso com espuma densa de leite aveludada e cacau puro."
     },
     {
@@ -1268,8 +1313,8 @@
         "id": "prod-caramel-macchiato"
       },
       "language": "es",
-      "name": "Caramel Macchiato",
-      "description": "Leche vaporizada con aroma a vainilla, espresso y delicioso dibujo de caramelo tostado."
+      "name": "Macchiato de caramelo",
+      "description": "Ingredientes: café, leche, vainilla y caramelo."
     },
     {
       "id": "pt-caramel-macch-pt",
@@ -1277,7 +1322,7 @@
         "id": "prod-caramel-macchiato"
       },
       "language": "pt",
-      "name": "Caramel Macchiato",
+      "name": "Macchiato de caramelo",
       "description": "Leite vaporizado com aroma a baunilha, espresso e caramelo tostado."
     },
     {
@@ -1286,8 +1331,8 @@
         "id": "prod-iced-latte"
       },
       "language": "es",
-      "name": "Iced Latte Frío",
-      "description": "Café espresso vertido sobre leche fresca fría y cubitos de hielo cristalino."
+      "name": "Café con leche con hielo",
+      "description": "Ingredientes: café, leche y hielo."
     },
     {
       "id": "pt-iced-latte-pt",
@@ -1295,7 +1340,7 @@
         "id": "prod-iced-latte"
       },
       "language": "pt",
-      "name": "Iced Latte Gelado",
+      "name": "Café com leite e gelo",
       "description": "Café espresso sobre leite fresco fresco e pedras de gelo cristalino."
     },
     {
@@ -1304,8 +1349,8 @@
         "id": "prod-cold-brew"
       },
       "language": "es",
-      "name": "Cold Brew Especialidad",
-      "description": "Macerado en frío durante 20 horas. Suave, naturalmente dulce y baja acidez."
+      "name": "Cold brew",
+      "description": "Ingredientes: café y agua."
     },
     {
       "id": "pt-cold-brew-pt",
@@ -1313,7 +1358,7 @@
         "id": "prod-cold-brew"
       },
       "language": "pt",
-      "name": "Cold Brew Especialidade",
+      "name": "Cold brew",
       "description": "Macerado a frio durante 20 horas. Suave, naturalmente doce e baixa acidez."
     },
     {
@@ -1322,8 +1367,8 @@
         "id": "prod-caramel-frappe"
       },
       "language": "es",
-      "name": "Frappé Helado de Caramelo",
-      "description": "Bebida helada cremosa batida con caramelo, coronada con nata montada y salsa de toffee."
+      "name": "Frappé de caramelo",
+      "description": "Ingredientes: café, leche, hielo, nata y caramelo."
     },
     {
       "id": "pt-frappe-pt",
@@ -1331,7 +1376,7 @@
         "id": "prod-caramel-frappe"
       },
       "language": "pt",
-      "name": "Frappé Gelado de Caramelo",
+      "name": "Frappé de caramelo",
       "description": "Bebida gelada batida com caramelo, chantilly e calda de toffee."
     },
     {
@@ -1340,8 +1385,8 @@
         "id": "prod-matcha-latte"
       },
       "language": "es",
-      "name": "Matcha Latte Helado",
-      "description": "Té verde matcha ceremonial japonés batido con leche fresca fría."
+      "name": "Matcha latte con hielo",
+      "description": "Ingredientes: té matcha, leche y hielo."
     },
     {
       "id": "pt-matcha-pt",
@@ -1349,7 +1394,7 @@
         "id": "prod-matcha-latte"
       },
       "language": "pt",
-      "name": "Matcha Latte Gelado",
+      "name": "Matcha latte com gelo",
       "description": "Chá verde matcha cerimonial japonês batido com leite fresco frio."
     },
     {
@@ -1358,8 +1403,8 @@
         "id": "prod-croissant"
       },
       "language": "es",
-      "name": "Croissant Francés de Mantequilla",
-      "description": "Hojaldre artesanal crujiente y tierno elaborado con 100% mantequilla pura."
+      "name": "Cruasán de mantequilla",
+      "description": "Ingredientes: harina de trigo, mantequilla, huevo y leche."
     },
     {
       "id": "pt-croissant-pt",
@@ -1367,7 +1412,7 @@
         "id": "prod-croissant"
       },
       "language": "pt",
-      "name": "Croissant Francês de Manteiga",
+      "name": "Croissant de manteiga",
       "description": "Folhado artesanal estaladiço feito com 100% manteiga pura."
     },
     {
@@ -1376,8 +1421,8 @@
         "id": "prod-chocolate-cookie"
       },
       "language": "es",
-      "name": "Cookie Doble Chocolate",
-      "description": "Galleta artesanal tierna con trozos fundentes de chocolate negro y escamas de sal."
+      "name": "Galleta de doble chocolate",
+      "description": "Ingredientes: harina de trigo, huevo, leche y chocolate con soja."
     },
     {
       "id": "pt-cookie-pt",
@@ -1385,7 +1430,7 @@
         "id": "prod-chocolate-cookie"
       },
       "language": "pt",
-      "name": "Cookie Duplo Chocolate",
+      "name": "Bolacha de chocolate duplo",
       "description": "Biscoito artesanal com pedaços fundidos de chocolate negro."
     },
     {
@@ -1394,8 +1439,8 @@
         "id": "prod-blueberry-muffin"
       },
       "language": "es",
-      "name": "Muffin de Arándanos Silvestres",
-      "description": "Bizcocho esponjoso con arándanos frescos y crujiente de azúcar superior."
+      "name": "Muffin de arándanos",
+      "description": "Ingredientes: harina de trigo, huevo, leche y arándanos."
     },
     {
       "id": "pt-muffin-pt",
@@ -1403,7 +1448,7 @@
         "id": "prod-blueberry-muffin"
       },
       "language": "pt",
-      "name": "Muffin de Mirtilos Silvestres",
+      "name": "Muffin de mirtilos",
       "description": "Queque fofo recheado com mirtilos frescos e crocante de açúcar."
     },
     {
@@ -1412,8 +1457,8 @@
         "id": "prod-cheesecake"
       },
       "language": "es",
-      "name": "Tarta de Queso con Fresas",
-      "description": "Clásica tarta de queso crema suave estilo New York con coulis de fresas naturales."
+      "name": "Tarta de queso con fresas",
+      "description": "Ingredientes: queso crema, huevo, galleta de trigo y fresas."
     },
     {
       "id": "pt-cheesecake-pt",
@@ -1421,7 +1466,7 @@
         "id": "prod-cheesecake"
       },
       "language": "pt",
-      "name": "Cheesecake com Morangos",
+      "name": "Cheesecake de morango",
       "description": "Cheesecake cremoso estilo Nova Iorque com coulis de morango natural."
     },
     {
@@ -1430,8 +1475,8 @@
         "id": "prod-mineral-water"
       },
       "language": "es",
-      "name": "Agua Mineral 500ml",
-      "description": "Agua mineral natural fría."
+      "name": "Agua mineral 500 ml",
+      "description": "Ingredientes: agua mineral."
     },
     {
       "id": "pt-water-pt",
@@ -1439,7 +1484,7 @@
         "id": "prod-mineral-water"
       },
       "language": "pt",
-      "name": "Água Mineral 500ml",
+      "name": "Água mineral 500 ml",
       "description": "Água mineral natural fresca."
     },
     {
@@ -1448,8 +1493,8 @@
         "id": "prod-coca-cola"
       },
       "language": "es",
-      "name": "Coca-Cola Zero 330ml",
-      "description": "Refresco Coca-Cola Zero frío en botella de cristal."
+      "name": "Coca-Cola 330 ml",
+      "description": "Ingredientes: refresco de cola."
     },
     {
       "id": "pt-coca-pt",
@@ -1457,8 +1502,8 @@
         "id": "prod-coca-cola"
       },
       "language": "pt",
-      "name": "Coca-Cola Zero 330ml",
-      "description": "Refrigerante Coca-Cola Zero fresco em garrafa de vidro."
+      "name": "Coca-Cola 330 ml",
+      "description": "Refrigerante de cola."
     },
     {
       "id": "pt-bombon-es",
@@ -1466,8 +1511,8 @@
         "id": "prod-cafe-bombon"
       },
       "language": "es",
-      "name": "Café Bombón",
-      "description": "Café tradicional servido en vaso de cristal con leche condensada dulce y café espresso intenso."
+      "name": "Café bombón",
+      "description": "Ingredientes: café y leche condensada."
     },
     {
       "id": "pt-bombon-pt",
@@ -1475,7 +1520,7 @@
         "id": "prod-cafe-bombon"
       },
       "language": "pt",
-      "name": "Café Bombom",
+      "name": "Café bombón",
       "description": "Café tradicional servido em copo de vidro com leite condensado e café espresso intenso."
     },
     {
@@ -1484,8 +1529,8 @@
         "id": "prod-tostada-jamon"
       },
       "language": "es",
-      "name": "Tostada de Jamón Serrano y Tomate",
-      "description": "Tostada con tomate natural rallado, aceite de oliva virgen extra (AOVE) y virutas de jamón serrano."
+      "name": "Tostada de tomate y jamón serrano",
+      "description": "Ingredientes: pan de trigo, tomate, aceite de oliva y jamón serrano."
     },
     {
       "id": "pt-tost-jamon-pt",
@@ -1493,7 +1538,7 @@
         "id": "prod-tostada-jamon"
       },
       "language": "pt",
-      "name": "Torrada com Presunto Serrano e Tomate",
+      "name": "Torrada de tomate e presunto serrano",
       "description": "Pão torrado com tomate ralado fresco, azeite virgem extra e presunto serrano curado."
     },
     {
@@ -1502,8 +1547,8 @@
         "id": "prod-tostada-salmon"
       },
       "language": "es",
-      "name": "Tostada de Salmón Ahumado y Queso Crema",
-      "description": "Tostada artesana con suave queso crema, lonchas de salmón ahumado noruego, aguacate fresco y alcaparras."
+      "name": "Tostada de salmón ahumado y queso crema",
+      "description": "Ingredientes: pan de trigo, salmón, queso crema, aguacate y alcaparras."
     },
     {
       "id": "pt-tost-salmon-pt",
@@ -1511,7 +1556,7 @@
         "id": "prod-tostada-salmon"
       },
       "language": "pt",
-      "name": "Torrada de Salmão Fumado e Queijo Creme",
+      "name": "Torrada de salmão fumado e queijo creme",
       "description": "Torrada rústica com queijo creme, salmão fumado, abacate fresco e alcaparras."
     },
     {
@@ -1520,8 +1565,8 @@
         "id": "prod-tostada-mixta"
       },
       "language": "es",
-      "name": "Tostada Mixta Jamón York y Queso",
-      "description": "Pan tostado caliente con jamón cocido extra y delicioso queso fundido."
+      "name": "Tostada mixta de jamón york y queso",
+      "description": "Ingredientes: pan de trigo, jamón cocido y queso."
     },
     {
       "id": "pt-tost-mixta-pt",
@@ -1529,8 +1574,170 @@
         "id": "prod-tostada-mixta"
       },
       "language": "pt",
-      "name": "Torrada Mista de Fiambre e Queijo",
+      "name": "Torrada mista de fiambre e queijo",
       "description": "Pão torrado quente com fiambre e queijo derretido."
+    },
+    {
+      "id": "en-prod-espresso",
+      "product": {
+        "id": "prod-espresso"
+      },
+      "language": "en",
+      "name": "Espresso",
+      "description": "Rich and intense single origin 100% Arabica espresso with golden hazelnut crema."
+    },
+    {
+      "id": "en-prod-cafe-latte",
+      "product": {
+        "id": "prod-cafe-latte"
+      },
+      "language": "en",
+      "name": "Coffee with milk",
+      "description": "Balanced espresso and freshly steamed microfoam milk with silky latte art."
+    },
+    {
+      "id": "en-prod-cappuccino",
+      "product": {
+        "id": "prod-cappuccino"
+      },
+      "language": "en",
+      "name": "Cappuccino",
+      "description": "Dark roast espresso topped with thick velvety milk foam and rich cocoa powder."
+    },
+    {
+      "id": "en-prod-caramel-macchiato",
+      "product": {
+        "id": "prod-caramel-macchiato"
+      },
+      "language": "en",
+      "name": "Caramel macchiato",
+      "description": "Vanilla-scented steamed milk marked with rich espresso and drizzled with golden buttery caramel."
+    },
+    {
+      "id": "en-prod-iced-latte",
+      "product": {
+        "id": "prod-iced-latte"
+      },
+      "language": "en",
+      "name": "Iced coffee with milk",
+      "description": "Espresso poured over chilled fresh milk and clear crystalline ice cubes."
+    },
+    {
+      "id": "en-prod-cold-brew",
+      "product": {
+        "id": "prod-cold-brew"
+      },
+      "language": "en",
+      "name": "Cold brew",
+      "description": "Slow-steeped for 20 hours for an ultra-smooth, naturally sweet, low-acidity coffee served on ice."
+    },
+    {
+      "id": "en-prod-caramel-frappe",
+      "product": {
+        "id": "prod-caramel-frappe"
+      },
+      "language": "en",
+      "name": "Caramel frappé",
+      "description": "Decadent blended ice coffee with buttery caramel sauce, crowned with whipped cream and caramel drizzle."
+    },
+    {
+      "id": "en-prod-matcha-latte",
+      "product": {
+        "id": "prod-matcha-latte"
+      },
+      "language": "en",
+      "name": "Iced matcha latte",
+      "description": "Ceremonial grade green matcha tea layered over cold fresh milk and ice."
+    },
+    {
+      "id": "en-prod-croissant",
+      "product": {
+        "id": "prod-croissant"
+      },
+      "language": "en",
+      "name": "Butter croissant",
+      "description": "Traditional French flaky pastry made with 100% pure Normandy butter."
+    },
+    {
+      "id": "en-prod-chocolate-cookie",
+      "product": {
+        "id": "prod-chocolate-cookie"
+      },
+      "language": "en",
+      "name": "Double chocolate cookie",
+      "description": "Warm and chewy artisanal cookie with melted dark chocolate chunks and a pinch of sea salt."
+    },
+    {
+      "id": "en-prod-blueberry-muffin",
+      "product": {
+        "id": "prod-blueberry-muffin"
+      },
+      "language": "en",
+      "name": "Blueberry muffin",
+      "description": "Moist golden muffin packed with plump wild blueberries and sparkling sugar crunch topping."
+    },
+    {
+      "id": "en-prod-cheesecake",
+      "product": {
+        "id": "prod-cheesecake"
+      },
+      "language": "en",
+      "name": "Strawberry cheesecake",
+      "description": "Velvety cream cheesecake on a buttery biscuit base, finished with strawberry coulis."
+    },
+    {
+      "id": "en-prod-mineral-water",
+      "product": {
+        "id": "prod-mineral-water"
+      },
+      "language": "en",
+      "name": "Mineral water 500 ml",
+      "description": "Natural mineral spring water, chilled."
+    },
+    {
+      "id": "en-prod-coca-cola",
+      "product": {
+        "id": "prod-coca-cola"
+      },
+      "language": "en",
+      "name": "Coca-Cola 330 ml",
+      "description": "Cola soft drink."
+    },
+    {
+      "id": "en-prod-cafe-bombon",
+      "product": {
+        "id": "prod-cafe-bombon"
+      },
+      "language": "en",
+      "name": "Café bombón",
+      "description": "Traditional Spanish layered coffee with sweet condensed milk on the bottom and dark espresso on top, served in a glass."
+    },
+    {
+      "id": "en-prod-tostada-jamon",
+      "product": {
+        "id": "prod-tostada-jamon"
+      },
+      "language": "en",
+      "name": "Tomato and serrano ham toast",
+      "description": "Warm toasted bread with freshly grated ripe tomato, rich extra virgin olive oil, and sliced Spanish Jamón Serrano."
+    },
+    {
+      "id": "en-prod-tostada-salmon",
+      "product": {
+        "id": "prod-tostada-salmon"
+      },
+      "language": "en",
+      "name": "Smoked salmon and cream cheese toast",
+      "description": "Toasted artisan country bread with velvety cream cheese, sliced smoked salmon, fresh avocado and capers."
+    },
+    {
+      "id": "en-prod-tostada-mixta",
+      "product": {
+        "id": "prod-tostada-mixta"
+      },
+      "language": "en",
+      "name": "Ham and cheese toast",
+      "description": "Classic toasted sandwich toast with premium sliced ham (jamón york) and melted golden cheese."
     }
   ],
   "customizationTranslations": [
@@ -1641,6 +1848,54 @@
       "language": "pt",
       "name": "Ingredientes Extra",
       "description": "Adicione ingredientes à sua torrada"
+    },
+    {
+      "id": "en-cust-milk",
+      "customization": {
+        "id": "cust-milk"
+      },
+      "language": "en",
+      "name": "Choice of Milk"
+    },
+    {
+      "id": "en-cust-coffee-extras",
+      "customization": {
+        "id": "cust-coffee-extras"
+      },
+      "language": "en",
+      "name": "Coffee Extras"
+    },
+    {
+      "id": "en-cust-temperature",
+      "customization": {
+        "id": "cust-temperature"
+      },
+      "language": "en",
+      "name": "Temperature"
+    },
+    {
+      "id": "en-cust-bakery-prep",
+      "customization": {
+        "id": "cust-bakery-prep"
+      },
+      "language": "en",
+      "name": "Bakery Preparation"
+    },
+    {
+      "id": "en-cust-bread-type",
+      "customization": {
+        "id": "cust-bread-type"
+      },
+      "language": "en",
+      "name": "Type of Bread"
+    },
+    {
+      "id": "en-cust-tostada-extras",
+      "customization": {
+        "id": "cust-tostada-extras"
+      },
+      "language": "en",
+      "name": "Extra Toppings"
     }
   ],
   "customizationOptionTranslations": [
@@ -2057,8 +2312,353 @@
       "language": "pt",
       "name": "Extra Fiambre / Presunto Cozido",
       "description": ""
+    },
+    {
+      "id": "en-cust-milk-whole",
+      "customizationOption": {
+        "id": "cust-milk-whole"
+      },
+      "language": "en",
+      "name": "Whole Milk"
+    },
+    {
+      "id": "en-cust-milk-skimmed",
+      "customizationOption": {
+        "id": "cust-milk-skimmed"
+      },
+      "language": "en",
+      "name": "Skimmed Milk"
+    },
+    {
+      "id": "en-cust-milk-oat",
+      "customizationOption": {
+        "id": "cust-milk-oat"
+      },
+      "language": "en",
+      "name": "Oat Milk (Barista)"
+    },
+    {
+      "id": "en-cust-milk-almond",
+      "customizationOption": {
+        "id": "cust-milk-almond"
+      },
+      "language": "en",
+      "name": "Almond Milk"
+    },
+    {
+      "id": "en-cust-milk-soy",
+      "customizationOption": {
+        "id": "cust-milk-soy"
+      },
+      "language": "en",
+      "name": "Soy Milk"
+    },
+    {
+      "id": "en-cust-opt-extra-shot",
+      "customizationOption": {
+        "id": "cust-opt-extra-shot"
+      },
+      "language": "en",
+      "name": "Extra Espresso Shot"
+    },
+    {
+      "id": "en-cust-opt-whipped-cream",
+      "customizationOption": {
+        "id": "cust-opt-whipped-cream"
+      },
+      "language": "en",
+      "name": "Whipped Cream"
+    },
+    {
+      "id": "en-cust-opt-vanilla-syrup",
+      "customizationOption": {
+        "id": "cust-opt-vanilla-syrup"
+      },
+      "language": "en",
+      "name": "Vanilla Syrup Shot"
+    },
+    {
+      "id": "en-cust-opt-caramel-syrup",
+      "customizationOption": {
+        "id": "cust-opt-caramel-syrup"
+      },
+      "language": "en",
+      "name": "Caramel Syrup Shot"
+    },
+    {
+      "id": "en-cust-temp-regular",
+      "customizationOption": {
+        "id": "cust-temp-regular"
+      },
+      "language": "en",
+      "name": "Hot (Standard)"
+    },
+    {
+      "id": "en-cust-temp-extra-hot",
+      "customizationOption": {
+        "id": "cust-temp-extra-hot"
+      },
+      "language": "en",
+      "name": "Extra Hot"
+    },
+    {
+      "id": "en-cust-temp-iced",
+      "customizationOption": {
+        "id": "cust-temp-iced"
+      },
+      "language": "en",
+      "name": "With Extra Ice"
+    },
+    {
+      "id": "en-cust-prep-room",
+      "customizationOption": {
+        "id": "cust-prep-room"
+      },
+      "language": "en",
+      "name": "Serve as is"
+    },
+    {
+      "id": "en-cust-prep-warm",
+      "customizationOption": {
+        "id": "cust-prep-warm"
+      },
+      "language": "en",
+      "name": "Warm up"
+    },
+    {
+      "id": "en-cust-bread-hogaza",
+      "customizationOption": {
+        "id": "cust-bread-hogaza"
+      },
+      "language": "en",
+      "name": "Artisan Sourdough / Hogaza"
+    },
+    {
+      "id": "en-cust-bread-mollete",
+      "customizationOption": {
+        "id": "cust-bread-mollete"
+      },
+      "language": "en",
+      "name": "Mollete Tradicional"
+    },
+    {
+      "id": "en-cust-bread-multigrain",
+      "customizationOption": {
+        "id": "cust-bread-multigrain"
+      },
+      "language": "en",
+      "name": "Multigrain & Seeds"
+    },
+    {
+      "id": "en-cust-bread-glutenfree",
+      "customizationOption": {
+        "id": "cust-bread-glutenfree"
+      },
+      "language": "en",
+      "name": "Gluten-Free Bread"
+    },
+    {
+      "id": "en-cust-top-tomate",
+      "customizationOption": {
+        "id": "cust-top-tomate"
+      },
+      "language": "en",
+      "name": "Grated Tomato & Olive Oil"
+    },
+    {
+      "id": "en-cust-top-queso-fresco",
+      "customizationOption": {
+        "id": "cust-top-queso-fresco"
+      },
+      "language": "en",
+      "name": "Queso Fresco"
+    },
+    {
+      "id": "en-cust-top-aguacate",
+      "customizationOption": {
+        "id": "cust-top-aguacate"
+      },
+      "language": "en",
+      "name": "Fresh Sliced Avocado"
+    },
+    {
+      "id": "en-cust-top-jamon-serrano",
+      "customizationOption": {
+        "id": "cust-top-jamon-serrano"
+      },
+      "language": "en",
+      "name": "Extra Jamón Serrano"
+    },
+    {
+      "id": "en-cust-top-jamon-york",
+      "customizationOption": {
+        "id": "cust-top-jamon-york"
+      },
+      "language": "en",
+      "name": "Extra Jamón York"
     }
   ],
   "discountRuleTranslations": [],
-  "tableTranslations": []
+  "tableTranslations": [
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000001-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000001"
+      },
+      "language": "en",
+      "name": "Table 1"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000001-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000001"
+      },
+      "language": "pt",
+      "name": "Mesa 1"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000002-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000002"
+      },
+      "language": "en",
+      "name": "Table 2"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000002-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000002"
+      },
+      "language": "pt",
+      "name": "Mesa 2"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000003-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000003"
+      },
+      "language": "en",
+      "name": "Table 3"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000003-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000003"
+      },
+      "language": "pt",
+      "name": "Mesa 3"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000004-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000004"
+      },
+      "language": "en",
+      "name": "Table 4"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000004-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000004"
+      },
+      "language": "pt",
+      "name": "Mesa 4"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000005-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "language": "en",
+      "name": "Table 5"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000005-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "language": "pt",
+      "name": "Mesa 5"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000006-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000006"
+      },
+      "language": "en",
+      "name": "Table 6"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000006-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000006"
+      },
+      "language": "pt",
+      "name": "Mesa 6"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000007-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000007"
+      },
+      "language": "en",
+      "name": "Table 7"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000007-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000007"
+      },
+      "language": "pt",
+      "name": "Mesa 7"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000008-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000008"
+      },
+      "language": "en",
+      "name": "Table 8"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000008-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000008"
+      },
+      "language": "pt",
+      "name": "Mesa 8"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000009-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000009"
+      },
+      "language": "en",
+      "name": "Table 9"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000009-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000009"
+      },
+      "language": "pt",
+      "name": "Mesa 9"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000010-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000010"
+      },
+      "language": "en",
+      "name": "Table 10"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000010-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000010"
+      },
+      "language": "pt",
+      "name": "Mesa 10"
+    }
+  ]
 }

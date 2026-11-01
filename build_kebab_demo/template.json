@@ -1,0 +1,21 @@
+{
+  "id": "kebab",
+  "icon": "🌯",
+  "version": 1,
+  "name": "Kebab y comida rápida",
+  "description": "Dürüm, döner, falafel, menús y bebidas.",
+  "translations": {
+    "es": {
+      "name": "Kebab y comida rápida",
+      "description": "Dürüm, döner, falafel, menús y bebidas."
+    },
+    "pt": {
+      "name": "Kebab e comida rápida",
+      "description": "Dürüm, döner, falafel, menus e bebidas."
+    },
+    "en": {
+      "name": "Kebab and fast food",
+      "description": "Dürüm, döner, falafel, meals and drinks."
+    }
+  }
+}

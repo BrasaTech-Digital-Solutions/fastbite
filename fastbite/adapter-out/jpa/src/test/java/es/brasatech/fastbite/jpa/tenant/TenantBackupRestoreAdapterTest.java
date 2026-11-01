@@ -163,15 +163,15 @@ class TenantBackupRestoreAdapterTest {
         var enTemplates = backupRestoreAdapter.getAvailableTemplates(java.util.Locale.ENGLISH);
         assertTrue(enTemplates.size() >= 2);
         var cafeEn = enTemplates.stream().filter(t -> t.id().equals("cafe")).findFirst().orElseThrow();
-        assertEquals("Specialty Café & Bakery", cafeEn.name());
+        assertEquals("Café and bakery", cafeEn.name());
 
         var esTemplates = backupRestoreAdapter.getAvailableTemplates(java.util.Locale.forLanguageTag("es"));
         var cafeEs = esTemplates.stream().filter(t -> t.id().equals("cafe")).findFirst().orElseThrow();
-        assertEquals("Cafetería de Especialidad & Bakery", cafeEs.name());
+        assertEquals("Cafetería y panadería", cafeEs.name());
 
         var ptTemplates = backupRestoreAdapter.getAvailableTemplates(java.util.Locale.forLanguageTag("pt"));
         var cafePt = ptTemplates.stream().filter(t -> t.id().equals("cafe")).findFirst().orElseThrow();
-        assertEquals("Cafetaria de Especialidade & Padaria", cafePt.name());
+        assertEquals("Cafetaria e padaria", cafePt.name());
     }
 
     @Test

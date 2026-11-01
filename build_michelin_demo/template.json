@@ -2,16 +2,20 @@
   "id": "michelin",
   "icon": "⭐",
   "version": 1,
-  "name": "Haute Cuisine & Degustation",
-  "description": "5-star Michelin fine dining, exquisite tasting menus, wine pairings and haute pastry.",
+  "name": "Restaurante y alta cocina",
+  "description": "Entrantes, platos, postres y menú degustación de muestra.",
   "translations": {
     "es": {
-      "name": "Alta Cocina & Degustación",
-      "description": "Restaurante gastronómico 5 estrellas Michelin, menús degustación, maridajes de autor y alta repostería."
+      "name": "Restaurante y alta cocina",
+      "description": "Entrantes, platos, postres y menú degustación de muestra."
     },
     "pt": {
-      "name": "Alta Cozinha & Degustação",
-      "description": "Restaurante gastronómico de autor 5 estrelas Michelin, menus degustação, harmonização de vinhos e alta pastelaria."
+      "name": "Restaurante e alta cozinha",
+      "description": "Entradas, pratos, sobremesas e menu de degustação de exemplo."
+    },
+    "en": {
+      "name": "Restaurant and fine dining",
+      "description": "Sample starters, mains, desserts and tasting menu."
     }
   }
 }

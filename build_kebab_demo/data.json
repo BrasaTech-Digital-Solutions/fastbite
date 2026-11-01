@@ -1,0 +1,1605 @@
+{
+  "groups": [
+    {
+      "id": "group-combos",
+      "name": "Menús",
+      "description": "Dürüm, pita y box con bebida",
+      "icon": "fas fa-layer-group",
+      "products": [
+        "prod-combo-kebab-l",
+        "prod-combo-kebab-m",
+        "prod-combo-kebab-s",
+        "prod-combo-pita",
+        "prod-combo-pizza",
+        "prod-combo-box"
+      ]
+    },
+    {
+      "id": "group-food",
+      "name": "Döner y platos",
+      "description": "Dürüm, pita, falafel y platos para llevar",
+      "icon": "fas fa-hamburger",
+      "products": [
+        "prod-food-box",
+        "prod-food-empanadillas",
+        "prod-food-kebab-l",
+        "prod-food-kebab-m",
+        "prod-food-kebab-s",
+        "prod-food-pita",
+        "prod-food-pizza"
+      ]
+    },
+    {
+      "id": "group-drinks",
+      "name": "Bebidas",
+      "description": "Refrescos y agua",
+      "icon": "fas fa-wine-glass",
+      "products": [
+        "prod-drink-coca-cola",
+        "prod-drink-fanta-limon",
+        "prod-drink-fanta-naranja",
+        "prod-drink-sprite",
+        "prod-drink-water"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": "prod-combo-kebab-l",
+      "name": "Menú dürüm grande",
+      "price": 12.5,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga, tomate, patatas y refresco.",
+      "image": "/user-images/kebab/combo/combo-kebab-l.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-combo-kebab-m",
+      "name": "Menú dürüm mediano",
+      "price": 10.5,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga, tomate, patatas y refresco.",
+      "image": "/user-images/kebab/combo/combo-kebab-m.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-combo-kebab-s",
+      "name": "Menú dürüm pequeño",
+      "price": 8.5,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga, tomate, patatas y refresco.",
+      "image": "/user-images/kebab/combo/combo-kebab-s.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-combo-pita",
+      "name": "Menú döner en pan pita",
+      "price": 10.5,
+      "description": "Ingredientes: pan de trigo, pollo, lechuga, tomate, patatas y refresco.",
+      "image": "/user-images/kebab/combo/combo-pita.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-combo-pizza",
+      "name": "Menú pizza de queso",
+      "price": 11.5,
+      "description": "Ingredientes: masa de trigo, tomate, queso y refresco.",
+      "image": "/user-images/kebab/combo/combo-pizza-mozzarella.webp",
+      "customizations": [
+        "cust-toppings"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "MILK"
+      ]
+    },
+    {
+      "id": "prod-combo-box",
+      "name": "Menú döner box",
+      "price": 9.5,
+      "description": "Ingredientes: pollo, patatas, lechuga, tomate y refresco.",
+      "image": "/user-images/kebab/combo/combo-box.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-food-box",
+      "name": "Döner box",
+      "price": 7.0,
+      "description": "Ingredientes: pollo, patatas, lechuga y tomate.",
+      "image": "/user-images/kebab/food/food-box.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-food-empanadillas",
+      "name": "Falafel con ensalada",
+      "price": 5.5,
+      "description": "Ingredientes: garbanzos, perejil, cebolla, lechuga y tomate.",
+      "image": "/user-images/kebab/food/falafel.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-food-kebab-l",
+      "name": "Dürüm grande de pollo",
+      "price": 8.0,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga y tomate.",
+      "image": "/user-images/kebab/food/food-kebab-l.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-food-kebab-m",
+      "name": "Dürüm mediano de pollo",
+      "price": 6.5,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga y tomate.",
+      "image": "/user-images/kebab/food/food-kebab-m.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-food-kebab-s",
+      "name": "Dürüm pequeño de pollo",
+      "price": 5.0,
+      "description": "Ingredientes: tortilla de trigo, pollo, lechuga y tomate.",
+      "image": "/user-images/kebab/food/food-kebab-s.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-food-pita",
+      "name": "Döner de pollo en pita",
+      "price": 6.5,
+      "description": "Ingredientes: pan de trigo, pollo, lechuga y tomate.",
+      "image": "/user-images/kebab/food/food-pita.webp",
+      "customizations": [
+        "cust-sauce"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN"
+      ]
+    },
+    {
+      "id": "prod-food-pizza",
+      "name": "Pizza de queso",
+      "price": 8.5,
+      "description": "Ingredientes: masa de trigo, tomate y queso.",
+      "image": "/user-images/kebab/food/food-pizza-mozzarella.webp",
+      "customizations": [
+        "cust-toppings"
+      ],
+      "active": true,
+      "allergens": [
+        "GLUTEN",
+        "MILK"
+      ]
+    },
+    {
+      "id": "prod-drink-coca-cola",
+      "name": "Coca-Cola",
+      "price": 2.2,
+      "description": "Ingredientes: refresco de cola.",
+      "image": "/user-images/kebab/drink/coca-cola.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-drink-fanta-limon",
+      "name": "Fanta de limón",
+      "price": 2.2,
+      "description": "Ingredientes: refresco de limón.",
+      "image": "/user-images/kebab/drink/fanta-limon.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-drink-fanta-naranja",
+      "name": "Fanta de naranja",
+      "price": 2.2,
+      "description": "Ingredientes: refresco de naranja.",
+      "image": "/user-images/kebab/drink/fanta-naranja.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-drink-sprite",
+      "name": "Sprite",
+      "price": 2.2,
+      "description": "Ingredientes: refresco de lima-limón.",
+      "image": "/user-images/kebab/drink/sprite.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    },
+    {
+      "id": "prod-drink-water",
+      "name": "Agua mineral",
+      "price": 1.5,
+      "description": "Ingredientes: agua mineral.",
+      "image": "/user-images/kebab/drink/water.webp",
+      "customizations": [],
+      "active": true,
+      "allergens": []
+    }
+  ],
+  "customizations": [
+    {
+      "id": "cust-sauce",
+      "name": "Salsa",
+      "type": "radio",
+      "options": [
+        {
+          "id": "cust-sauce-opt-0",
+          "name": "Salsa de Ajo",
+          "price": 0.0,
+          "defaultValue": 0,
+          "optionIndex": 0,
+          "selectedByDefault": false,
+          "allergens": [
+            "EGGS",
+            "MILK"
+          ]
+        },
+        {
+          "id": "cust-sauce-opt-1",
+          "name": "Salsa Picante",
+          "price": 0.0,
+          "defaultValue": 0,
+          "optionIndex": 1,
+          "selectedByDefault": false,
+          "allergens": null
+        },
+        {
+          "id": "cust-sauce-opt-2",
+          "name": "Salsa de Yogur",
+          "price": 0.0,
+          "defaultValue": 0,
+          "optionIndex": 2,
+          "selectedByDefault": false,
+          "allergens": [
+            "MILK"
+          ]
+        }
+      ],
+      "usageCount": 0
+    },
+    {
+      "id": "cust-toppings",
+      "name": "Ingredientes Extra",
+      "type": "checkbox",
+      "options": [
+        {
+          "id": "cust-toppings-opt-0",
+          "name": "Extra de Queso",
+          "price": 0.5,
+          "defaultValue": 0,
+          "optionIndex": 0,
+          "selectedByDefault": false,
+          "allergens": [
+            "MILK"
+          ]
+        },
+        {
+          "id": "cust-toppings-opt-1",
+          "name": "Pollo extra",
+          "price": 0.8,
+          "defaultValue": 0,
+          "optionIndex": 1,
+          "selectedByDefault": false,
+          "allergens": []
+        }
+      ],
+      "usageCount": 0
+    }
+  ],
+  "customizationOptions": [
+    {
+      "id": "cust-sauce-opt-0",
+      "customization": {
+        "id": "cust-sauce",
+        "name": "Sauce",
+        "type": "radio",
+        "usageCount": 0
+      },
+      "name": "Salsa de Ajo",
+      "price": 0.0,
+      "defaultValue": 0,
+      "optionIndex": 0,
+      "selectedByDefault": false,
+      "allergens": [
+        "EGGS",
+        "MILK"
+      ]
+    },
+    {
+      "id": "cust-sauce-opt-1",
+      "customization": {
+        "id": "cust-sauce",
+        "name": "Sauce",
+        "type": "radio",
+        "usageCount": 0
+      },
+      "name": "Salsa Picante",
+      "price": 0.0,
+      "defaultValue": 0,
+      "optionIndex": 1,
+      "selectedByDefault": false,
+      "allergens": null
+    },
+    {
+      "id": "cust-sauce-opt-2",
+      "customization": {
+        "id": "cust-sauce",
+        "name": "Sauce",
+        "type": "radio",
+        "usageCount": 0
+      },
+      "name": "Salsa de Yogur",
+      "price": 0.0,
+      "defaultValue": 0,
+      "optionIndex": 2,
+      "selectedByDefault": false,
+      "allergens": [
+        "MILK"
+      ]
+    },
+    {
+      "id": "cust-toppings-opt-0",
+      "customization": {
+        "id": "cust-toppings",
+        "name": "Extra Toppings",
+        "type": "checkbox",
+        "usageCount": 0
+      },
+      "name": "Extra de Queso",
+      "price": 0.5,
+      "defaultValue": 0,
+      "optionIndex": 0,
+      "selectedByDefault": false,
+      "allergens": [
+        "MILK"
+      ]
+    },
+    {
+      "id": "cust-toppings-opt-1",
+      "customization": {
+        "id": "cust-toppings",
+        "name": "Extra Toppings",
+        "type": "checkbox",
+        "usageCount": 0
+      },
+      "name": "Pollo extra",
+      "price": 0.8,
+      "defaultValue": 0,
+      "optionIndex": 1,
+      "selectedByDefault": false,
+      "allergens": []
+    }
+  ],
+  "tables": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Mesa 1",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Mesa 2",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Mesa 3",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000004",
+      "name": "Mesa 4",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000005",
+      "name": "Mesa 5",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000006",
+      "name": "Mesa 6",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "name": "Mesa 7",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000008",
+      "name": "Mesa 8",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000009",
+      "name": "Mesa 9",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000010",
+      "name": "Mesa 10",
+      "seats": 4,
+      "status": "AVAILABLE",
+      "active": true,
+      "orderIds": []
+    }
+  ],
+  "discountRules": [],
+  "orders": [],
+  "users": [],
+  "paymentConfigs": [
+    {
+      "id": "default",
+      "activeModes": [
+        "CASH",
+        "CARD"
+      ],
+      "moneyDenominations": [
+        {
+          "value": 50.0,
+          "image": "/images/money/1771142914327_euros50.png",
+          "type": "BANKNOTE"
+        },
+        {
+          "value": 20.0,
+          "image": "/images/money/1771142935336_euros20.jpg",
+          "type": "BANKNOTE"
+        },
+        {
+          "value": 10.0,
+          "image": "/images/money/1771142947210_diezEuros.png",
+          "type": "BANKNOTE"
+        },
+        {
+          "value": 5.0,
+          "image": "/images/money/1771142963956_euros5.gif",
+          "type": "BANKNOTE"
+        },
+        {
+          "value": 2.0,
+          "image": "/images/money/1771142976041_dosEuros.png",
+          "type": "COIN"
+        },
+        {
+          "value": 1.0,
+          "image": "/images/money/1771142992632_unEuro.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.5,
+          "image": "/images/money/1771143001895_cincuentaCentimos.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.2,
+          "image": "/images/money/1771143013372_vinteCentimos.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.1,
+          "image": "/images/money/1771143022884_diezCentimo.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.05,
+          "image": "/images/money/1771143035854_cincoCentimo.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.02,
+          "image": "/images/money/1771143044590_dosCentimos.png",
+          "type": "COIN"
+        },
+        {
+          "value": 0.01,
+          "image": "/images/money/1771143060155_unCentimo.png",
+          "type": "COIN"
+        }
+      ],
+      "active": true
+    }
+  ],
+  "groupTranslations": [
+    {
+      "id": "gt-combos-es",
+      "group": {
+        "id": "group-combos",
+        "name": "Combos",
+        "description": "Complete meals with drinks",
+        "icon": "fas fa-layer-group",
+        "products": [
+          "prod-combo-kebab-l",
+          "prod-combo-kebab-m",
+          "prod-combo-kebab-s",
+          "prod-combo-pita",
+          "prod-combo-pizza",
+          "prod-combo-box"
+        ]
+      },
+      "language": "es",
+      "name": "Menús",
+      "description": "Dürüm, pita y box con bebida"
+    },
+    {
+      "id": "gt-combos-pt",
+      "group": {
+        "id": "group-combos",
+        "name": "Combos",
+        "description": "Complete meals with drinks",
+        "icon": "fas fa-layer-group",
+        "products": [
+          "prod-combo-kebab-l",
+          "prod-combo-kebab-m",
+          "prod-combo-kebab-s",
+          "prod-combo-pita",
+          "prod-combo-pizza",
+          "prod-combo-box"
+        ]
+      },
+      "language": "pt",
+      "name": "Combinados",
+      "description": "Refeições completas com bebida"
+    },
+    {
+      "id": "gt-food-es",
+      "group": {
+        "id": "group-food",
+        "name": "Food",
+        "description": "Main dishes and snacks",
+        "icon": "fas fa-hamburger",
+        "products": [
+          "prod-food-box",
+          "prod-food-empanadillas",
+          "prod-food-kebab-l",
+          "prod-food-kebab-m",
+          "prod-food-kebab-s",
+          "prod-food-pita",
+          "prod-food-pizza"
+        ]
+      },
+      "language": "es",
+      "name": "Döner y platos",
+      "description": "Dürüm, pita, falafel y platos para llevar"
+    },
+    {
+      "id": "gt-food-pt",
+      "group": {
+        "id": "group-food",
+        "name": "Food",
+        "description": "Main dishes and snacks",
+        "icon": "fas fa-hamburger",
+        "products": [
+          "prod-food-box",
+          "prod-food-empanadillas",
+          "prod-food-kebab-l",
+          "prod-food-kebab-m",
+          "prod-food-kebab-s",
+          "prod-food-pita",
+          "prod-food-pizza"
+        ]
+      },
+      "language": "pt",
+      "name": "Comida",
+      "description": "Pratos principais e lanches"
+    },
+    {
+      "id": "gt-drinks-es",
+      "group": {
+        "id": "group-drinks",
+        "name": "Drinks",
+        "description": "Refreshing beverages",
+        "icon": "fas fa-wine-glass",
+        "products": [
+          "prod-drink-coca-cola",
+          "prod-drink-fanta-limon",
+          "prod-drink-fanta-naranja",
+          "prod-drink-sprite",
+          "prod-drink-water"
+        ]
+      },
+      "language": "es",
+      "name": "Bebidas",
+      "description": "Refrescos y agua"
+    },
+    {
+      "id": "gt-drinks-pt",
+      "group": {
+        "id": "group-drinks",
+        "name": "Drinks",
+        "description": "Refreshing beverages",
+        "icon": "fas fa-wine-glass",
+        "products": [
+          "prod-drink-coca-cola",
+          "prod-drink-fanta-limon",
+          "prod-drink-fanta-naranja",
+          "prod-drink-sprite",
+          "prod-drink-water"
+        ]
+      },
+      "language": "pt",
+      "name": "Bebidas",
+      "description": "Refrigerantes e água"
+    },
+    {
+      "id": "en-group-combos",
+      "group": {
+        "id": "group-combos"
+      },
+      "language": "en",
+      "name": "Combos",
+      "description": "Complete meals with drinks"
+    },
+    {
+      "id": "en-group-food",
+      "group": {
+        "id": "group-food"
+      },
+      "language": "en",
+      "name": "Food",
+      "description": "Main dishes and snacks"
+    },
+    {
+      "id": "en-group-drinks",
+      "group": {
+        "id": "group-drinks"
+      },
+      "language": "en",
+      "name": "Drinks",
+      "description": "Refreshing beverages"
+    }
+  ],
+  "productTranslations": [
+    {
+      "id": "pt-prod-combo-kebab-l-en",
+      "product": {
+        "id": "prod-combo-kebab-l"
+      },
+      "language": "en",
+      "name": "Large dürüm meal",
+      "description": "Wheat wrap with chicken, lettuce, tomato, fries and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-kebab-l-pt",
+      "product": {
+        "id": "prod-combo-kebab-l"
+      },
+      "language": "pt",
+      "name": "Menu dürüm grande",
+      "description": "Tortilha de trigo com frango, alface, tomate, batatas e refrigerante"
+    },
+    {
+      "id": "pt-prod-combo-kebab-m-en",
+      "product": {
+        "id": "prod-combo-kebab-m"
+      },
+      "language": "en",
+      "name": "Medium dürüm meal",
+      "description": "Wheat wrap with chicken, lettuce, tomato, fries and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-kebab-m-pt",
+      "product": {
+        "id": "prod-combo-kebab-m"
+      },
+      "language": "pt",
+      "name": "Menu dürüm médio",
+      "description": "Tortilha de trigo com frango, alface, tomate, batatas e refrigerante"
+    },
+    {
+      "id": "pt-prod-combo-kebab-s-en",
+      "product": {
+        "id": "prod-combo-kebab-s"
+      },
+      "language": "en",
+      "name": "Small dürüm meal",
+      "description": "Wheat wrap with chicken, lettuce, tomato, fries and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-kebab-s-pt",
+      "product": {
+        "id": "prod-combo-kebab-s"
+      },
+      "language": "pt",
+      "name": "Menu dürüm pequeno",
+      "description": "Tortilha de trigo com frango, alface, tomate, batatas e refrigerante"
+    },
+    {
+      "id": "pt-prod-combo-pita-en",
+      "product": {
+        "id": "prod-combo-pita"
+      },
+      "language": "en",
+      "name": "Pita döner meal",
+      "description": "Wheat pita with chicken, lettuce, tomato, fries and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-pita-pt",
+      "product": {
+        "id": "prod-combo-pita"
+      },
+      "language": "pt",
+      "name": "Menu döner em pita",
+      "description": "Pita de trigo com frango, alface, tomate, batatas e refrigerante"
+    },
+    {
+      "id": "pt-prod-combo-pizza-en",
+      "product": {
+        "id": "prod-combo-pizza"
+      },
+      "language": "en",
+      "name": "Cheese pizza meal",
+      "description": "Wheat pizza with tomato, cheese and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-pizza-pt",
+      "product": {
+        "id": "prod-combo-pizza"
+      },
+      "language": "pt",
+      "name": "Menu pizza de queijo",
+      "description": "Pizza de trigo com tomate, queijo e refrigerante"
+    },
+    {
+      "id": "pt-prod-combo-box-en",
+      "product": {
+        "id": "prod-combo-box"
+      },
+      "language": "en",
+      "name": "Döner box meal",
+      "description": "Chicken, fries, lettuce, tomato and a soft drink"
+    },
+    {
+      "id": "pt-prod-combo-box-pt",
+      "product": {
+        "id": "prod-combo-box"
+      },
+      "language": "pt",
+      "name": "Menu döner box",
+      "description": "Frango, batatas, alface, tomate e refrigerante"
+    },
+    {
+      "id": "pt-prod-food-box-en",
+      "product": {
+        "id": "prod-food-box"
+      },
+      "language": "en",
+      "name": "Döner box",
+      "description": "Chicken, fries, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-box-pt",
+      "product": {
+        "id": "prod-food-box"
+      },
+      "language": "pt",
+      "name": "Döner box",
+      "description": "Frango, batatas, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-empanadillas-en",
+      "product": {
+        "id": "prod-food-empanadillas"
+      },
+      "language": "en",
+      "name": "Falafel with salad",
+      "description": "Chickpeas, parsley, onion, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-empanadillas-pt",
+      "product": {
+        "id": "prod-food-empanadillas"
+      },
+      "language": "pt",
+      "name": "Falafel com salada",
+      "description": "Grão-de-bico, salsa, cebola, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-kebab-l-en",
+      "product": {
+        "id": "prod-food-kebab-l"
+      },
+      "language": "en",
+      "name": "Large chicken dürüm",
+      "description": "Wheat wrap with chicken, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-kebab-l-pt",
+      "product": {
+        "id": "prod-food-kebab-l"
+      },
+      "language": "pt",
+      "name": "Dürüm grande de frango",
+      "description": "Tortilha de trigo com frango, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-kebab-m-en",
+      "product": {
+        "id": "prod-food-kebab-m"
+      },
+      "language": "en",
+      "name": "Medium chicken dürüm",
+      "description": "Wheat wrap with chicken, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-kebab-m-pt",
+      "product": {
+        "id": "prod-food-kebab-m"
+      },
+      "language": "pt",
+      "name": "Dürüm médio de frango",
+      "description": "Tortilha de trigo com frango, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-kebab-s-en",
+      "product": {
+        "id": "prod-food-kebab-s"
+      },
+      "language": "en",
+      "name": "Small chicken dürüm",
+      "description": "Wheat wrap with chicken, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-kebab-s-pt",
+      "product": {
+        "id": "prod-food-kebab-s"
+      },
+      "language": "pt",
+      "name": "Dürüm pequeno de frango",
+      "description": "Tortilha de trigo com frango, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-pita-en",
+      "product": {
+        "id": "prod-food-pita"
+      },
+      "language": "en",
+      "name": "Chicken döner pita",
+      "description": "Wheat pita with chicken, lettuce and tomato"
+    },
+    {
+      "id": "pt-prod-food-pita-pt",
+      "product": {
+        "id": "prod-food-pita"
+      },
+      "language": "pt",
+      "name": "Döner de frango em pita",
+      "description": "Pita de trigo com frango, alface e tomate"
+    },
+    {
+      "id": "pt-prod-food-pizza-en",
+      "product": {
+        "id": "prod-food-pizza"
+      },
+      "language": "en",
+      "name": "Cheese pizza",
+      "description": "Wheat pizza with tomato and cheese"
+    },
+    {
+      "id": "pt-prod-food-pizza-pt",
+      "product": {
+        "id": "prod-food-pizza"
+      },
+      "language": "pt",
+      "name": "Pizza de queijo",
+      "description": "Pizza de trigo com tomate e queijo"
+    },
+    {
+      "id": "pt-prod-drink-coca-cola-en",
+      "product": {
+        "id": "prod-drink-coca-cola"
+      },
+      "language": "en",
+      "name": "Coca-Cola",
+      "description": "Cola soft drink"
+    },
+    {
+      "id": "pt-prod-drink-coca-cola-pt",
+      "product": {
+        "id": "prod-drink-coca-cola"
+      },
+      "language": "pt",
+      "name": "Coca-Cola",
+      "description": "Refrigerante de cola"
+    },
+    {
+      "id": "pt-prod-drink-fanta-limon-en",
+      "product": {
+        "id": "prod-drink-fanta-limon"
+      },
+      "language": "en",
+      "name": "Lemon Fanta",
+      "description": "Lemon soft drink"
+    },
+    {
+      "id": "pt-prod-drink-fanta-limon-pt",
+      "product": {
+        "id": "prod-drink-fanta-limon"
+      },
+      "language": "pt",
+      "name": "Fanta de limão",
+      "description": "Refrigerante de limão"
+    },
+    {
+      "id": "pt-prod-drink-fanta-naranja-en",
+      "product": {
+        "id": "prod-drink-fanta-naranja"
+      },
+      "language": "en",
+      "name": "Orange Fanta",
+      "description": "Orange soft drink"
+    },
+    {
+      "id": "pt-prod-drink-fanta-naranja-pt",
+      "product": {
+        "id": "prod-drink-fanta-naranja"
+      },
+      "language": "pt",
+      "name": "Fanta de laranja",
+      "description": "Refrigerante de laranja"
+    },
+    {
+      "id": "pt-prod-drink-sprite-en",
+      "product": {
+        "id": "prod-drink-sprite"
+      },
+      "language": "en",
+      "name": "Sprite",
+      "description": "Lemon-lime soft drink"
+    },
+    {
+      "id": "pt-prod-drink-sprite-pt",
+      "product": {
+        "id": "prod-drink-sprite"
+      },
+      "language": "pt",
+      "name": "Sprite",
+      "description": "Refrigerante de lima e limão"
+    },
+    {
+      "id": "pt-prod-drink-water-en",
+      "product": {
+        "id": "prod-drink-water"
+      },
+      "language": "en",
+      "name": "Mineral water",
+      "description": "Mineral water"
+    },
+    {
+      "id": "pt-prod-drink-water-pt",
+      "product": {
+        "id": "prod-drink-water"
+      },
+      "language": "pt",
+      "name": "Água mineral",
+      "description": "Água mineral"
+    }
+  ],
+  "customizationTranslations": [
+    {
+      "id": "ct-sauce-es",
+      "customization": {
+        "id": "cust-sauce",
+        "name": "Sauce",
+        "type": "radio",
+        "options": [
+          {
+            "id": "cust-sauce-opt-0",
+            "name": "Garlic Sauce",
+            "price": 0.0,
+            "defaultValue": 1,
+            "optionIndex": 0,
+            "selectedByDefault": true
+          },
+          {
+            "id": "cust-sauce-opt-1",
+            "name": "Spicy Sauce",
+            "price": 0.0,
+            "defaultValue": 0,
+            "optionIndex": 1,
+            "selectedByDefault": false
+          },
+          {
+            "id": "cust-sauce-opt-2",
+            "name": "Yogurt Sauce",
+            "price": 0.0,
+            "defaultValue": 0,
+            "optionIndex": 2,
+            "selectedByDefault": false
+          }
+        ],
+        "usageCount": 0
+      },
+      "language": "es",
+      "name": "Salsa"
+    },
+    {
+      "id": "ct-sauce-pt",
+      "customization": {
+        "id": "cust-sauce",
+        "name": "Sauce",
+        "type": "radio",
+        "options": [
+          {
+            "id": "cust-sauce-opt-0",
+            "name": "Garlic Sauce",
+            "price": 0.0,
+            "defaultValue": 1,
+            "optionIndex": 0,
+            "selectedByDefault": true
+          },
+          {
+            "id": "cust-sauce-opt-1",
+            "name": "Spicy Sauce",
+            "price": 0.0,
+            "defaultValue": 0,
+            "optionIndex": 1,
+            "selectedByDefault": false
+          },
+          {
+            "id": "cust-sauce-opt-2",
+            "name": "Yogurt Sauce",
+            "price": 0.0,
+            "defaultValue": 0,
+            "optionIndex": 2,
+            "selectedByDefault": false
+          }
+        ],
+        "usageCount": 0
+      },
+      "language": "pt",
+      "name": "Molho"
+    },
+    {
+      "id": "ct-toppings-es",
+      "customization": {
+        "id": "cust-toppings",
+        "name": "Extra Toppings",
+        "type": "checkbox",
+        "options": [
+          {
+            "id": "cust-toppings-opt-0",
+            "name": "Extra Cheese",
+            "price": 0.5,
+            "defaultValue": 0,
+            "optionIndex": 0,
+            "selectedByDefault": false
+          },
+          {
+            "id": "cust-toppings-opt-1",
+            "name": "Extra Bacon",
+            "price": 0.8,
+            "defaultValue": 0,
+            "optionIndex": 1,
+            "selectedByDefault": false
+          }
+        ],
+        "usageCount": 0
+      },
+      "language": "es",
+      "name": "Ingredientes Extra"
+    },
+    {
+      "id": "ct-toppings-pt",
+      "customization": {
+        "id": "cust-toppings",
+        "name": "Extra Toppings",
+        "type": "checkbox",
+        "options": [
+          {
+            "id": "cust-toppings-opt-0",
+            "name": "Extra Cheese",
+            "price": 0.5,
+            "defaultValue": 0,
+            "optionIndex": 0,
+            "selectedByDefault": false
+          },
+          {
+            "id": "cust-toppings-opt-1",
+            "name": "Extra Bacon",
+            "price": 0.8,
+            "defaultValue": 0,
+            "optionIndex": 1,
+            "selectedByDefault": false
+          }
+        ],
+        "usageCount": 0
+      },
+      "language": "pt",
+      "name": "Ingredientes Extras"
+    },
+    {
+      "id": "en-cust-sauce",
+      "customization": {
+        "id": "cust-sauce"
+      },
+      "language": "en",
+      "name": "Sauce"
+    },
+    {
+      "id": "en-cust-toppings",
+      "customization": {
+        "id": "cust-toppings"
+      },
+      "language": "en",
+      "name": "Extra Toppings"
+    }
+  ],
+  "customizationOptionTranslations": [
+    {
+      "id": "cot-sauce-0-es",
+      "customizationOption": {
+        "id": "cust-sauce-opt-0",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Garlic Sauce",
+        "price": 0.0,
+        "defaultValue": 1,
+        "optionIndex": 0,
+        "selectedByDefault": true
+      },
+      "language": "es",
+      "name": "Salsa de Ajo"
+    },
+    {
+      "id": "cot-sauce-0-pt",
+      "customizationOption": {
+        "id": "cust-sauce-opt-0",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Garlic Sauce",
+        "price": 0.0,
+        "defaultValue": 1,
+        "optionIndex": 0,
+        "selectedByDefault": true
+      },
+      "language": "pt",
+      "name": "Molho de Alho"
+    },
+    {
+      "id": "cot-sauce-1-es",
+      "customizationOption": {
+        "id": "cust-sauce-opt-1",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Spicy Sauce",
+        "price": 0.0,
+        "defaultValue": 0,
+        "optionIndex": 1,
+        "selectedByDefault": false
+      },
+      "language": "es",
+      "name": "Salsa Picante"
+    },
+    {
+      "id": "cot-sauce-1-pt",
+      "customizationOption": {
+        "id": "cust-sauce-opt-1",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Spicy Sauce",
+        "price": 0.0,
+        "defaultValue": 0,
+        "optionIndex": 1,
+        "selectedByDefault": false
+      },
+      "language": "pt",
+      "name": "Molho Picante"
+    },
+    {
+      "id": "cot-sauce-2-es",
+      "customizationOption": {
+        "id": "cust-sauce-opt-2",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Yogurt Sauce",
+        "price": 0.0,
+        "defaultValue": 0,
+        "optionIndex": 2,
+        "selectedByDefault": false
+      },
+      "language": "es",
+      "name": "Salsa de Yogur"
+    },
+    {
+      "id": "cot-sauce-2-pt",
+      "customizationOption": {
+        "id": "cust-sauce-opt-2",
+        "customization": {
+          "id": "cust-sauce",
+          "name": "Sauce",
+          "type": "radio",
+          "usageCount": 0
+        },
+        "name": "Yogurt Sauce",
+        "price": 0.0,
+        "defaultValue": 0,
+        "optionIndex": 2,
+        "selectedByDefault": false
+      },
+      "language": "pt",
+      "name": "Molho de Iogurte"
+    },
+    {
+      "id": "cot-toppings-0-es",
+      "customizationOption": {
+        "id": "cust-toppings-opt-0",
+        "customization": {
+          "id": "cust-toppings",
+          "name": "Extra Toppings",
+          "type": "checkbox",
+          "usageCount": 0
+        },
+        "name": "Extra Cheese",
+        "price": 0.5,
+        "defaultValue": 0,
+        "optionIndex": 0,
+        "selectedByDefault": false
+      },
+      "language": "es",
+      "name": "Extra de Queso"
+    },
+    {
+      "id": "cot-toppings-0-pt",
+      "customizationOption": {
+        "id": "cust-toppings-opt-0",
+        "customization": {
+          "id": "cust-toppings",
+          "name": "Extra Toppings",
+          "type": "checkbox",
+          "usageCount": 0
+        },
+        "name": "Extra Cheese",
+        "price": 0.5,
+        "defaultValue": 0,
+        "optionIndex": 0,
+        "selectedByDefault": false
+      },
+      "language": "pt",
+      "name": "Queijo Extra"
+    },
+    {
+      "id": "cot-toppings-1-es",
+      "customizationOption": {
+        "id": "cust-toppings-opt-1",
+        "customization": {
+          "id": "cust-toppings",
+          "name": "Extra Toppings",
+          "type": "checkbox",
+          "usageCount": 0
+        },
+        "name": "Extra Bacon",
+        "price": 0.8,
+        "defaultValue": 0,
+        "optionIndex": 1,
+        "selectedByDefault": false
+      },
+      "language": "es",
+      "name": "Pollo extra"
+    },
+    {
+      "id": "cot-toppings-1-pt",
+      "customizationOption": {
+        "id": "cust-toppings-opt-1",
+        "customization": {
+          "id": "cust-toppings",
+          "name": "Extra Toppings",
+          "type": "checkbox",
+          "usageCount": 0
+        },
+        "name": "Extra Bacon",
+        "price": 0.8,
+        "defaultValue": 0,
+        "optionIndex": 1,
+        "selectedByDefault": false
+      },
+      "language": "pt",
+      "name": "Frango extra"
+    },
+    {
+      "id": "en-cust-sauce-opt-0",
+      "customizationOption": {
+        "id": "cust-sauce-opt-0"
+      },
+      "language": "en",
+      "name": "Garlic Sauce"
+    },
+    {
+      "id": "en-cust-sauce-opt-1",
+      "customizationOption": {
+        "id": "cust-sauce-opt-1"
+      },
+      "language": "en",
+      "name": "Spicy Sauce"
+    },
+    {
+      "id": "en-cust-sauce-opt-2",
+      "customizationOption": {
+        "id": "cust-sauce-opt-2"
+      },
+      "language": "en",
+      "name": "Yogurt Sauce"
+    },
+    {
+      "id": "en-cust-toppings-opt-0",
+      "customizationOption": {
+        "id": "cust-toppings-opt-0"
+      },
+      "language": "en",
+      "name": "Extra Cheese"
+    },
+    {
+      "id": "en-cust-toppings-opt-1",
+      "customizationOption": {
+        "id": "cust-toppings-opt-1"
+      },
+      "language": "en",
+      "name": "Extra chicken"
+    }
+  ],
+  "discountRuleTranslations": [],
+  "tableTranslations": [
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000001-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000001"
+      },
+      "language": "en",
+      "name": "Table 1"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000001-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000001"
+      },
+      "language": "pt",
+      "name": "Mesa 1"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000002-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000002"
+      },
+      "language": "en",
+      "name": "Table 2"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000002-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000002"
+      },
+      "language": "pt",
+      "name": "Mesa 2"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000003-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000003"
+      },
+      "language": "en",
+      "name": "Table 3"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000003-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000003"
+      },
+      "language": "pt",
+      "name": "Mesa 3"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000004-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000004"
+      },
+      "language": "en",
+      "name": "Table 4"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000004-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000004"
+      },
+      "language": "pt",
+      "name": "Mesa 4"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000005-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "language": "en",
+      "name": "Table 5"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000005-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000005"
+      },
+      "language": "pt",
+      "name": "Mesa 5"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000006-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000006"
+      },
+      "language": "en",
+      "name": "Table 6"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000006-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000006"
+      },
+      "language": "pt",
+      "name": "Mesa 6"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000007-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000007"
+      },
+      "language": "en",
+      "name": "Table 7"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000007-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000007"
+      },
+      "language": "pt",
+      "name": "Mesa 7"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000008-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000008"
+      },
+      "language": "en",
+      "name": "Table 8"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000008-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000008"
+      },
+      "language": "pt",
+      "name": "Mesa 8"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000009-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000009"
+      },
+      "language": "en",
+      "name": "Table 9"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000009-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000009"
+      },
+      "language": "pt",
+      "name": "Mesa 9"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000010-en",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000010"
+      },
+      "language": "en",
+      "name": "Table 10"
+    },
+    {
+      "id": "tt-00000000-0000-0000-0000-000000000010-pt",
+      "table": {
+        "id": "00000000-0000-0000-0000-000000000010"
+      },
+      "language": "pt",
+      "name": "Mesa 10"
+    }
+  ]
+}
