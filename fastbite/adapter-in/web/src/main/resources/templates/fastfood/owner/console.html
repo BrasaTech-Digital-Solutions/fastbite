@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}"
+ th:with="linkedProduction=${platform != null && platform.practice()},linkedSandbox=${platform != null && platform.productionUrl() != null}">
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title th:text="#{workspace.page.title}">Your workspace — FastBite</title><link rel="stylesheet" th:href="@{/css/platform.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}">
 <meta name="csrf-token" th:content="${_csrf.token}"><meta name="csrf-header" th:content="${_csrf.headerName}">
 <script defer th:src="@{/js/confirm-dialog.js}"></script><script defer th:src="@{/js/workspace.js}"></script><script defer th:src="@{/js/fiscal-profile.js}"></script><link rel="stylesheet" th:href="@{/css/guest-privacy.css}"></head>
 <body class="workspace"
- th:data-version-mismatch="#{workspace.js.version.mismatch}" th:data-demo-sandbox-only="#{workspace.js.demo.sandbox.only}" th:data-maintenance-success="#{workspace.js.maintenance.success}" th:data-action-error="#{workspace.js.action.error}" th:data-clean-title="#{workspace.js.clean.title}" th:data-demo-title="#{workspace.js.demo.title}" th:data-restore-title="#{workspace.js.restore.title}"
+ th:data-version-mismatch="${linkedProduction ? #messages.msg('workspace.js.version.mismatch') : #messages.msg('workspace.js.version.mismatch.standalone')}"
+ th:data-demo-sandbox-only="${linkedProduction ? #messages.msg('workspace.js.demo.sandbox.only') : null}"
+ th:data-maintenance-success="#{workspace.js.maintenance.success}" th:data-action-error="#{workspace.js.action.error}" th:data-clean-title="#{workspace.js.clean.title}" th:data-demo-title="#{workspace.js.demo.title}" th:data-restore-title="#{workspace.js.restore.title}"
  th:data-clean-desc="#{workspace.js.clean.desc}" th:data-demo-desc="#{workspace.js.demo.desc}" th:data-restore-desc="#{workspace.js.restore.desc}" th:data-confirm-name="#{workspace.js.confirm.name}" th:data-maintenance-error="#{workspace.js.maintenance.error}"
  th:data-items="#{workspace.js.items}" th:data-backup-summary="#{workspace.js.backup.summary}" th:data-backup-error="#{workspace.js.backup.error}" th:data-products="#{workspace.js.products}" th:data-categories="#{workspace.js.categories}" th:data-customizations="#{workspace.js.customizations}" th:data-tables="#{workspace.js.tables}" th:data-discounts="#{workspace.js.discounts}"
- th:data-diff="#{workspace.js.diff}" th:data-default="#{workspace.js.default}" th:data-theme="#{workspace.js.theme}" th:data-service-replaced="#{workspace.js.service.replaced}" th:data-no-changes="#{workspace.js.no.changes}" th:data-prices="#{workspace.js.prices}" th:data-allergens="#{workspace.js.allergens}" th:data-other-changes="#{workspace.js.other.changes}" th:data-removed="#{workspace.js.removed}" th:data-promotion-success="#{workspace.js.promotion.success}" th:data-undo-success="#{workspace.js.undo.success}" th:data-cancel="#{workspace.js.cancel}"
- th:with="linkedProduction=${platform != null && platform.practice()},linkedSandbox=${platform != null && platform.productionUrl() != null}">
+ th:data-diff="#{workspace.js.diff}" th:data-default="#{workspace.js.default}" th:data-theme="#{workspace.js.theme}"
+ th:data-service-replaced="${linkedProduction ? #messages.msg('workspace.js.service.replaced') : null}"
+ th:data-no-changes="#{workspace.js.no.changes}" th:data-prices="#{workspace.js.prices}" th:data-allergens="#{workspace.js.allergens}" th:data-other-changes="#{workspace.js.other.changes}" th:data-removed="#{workspace.js.removed}"
+ th:data-promotion-success="${linkedProduction ? #messages.msg('workspace.js.promotion.success') : null}"
+ th:data-undo-success="${linkedProduction ? #messages.msg('workspace.js.undo.success') : null}"
+ th:data-cancel="#{workspace.js.cancel}">
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main" th:text="#{opening.skip}">Skip to content</a>
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
 <div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
@@ -156,7 +163,8 @@
 <span class="practice-step-dot" th:classappend="${setup.progress.practiceMenuPersonalized()} ? 'done' : 'todo'" th:text="${setup.progress.practiceMenuPersonalized()} ? '✓' : '5'" th:attr="aria-label=${setup.progress.practiceMenuPersonalized()} ? #{workspace.tour.done} : null"></span>
 <div class="practice-step-body">
 <h3 th:text="#{workspace.tour.step5.title}">Make the menu yours</h3>
-<p th:text="#{workspace.tour.step5.desc}">Change names, prices and photos, and delete items you don’t sell. This is what will go to production.</p>
+<p th:if="${linkedSandbox}" th:text="#{workspace.tour.step5.desc}">Change names, prices and photos, and delete items you don’t sell. This is what will go to production.</p>
+<p th:unless="${linkedSandbox}" th:text="#{workspace.tour.step5.desc.standalone}">Change names, prices and photos, and delete items you don’t sell.</p>
 </div>
 <div class="practice-step-actions">
 <a class="practice-step-link" th:href="@{/{tenant}/backoffice(tenant=${selected.tenantId})}" th:text="#{workspace.tour.step5.action}">Edit menu →</a>
@@ -171,7 +179,8 @@
 <span class="practice-step-dot" th:classappend="${setup.progress.practiceTeamTested()} ? 'done' : 'todo'" th:text="${setup.progress.practiceTeamTested()} ? '✓' : '6'" th:attr="aria-label=${setup.progress.practiceTeamTested()} ? #{workspace.tour.done} : null"></span>
 <div class="practice-step-body">
 <h3 th:text="#{workspace.tour.step6.title}">Practise with your team</h3>
-<p th:text="#{workspace.tour.step6.desc}">Create practice accounts for your team to rehearse. They do not pass to production.</p>
+<p th:if="${linkedSandbox}" th:text="#{workspace.tour.step6.desc}">Create practice accounts for your team to rehearse. They do not pass to production.</p>
+<p th:unless="${linkedSandbox}" th:text="#{workspace.tour.step6.desc.standalone}">Create practice accounts for your team to rehearse.</p>
 </div>
 <div class="practice-step-actions" th:unless="${setup.progress.practiceTeamTested()}">
 <a class="practice-step-link" th:href="@{/owner/console(view='team',location=${selected.tenantId})}" th:text="#{workspace.tour.step6.action}">Manage team →</a>

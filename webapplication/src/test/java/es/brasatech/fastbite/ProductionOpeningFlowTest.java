@@ -68,7 +68,7 @@ class ProductionOpeningFlowTest {
         assertTrue(page.body().contains("Your opening checklist"),page.body());
         assertTrue(page.body().contains("I work alone"));
         assertTrue(page.body().contains("id=\"opening-next-action\""));
-        assertTrue(page.body().contains("Bring your setup"));
+        assertTrue(page.body().contains("Build your menu"));
         var spanish = owner.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/owner/console?location=openflow")).header("Accept-Language","es").GET().build(),HttpResponse.BodyHandlers.ofString());
         assertEquals(200,spanish.statusCode());
         assertTrue(spanish.body().contains("Tu lista para abrir"),spanish.body());
