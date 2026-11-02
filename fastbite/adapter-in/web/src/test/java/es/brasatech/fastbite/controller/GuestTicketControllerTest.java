@@ -1,8 +1,11 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
+import es.brasatech.fastbite.application.fiscal.GuestActionRateLimit;
 import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
+import es.brasatech.fastbite.application.mail.GuestTicketMailPort;
 import es.brasatech.fastbite.application.order.OrderService;
+import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
@@ -27,7 +30,7 @@ class GuestTicketControllerTest {
     private final OrderService orders = mock(OrderService.class);
     private final TicketController counter = mock(TicketController.class);
     private final GuestTicketSignature signatures = new GuestTicketSignature("a-test-secret");
-    private final GuestTicketController controller = new GuestTicketController(tickets, orders, signatures, counter, mock(GuestInvoiceRateLimit.class), mock(MessageSource.class));
+    private final GuestTicketController controller = new GuestTicketController(tickets, orders, signatures, counter, mock(GuestInvoiceRateLimit.class), mock(MessageSource.class), mock(GuestActionRateLimit.class), mock(GuestTicketMailPort.class), mock(PublicOrigin.class));
     @AfterEach void clear() { TenantContext.clear(); }
 
     @Test void signaturesAreScopedAndVersioned() {

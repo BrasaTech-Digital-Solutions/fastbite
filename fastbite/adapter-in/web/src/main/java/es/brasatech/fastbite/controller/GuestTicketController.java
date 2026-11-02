@@ -1,6 +1,9 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
+import es.brasatech.fastbite.application.fiscal.GuestActionRateLimit;
+import es.brasatech.fastbite.application.mail.GuestTicketMailPort;
+import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
@@ -14,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriUtils;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +41,7 @@ import java.util.Optional;
 
 /** Public bearer links, scoped to a restaurant and a ticket. */
 @Controller
+@Slf4j
 @RequiredArgsConstructor
 public class GuestTicketController {
     private final FiscalTicketService tickets;
@@ -44,6 +50,9 @@ public class GuestTicketController {
     private final TicketController ticketController;
     private final GuestInvoiceRateLimit invoiceLimit;
     private final MessageSource messages;
+    private final GuestActionRateLimit actionLimit;
+    private final GuestTicketMailPort ticketMail;
+    private final PublicOrigin publicOrigin;
 
     private static void privateHeaders(HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
@@ -69,10 +78,12 @@ public class GuestTicketController {
         List<FiscalTicket> corrections = tickets.corrections(ticketId);
         boolean invoiceAvailable = ticket.kind() == TicketKind.SIMPLIFIED && corrections.isEmpty()
                 && tickets.cancellation(ticketId).isEmpty();
+        // Every guest ticket offers an email form; resolve CSRF before streaming commits headers.
+        CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+        if (token != null) token.getToken();
+        model.addAttribute("guestEmailAction", prefix + "/ticket/" + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
+                + "/email?s=" + signatures.sign(tenant, ticketId));
         if (invoiceAvailable) {
-            // Resolve deferred CSRF while the response can still set the new session cookie.
-            CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-            if (token != null) token.getToken();
             model.addAttribute("guestInvoiceAction", prefix + "/ticket/" + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
                     + "/invoice?s=" + signatures.sign(tenant, ticketId));
         }
@@ -126,6 +137,55 @@ public class GuestTicketController {
             model.addAttribute("invoiceErrorField", field);
             return ticket(ticketId, signature, request, response, model);
         }
+    }
+
+    /** A signed ticket authorizes a fixed message about that same ticket only. */
+    @PostMapping({"/{tenantId}/ticket/{ticketId}/email", "/ticket/{ticketId}/email"})
+    public String emailTicket(@PathVariable String ticketId, @RequestParam(name = "s", required = false) String signature,
+            @RequestParam(required = false) String email, HttpServletRequest request, HttpServletResponse response,
+            Model model, Locale locale) {
+        privateHeaders(response);
+        String tenant = TenantContext.getCurrentTenant();
+        if (!signatures.valid(tenant, ticketId, signature)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        FiscalTicket ticket = tickets.findById(ticketId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (email == null || email.length() > 254 || email.indexOf('"') >= 0
+                || !email.matches("[^\\s@<>(),;:]+@[^\\s@<>(),;:]+\\.[^\\s@<>(),;:]+")) {
+            response.setStatus(400);
+            model.addAttribute("guestEmailError", messages.getMessage("guest.email.invalid", null, locale));
+            return ticket(ticketId, signature, request, response, model);
+        }
+        String ticketKey = signatures.sign(tenant, "email-ticket:" + ticketId);
+        String clientKey = signatures.sign("guest-email-client", request.getRemoteAddr());
+        if (!actionLimit.tryAcquire(GuestActionRateLimit.Action.EMAIL, ticketKey, clientKey)) {
+            response.setStatus(429);
+            model.addAttribute("guestEmailError", messages.getMessage("guest.email.limit", null, locale));
+            return ticket(ticketId, signature, request, response, model);
+        }
+        try {
+            String origin = publicOrigin.configuredPublicUrl();
+            URI parsed = URI.create(origin == null ? "" : origin);
+            if (parsed.getHost() == null || parsed.getUserInfo() != null || parsed.getQuery() != null || parsed.getFragment() != null
+                    || !("https".equalsIgnoreCase(parsed.getScheme()) || "http".equalsIgnoreCase(parsed.getScheme()))) {
+                throw new IllegalStateException("Public origin is not configured");
+            }
+            String link = origin + url("/" + UriUtils.encodePathSegment(tenant, StandardCharsets.UTF_8), tenant, ticketId);
+            String location = ticket.issuer() == null ? null : ticket.issuer().displayName();
+            location = safeLocationName(location);
+            if (location.isBlank()) location = safeLocationName(tenant);
+            if (location.isBlank()) location = "FastBite";
+            ticketMail.sendTicket(email, location, ticket.fullNumber(), ticket.charged(), link,
+                    tickets.training(), locale.getLanguage());
+            log.info("Guest ticket email sent");
+        } catch (RuntimeException failure) {
+            // Mail exception messages and causes may include the address.
+            log.warn("Guest ticket email not sent ({})", failure.getClass().getSimpleName());
+        }
+        model.addAttribute("guestEmailNotice", messages.getMessage("guest.email.notice.result", null, locale));
+        return ticket(ticketId, signature, request, response, model);
+    }
+
+    private static String safeLocationName(String value) {
+        return value == null ? "" : value.replaceAll("[\\p{Cntrl}\"']", "").strip();
     }
 
     /** Only the order stored in this browser's session can yield a link. */

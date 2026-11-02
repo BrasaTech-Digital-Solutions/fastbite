@@ -50,7 +50,7 @@ class GuestTicketCsrfFlowTest {
     @Autowired GuestTicketSignature signatures;
     @MockitoBean SubscriptionGateway gateway;
 
-    @Test void firstVisitToLargeSimplifiedTicketCreatesSessionButFullInvoiceDoesNot() throws Exception {
+    @Test void firstVisitToLargeGuestTicketsCreatesSessionBeforeResponseCommits() throws Exception {
         String tenant = "invoicecsrf";
         VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, passwords,
                 tenant, "invoicecsrfowner", "Owner", "local-test-password");
@@ -72,8 +72,8 @@ class GuestTicketCsrfFlowTest {
 
         HttpResponse<String> fullResponse = get(tenant, full.id());
         assertThat(fullResponse.statusCode()).isEqualTo(200);
-        assertThat(fullResponse.body()).contains("Save or print", "</html>").doesNotContain("name=\"_csrf\"");
-        assertThat(fullResponse.headers().allValues("Set-Cookie")).isEmpty();
+        assertThat(fullResponse.body()).contains("Save or print", "</html>", "name=\"_csrf\"", "name=\"email\"");
+        assertThat(fullResponse.headers().allValues("Set-Cookie")).isNotEmpty();
     }
 
     private HttpResponse<String> get(String tenant, String id) throws Exception {

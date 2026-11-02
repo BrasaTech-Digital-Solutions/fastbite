@@ -435,6 +435,8 @@ fi
 if [ -n "$TICKET" ]; then
   INVOICE_CSRF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$S/$T/ticket/$TICKET/invoice?s=v1.invalid")
   record "$INVOICE_CSRF_CODE" 403 "POST guest invoice without CSRF"
+  EMAIL_CSRF_CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$S/$T/ticket/$TICKET/email?s=v1.invalid")
+  record "$EMAIL_CSRF_CODE" 403 "POST guest ticket email without CSRF"
 fi
 
 echo "== [2/6] Team member & Cashier flow"

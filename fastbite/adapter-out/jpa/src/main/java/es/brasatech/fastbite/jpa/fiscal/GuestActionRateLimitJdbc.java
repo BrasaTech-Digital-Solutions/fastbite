@@ -16,14 +16,14 @@ import java.util.UUID;
 
 /** Cross-instance guest quotas use their own short transactional lock, independent of sign-up. */
 @Component
-public class GuestInvoiceRateLimitJdbc implements GuestInvoiceRateLimit, GuestActionRateLimit {
+public class GuestActionRateLimitJdbc implements GuestInvoiceRateLimit, GuestActionRateLimit {
     private static final Duration HOUR = Duration.ofHours(1);
     private final DataSource source;
     private final Clock clock;
 
     @Autowired
-    public GuestInvoiceRateLimitJdbc(DataSource source) { this(source, Clock.systemUTC()); }
-    GuestInvoiceRateLimitJdbc(DataSource source, Clock clock) { this.source = source; this.clock = clock; }
+    public GuestActionRateLimitJdbc(DataSource source) { this(source, Clock.systemUTC()); }
+    GuestActionRateLimitJdbc(DataSource source, Clock clock) { this.source = source; this.clock = clock; }
 
     @Override public boolean tryAcquire(String ticketKey, String clientKey) {
         return tryAcquire(Action.INVOICE, ticketKey, clientKey);

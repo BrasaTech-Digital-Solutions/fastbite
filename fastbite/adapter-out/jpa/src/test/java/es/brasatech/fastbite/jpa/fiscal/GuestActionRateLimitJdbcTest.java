@@ -17,10 +17,10 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class GuestInvoiceRateLimitJdbcTest {
+class GuestActionRateLimitJdbcTest {
     private JdbcDataSource source;
     private JdbcTemplate jdbc;
-    private GuestInvoiceRateLimitJdbc limit;
+    private GuestActionRateLimitJdbc limit;
     private final Instant now = Instant.parse("2026-10-31T10:00:00Z");
 
     @BeforeEach void setup() {
@@ -37,7 +37,7 @@ class GuestInvoiceRateLimitJdbcTest {
         try (var connection = source.getConnection()) {
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/platform/V35__Guest_action_limits.sql"));
         } catch (java.sql.SQLException e) { throw new IllegalStateException(e); }
-        limit = new GuestInvoiceRateLimitJdbc(source, Clock.fixed(now, ZoneOffset.UTC));
+        limit = new GuestActionRateLimitJdbc(source, Clock.fixed(now, ZoneOffset.UTC));
     }
 
     @Test void concurrentAttemptsCannotExceedTicketQuotaAcrossInstances() throws Exception {
@@ -45,7 +45,7 @@ class GuestInvoiceRateLimitJdbcTest {
             var tasks = new ArrayList<java.util.concurrent.Callable<Boolean>>();
             for (int i = 0; i < 20; i++) {
                 String client = "hashed-client-" + i;
-                tasks.add(() -> new GuestInvoiceRateLimitJdbc(source, Clock.fixed(now, ZoneOffset.UTC)).tryAcquire("hashed-ticket", client));
+                tasks.add(() -> new GuestActionRateLimitJdbc(source, Clock.fixed(now, ZoneOffset.UTC)).tryAcquire("hashed-ticket", client));
             }
             var results = pool.invokeAll(tasks);
             int accepted = 0;
@@ -58,7 +58,7 @@ class GuestInvoiceRateLimitJdbcTest {
     @Test void clientQuotaAndHourlyExpiryAreEnforced() {
         for (int i = 0; i < 10; i++) assertThat(limit.tryAcquire("hashed-ticket-" + i, "hashed-client")).isTrue();
         assertThat(limit.tryAcquire("another-ticket", "hashed-client")).isFalse();
-        var later = new GuestInvoiceRateLimitJdbc(source, Clock.fixed(now.plusSeconds(3600), ZoneOffset.UTC));
+        var later = new GuestActionRateLimitJdbc(source, Clock.fixed(now.plusSeconds(3600), ZoneOffset.UTC));
         assertThat(later.tryAcquire("another-ticket", "hashed-client")).isTrue();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.guest_action_limits", Integer.class)).isEqualTo(2);
     }
@@ -72,10 +72,10 @@ class GuestInvoiceRateLimitJdbcTest {
         assertThat(limit.tryAcquire("ticket", "invoice-client-x")).isFalse();
         for (int i = 0; i < 3; i++) assertThat(limit.tryAcquire(Action.EMAIL, "ticket", "email-client-" + i)).isTrue();
         assertThat(limit.tryAcquire(Action.EMAIL, "ticket", "email-client-x")).isFalse();
-        var afterHour = new GuestInvoiceRateLimitJdbc(source, Clock.fixed(now.plusSeconds(3600), ZoneOffset.UTC));
+        var afterHour = new GuestActionRateLimitJdbc(source, Clock.fixed(now.plusSeconds(3600), ZoneOffset.UTC));
         assertThat(afterHour.tryAcquire("ticket", "invoice-client-x")).isTrue();
         assertThat(afterHour.tryAcquire(Action.EMAIL, "ticket", "email-client-x")).isFalse();
-        var afterDay = new GuestInvoiceRateLimitJdbc(source, Clock.fixed(now.plusSeconds(86400), ZoneOffset.UTC));
+        var afterDay = new GuestActionRateLimitJdbc(source, Clock.fixed(now.plusSeconds(86400), ZoneOffset.UTC));
         assertThat(afterDay.tryAcquire(Action.EMAIL, "ticket", "email-client-x")).isTrue();
     }
 
