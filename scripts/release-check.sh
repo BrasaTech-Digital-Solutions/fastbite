@@ -429,6 +429,12 @@ if [ -n "$TICKET" ]; then
   record "$BAD_TICKET_CODE" 404 "GET guest ticket with invalid signature"
   MISSING_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/ticket/$TICKET")
   record "$MISSING_TICKET_CODE" 404 "GET guest ticket without signature"
+  curl -sS -D guest-ticket-private.headers -o /dev/null "$S/$T/ticket/$TICKET?s=v1.invalid"
+  if grep -qi '^Cache-Control:.*\(no-store\|private\)' guest-ticket-private.headers; then
+    record_match 1 "Guest ticket response is not publicly cacheable"
+  else
+    record_match 0 "Guest ticket response is not publicly cacheable"
+  fi
 fi
 
 # Guest invoice requests require CSRF, even when the request targets a known ticket.
@@ -686,6 +692,36 @@ for path in /legal/terms "/$T/privacy"; do
   check "$G" "$P$path"
 done
 
+# Content negotiation and versioned static URLs must remain safe for the guest menu.
+# --compressed writes decoded HTML for link discovery while saving real response headers.
+curl -sS --compressed -H 'Accept-Encoding: gzip' -D guest-gzip.headers -o guest-gzip.html "$S/$T/menu"
+if grep -qi '^Content-Encoding: *gzip' guest-gzip.headers && grep -qi '^Vary:.*Accept-Encoding' guest-gzip.headers; then
+  record_match 1 "Guest menu HTML negotiates gzip with Vary"
+else
+  record_match 0 "Guest menu HTML negotiates gzip with Vary"
+fi
+if grep -qi '^Cache-Control:.*no-store' guest-gzip.headers; then
+  record_match 1 "Guest menu HTML remains no-store"
+else
+  record_match 0 "Guest menu HTML remains no-store"
+fi
+curl -sS -H 'Accept-Encoding: gzip' -D css-gzip.headers -o /dev/null "$S/css/style.css"
+if grep -qi '^Content-Encoding: *gzip' css-gzip.headers && grep -qi '^Vary:.*Accept-Encoding' css-gzip.headers; then
+  record_match 1 "CSS negotiates gzip with Vary"
+else
+  record_match 0 "CSS negotiates gzip with Vary"
+fi
+HASHED_CSS=$(grep -oE '/css/[^" ?]+-[[:xdigit:]]{32}\.css' guest-gzip.html | head -1 || true)
+HASHED_CODE=000
+if [ -n "$HASHED_CSS" ]; then
+  HASHED_CODE=$(curl -sS -D hashed-css.headers -o /dev/null -w '%{http_code}' "$S$HASHED_CSS")
+fi
+if [ "$HASHED_CODE" = 200 ] && grep -qi '^Cache-Control:.*immutable' hashed-css.headers 2>/dev/null; then
+  record_match 1 "Versioned CSS loads with immutable caching"
+else
+  record_match 0 "Versioned CSS loads with immutable caching"
+fi
+
 # A new browser session cannot inspect another guest's ticket.
 FRESH_TICKET_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$S/$T/api/guest-ticket")
 record "$FRESH_TICKET_CODE" 404 "GET guest ticket status without an order session"
@@ -718,6 +754,18 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
       "$S/$T/api/create-order")
     record "$GUEST_ORDER_CODE" 200 "POST $S/$T/api/create-order (guest takeaway order)"
 
+    # The live stream must flush a connected event promptly even if gzip is accepted.
+    # The local proxy buffers streams like Firebase Hosting, so ask the sandbox container directly.
+    SANDBOX_PORT=$($DC port sandbox 8080 2>/dev/null | tail -1 | sed 's/.*://')
+    GUEST_SESSION=$(awk '$6 == "__session" {print $7}' "$G" | tail -1)
+    curl -sN --max-time 2 -H 'Accept-Encoding: gzip' -H "Cookie: __session=$GUEST_SESSION" \
+      -D live-order.headers -o live-order.events "http://localhost:$SANDBOX_PORT/$T/api/order-status/live" || true
+    if grep -q 'event:connected' live-order.events 2>/dev/null && ! grep -qi '^Content-Encoding:' live-order.headers; then
+      record_match 1 "Live order stream flushes promptly without compression"
+    else
+      record_match 0 "Live order stream flushes promptly without compression"
+    fi
+
     # The guest's own unpaid order has no ticket yet.
     PENDING_TICKET=$(curl -s -b "$G" -c "$G" "$S/$T/api/guest-ticket")
     if [ "$PENDING_TICKET" = '{"state":"pending"}' ]; then
@@ -742,6 +790,20 @@ if [ -n "$PRODUCT" ] && [ -n "$PRICE" ]; then
   else
     echo "SKIP Guest online Stripe checkout (STRIPE_SECRET_KEY not set in sandbox container)"
   fi
+fi
+
+# Signed-in pages must not become public CDN entries.
+curl -sS -b "$J" -D owner-private.headers -o /dev/null "$P/owner/console?location=$T"
+if grep -qi '^Cache-Control:.*\(no-store\|private\)' owner-private.headers; then
+  record_match 1 "Owner workspace is not publicly cacheable"
+else
+  record_match 0 "Owner workspace is not publicly cacheable"
+fi
+curl -sS -b "$C" -D counter-private.headers -o /dev/null "$S/$T/counter"
+if grep -qi '^Cache-Control:.*\(no-store\|private\)' counter-private.headers; then
+  record_match 1 "Counter is not publicly cacheable"
+else
+  record_match 0 "Counter is not publicly cacheable"
 fi
 
 # Production opening checklist: an owner can confirm and undo working alone.

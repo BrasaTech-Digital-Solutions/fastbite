@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
 
-<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}" />
@@ -10,7 +10,7 @@
     <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-<link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"><link rel="stylesheet" href="/css/guest-privacy.css"></head>
+<link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"><link rel="stylesheet" th:href="@{/css/guest-privacy.css}"></head>
 
 <body>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>

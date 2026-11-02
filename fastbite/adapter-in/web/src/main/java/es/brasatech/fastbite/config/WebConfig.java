@@ -8,6 +8,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.http.CacheControl;
+import org.springframework.core.io.Resource;
+import org.springframework.util.DigestUtils;
+import org.springframework.web.servlet.resource.CssLinkResourceTransformer;
+import org.springframework.web.servlet.resource.ResourceUrlEncodingFilter;
+import org.springframework.web.servlet.resource.VersionResourceResolver;
+import java.io.IOException;
+import java.time.Duration;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,8 +43,45 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations(uploadLocation)
                 .setCachePeriod(3600); // Cache for 1 hour
 
-        // System images are already served from /static/images by Spring Boot's default
-        // configuration
+        // VersionResolver checks the full content hash, and the CSS transformer
+        // rewrites relative url() references through the same resource chain.
+        for (String folder : new String[]{"css", "js", "images"}) {
+            registry.addResourceHandler("/" + folder + "/**")
+                    .addResourceLocations("classpath:/static/" + folder + "/")
+                    .setUseLastModified(false)
+                    .setEtagGenerator(WebConfig::contentEtag)
+                    .setCacheControl(CacheControl.maxAge(Duration.ofMinutes(10)).cachePublic())
+                    .resourceChain(true)
+                    .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"))
+                    .addTransformer(new CssLinkResourceTransformer());
+        }
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/")
+                .setUseLastModified(false)
+                .setEtagGenerator(WebConfig::contentEtag)
+                .setCacheControl(CacheControl.maxAge(Duration.ofMinutes(10)).cachePublic());
+    }
+
+    private static String contentEtag(Resource resource) {
+        try (var input = resource.getInputStream()) {
+            return "W/\"" + DigestUtils.md5DigestAsHex(input) + "\"";
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to read static resource", e);
+        }
+    }
+
+    @Bean
+    public FilterRegistrationBean<ResourceUrlEncodingFilter> resourceUrlEncodingFilter() {
+        var registration = new FilterRegistrationBean<>(new ResourceUrlEncodingFilter());
+        registration.addUrlPatterns("/*");
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<StaticCacheControlFilter> staticCacheControlFilter() {
+        var registration = new FilterRegistrationBean<>(new StaticCacheControlFilter());
+        registration.addUrlPatterns("/*");
+        return registration;
     }
 
     @Bean

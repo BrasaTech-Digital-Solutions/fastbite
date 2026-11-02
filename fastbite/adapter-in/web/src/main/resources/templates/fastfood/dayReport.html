@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+    <link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <title th:text="#{dayreport.title} + ' ' + ${#temporals.format(day, 'dd/MM/yyyy')}">End-of-day report</title>
     <link rel="stylesheet" th:href="@{/css/ticket.css}">
     <script th:src="@{/js/cash-check.js}" defer></script>

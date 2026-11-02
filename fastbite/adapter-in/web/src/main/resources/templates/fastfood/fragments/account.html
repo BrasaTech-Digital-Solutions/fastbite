@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, heading, lead, content, refresh, hideSignin)">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
 <meta th:if="${refresh != null}" http-equiv="refresh" th:attr="content=|3;url=${refresh}|">
-<title th:text="${title}">FastBite</title><link rel="icon" type="image/svg+xml" href="/images/favicon.svg"><link rel="stylesheet" href="/css/platform.css"></head>
+<title th:text="${title}">FastBite</title><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}"><link rel="stylesheet" th:href="@{/css/platform.css}"></head>
 <body class="account-page"><div th:replace="~{fastfood/fragments/environment :: banner}"></div>
 <header class="site-header account-header"><div><a class="brand" href="/"><span class="brand-mark">f.</span>fastbite</a><span class="account-restaurant" th:if="${restaurantName != null}" th:text="${restaurantName}"></span></div><a th:unless="${hideSignin}" class="account-header-link" th:href="@{/login(tenantId=${tenantId})}" th:text="#{account.layout.signin}">Sign in</a></header>
 <main class="account-main"><section class="account-intro"><p class="eyebrow" th:text="#{account.layout.eyebrow}">Your account</p><h1 th:text="${heading}"></h1><p class="account-lead" th:text="${lead}"></p></section><section class="form-card account-card"><div th:replace="${content}"></div></section></main>

@@ -2,6 +2,9 @@ server.port: ${PORT:8080}
 server.forward-headers-strategy: framework
 server.tomcat.use-relative-redirects: true
 server.shutdown: graceful
+server.compression.enabled: true
+server.compression.min-response-size: 1024
+server.compression.mime-types: text/html,text/css,text/javascript,application/javascript,application/json,image/svg+xml,font/ttf
 
 spring:
   lifecycle:

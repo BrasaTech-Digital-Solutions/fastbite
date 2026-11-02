@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title th:text="#{signup.page.title}">Start your free trial — FastBite</title>
-<link rel="stylesheet" href="/css/platform.css">
-<script src="/js/signup-username.js" defer></script>
+<link rel="stylesheet" th:href="@{/css/platform.css}">
+<script th:src="@{/js/signup-username.js}" defer></script>
 </head>
 <body>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>

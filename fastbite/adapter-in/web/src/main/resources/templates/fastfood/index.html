@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org">
-<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title th:if="${declaration.signed()}" th:text="#{home.title.compliant}">FastBite — TPV de hostelería que cumple VERI*FACTU</title>
 <title th:unless="${declaration.signed()}" th:text="#{home.title.ready}">FastBite — TPV de hostelería preparado para VERI*FACTU</title>
 <meta th:if="${declaration.signed()}" name="description" th:content="#{home.description.compliant}" content="TPV para restaurantes, cafeterías y bares en España: pedidos con código QR, comida para llevar, cobro en barra y cocina, que cumple la normativa VERI*FACTU. 49 € al mes por local.">
 <meta th:unless="${declaration.signed()}" name="description" th:content="#{home.description.ready}" content="TPV para restaurantes, cafeterías y bares en España: pedidos con código QR, comida para llevar, cobro en barra y cocina, preparado para VERI*FACTU. 49 € al mes por local.">
-<link rel="stylesheet" href="/css/platform.css">
-<script defer src="/js/platform.js">
+<link rel="stylesheet" th:href="@{/css/platform.css}">
+<script defer th:src="@{/js/platform.js}">
 </script>
 </head>
 <body>

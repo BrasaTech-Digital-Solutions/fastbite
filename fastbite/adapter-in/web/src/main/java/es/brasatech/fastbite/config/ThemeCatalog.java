@@ -2,6 +2,8 @@ package es.brasatech.fastbite.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.DigestUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -13,8 +15,8 @@ import java.util.*;
 /** Operator-installed packages only; tenants choose registered IDs, never CSS or paths. */
 @Component
 public class ThemeCatalog {
-    public record Theme(String id, String name, String description) {
-        public String stylesheet() { return "/images/themes/"+id+"/theme.css"; }
+    public record Theme(String id, String name, String description, String cssHash) {
+        public String stylesheet() { return "/images/themes/"+id+"/theme-"+cssHash+".css"; }
         public String menuPreview() { return "/images/themes/"+id+"/menu.svg"; }
         public String counterPreview() { return "/images/themes/"+id+"/counter.svg"; }
         public String kitchenPreview() { return "/images/themes/"+id+"/kitchen.svg"; }
@@ -45,15 +47,19 @@ public class ThemeCatalog {
         for(String file:List.of("theme.css","menu.svg","counter.svg","kitchen.svg")) {
             Resource asset=manifest.createRelative(file);
             if(!asset.exists()) throw new IllegalArgumentException("Missing theme asset: "+id+"/"+file);
-            assets.put(file,asset);
+            // Snapshot external assets per process so immutable URLs never serve changing bytes.
+            assets.put(file,new ByteArrayResource(asset.getContentAsByteArray()));
         }
-        packages.put(id,new Package(new Theme(id,name,p.getProperty("description","")),Map.copyOf(assets)));
+        String cssHash=DigestUtils.md5DigestAsHex(assets.get("theme.css").getContentAsByteArray());
+        packages.put(id,new Package(new Theme(id,name,p.getProperty("description",""),cssHash),Map.copyOf(assets)));
     }
     public List<Theme> all() { return packages.values().stream().map(Package::theme).toList(); }
     public Theme resolve(String id) { return packages.getOrDefault(id==null?"fastfood":id,packages.get("fastfood")).theme(); }
     public void require(String id) { if(id==null || !packages.containsKey(id)) throw new IllegalArgumentException("Choose an available theme."); }
     public Resource asset(String id,String file) {
         var pack=packages.get(id);
-        return pack==null?null:pack.assets().get(file);
+        if(pack==null) return null;
+        if(file.equals("theme-"+pack.theme().cssHash()+".css")) return pack.assets().get("theme.css");
+        return pack.assets().get(file);
     }
 }

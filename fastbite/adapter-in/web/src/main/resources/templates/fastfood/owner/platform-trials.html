@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
-<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title th:text="#{workspace.trials.title}">Platform trials — FastBite</title>
-<link rel="stylesheet" href="/css/platform.css">
-<link rel="stylesheet" href="/css/workspace.css">
+<link rel="stylesheet" th:href="@{/css/platform.css}">
+<link rel="stylesheet" th:href="@{/css/workspace.css}">
 </head>
 <body class="workspace">
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main" th:text="#{workspace.rebuild.more.51}">Skip to content</a>

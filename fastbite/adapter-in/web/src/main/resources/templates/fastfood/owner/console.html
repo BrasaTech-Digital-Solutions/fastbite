@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
-<head><link rel="icon" type="image/svg+xml" href="/images/favicon.svg"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title th:text="#{workspace.page.title}">Your workspace — FastBite</title><link rel="stylesheet" href="/css/platform.css"><link rel="stylesheet" href="/css/workspace.css">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title th:text="#{workspace.page.title}">Your workspace — FastBite</title><link rel="stylesheet" th:href="@{/css/platform.css}"><link rel="stylesheet" th:href="@{/css/workspace.css}">
 <meta name="csrf-token" th:content="${_csrf.token}"><meta name="csrf-header" th:content="${_csrf.headerName}">
-<script defer src="/js/confirm-dialog.js"></script><script defer src="/js/workspace.js"></script><script defer src="/js/fiscal-profile.js"></script><link rel="stylesheet" href="/css/guest-privacy.css"></head>
+<script defer th:src="@{/js/confirm-dialog.js}"></script><script defer th:src="@{/js/workspace.js}"></script><script defer th:src="@{/js/fiscal-profile.js}"></script><link rel="stylesheet" th:href="@{/css/guest-privacy.css}"></head>
 <body class="workspace"
  th:data-version-mismatch="#{workspace.js.version.mismatch}" th:data-demo-sandbox-only="#{workspace.js.demo.sandbox.only}" th:data-maintenance-success="#{workspace.js.maintenance.success}" th:data-action-error="#{workspace.js.action.error}" th:data-clean-title="#{workspace.js.clean.title}" th:data-demo-title="#{workspace.js.demo.title}" th:data-restore-title="#{workspace.js.restore.title}"
  th:data-clean-desc="#{workspace.js.clean.desc}" th:data-demo-desc="#{workspace.js.demo.desc}" th:data-restore-desc="#{workspace.js.restore.desc}" th:data-confirm-name="#{workspace.js.confirm.name}" th:data-maintenance-error="#{workspace.js.maintenance.error}"

@@ -97,7 +97,8 @@ class SignupFlowTest {
                     };
                     assertThat(page.body()).contains(expected);
                 }
-                assertThat(page.body()).contains("account-header", "account-main", "account-card", "account-footer", "/css/platform.css");
+                assertThat(page.body()).contains("account-header", "account-main", "account-card", "account-footer");
+                assertThat(page.body()).containsPattern("/css/platform-[0-9a-f]{32}\\.css");
                 assertThat(page.body()).doesNotContain("class=\"panel\"", "login-logo");
             }
         }
