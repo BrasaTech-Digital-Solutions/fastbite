@@ -17,6 +17,7 @@
         <module>disk-filestorage</module>
         <module>email</module>
         <module>verifactu-aeat</module>
+        <module>digital-sign</module>
     </modules>
 
 </project>

@@ -199,6 +199,27 @@ fastbite:
       production-enabled: ${VERIFACTU_PRODUCTION_ENABLED:false}
       # Comma-separated NIFs the certificate may send for; empty sends every location's records
       issuers: ${VERIFACTU_ISSUERS:}
+  # Digital Sign (VERI*FACTU authorisation). Signing stays unavailable until api-token and
+  # verifactu.template-id are configured; allow-insecure-local is only for the local mock.
+  digitalsign:
+    base-url: ${DIGITALSIGN_BASE_URL:https://digital-sign.brasatech.es/api/v1}
+    api-token: ${DIGITALSIGN_API_TOKEN:}
+    webhook-secret: ${DIGITALSIGN_WEBHOOKS_SECRET_KEY:}
+    allow-insecure-local: ${DIGITALSIGN_ALLOW_INSECURE_LOCAL:false}
+    connect-timeout: ${DIGITALSIGN_CONNECT_TIMEOUT:2s}
+    read-timeout: ${DIGITALSIGN_READ_TIMEOUT:4s}
+    max-retries: ${DIGITALSIGN_MAX_RETRIES:2}
+    retry-initial-backoff: ${DIGITALSIGN_RETRY_INITIAL_BACKOFF:200ms}
+    verifactu:
+      template-id: ${DIGITALSIGN_VERIFACTU_TEMPLATE_ID:}
+      signer-role: ${DIGITALSIGN_VERIFACTU_SIGNER_ROLE:Representante}
+      fields:
+        legal-name: ${DIGITALSIGN_VERIFACTU_FIELD_LEGAL_NAME:}
+        nif: ${DIGITALSIGN_VERIFACTU_FIELD_NIF:}
+        address: ${DIGITALSIGN_VERIFACTU_FIELD_ADDRESS:}
+        brasatech-name: ${DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_NAME:}
+        brasatech-nif: ${DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_NIF:}
+        brasatech-address: ${DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_ADDRESS:}
   table:
     # Signs the QR codes printed on tables. Set TABLE_QR_SECRET in production before printing any:
     # changing it later makes every printed code stop working.
