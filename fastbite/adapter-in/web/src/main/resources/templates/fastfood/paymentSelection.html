@@ -170,8 +170,8 @@
         function showSelectedMethod() {
             document.querySelectorAll('.btn-check').forEach(radio => {
                 const label = radio.nextElementSibling;
-                label.style.borderColor = radio.checked ? 'var(--primary-color)' : '';
-                label.style.backgroundColor = radio.checked ? 'var(--light-color)' : '';
+                label.style.borderColor = radio.checked ? 'var(--color-primary)' : '';
+                label.style.backgroundColor = radio.checked ? 'var(--color-surface-tint)' : '';
             });
             document.getElementById('tipCard').style.display = selectedMethod() === 'stripe-checkout' ? '' : 'none';
             updateTotals();

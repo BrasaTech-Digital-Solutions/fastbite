@@ -1,2 +1,112 @@
-/* Modern Restaurant: extend or override the shared restaurant styles here. */
-[data-theme="modern"] { --primary-color: #1a1a1a; --bg-color: #f9fafb; --text-color: #111827; }
+/* Modern Restaurant: quiet contrast and square corners. Token values first, then the theme's own component overrides. */
+[data-theme="modern"] {
+  --color-primary: #1A1A1A;
+  --color-primary-hover: #333333;
+  --color-success: #15803D;
+  --color-danger: #B91C1C;
+  --color-warning: #B45309;
+  --color-text-strong: #111827;
+  --color-surface-tint: #F9FAFB;
+  --color-bg: #F9FAFB;
+  --color-surface: #FFFFFF;
+  --color-text: #111827;
+  --radius: 4px;
+  --font-body: 'Inter', 'Helvetica Neue', sans-serif;
+  --gradient-brand: linear-gradient(135deg, #1A1A1A, #2D3748);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Kitchen: order card headers by status */
+[data-theme="modern"] .card-header.bg-primary {
+  background-color: #1A1A1A !important;
+}
+[data-theme="modern"] .card-header.bg-warning {
+  background-color: #2D3748 !important; /* Dark slate */
+  color: white !important;
+}
+[data-theme="modern"] .card-header.bg-info {
+  background-color: #4A5568 !important;
+}
+[data-theme="modern"] .card-header.bg-success {
+  background-color: #1A202C !important;
+}
+[data-theme="modern"] .card-header.bg-danger {
+  background-color: #2D3748 !important;
+}
+
+/* Back office: active list item */
+[data-theme="modern"] .list-group-item.active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+/* Dialogs: brand header */
+[data-theme="modern"] .modal-header {
+  background: var(--gradient-brand);
+  color: white;
+}
+[data-theme="modern"] .modal-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Buttons and badges */
+[data-theme="modern"] .btn-primary,
+[data-theme="modern"] .btn-outline-primary {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+  border-radius: 4px !important;
+}
+[data-theme="modern"] .btn-primary:hover,
+[data-theme="modern"] .btn-outline-primary:hover {
+  background-color: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+}
+[data-theme="modern"] .btn-outline-primary {
+  background-color: transparent !important;
+  color: var(--color-primary) !important;
+}
+[data-theme="modern"] .btn-outline-primary:hover {
+  color: white !important;
+}
+[data-theme="modern"] .badge.bg-primary {
+  background-color: #737373 !important;
+  color: white !important;
+}
+[data-theme="modern"] .badge.bg-info {
+  background-color: #4A5568 !important; /* Muted slate */
+  color: white !important;
+}
+
+/* Counter */
+[data-theme="modern"] .pos-sidebar {
+  background: linear-gradient(180deg, #111827 0%, #030712 100%) !important;
+}
+[data-theme="modern"] .pos-sidebar .bg-dark {
+  background-color: #030712 !important;
+}
+[data-theme="modern"] .payment-method-btn.active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+[data-theme="modern"] .cart-header {
+  background: var(--gradient-brand) !important;
+}
+[data-theme="modern"] .pos-cart #btn-clear-cart {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  color: white !important;
+}
+[data-theme="modern"] .modal-footer .btn-success,
+[data-theme="modern"] #btn-complete-order {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+  border-radius: 4px !important;
+}
+[data-theme="modern"] .modal-footer .btn-secondary {
+  background-color: #374151 !important;
+  border-color: #374151 !important;
+  color: white !important;
+  border-radius: 4px !important;
+}

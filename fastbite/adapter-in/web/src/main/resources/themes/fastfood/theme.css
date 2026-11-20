@@ -1,2 +1,2 @@
-/* FastFood: extend or override the shared restaurant styles here. */
-[data-theme="fastfood"] { --primary-color: #dc3545; --bg-color: #fff5eb; --text-color: #232323; }
+/* FastFood: the base defaults, on a warmer page. */
+[data-theme="fastfood"] { --color-primary: #dc3545; --color-bg: #fff5eb; --color-text: #232323; }

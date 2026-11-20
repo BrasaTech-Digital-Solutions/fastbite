@@ -1,0 +1,28 @@
+/* Test only: sets every token of themes/README.md and nothing else, so the pages render from these values alone. */
+[data-theme="test-contrast"] {
+  --color-primary: #000000;
+  --color-primary-hover: #1F1F1F;
+  --color-on-primary: #FFFF00;
+  --color-accent: #0000FF;
+  --color-success: #006400;
+  --color-info: #00008B;
+  --color-warning: #8B4500;
+  --color-danger: #8B0000;
+  --color-bg: #FFFFFF;
+  --color-surface: #FFFFF0;
+  --color-surface-tint: #FFFFE0;
+  --color-surface-alt: #F0F0F0;
+  --color-text: #000000;
+  --color-text-strong: #000000;
+  --color-text-muted: #333333;
+  --color-border: #000000;
+  --color-sidebar: #000000;
+  --gradient-brand: linear-gradient(135deg, #000000, #0000FF);
+  --font-body: 'Courier New', monospace;
+  --radius: 0;
+  --shadow-sm: 0 0 0 2px #000000;
+  --shadow-card: 0 0 0 2px #000000;
+  --shadow-card-hover: 0 0 0 4px #000000;
+  --layout-sidebar-width: 220px;
+  --layout-cart-width: 360px;
+}
