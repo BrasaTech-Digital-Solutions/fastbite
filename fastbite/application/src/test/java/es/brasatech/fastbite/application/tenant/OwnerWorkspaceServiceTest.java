@@ -2,9 +2,13 @@ package es.brasatech.fastbite.application.tenant;
 import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import es.brasatech.fastbite.domain.tenant.*;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -56,7 +60,8 @@ class OwnerWorkspaceServiceTest {
         var checked=new SetupProgress(true,true,true,false);
         assertEquals(3,new OwnerWorkspaceService.Summary(checked,0,RestaurantSettings.DEFAULTS,COMPLETE).completed());
         assertFalse(new OwnerWorkspaceService.Summary(checked,0,RestaurantSettings.DEFAULTS,COMPLETE).ready());
-        assertTrue(new OwnerWorkspaceService.Summary(checked.withOpening(true,false),1,RestaurantSettings.DEFAULTS,COMPLETE,null,false,true,false).ready());
+        assertFalse(new OwnerWorkspaceService.Summary(checked.withOpening(true,false),1,RestaurantSettings.DEFAULTS,COMPLETE,null,false,true,false).ready());
+        assertTrue(new OwnerWorkspaceService.Summary(checked.withOpening(true,false),1,RestaurantSettings.DEFAULTS,COMPLETE,null,false,true,false,true,true).ready());
     }
     @Test void aLocationIsNotReadyUntilItsBusinessDetailsAreComplete(){
         var checked=new SetupProgress(true,true,true,false);
@@ -225,10 +230,17 @@ class OwnerWorkspaceServiceTest {
         assertNotNull(summary);
         verifyNoInteractions(prodOrders);
         verify(prodUsers).findAll();
-        verify(prodTickets).anyRealTicket();
+        verifyNoInteractions(prodTickets);
     }
-    @Test void openingRequiresTheApplicableStepsAndRemainsLatched() {
-        var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
+    @Test void openingRequiresVerifactuAuthorizationAndCollaborationSwitchAndStartsTrial() {
+        var verifactuAuth = mock(VerifactuAuthorizationService.class);
+        var subscriptions = mock(SubscriptionService.class);
+        Instant now = Instant.parse("2026-11-20T12:00:00Z");
+        var production = new OwnerWorkspaceService(locations, port, products, settings, fiscal, tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"),
+                Clock.fixed(now, ZoneOffset.UTC), orders, users, tables, tableSignatures,
+                verifactuAuth, subscriptions);
         when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
         when(settings.get()).thenReturn(new RestaurantSettings(true, false, 0, 0, false));
         when(fiscal.get()).thenReturn(COMPLETE);
@@ -236,7 +248,25 @@ class OwnerWorkspaceServiceTest {
         var holder = new java.util.concurrent.atomic.AtomicReference<>(new SetupProgress(true,true,true,false).withOpening(true,false));
         when(port.read("cafe")).thenAnswer(i -> holder.get());
         doAnswer(i -> { java.util.function.UnaryOperator<SetupProgress> update = i.getArgument(1); holder.set(update.apply(holder.get())); return null; }).when(port).update(eq("cafe"), any());
+
+        // Not authorised yet -> cannot open, trial does not start
+        when(verifactuAuth.hasValidAuthorization("12345678Z")).thenReturn(false);
+        when(verifactuAuth.isCollaborationActive()).thenReturn(true);
+        assertFalse(production.summary("owner", "cafe").opened());
+        verifyNoInteractions(subscriptions);
+
+        // Authorised, but VERIFACTU_COLLABORATION_ACTIVE=false -> still cannot open
+        when(verifactuAuth.hasValidAuthorization("12345678Z")).thenReturn(true);
+        when(verifactuAuth.isCollaborationActive()).thenReturn(false);
+        assertFalse(production.summary("owner", "cafe").opened());
+        verifyNoInteractions(subscriptions);
+
+        // Both valid authorisation and switch active -> opens and starts trial
+        when(verifactuAuth.isCollaborationActive()).thenReturn(true);
         assertTrue(production.summary("owner", "cafe").opened());
+        verify(subscriptions).startTrialIfNeeded("cafe", now);
+
+        // Remains latched even if menu is later emptied
         when(products.findAll()).thenReturn(java.util.List.of());
         var after = production.summary("owner", "cafe");
         assertTrue(after.opened());
@@ -244,7 +274,26 @@ class OwnerWorkspaceServiceTest {
         production.action("owner", "cafe", "work_with_team");
         assertFalse(production.summary("owner", "cafe").teamDone());
     }
-    @Test void existingRealTicketLatchesOpeningWithoutCompletingChecklist() {
+    @Test void alreadyOpenedLocationWithUnstartedTrialHealsTrialStart() {
+        var verifactuAuth = mock(VerifactuAuthorizationService.class);
+        var subscriptions = mock(SubscriptionService.class);
+        Instant now = Instant.parse("2026-11-20T14:00:00Z");
+        var production = new OwnerWorkspaceService(locations, port, products, settings, fiscal, tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"),
+                Clock.fixed(now, ZoneOffset.UTC), orders, users, tables, tableSignatures,
+                verifactuAuth, subscriptions);
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(fiscal.get()).thenReturn(COMPLETE);
+        when(products.findAll()).thenReturn(java.util.List.of());
+        when(port.read("cafe")).thenReturn(SetupProgress.EMPTY.withOpening(true, true));
+        when(subscriptions.isTrialNotStarted("cafe")).thenReturn(true);
+
+        assertTrue(production.summary("owner", "cafe").opened());
+        verify(subscriptions).startTrialIfNeeded("cafe", now);
+    }
+    @Test void existingRealTicketDoesNotBypassVerifactuOpeningGate() {
         var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
         when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
         when(settings.get()).thenReturn(RestaurantSettings.DEFAULTS);
@@ -252,25 +301,25 @@ class OwnerWorkspaceServiceTest {
         when(tickets.anyRealTicket()).thenReturn(true);
         var holder = new java.util.concurrent.atomic.AtomicReference<>(SetupProgress.EMPTY);
         when(port.read("cafe")).thenAnswer(i -> holder.get());
-        doAnswer(i -> { java.util.function.UnaryOperator<SetupProgress> update = i.getArgument(1); holder.set(update.apply(holder.get())); return null; }).when(port).update(eq("cafe"), any());
-        assertTrue(production.summary("owner", "cafe").opened());
+        assertFalse(production.summary("owner", "cafe").opened());
         assertFalse(production.summary("owner", "cafe").ready());
     }
     @Test void takeawayAddsPaymentStepAndOnlyActiveLocationStaffCounts() {
         var progress = new SetupProgress(true,true,true,false);
         var dineOnly = new RestaurantSettings(true,false,0,0,false);
         var takeaway = new RestaurantSettings(true,true,0,0,false);
-        var dine = new OwnerWorkspaceService.Summary(progress,1,dineOnly,COMPLETE,null,true,false,false);
-        assertEquals(5,dine.steps());
+        var dine = new OwnerWorkspaceService.Summary(progress,1,dineOnly,COMPLETE,null,true,false,false,true,true);
+        assertEquals(6,dine.steps());
         assertTrue(dine.ready());
         assertEquals("",dine.nextStep());
-        assertEquals("menu",new OwnerWorkspaceService.Summary(progress,0,dineOnly,COMPLETE,null,true,false,false).nextStep());
-        assertEquals("fiscal",new OwnerWorkspaceService.Summary(progress,1,dineOnly,FiscalProfile.EMPTY,null,true,false,false).nextStep());
-        var awaitingStripe = new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,false,false);
-        assertEquals(6,awaitingStripe.steps());
+        assertEquals("menu",new OwnerWorkspaceService.Summary(progress,0,dineOnly,COMPLETE,null,true,false,false,true,true).nextStep());
+        assertEquals("fiscal",new OwnerWorkspaceService.Summary(progress,1,dineOnly,FiscalProfile.EMPTY,null,true,false,false,true,true).nextStep());
+        assertEquals("verifactu",new OwnerWorkspaceService.Summary(progress,1,dineOnly,COMPLETE,null,true,false,false,false,true).nextStep());
+        var awaitingStripe = new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,false,false,true,true);
+        assertEquals(7,awaitingStripe.steps());
         assertFalse(awaitingStripe.ready());
         assertEquals("payments",awaitingStripe.nextStep());
-        assertTrue(new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,true,false).ready());
+        assertTrue(new OwnerWorkspaceService.Summary(progress,1,takeaway,COMPLETE,null,true,true,false,true,true).ready());
     }
     @Test void readingWithStaffDoesNotClearWorkAloneOrWriteProgress() {
         var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);

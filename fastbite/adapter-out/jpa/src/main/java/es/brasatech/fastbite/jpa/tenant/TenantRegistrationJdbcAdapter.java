@@ -1,12 +1,16 @@
 package es.brasatech.fastbite.jpa.tenant;
 
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationPort;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.UUID;
 
 import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
@@ -14,7 +18,21 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
 @Component
 public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
     private final DataSource dataSource;
-    public TenantRegistrationJdbcAdapter(DataSource dataSource) { this.dataSource = dataSource; }
+    private final PlatformEnvironment environment;
+
+    public TenantRegistrationJdbcAdapter(DataSource dataSource) {
+        this(dataSource, (PlatformEnvironment) null);
+    }
+
+    public TenantRegistrationJdbcAdapter(DataSource dataSource, PlatformEnvironment environment) {
+        this.dataSource = dataSource;
+        this.environment = environment;
+    }
+
+    @Autowired
+    public TenantRegistrationJdbcAdapter(DataSource dataSource, ObjectProvider<PlatformEnvironment> environment) {
+        this(dataSource, environment.getIfAvailable());
+    }
 
     @Override
     public void requireAvailableUsername(String tenant, String username) {
@@ -87,11 +105,12 @@ public class TenantRegistrationJdbcAdapter implements TenantRegistrationPort {
         }
     }
 
-    private static void insertLocation(Connection connection, String tenant, String owner, String plan) throws SQLException {
+    private void insertLocation(Connection connection, String tenant, String owner, String plan) throws SQLException {
         String effectivePlan = (plan != null && !plan.isBlank()) ? plan.trim() : "RESTAURANT";
         update(connection, "INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan) VALUES (?, ?, ?, ?)",
                 UUID.randomUUID().toString(), owner, tenant, effectivePlan);
         String initialBillingStatus = "FREE".equalsIgnoreCase(effectivePlan) ? "FREE" : "LOCAL_TRIAL";
-        BillingJdbcAdapter.createTrial(connection, tenant, initialBillingStatus);
+        Instant trialStartedAt = (environment != null && environment.production()) ? null : Instant.now();
+        BillingJdbcAdapter.createTrial(connection, tenant, initialBillingStatus, trialStartedAt);
     }
 }

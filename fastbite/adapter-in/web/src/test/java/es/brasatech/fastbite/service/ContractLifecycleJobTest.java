@@ -377,6 +377,19 @@ class ContractLifecycleJobTest {
         verifyNoInteractions(mail, backups);
     }
 
+    @Test
+    void skipsLocationsWhoseTrialHasNotStartedYet() {
+        billing.put(new BillingAccount("unopened", "owner@unopened.es", "key-unopened", null,
+                "LOCAL_TRIAL", null, null, 0, 0, false, null, null, 0, 0, null, false), "owner@unopened.es");
+
+        assertThat(job.run(deadline())).isZero();
+        BillingAccount after = billing.find("unopened").orElseThrow();
+        assertThat(after.pausedSince()).isNull();
+        assertThat(after.pauseNotifiedAt()).isNull();
+        assertThat(after.contractEndedAt()).isNull();
+        verifyNoInteractions(mail, backups);
+    }
+
     private Instant deadline() {
         return currentInstant.get().plus(Duration.ofMinutes(4));
     }

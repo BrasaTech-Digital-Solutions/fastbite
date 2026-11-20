@@ -1,6 +1,9 @@
 package es.brasatech.fastbite.jpa.tenant;
 
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.tenant.OwnerSetupPort;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -14,9 +17,20 @@ import java.util.UUID;
 @Component
 public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
     private final DataSource dataSource;
+    private final PlatformEnvironment environment;
 
     public OwnerSetupJdbcAdapter(DataSource dataSource) {
+        this(dataSource, (PlatformEnvironment) null);
+    }
+
+    public OwnerSetupJdbcAdapter(DataSource dataSource, PlatformEnvironment environment) {
         this.dataSource = dataSource;
+        this.environment = environment;
+    }
+
+    @Autowired
+    public OwnerSetupJdbcAdapter(DataSource dataSource, ObjectProvider<PlatformEnvironment> environment) {
+        this(dataSource, environment.getIfAvailable());
     }
 
     @Override
@@ -55,7 +69,8 @@ public class OwnerSetupJdbcAdapter implements OwnerSetupPort {
             createUser(connection, schema, userId, invitation);
             update(connection, "INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan) VALUES (?, ?, ?, ?)",
                     UUID.randomUUID().toString(), invitation.username(), invitation.tenantId(), "RESTAURANT");
-            BillingJdbcAdapter.createTrial(connection, invitation.tenantId());
+            Instant trialStartedAt = (environment != null && environment.production()) ? null : Instant.now();
+            BillingJdbcAdapter.createTrial(connection, invitation.tenantId(), "LOCAL_TRIAL", trialStartedAt);
             update(connection, "INSERT INTO public.owner_setup_tokens (checkout_id, tenant_id, username, email, user_id, token_hash, expires_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, FALSE)",
                     invitation.checkoutId(), invitation.tenantId(), invitation.username(), invitation.email(), userId, tokenHash, expiresAt.toEpochMilli());
             if (queuedAt != null) enqueueIfNeeded(connection, invitation, queuedAt);

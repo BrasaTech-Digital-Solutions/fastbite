@@ -15,11 +15,24 @@ public interface VerifactuAuthorizationStore {
 
     VerifactuAuthorization insert(VerifactuAuthorization authorization);
 
+    record UpdateResult(VerifactuAuthorization authorization, boolean applied) {
+    }
+
     /**
      * Compare-and-set update guarded by {@code authorization.version()}.
      * If a concurrent writer already advanced the row, returns the current persisted row without overwriting it.
      */
     VerifactuAuthorization update(VerifactuAuthorization authorization);
+
+    /**
+     * Compare-and-set update guarded by {@code authorization.version()} that also reports whether this
+     * call won the write ({@code applied == true}) or lost to a concurrent writer ({@code applied == false}).
+     */
+    default UpdateResult compareAndSet(VerifactuAuthorization authorization) {
+        VerifactuAuthorization result = update(authorization);
+        boolean applied = result.version() == authorization.version() + 1;
+        return new UpdateResult(result, applied);
+    }
 
     Optional<VerifactuAuthorization> findById(UUID id);
 

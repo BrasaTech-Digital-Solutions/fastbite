@@ -8,20 +8,33 @@ import com.stripe.param.checkout.SessionCreateParams;
 import es.brasatech.fastbite.application.tenant.SubscriptionGateway;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
 import es.brasatech.fastbite.domain.tenant.SubscriptionPlan;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import java.net.URI;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 @Service
 public class StripeBillingGateway implements SubscriptionGateway {
+    private static final long MIN_STRIPE_TRIAL_REMAINING_HOURS = 48;
     private final String key, priceId, publicUrl;
     private final boolean automaticTax;
+    private final Clock clock;
+
+    public StripeBillingGateway(String key, String priceId, String publicUrl, boolean automaticTax) {
+        this(key, priceId, publicUrl, automaticTax, Clock.systemUTC());
+    }
+
+    @Autowired
     public StripeBillingGateway(@Value("${stripe.secret.key:}") String key,
             @Value("${stripe.restaurant-price-id:}") String priceId,
             @Value("${fastbite.public-url:http://localhost:8080}") String publicUrl,
-            @Value("${stripe.automatic-tax:false}") boolean automaticTax) {
+            @Value("${stripe.automatic-tax:false}") boolean automaticTax,
+            Clock clock) {
         this.key=key; this.priceId=priceId; this.publicUrl=publicUrl.replaceAll("/+$", ""); this.automaticTax=automaticTax;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
     @Override public boolean configured() { return !key.isBlank() && !priceId.isBlank(); }
     private RequestOptions options(String idempotencyKey) {
@@ -32,22 +45,34 @@ public class StripeBillingGateway implements SubscriptionGateway {
         try {
             Price price = Price.retrieve(priceId, options(null));
             if (!validPrice(price) || !Boolean.TRUE.equals(price.getActive())) throw new IllegalArgumentException("The Restaurant price must be EUR 49 per month, exclusive of tax.");
-            Map<String,String> metadata = Map.of("type", "PLATFORM_SUBSCRIPTION", "plan", "RESTAURANT",
-                    "tenantId", account.tenantId(), "ownerUsername", account.owner(), "billingKey", account.billingKey(), "checkoutAttempt", String.valueOf(account.attempt()));
-            var params = SessionCreateParams.builder().setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setSuccessUrl(publicUrl + "/owner/billing/" + account.tenantId() + "?checkout=returned")
-                    .setCancelUrl(publicUrl + "/owner/billing/" + account.tenantId() + "?checkout=canceled")
-                    .setExpiresAt(account.checkoutExpires()).setClientReferenceId(account.tenantId()).putAllMetadata(metadata)
-                    .setSubscriptionData(SessionCreateParams.SubscriptionData.builder().putAllMetadata(metadata).build())
-                    .addLineItem(SessionCreateParams.LineItem.builder().setPrice(priceId).setQuantity(1L).build())
-                    .setAllowPromotionCodes(true)
-                    .setAutomaticTax(SessionCreateParams.AutomaticTax.builder().setEnabled(automaticTax).build())
-                    .setBillingAddressCollection(SessionCreateParams.BillingAddressCollection.REQUIRED)
-                    .setTaxIdCollection(SessionCreateParams.TaxIdCollection.builder().setEnabled(true).build());
-            // Each location has its own customer: its portal cannot expose another owner's subscriptions.
-            if (account.customerId() != null) params.setCustomer(account.customerId());
-            return map(Session.create(params.build(), options(idempotencyKey)));
+            return map(Session.create(buildCheckoutParams(account), options(idempotencyKey)));
         } catch (StripeException e) { throw unavailable(); }
+    }
+
+    SessionCreateParams buildCheckoutParams(BillingAccount account) {
+        Map<String,String> metadata = Map.of("type", "PLATFORM_SUBSCRIPTION", "plan", "RESTAURANT",
+                "tenantId", account.tenantId(), "ownerUsername", account.owner(), "billingKey", account.billingKey(), "checkoutAttempt", String.valueOf(account.attempt()));
+        SessionCreateParams.SubscriptionData.Builder subscriptionData = SessionCreateParams.SubscriptionData.builder()
+                .putAllMetadata(metadata);
+        if ("LOCAL_TRIAL".equals(account.status()) && account.trialStartedAt() != null) {
+            Instant trialEndsAt = account.trialEndsAt();
+            if (trialEndsAt != null && trialEndsAt.isAfter(clock.instant().plus(MIN_STRIPE_TRIAL_REMAINING_HOURS, ChronoUnit.HOURS))) {
+                subscriptionData.setTrialEnd(trialEndsAt.getEpochSecond());
+            }
+        }
+        var params = SessionCreateParams.builder().setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                .setSuccessUrl(publicUrl + "/owner/billing/" + account.tenantId() + "?checkout=returned")
+                .setCancelUrl(publicUrl + "/owner/billing/" + account.tenantId() + "?checkout=canceled")
+                .setExpiresAt(account.checkoutExpires()).setClientReferenceId(account.tenantId()).putAllMetadata(metadata)
+                .setSubscriptionData(subscriptionData.build())
+                .addLineItem(SessionCreateParams.LineItem.builder().setPrice(priceId).setQuantity(1L).build())
+                .setAllowPromotionCodes(true)
+                .setAutomaticTax(SessionCreateParams.AutomaticTax.builder().setEnabled(automaticTax).build())
+                .setBillingAddressCollection(SessionCreateParams.BillingAddressCollection.REQUIRED)
+                .setTaxIdCollection(SessionCreateParams.TaxIdCollection.builder().setEnabled(true).build());
+        // Each location has its own customer: its portal cannot expose another owner's subscriptions.
+        if (account.customerId() != null) params.setCustomer(account.customerId());
+        return params.build();
     }
     @Override public Checkout checkout(String id) {
         try { return map(Session.retrieve(id, options(null))); } catch (StripeException e) { throw unavailable(); }

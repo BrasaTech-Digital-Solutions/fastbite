@@ -5,7 +5,10 @@ import es.brasatech.fastbite.domain.tenant.BillingAccount;
 import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.UnaryOperator;
 import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
 
@@ -50,7 +53,7 @@ public class BillingJdbcAdapter implements BillingPort {
         }
     }
     private static BillingAccount mapAccount(ResultSet r) throws SQLException {
-        return new BillingAccount(r.getString("tenant_id"), r.getString("owner_username"), r.getString("billing_key"), r.getTimestamp("trial_started_at").toInstant(),
+        return new BillingAccount(r.getString("tenant_id"), r.getString("owner_username"), r.getString("billing_key"), toInstant(r.getTimestamp("trial_started_at")),
                 r.getString("status"), r.getString("customer_id"), r.getString("subscription_id"), r.getLong("period_end"), r.getLong("stripe_trial_end"), r.getBoolean("cancel_at_period_end"),
                 r.getString("checkout_id"), r.getString("checkout_url"), r.getLong("checkout_expires"), r.getInt("checkout_attempt"),
                 r.getString("stripe_account_id"), r.getBoolean("stripe_charges_enabled"),
@@ -93,7 +96,7 @@ public class BillingJdbcAdapter implements BillingPort {
                     }
                 }
             } else {
-                // Keep trial_started_at intact so switching Free -> Restaurant only uses any remaining original trial window.
+                // Keep trial_started_at intact: unopened locations stay NULL until opening; opened ones keep their original window.
                 update(c, "UPDATE public.tenant_billing SET status='LOCAL_TRIAL' WHERE tenant_id=? AND LOWER(status)='free' AND subscription_id IS NULL", tenantId);
             }
             return null;
@@ -102,7 +105,21 @@ public class BillingJdbcAdapter implements BillingPort {
 
     @Override public void extendTenantTrial(String tenantId, int extraDays) {
         transaction(source, c -> {
-            update(c, "UPDATE public.tenant_billing SET trial_started_at = trial_started_at + (? * INTERVAL '1 day') WHERE tenant_id=?", extraDays, tenantId);
+            try (var q = statement(c, "SELECT trial_started_at FROM public.tenant_billing WHERE tenant_id = ? FOR UPDATE", tenantId);
+                    var r = q.executeQuery()) {
+                if (!r.next()) return null;
+                Instant current = toInstant(r.getTimestamp("trial_started_at"));
+                if (current == null) return null;
+                update(c, "UPDATE public.tenant_billing SET trial_started_at = ? WHERE tenant_id = ? AND trial_started_at IS NOT NULL",
+                        toTimestamp(current.plus(extraDays, ChronoUnit.DAYS)), tenantId);
+            }
+            return null;
+        });
+    }
+
+    @Override public void startTrialIfNeeded(String tenantId, Instant now) {
+        transaction(source, c -> {
+            update(c, "UPDATE public.tenant_billing SET trial_started_at = ? WHERE tenant_id = ? AND trial_started_at IS NULL", toTimestamp(now), tenantId);
             return null;
         });
     }
@@ -178,9 +195,13 @@ public class BillingJdbcAdapter implements BillingPort {
     }
 
     static void createTrial(Connection c, String tenant) throws SQLException {
-        createTrial(c, tenant, "LOCAL_TRIAL");
+        createTrial(c, tenant, "LOCAL_TRIAL", Instant.now());
     }
     static void createTrial(Connection c, String tenant, String status) throws SQLException {
-        update(c, "INSERT INTO public.tenant_billing (tenant_id,billing_key,status) SELECT ?,?,? WHERE NOT EXISTS (SELECT 1 FROM public.tenant_billing WHERE tenant_id=?)", tenant, java.util.UUID.randomUUID().toString(), status != null ? status : "LOCAL_TRIAL", tenant);
+        createTrial(c, tenant, status, Instant.now());
+    }
+    static void createTrial(Connection c, String tenant, String status, Instant trialStartedAt) throws SQLException {
+        update(c, "INSERT INTO public.tenant_billing (tenant_id,billing_key,status,trial_started_at) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM public.tenant_billing WHERE tenant_id=?)",
+                tenant, UUID.randomUUID().toString(), status != null ? status : "LOCAL_TRIAL", toTimestamp(trialStartedAt), tenant);
     }
 }

@@ -29,7 +29,8 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
             id, nif, legal_name, status, digital_sign_request_id, idempotency_key, attempt, template_id,
             signer_name, certificate_nif,
             signed_pdf_path, signed_pdf_sha256, evidence_pdf_path, evidence_pdf_sha256,
-            failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at, version
+            failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at,
+            version, sync_failure_count, sync_failure_since
             """;
 
     private static final RowMapper<VerifactuAuthorization> ROW_MAPPER = VerifactuAuthorizationJdbcAdapter::mapRow;
@@ -49,8 +50,9 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                     digital_sign_request_id, idempotency_key, attempt, template_id,
                     signer_name, certificate_nif,
                     signed_pdf_path, signed_pdf_sha256, evidence_pdf_path, evidence_pdf_sha256,
-                    failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at, version
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at,
+                    version, sync_failure_count, sync_failure_since
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 auth.id().toString(),
                 auth.nif(),
@@ -75,12 +77,19 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 toTimestamp(auth.validFrom()),
                 toTimestamp(auth.revokedAt()),
                 toTimestamp(auth.lastSyncedAt()),
-                auth.version());
+                auth.version(),
+                auth.syncFailureCount(),
+                toTimestamp(auth.syncFailureSince()));
         return auth;
     }
 
     @Override
     public VerifactuAuthorization update(VerifactuAuthorization auth) {
+        return compareAndSet(auth).authorization();
+    }
+
+    @Override
+    public UpdateResult compareAndSet(VerifactuAuthorization auth) {
         Objects.requireNonNull(auth, "auth");
         int nextVersion = auth.version() + 1;
         int updated = jdbc.update("""
@@ -103,7 +112,9 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                     valid_from = ?,
                     revoked_at = ?,
                     last_synced_at = ?,
-                    version = ?
+                    version = ?,
+                    sync_failure_count = ?,
+                    sync_failure_since = ?
                 WHERE id = ? AND version = ?
                 """,
                 auth.nif(),
@@ -125,12 +136,14 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 toTimestamp(auth.revokedAt()),
                 toTimestamp(auth.lastSyncedAt()),
                 nextVersion,
+                auth.syncFailureCount(),
+                toTimestamp(auth.syncFailureSince()),
                 auth.id().toString(),
                 auth.version());
         if (updated == 1) {
-            return auth.withVersion(nextVersion);
+            return new UpdateResult(auth.withVersion(nextVersion), true);
         }
-        return findById(auth.id()).orElse(auth);
+        return new UpdateResult(findById(auth.id()).orElse(auth), false);
     }
 
     @Override
@@ -342,7 +355,9 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 fromTimestamp(rs.getTimestamp("valid_from")),
                 fromTimestamp(rs.getTimestamp("revoked_at")),
                 fromTimestamp(rs.getTimestamp("last_synced_at")),
-                rs.getInt("version"));
+                rs.getInt("version"),
+                rs.getInt("sync_failure_count"),
+                fromTimestamp(rs.getTimestamp("sync_failure_since")));
     }
 
     private static String validNifColumn(VerifactuAuthorization auth) {

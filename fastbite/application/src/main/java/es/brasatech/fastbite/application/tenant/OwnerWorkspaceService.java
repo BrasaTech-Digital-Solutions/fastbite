@@ -6,6 +6,7 @@ import es.brasatech.fastbite.application.fiscal.FiscalTicketRepository;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
@@ -50,13 +51,26 @@ public class OwnerWorkspaceService {
     private final UserService users;
     private final TableService tables;
     private final TableSignatureUtil tableSignatures;
+    private final VerifactuAuthorizationService verifactuAuthorizations;
+    private final SubscriptionService subscriptions;
+
+    public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
+            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu,
+            FiscalIssuerPort fiscalIssuers, PlatformEnvironment environment, Clock clock,
+            OrderService orders, UserService users,
+            TableService tables, TableSignatureUtil tableSignatures) {
+        this(locations, progress, products, settings, fiscalProfiles, tickets, verifactu, fiscalIssuers,
+                environment, clock, orders, users, tables, tableSignatures, null, null);
+    }
 
     @Autowired
     public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
             FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu,
             FiscalIssuerPort fiscalIssuers, PlatformEnvironment environment, Clock clock,
             OrderService orders, UserService users,
-            TableService tables, TableSignatureUtil tableSignatures) {
+            TableService tables, TableSignatureUtil tableSignatures,
+            VerifactuAuthorizationService verifactuAuthorizations,
+            SubscriptionService subscriptions) {
         this.locations = Objects.requireNonNull(locations, "locations");
         this.progress = Objects.requireNonNull(progress, "progress");
         this.products = Objects.requireNonNull(products, "products");
@@ -71,10 +85,19 @@ public class OwnerWorkspaceService {
         this.users = Objects.requireNonNull(users, "users");
         this.tables = Objects.requireNonNull(tables, "tables");
         this.tableSignatures = Objects.requireNonNull(tableSignatures, "tableSignatures");
+        this.verifactuAuthorizations = verifactuAuthorizations;
+        this.subscriptions = subscriptions;
     }
 
     public void requireOwner(String owner, String tenant) {
         if (owner == null || !locations.isOwnerOf(owner,tenant)) throw new IllegalArgumentException("You do not own this location.");
+    }
+    public boolean isOpened(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        return progress.read(tenant).opened();
+    }
+    public Optional<OwnerWorkspacePort.OwnerSigner> ownerSigner(String owner) {
+        return owner == null || owner.isBlank() ? Optional.empty() : progress.findOwnerSigner(owner);
     }
     public Summary summary(String owner,String tenant) {
         requireOwner(owner,tenant);
@@ -87,13 +110,27 @@ public class OwnerWorkspaceService {
             FiscalProfile fiscal = fiscalProfiles.get();
             boolean hasStaff = users.findAll().stream().anyMatch(u -> !u.isOwner() && u.active());
             boolean chargesEnabled = locations.getLocation(tenant).map(l -> l.isStripeVerified()).orElse(false);
+            boolean verifactuAuthorized = !environment.sandbox()
+                    && fiscal.complete()
+                    && verifactuAuthorizations != null
+                    && verifactuAuthorizations.hasValidAuthorization(fiscal.taxId());
+            boolean verifactuCollaborationActive = !environment.sandbox()
+                    && verifactuAuthorizations != null
+                    && verifactuAuthorizations.isCollaborationActive();
             Summary summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
-                    hasStaff, chargesEnabled, environment.sandbox());
-            if (!environment.sandbox() && !updated.opened() && (summary.ready() || tickets.anyRealTicket())) {
+                    hasStaff, chargesEnabled, environment.sandbox(), verifactuAuthorized, verifactuCollaborationActive);
+            if (!environment.sandbox() && !updated.opened() && summary.ready()) {
                 progress.update(tenant, p -> p.withOpening(p.workAlone(), true));
                 updated = progress.read(tenant);
+                if (subscriptions != null) {
+                    subscriptions.startTrialIfNeeded(tenant, clock.instant());
+                }
                 summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
-                        hasStaff, chargesEnabled, false);
+                        hasStaff, chargesEnabled, false, verifactuAuthorized, verifactuCollaborationActive);
+            }
+            if (!environment.sandbox() && updated.opened() && subscriptions != null
+                    && subscriptions.isTrialNotStarted(tenant)) {
+                subscriptions.startTrialIfNeeded(tenant, clock.instant());
             }
             return summary;
         });
@@ -348,24 +385,33 @@ public class OwnerWorkspaceService {
     }
     public record PracticeTable(String id, String name, String url) {}
     public record Summary(SetupProgress progress, int products, RestaurantSettings settings, FiscalProfile fiscal,
-            PracticeTable firstTable, boolean hasStaff, boolean chargesEnabled, boolean sandbox) {
+            PracticeTable firstTable, boolean hasStaff, boolean chargesEnabled, boolean sandbox,
+            boolean verifactuAuthorized, boolean verifactuCollaborationActive) {
+        public Summary(SetupProgress progress, int products, RestaurantSettings settings, FiscalProfile fiscal,
+                PracticeTable firstTable, boolean hasStaff, boolean chargesEnabled, boolean sandbox) {
+            this(progress, products, settings, fiscal, firstTable, hasStaff, chargesEnabled, sandbox, false, false);
+        }
         public Summary(SetupProgress progress, int products, RestaurantSettings settings, FiscalProfile fiscal) {
-            this(progress, products, settings, fiscal, null, false, false, false);
+            this(progress, products, settings, fiscal, null, false, false, false, false, false);
         }
         public boolean menuDone() { return products > 0; }
         public boolean fiscalDone() { return fiscal.complete(); }
+        public boolean verifactuRequired() { return !sandbox; }
+        public boolean verifactuDone() { return sandbox || (fiscalDone() && verifactuAuthorized && verifactuCollaborationActive); }
         public boolean serviceDone() { return progress.serviceReviewed(); }
         public boolean paymentsRequired() { return settings.takeaway(); }
         public boolean paymentsDone() { return !paymentsRequired() || chargesEnabled; }
         public boolean teamDone() { return hasStaff || progress.workAlone(); }
         public boolean previewDone() { return progress.previewReviewed(); }
-        public int completed() { return (menuDone()?1:0)+(fiscalDone()?1:0)+(serviceDone()?1:0)
-                +(paymentsRequired() && chargesEnabled?1:0)+(teamDone()?1:0)+(previewDone()?1:0); }
-        public int steps() { return paymentsRequired()?6:5; }
+        public int completed() { return (menuDone()?1:0)+(fiscalDone()?1:0)
+                +(verifactuRequired() && verifactuDone()?1:0)
+                +(serviceDone()?1:0)+(paymentsRequired() && chargesEnabled?1:0)+(teamDone()?1:0)+(previewDone()?1:0); }
+        public int steps() { return (paymentsRequired()?6:5)+(verifactuRequired()?1:0); }
         public boolean ready() { return completed()==steps(); }
         public String nextStep() {
             if (!menuDone()) return "menu";
             if (!fiscalDone()) return "fiscal";
+            if (verifactuRequired() && !verifactuDone()) return "verifactu";
             if (!serviceDone()) return "service";
             if (!paymentsDone()) return "payments";
             if (!teamDone()) return "team";

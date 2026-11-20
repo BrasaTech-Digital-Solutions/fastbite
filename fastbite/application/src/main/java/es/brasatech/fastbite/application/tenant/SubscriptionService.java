@@ -3,6 +3,7 @@ package es.brasatech.fastbite.application.tenant;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -33,8 +34,19 @@ public class SubscriptionService {
     public boolean isFreePlan(String tenant) {
         return tenant != null && billing.find(tenant).map(BillingAccount::isFreePlan).orElse(false);
     }
+    public boolean isTrialNotStarted(String tenant) {
+        return tenant != null && billing.find(tenant).map(BillingAccount::trialNotStarted).orElse(false);
+    }
     public boolean isClosed(String tenant) {
         return tenant != null && billing.find(tenant).map(BillingAccount::isClosed).orElse(false);
+    }
+    public void startTrialIfNeeded(String tenant, Instant now) {
+        if (tenant != null && now != null) {
+            billing.startTrialIfNeeded(tenant, now);
+        }
+    }
+    public Optional<String> resolveOwnerEmail(String tenant, String ownerUsername) {
+        return tenant == null ? Optional.empty() : billing.resolveOwnerEmail(tenant, ownerUsername);
     }
     public String checkout(String tenant, String owner) {
         var existing = account(tenant, owner);
@@ -143,6 +155,7 @@ public class SubscriptionService {
         if (extraDays < 1 || extraDays > 180) throw new IllegalArgumentException("Trial extension must be between 1 and 180 days.");
         var existing = billing.find(tenantId).orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
         if (existing.isClosed()) throw new IllegalArgumentException("This location is closed and its contract has ended.");
+        if (existing.trialNotStarted()) throw new IllegalArgumentException("Trial has not started yet.");
         billing.extendTenantTrial(tenantId, extraDays);
         BillingAccount updated = billing.find(tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));

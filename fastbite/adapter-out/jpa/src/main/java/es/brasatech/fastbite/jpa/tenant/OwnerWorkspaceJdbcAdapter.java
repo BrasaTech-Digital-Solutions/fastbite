@@ -4,11 +4,31 @@ import es.brasatech.fastbite.domain.tenant.SetupProgress;
 import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.*;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
 @Component public class OwnerWorkspaceJdbcAdapter implements OwnerWorkspacePort {
     private final DataSource source;
     public OwnerWorkspaceJdbcAdapter(DataSource source) { this.source=source; }
+    @Override
+    public Optional<OwnerSigner> findOwnerSigner(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        return transaction(source, c -> {
+            try (var q = statement(c,
+                    "SELECT full_name, email, email_verified_at FROM public.users WHERE username = ? AND active = TRUE",
+                    username.strip());
+                 var r = q.executeQuery()) {
+                if (!r.next()) {
+                    return Optional.empty();
+                }
+                String fullName = r.getString("full_name");
+                String verifiedEmail = r.getObject("email_verified_at") != null ? r.getString("email") : null;
+                return Optional.of(new OwnerSigner(fullName, verifiedEmail));
+            }
+        });
+    }
     public SetupProgress read(String tenant) { return transaction(source,c->read(c,tenant)); }
     private SetupProgress read(Connection c,String tenant)throws SQLException {
         try(var q=statement(c,"SELECT * FROM public.owner_onboarding WHERE tenant_id=?",tenant); var r=q.executeQuery()) {

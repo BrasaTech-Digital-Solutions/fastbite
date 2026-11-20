@@ -32,7 +32,66 @@ public record VerifactuAuthorization(
         Instant validFrom,
         Instant revokedAt,
         Instant lastSyncedAt,
-        int version) {
+        int version,
+        int syncFailureCount,
+        Instant syncFailureSince) {
+
+    public VerifactuAuthorization(
+            UUID id,
+            String nif,
+            String legalName,
+            VerifactuAuthorizationStatus status,
+            String digitalSignRequestId,
+            String idempotencyKey,
+            int attempt,
+            String templateId,
+            String signerName,
+            String certificateNif,
+            String signedPdfPath,
+            String signedPdfSha256,
+            String evidencePdfPath,
+            String evidencePdfSha256,
+            String failureReason,
+            String createdBy,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant validFrom,
+            Instant revokedAt,
+            Instant lastSyncedAt,
+            int version) {
+        this(id, nif, legalName, status, digitalSignRequestId, idempotencyKey, attempt, templateId,
+                signerName, certificateNif, signedPdfPath, signedPdfSha256, evidencePdfPath, evidencePdfSha256,
+                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, lastSyncedAt, version, 0, null);
+    }
+
+    public VerifactuAuthorization(
+            UUID id,
+            String nif,
+            String legalName,
+            VerifactuAuthorizationStatus status,
+            String digitalSignRequestId,
+            String idempotencyKey,
+            int attempt,
+            String templateId,
+            String signerName,
+            String certificateNif,
+            String signedPdfPath,
+            String signedPdfSha256,
+            String evidencePdfPath,
+            String evidencePdfSha256,
+            String failureReason,
+            String createdBy,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant validFrom,
+            Instant revokedAt,
+            Instant lastSyncedAt,
+            int version,
+            int syncFailureCount) {
+        this(id, nif, legalName, status, digitalSignRequestId, idempotencyKey, attempt, templateId,
+                signerName, certificateNif, signedPdfPath, signedPdfSha256, evidencePdfPath, evidencePdfSha256,
+                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, lastSyncedAt, version, syncFailureCount, null);
+    }
 
     public VerifactuAuthorization {
         Objects.requireNonNull(id, "id");
@@ -56,6 +115,9 @@ public record VerifactuAuthorization(
         Objects.requireNonNull(updatedAt, "updatedAt");
         if (version < 0) {
             throw new IllegalArgumentException("version must be >= 0");
+        }
+        if (syncFailureCount < 0) {
+            throw new IllegalArgumentException("syncFailureCount must be >= 0");
         }
     }
 
@@ -95,6 +157,41 @@ public record VerifactuAuthorization(
             String nextFailureReason,
             Instant nextValidFrom,
             Instant syncedAt) {
+        return withSync(nextStatus, nextSignerName, nextCertificateNif, nextSignedPdfPath, nextSignedPdfSha256,
+                nextEvidencePdfPath, nextEvidencePdfSha256, nextFailureReason, nextValidFrom, syncedAt,
+                syncFailureCount, syncFailureSince);
+    }
+
+    public VerifactuAuthorization withSync(
+            VerifactuAuthorizationStatus nextStatus,
+            String nextSignerName,
+            String nextCertificateNif,
+            String nextSignedPdfPath,
+            String nextSignedPdfSha256,
+            String nextEvidencePdfPath,
+            String nextEvidencePdfSha256,
+            String nextFailureReason,
+            Instant nextValidFrom,
+            Instant syncedAt,
+            int nextSyncFailureCount) {
+        return withSync(nextStatus, nextSignerName, nextCertificateNif, nextSignedPdfPath, nextSignedPdfSha256,
+                nextEvidencePdfPath, nextEvidencePdfSha256, nextFailureReason, nextValidFrom, syncedAt,
+                nextSyncFailureCount, nextSyncFailureCount == 0 ? null : syncFailureSince);
+    }
+
+    public VerifactuAuthorization withSync(
+            VerifactuAuthorizationStatus nextStatus,
+            String nextSignerName,
+            String nextCertificateNif,
+            String nextSignedPdfPath,
+            String nextSignedPdfSha256,
+            String nextEvidencePdfPath,
+            String nextEvidencePdfSha256,
+            String nextFailureReason,
+            Instant nextValidFrom,
+            Instant syncedAt,
+            int nextSyncFailureCount,
+            Instant nextSyncFailureSince) {
         return new VerifactuAuthorization(
                 id,
                 nif,
@@ -117,7 +214,9 @@ public record VerifactuAuthorization(
                 nextValidFrom,
                 revokedAt,
                 syncedAt,
-                version);
+                version,
+                nextSyncFailureCount,
+                nextSyncFailureSince);
     }
 
     public VerifactuAuthorization withVersion(int nextVersion) {
@@ -143,7 +242,9 @@ public record VerifactuAuthorization(
                 validFrom,
                 revokedAt,
                 lastSyncedAt,
-                nextVersion);
+                nextVersion,
+                syncFailureCount,
+                syncFailureSince);
     }
 
     private static boolean isNonBlank(String value) {

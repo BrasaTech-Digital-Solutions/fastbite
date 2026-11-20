@@ -199,6 +199,8 @@ fastbite:
       production-enabled: ${VERIFACTU_PRODUCTION_ENABLED:false}
       # Comma-separated NIFs the certificate may send for; empty sends every location's records
       issuers: ${VERIFACTU_ISSUERS:}
+    # VERI*FACTU authorisation gate: stays false until AEAT confirms Convenio 17.
+    collaboration-active: ${VERIFACTU_COLLABORATION_ACTIVE:false}
   # Digital Sign (VERI*FACTU authorisation). Signing stays unavailable until api-token and
   # verifactu.template-id are configured; allow-insecure-local is only for the local mock.
   digitalsign:

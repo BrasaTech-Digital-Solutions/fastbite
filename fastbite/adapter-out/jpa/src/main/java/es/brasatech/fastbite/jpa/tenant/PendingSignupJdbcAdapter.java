@@ -1,7 +1,10 @@
 package es.brasatech.fastbite.jpa.tenant;
 
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.tenant.PendingSignupPort;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -16,7 +19,21 @@ import static es.brasatech.fastbite.jpa.tenant.RegistrationJdbc.*;
 @Component
 public class PendingSignupJdbcAdapter implements PendingSignupPort {
     private final DataSource source;
-    public PendingSignupJdbcAdapter(DataSource source) { this.source = source; }
+    private final PlatformEnvironment environment;
+
+    public PendingSignupJdbcAdapter(DataSource source) {
+        this(source, (PlatformEnvironment) null);
+    }
+
+    public PendingSignupJdbcAdapter(DataSource source, PlatformEnvironment environment) {
+        this.source = source;
+        this.environment = environment;
+    }
+
+    @Autowired
+    public PendingSignupJdbcAdapter(DataSource source, ObjectProvider<PlatformEnvironment> environment) {
+        this(source, environment.getIfAvailable());
+    }
 
     @Override public Start start(Signup signup, Instant now) {
         return transaction(source, connection -> {
@@ -115,7 +132,8 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
                 for (String role : new String[]{"OWNER", "ADMIN"}) update(connection, "INSERT INTO " + target + ".user_roles (user_id, role) VALUES (?, ?)", userId, role);
             }
             update(connection, "INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan) VALUES (?, ?, ?, ?)", UUID.randomUUID().toString(), data.username(), data.tenantId(), data.plan());
-            BillingJdbcAdapter.createTrial(connection, data.tenantId(), "FREE".equalsIgnoreCase(data.plan()) ? "FREE" : "LOCAL_TRIAL");
+            Instant trialStartedAt = (environment != null && environment.production()) ? null : now;
+            BillingJdbcAdapter.createTrial(connection, data.tenantId(), "FREE".equalsIgnoreCase(data.plan()) ? "FREE" : "LOCAL_TRIAL", trialStartedAt);
             recordConsent(connection, data, "terms");
             if (data.marketing()) recordConsent(connection, data, "marketing");
             update(connection, "UPDATE public.account_tokens SET subject_type = 'OWNER', subject_id = ?, consumed_at = ? WHERE token_hash = ?", userId, now.toEpochMilli(), hash);

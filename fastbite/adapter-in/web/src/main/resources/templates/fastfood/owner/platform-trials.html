@@ -24,9 +24,10 @@
 <strong th:text="${acc.tenantId}">tenant</strong>
 <span class="fine" th:text="${#messages.msg('workspace.trials.owner', acc.owner)}">Owner</span>
 <span class="fine" th:text="${#messages.msg('workspace.trials.status', trialLabels[acc.tenantId])}">Status</span>
-<span class="fine" th:text="${#messages.msg('workspace.trials.ends', #temporals.format(acc.trialEndsAt(), 'dd/MM/yyyy HH:mm', 'UTC'))}">Trial end</span>
+<span class="fine" th:if="${acc.trialEndsAt() != null}" th:text="${#messages.msg('workspace.trials.ends', #temporals.format(acc.trialEndsAt(), 'dd/MM/yyyy HH:mm', 'UTC'))}">Trial end</span>
+<span class="fine" th:if="${acc.trialEndsAt() == null}" th:text="#{workspace.billing.status.trial.pending}">Trial starts when the location opens</span>
 </div>
-<form class="ws-trial-form compact-form" th:action="@{/owner/platform/trials/{tenant}/extend(tenant=${acc.tenantId})}" method="post">
+<form class="ws-trial-form compact-form" th:if="${acc.trialEndsAt() != null}" th:action="@{/owner/platform/trials/{tenant}/extend(tenant=${acc.tenantId})}" method="post">
 <label th:for="${'days-' + acc.tenantId}" class="sr-only" th:text="#{workspace.rebuild.more.73}">Days</label>
 <input th:id="${'days-' + acc.tenantId}" name="days" type="number" min="1" max="180" value="14" required class="ws-days">
 <button class="button secondary" type="submit" th:text="#{workspace.rebuild.more.74}">+ Add days</button>

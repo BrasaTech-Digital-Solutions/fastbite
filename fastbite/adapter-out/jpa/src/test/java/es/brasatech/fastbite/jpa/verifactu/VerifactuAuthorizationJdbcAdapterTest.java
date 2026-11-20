@@ -2,14 +2,12 @@ package es.brasatech.fastbite.jpa.verifactu;
 
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
+import es.brasatech.fastbite.jpa.tenant.TenantMigrationService;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,15 +23,11 @@ class VerifactuAuthorizationJdbcAdapterTest {
     private VerifactuAuthorizationJdbcAdapter store;
 
     @BeforeEach
-    void setUp() throws SQLException {
+    void setUp() {
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:verifactu_auth_" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1");
         dataSource.setUser("sa");
-        try (var connection = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(
-                    connection,
-                    new ClassPathResource("db/migration/platform/V36__Verifactu_authorizations.sql"));
-        }
+        new TenantMigrationService(dataSource).migrateAll(false);
         store = new VerifactuAuthorizationJdbcAdapter(dataSource);
     }
 
@@ -183,6 +177,29 @@ class VerifactuAuthorizationJdbcAdapterTest {
         // Old event was purged, so re-inserting it succeeds; recent event still deduplicates.
         assertThat(store.recordWebhookEventIfNew("evt_old", "request.completed", "req-1", T0)).isTrue();
         assertThat(store.recordWebhookEventIfNew("evt_recent", "request.completed", "req-2", T0)).isFalse();
+    }
+
+    @Test
+    void compareAndSetReportsAppliedFlagAndPersistsSyncFailureCount() {
+        VerifactuAuthorization initial = store.insert(auth("B09767898", VerifactuAuthorizationStatus.IN_PROGRESS, 1, "req-cas", T0));
+        assertThat(initial.syncFailureCount()).isZero();
+
+        var first = store.compareAndSet(initial.withSync(
+                VerifactuAuthorizationStatus.IN_PROGRESS, "Maria Garcia", null, null, null, null, null,
+                "REQUEST_NOT_FOUND", null, T0.plusSeconds(10), 2, T0.plusSeconds(5)));
+        assertThat(first.applied()).isTrue();
+        assertThat(first.authorization().version()).isEqualTo(1);
+        assertThat(first.authorization().syncFailureCount()).isEqualTo(2);
+        assertThat(first.authorization().syncFailureSince()).isEqualTo(T0.plusSeconds(5));
+
+        // Stale write using version 0 loses CAS and reports applied == false
+        var stale = store.compareAndSet(initial.withSync(
+                VerifactuAuthorizationStatus.DECLINED, "Maria Garcia", null, null, null, null, null,
+                "DECLINED", null, T0.plusSeconds(20), 0, null));
+        assertThat(stale.applied()).isFalse();
+        assertThat(stale.authorization().version()).isEqualTo(1);
+        assertThat(stale.authorization().syncFailureCount()).isEqualTo(2);
+        assertThat(stale.authorization().syncFailureSince()).isEqualTo(T0.plusSeconds(5));
     }
 
     private static VerifactuAuthorization auth(

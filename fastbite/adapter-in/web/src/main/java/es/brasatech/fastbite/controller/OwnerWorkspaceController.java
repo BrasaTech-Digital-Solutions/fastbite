@@ -1,9 +1,15 @@
 package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.tenant.*;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
+import es.brasatech.fastbite.config.ProductionOnly;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.SpanishProvinces;
 import es.brasatech.fastbite.domain.fiscal.VatRates;
 import es.brasatech.fastbite.domain.user.Role;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -46,6 +52,7 @@ public class OwnerWorkspaceController {
     private final es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
     private final java.time.Clock clock;
     private final String termsVersion;
+    private final VerifactuAuthorizationService verifactuAuthorizations;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
             MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
             es.brasatech.fastbite.application.platform.PlatformLink link, FreePlanLock freePlanLock,
@@ -55,7 +62,8 @@ public class OwnerWorkspaceController {
             java.time.Clock clock,
             @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
             es.brasatech.fastbite.application.platform.PromotionService promotionService,
-            @org.springframework.beans.factory.annotation.Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone) {
+            @org.springframework.beans.factory.annotation.Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone,
+            ObjectProvider<VerifactuAuthorizationService> verifactuAuthorizations) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
@@ -66,6 +74,7 @@ public class OwnerWorkspaceController {
         this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
         this.promotionService=java.util.Objects.requireNonNull(promotionService, "promotionService");
         this.ordersTimeZone = (ordersTimeZone != null && !ordersTimeZone.isBlank()) ? ordersTimeZone : "Europe/Madrid";
+        this.verifactuAuthorizations = verifactuAuthorizations != null ? verifactuAuthorizations.getIfAvailable() : null;
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -162,8 +171,26 @@ public class OwnerWorkspaceController {
             } else {
                 model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
                 model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
+                if (!environment.sandbox() && view.equals("overview") && verifactuAuthorizations != null
+                        && !workspace.isOpened(owner.getName(), selected.tenantId())) {
+                    FiscalProfile currentFiscal = workspace.fiscalProfile(owner.getName(), selected.tenantId());
+                    if (currentFiscal != null && currentFiscal.taxId() != null && !currentFiscal.taxId().isBlank()) {
+                        verifactuAuthorizations.refreshForNifOnPageLoad(currentFiscal.taxId());
+                    }
+                }
                 var setup=workspace.summary(owner.getName(),selected.tenantId());
                 model.addAttribute("setup",setup);
+                if (!environment.sandbox() && setup.opened() && billing != null && billing.trialNotStarted()) {
+                    billing = subscriptions.account(selected.tenantId(), owner.getName());
+                    model.addAttribute("billing", billing);
+                    model.addAttribute("billingStatusLabel", localizedBillingStatus(billing, locale, messages, clock, ordersTimeZone));
+                    Instant updatedTrialEnd = trialEnd(billing);
+                    model.addAttribute("trialEndsSoon", updatedTrialEnd != null && updatedTrialEnd.isAfter(clock.instant())
+                            && !updatedTrialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
+                }
+                if (!environment.sandbox() && view.equals("overview")) {
+                    model.addAttribute("verifactuStep", buildVerifactuStep(setup.fiscal()));
+                }
                 if (view.equals("overview") && setup.opened() && !environment.sandbox()) {
                     model.addAttribute("todayVerifactu", workspace.verifactuSummary(owner.getName(), selected.tenantId(), false));
                 }
@@ -227,6 +254,7 @@ public class OwnerWorkspaceController {
         if (account.isClosed()) key = "closed";
         else if (account.isContractEnded()) key = "ended";
         else if (account.isFreePlan()) key = "free";
+        else if (account.trialNotStarted()) key = "trial.pending";
         else if (end != null) key = "trial.ended";
         else key = switch (account.status()) {
             case "active" -> "active";
@@ -505,6 +533,167 @@ public class OwnerWorkspaceController {
         privacyNotices.useGeneratedNotice(tenant);
         flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.privacy.restored"));
         return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
+    }
+
+    /**
+     * Starts or resumes Digital Sign VERI*FACTU Anexo I signing for this location's NIF.
+     * Redirects directly to the signing URL (opened in a new tab by the form) without logging or storing it.
+     */
+    @ProductionOnly
+    @PostMapping("/owner/workspace/{tenant}/verifactu/authorize")
+    public String startVerifactuAuthorization(@PathVariable String tenant, Principal owner,
+            RedirectAttributes flash, Locale locale) {
+        checkOpen(owner, tenant);
+        if (verifactuAuthorizations == null) {
+            flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.reason.signing_unavailable"));
+            return "redirect:/owner/console?location=" + tenant;
+        }
+        FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+        Optional<OwnerWorkspacePort.OwnerSigner> signerOpt = workspace.ownerSigner(owner.getName());
+        String ownerName = signerOpt.map(OwnerWorkspacePort.OwnerSigner::fullName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(owner.getName());
+        String ownerEmail = signerOpt.map(OwnerWorkspacePort.OwnerSigner::verifiedEmail)
+                .filter(email -> email != null && !email.isBlank())
+                .orElseGet(() -> subscriptions.resolveOwnerEmail(tenant, owner.getName())
+                        .orElse(fiscal != null ? fiscal.email() : null));
+        String lang = locale != null ? locale.getLanguage() : "es";
+        StartSigningResult result = verifactuAuthorizations.startSigning(
+                fiscal, owner.getName(), ownerName, ownerEmail, lang);
+        return switch (result.outcome()) {
+            case SIGNING_URL -> "redirect:" + result.signingUrl();
+            case ALREADY_VALID -> {
+                flash.addFlashAttribute("notice", workspaceMessage("opening.verifactu.already.valid"));
+                yield "redirect:/owner/console?location=" + tenant;
+            }
+            case FISCAL_INCOMPLETE -> {
+                flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.status.fiscal_required"));
+                yield "redirect:/owner/console?location=" + tenant;
+            }
+            case SIGNING_UNAVAILABLE -> {
+                String msgKey = "DOWNLOAD_FAILED".equals(result.reason())
+                        ? "opening.verifactu.reason.download_failed"
+                        : "opening.verifactu.reason.signing_unavailable";
+                flash.addFlashAttribute("error", workspaceMessage(msgKey));
+                yield "redirect:/owner/console?location=" + tenant;
+            }
+        };
+    }
+
+    /** User-driven status refresh ("Comprobar ahora") for an active VERI*FACTU authorisation. */
+    @ProductionOnly
+    @PostMapping("/owner/workspace/{tenant}/verifactu/refresh")
+    public String refreshVerifactuAuthorization(@PathVariable String tenant, Principal owner,
+            RedirectAttributes flash) {
+        checkOpen(owner, tenant);
+        if (verifactuAuthorizations != null) {
+            FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+            if (fiscal != null && fiscal.taxId() != null && !fiscal.taxId().isBlank()) {
+                verifactuAuthorizations.refreshForNif(fiscal.taxId());
+                workspace.summary(owner.getName(), tenant);
+            }
+        }
+        flash.addFlashAttribute("notice", workspaceMessage("opening.verifactu.refreshed"));
+        return "redirect:/owner/console?location=" + tenant;
+    }
+
+    private VerifactuStepView buildVerifactuStep(FiscalProfile fiscal) {
+        if (fiscal == null || !fiscal.complete()) {
+            return new VerifactuStepView(
+                    false,
+                    fiscal != null ? fiscal.taxId() : null,
+                    fiscal != null ? fiscal.legalName() : null,
+                    "FISCAL_REQUIRED",
+                    "opening.verifactu.status.fiscal_required",
+                    null,
+                    null,
+                    false,
+                    false,
+                    false);
+        }
+        String nif = fiscal.taxId();
+        String legalName = fiscal.legalName();
+        if (verifactuAuthorizations == null) {
+            return new VerifactuStepView(
+                    true, nif, legalName, "SIGNING_UNAVAILABLE",
+                    "opening.verifactu.status.on_hold", "opening.verifactu.reason.signing_unavailable",
+                    null, false, false, false);
+        }
+        boolean signingConfigured = verifactuAuthorizations.isSigningConfigured();
+        Optional<VerifactuAuthorization> currentOpt = verifactuAuthorizations.findCurrentForNif(nif);
+        if (currentOpt.isEmpty()) {
+            if (!signingConfigured) {
+                return new VerifactuStepView(
+                        true, nif, legalName, "SIGNING_UNAVAILABLE",
+                        "opening.verifactu.status.on_hold", "opening.verifactu.reason.signing_unavailable",
+                        null, false, false, false);
+            }
+            return new VerifactuStepView(
+                    true, nif, legalName, "NOT_SIGNED",
+                    "opening.verifactu.status.not_signed", null,
+                    null, true, false, false);
+        }
+        VerifactuAuthorization auth = currentOpt.get();
+        if (auth.isCurrentlyValid()) {
+            if (verifactuAuthorizations.isCollaborationActive()) {
+                return new VerifactuStepView(
+                        true, nif, legalName, "VALID",
+                        "opening.verifactu.status.valid", null,
+                        auth.signerName(), false, false, false);
+            }
+            return new VerifactuStepView(
+                    true, nif, legalName, "COLLABORATION_INACTIVE",
+                    "opening.verifactu.status.signed_waiting_switch", "opening.verifactu.reason.collaboration_inactive",
+                    auth.signerName(), false, false, false);
+        }
+        if (auth.status() == VerifactuAuthorizationStatus.IN_PROGRESS) {
+            return new VerifactuStepView(
+                    true, nif, legalName, "IN_PROGRESS",
+                    "opening.verifactu.status.in_progress", null,
+                    auth.signerName(), signingConfigured, true, false);
+        }
+        if (auth.status() == VerifactuAuthorizationStatus.DOWNLOAD_FAILED) {
+            return new VerifactuStepView(
+                    true, nif, legalName, "ON_HOLD",
+                    "opening.verifactu.status.on_hold", "opening.verifactu.reason.download_failed",
+                    auth.signerName(), false, true, false);
+        }
+        String reasonKey = switch (auth.status()) {
+            case DECLINED -> "opening.verifactu.reason.declined";
+            case EXPIRED -> "opening.verifactu.reason.expired";
+            case CANCELLED -> "opening.verifactu.reason.cancelled";
+            case NIF_MISMATCH -> "opening.verifactu.reason.nif_mismatch";
+            case NIF_UNVERIFIED -> "opening.verifactu.reason.nif_unverified";
+            case DOCUMENTS_GONE -> {
+                if ("REQUEST_NOT_FOUND".equals(auth.failureReason())) {
+                    yield "opening.verifactu.reason.request_not_found";
+                }
+                if ("DOCUMENTS_NOT_READY".equals(auth.failureReason())) {
+                    yield "opening.verifactu.reason.documents_not_ready";
+                }
+                yield "opening.verifactu.reason.documents_gone";
+            }
+            case REVOKED -> "opening.verifactu.reason.revoked";
+            default -> "opening.verifactu.reason.signing_unavailable";
+        };
+        boolean retryable = signingConfigured;
+        return new VerifactuStepView(
+                true, nif, legalName, "ON_HOLD",
+                "opening.verifactu.status.on_hold", reasonKey,
+                auth.signerName(), false, false, retryable);
+    }
+
+    public record VerifactuStepView(
+            boolean fiscalComplete,
+            String nif,
+            String legalName,
+            String state,
+            String statusMessageKey,
+            String reasonMessageKey,
+            String signerName,
+            boolean canSign,
+            boolean canRefresh,
+            boolean canRetry) {
     }
 
     private void check(Principal owner,String tenant) {

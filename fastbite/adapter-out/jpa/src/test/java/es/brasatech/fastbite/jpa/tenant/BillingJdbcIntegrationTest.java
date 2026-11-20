@@ -158,4 +158,32 @@ class BillingJdbcIntegrationTest {
         assertThatThrownBy(() -> signup.registerAdditionalLocation("lifecycleloc", "owner@bistro.test", "RESTAURANT"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test void startTrialIfNeededSetsNullTrialOnceWithoutOverwritingExistingStart() {
+        signup.registerTenant("trialonopen", "trialonopenowner", "hash", "Owner");
+        jdbc.update("UPDATE public.tenant_billing SET trial_started_at = NULL WHERE tenant_id = 'trialonopen'");
+
+        var before = billing.find("trialonopen").orElseThrow();
+        assertThat(before.trialStartedAt()).isNull();
+        assertThat(before.trialEndsAt()).isNull();
+        assertThat(before.trialNotStarted()).isTrue();
+        assertThat(before.canTakeOrders(Instant.now(), true)).isFalse();
+
+        // Neither Free->Restaurant nor extendTenantTrial may start an unopened location's trial
+        billing.updateTenantPlan("trialonopen", "FREE");
+        billing.updateTenantPlan("trialonopen", "RESTAURANT");
+        assertThat(billing.find("trialonopen").orElseThrow().trialStartedAt()).isNull();
+        billing.extendTenantTrial("trialonopen", 14);
+        assertThat(billing.find("trialonopen").orElseThrow().trialStartedAt()).isNull();
+
+        Instant openedAt = Instant.parse("2026-11-20T15:00:00Z");
+        billing.startTrialIfNeeded("trialonopen", openedAt);
+        var started = billing.find("trialonopen").orElseThrow();
+        assertThat(started.trialStartedAt()).isEqualTo(openedAt);
+        assertThat(started.trialNotStarted()).isFalse();
+
+        // Calling again with a later timestamp leaves the original trial_started_at untouched
+        billing.startTrialIfNeeded("trialonopen", openedAt.plusSeconds(3600));
+        assertThat(billing.find("trialonopen").orElseThrow().trialStartedAt()).isEqualTo(openedAt);
+    }
 }

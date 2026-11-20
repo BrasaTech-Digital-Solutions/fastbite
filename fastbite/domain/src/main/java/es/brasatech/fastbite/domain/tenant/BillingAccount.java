@@ -33,14 +33,15 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
                 cancelAtPeriodEnd, checkoutId, checkoutUrl, checkoutExpires, attempt, null, false,
                 null, null, null, null, null, null);
     }
-    public Instant trialEndsAt() { return trialStartedAt.plus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS); }
+    public Instant trialEndsAt() { return trialStartedAt == null ? null : trialStartedAt.plus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS); }
+    public boolean trialNotStarted() { return "LOCAL_TRIAL".equals(status) && trialStartedAt == null; }
     public boolean isFreePlan() { return "FREE".equalsIgnoreCase(status); }
     public boolean isClosed() { return closedAt != null; }
     public boolean isContractEnded() { return contractEndedAt != null; }
     public boolean dinerPaymentsReady() { return stripeAccountId != null && !stripeAccountId.isBlank() && stripeChargesEnabled; }
     public boolean hasActiveBilling(Instant now) {
         return switch (status) {
-            case "LOCAL_TRIAL" -> now.isBefore(trialEndsAt());
+            case "LOCAL_TRIAL" -> trialStartedAt != null && now.isBefore(trialEndsAt());
             case "trialing" -> stripeTrialEnd > now.getEpochSecond();
             case "active" -> periodEnd > now.getEpochSecond();
             default -> false;
@@ -48,7 +49,7 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
     }
     public Instant computePausedSince(Instant now) {
         if (pausedSince != null) return pausedSince;
-        if ("LOCAL_TRIAL".equals(status) && !now.isBefore(trialEndsAt())) return trialEndsAt();
+        if ("LOCAL_TRIAL".equals(status) && trialStartedAt != null && !now.isBefore(trialEndsAt())) return trialEndsAt();
         if ("trialing".equals(status) && stripeTrialEnd > 0 && stripeTrialEnd <= now.getEpochSecond()) return Instant.ofEpochSecond(stripeTrialEnd);
         if (periodEnd > 0 && periodEnd <= now.getEpochSecond()) return Instant.ofEpochSecond(periodEnd);
         return now;
@@ -58,7 +59,7 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
         if (closedAt != null || contractEndedAt != null) return false;
         return switch (status) {
             case "FREE", "free" -> !production || dinerPaymentsReady();
-            case "LOCAL_TRIAL" -> now.isBefore(trialEndsAt());
+            case "LOCAL_TRIAL" -> trialStartedAt != null && now.isBefore(trialEndsAt());
             case "trialing" -> stripeTrialEnd > now.getEpochSecond();
             case "active" -> periodEnd > now.getEpochSecond();
             default -> false;
@@ -71,7 +72,10 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
         }
         if (contractEndedAt != null) return "Contract ended";
         if ("FREE".equalsIgnoreCase(status)) return dinerPaymentsReady() ? "Free Plan (0€/mo)" : "Free Plan · Connect payments";
-        if ("LOCAL_TRIAL".equals(status)) return Instant.now().isBefore(trialEndsAt()) ? "Free trial" : "Trial ended";
+        if ("LOCAL_TRIAL".equals(status)) {
+            if (trialStartedAt == null) return "Trial starts on opening";
+            return Instant.now().isBefore(trialEndsAt()) ? "Free trial" : "Trial ended";
+        }
         return status.replace('_', ' ') + (cancelAtPeriodEnd ? " (ends at period close)" : "");
     }
     public BillingAccount reserveCheckout(long deadline) {

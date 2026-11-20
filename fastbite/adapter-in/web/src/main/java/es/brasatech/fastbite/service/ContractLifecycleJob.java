@@ -114,7 +114,7 @@ public class ContractLifecycleJob {
             if (!clock.instant().isBefore(deadline)) {
                 break;
             }
-            if (candidate.isFreePlan() || candidate.isClosed()) {
+            if (candidate.isFreePlan() || candidate.isClosed() || candidate.trialNotStarted()) {
                 continue;
             }
             try {
@@ -153,7 +153,7 @@ public class ContractLifecycleJob {
 
         billing.updateLocked(tenantId, account -> {
             decisionHolder[0] = Decision.NONE;
-            if (account.isFreePlan() || account.isClosed()) {
+            if (account.isFreePlan() || account.isClosed() || account.trialNotStarted()) {
                 return account;
             }
             Instant now = clock.instant();
