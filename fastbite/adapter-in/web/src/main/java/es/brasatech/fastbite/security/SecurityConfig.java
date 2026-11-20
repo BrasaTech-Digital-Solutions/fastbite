@@ -68,7 +68,9 @@ public class SecurityConfig {
                                 // Production's single-use sign-in links into the sandbox (SandboxEntryController)
                                 "/link/enter",
                                 // Legal pages, and each restaurant's privacy notice for its guests (LegalController)
-                                "/legal/**", "/privacy", "/*/privacy", "/privacy/pdf", "/*/privacy/pdf").permitAll()
+                                "/legal/**", "/privacy", "/*/privacy", "/privacy/pdf", "/*/privacy/pdf",
+                                // VERI*FACTU Digital Sign webhook (HMAC-SHA256 verified in DigitalSignWebhookController)
+                                "/api/webhooks/digital-sign").permitAll()
                         .requestMatchers("/*/menu/**", "/*/allergens", "/*/api/calculate-cart", "/*/api/calculate-confirmation", "/*/api/toast",
                                 "/*/ticket/**", "/*/api/guest-ticket", "/*/api/create-order", "/*/api/order-status", "/*/api/order-status/live", "/*/order-confirmation/**", "/*/select-payment", "/*/api/stripe/**").permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**", "/user-images/**").permitAll()
@@ -111,6 +113,8 @@ public class SecurityConfig {
                         .permitAll())
                 .csrf(csrf -> csrf
                         .ignoringRequestMatchers("/api/webhooks/stripe", "/internal/link/**", "/internal/jobs/run", "/legal/unsubscribe")
+                        // VERI*FACTU Digital Sign webhook
+                        .ignoringRequestMatchers("/api/webhooks/digital-sign")
                 )
                 .headers(headers -> headers
                         .frameOptions(frameOptions -> frameOptions.sameOrigin())

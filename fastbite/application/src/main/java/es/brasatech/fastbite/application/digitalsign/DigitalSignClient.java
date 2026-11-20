@@ -15,6 +15,11 @@ public interface DigitalSignClient {
     /** {@code GET /requests/{id}} */
     DigitalSignRequest getRequest(String requestId);
 
+    /** {@code GET /requests/{id}} with per-call deadline and retry options. */
+    default DigitalSignRequest getRequest(String requestId, CallOptions options) {
+        return getRequest(requestId);
+    }
+
     /** {@code POST /requests/{id}/signers/{role}/signing-url} */
     SigningUrlResponse createSigningUrl(String requestId, String role);
 
@@ -24,6 +29,16 @@ public interface DigitalSignClient {
     /** {@code GET /requests/{id}/signed-document} */
     byte[] downloadSignedDocument(String requestId);
 
+    /** {@code GET /requests/{id}/signed-document} with per-call deadline and retry options. */
+    default byte[] downloadSignedDocument(String requestId, CallOptions options) {
+        return downloadSignedDocument(requestId);
+    }
+
     /** {@code GET /requests/{id}/evidence-report} */
     byte[] downloadEvidenceReport(String requestId);
+
+    /** {@code GET /requests/{id}/evidence-report} with per-call deadline and retry options. */
+    default byte[] downloadEvidenceReport(String requestId, CallOptions options) {
+        return downloadEvidenceReport(requestId);
+    }
 }

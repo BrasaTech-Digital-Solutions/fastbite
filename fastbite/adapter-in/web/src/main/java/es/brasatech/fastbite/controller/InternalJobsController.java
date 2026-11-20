@@ -3,6 +3,8 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink;
 import es.brasatech.fastbite.application.tenant.PendingSignupService;
 import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
+import es.brasatech.fastbite.application.platform.PromotionService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
@@ -46,7 +48,26 @@ public class InternalJobsController {
             int promotionsSwept,
             int accountTokensDeleted,
             int accountEmailLimitsDeleted,
-            int accountEmailOutboxDeleted) {
+            int accountEmailOutboxDeleted,
+            // VERI*FACTU authorisation reconciliation & webhook event retention
+            int verifactuAuthorizationsChecked,
+            int verifactuAuthorizationsUpdated,
+            int digitalSignWebhookEventsPurged) {
+        public JobRunSummary(
+                int sandboxProvisioned,
+                int verifactuSubmitted,
+                int verifactuLocationsChecked,
+                int verifactuLocationsRemaining,
+                int fiscalIssuersBackfilled,
+                int contractLifecycleActions,
+                int promotionsSwept,
+                int accountTokensDeleted,
+                int accountEmailLimitsDeleted,
+                int accountEmailOutboxDeleted) {
+            this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
+                    fiscalIssuersBackfilled, contractLifecycleActions, promotionsSwept,
+                    accountTokensDeleted, accountEmailLimitsDeleted, accountEmailOutboxDeleted, 0, 0, 0);
+        }
         public JobRunSummary(
                 int sandboxProvisioned,
                 int verifactuSubmitted,
@@ -55,7 +76,7 @@ public class InternalJobsController {
                 int fiscalIssuersBackfilled,
                 int contractLifecycleActions) {
             this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
-                    fiscalIssuersBackfilled, contractLifecycleActions, 0, 0, 0, 0);
+                    fiscalIssuersBackfilled, contractLifecycleActions, 0, 0, 0, 0, 0, 0, 0);
         }
         public JobRunSummary(
                 int sandboxProvisioned,
@@ -64,7 +85,7 @@ public class InternalJobsController {
                 int verifactuLocationsRemaining,
                 int fiscalIssuersBackfilled) {
             this(sandboxProvisioned, verifactuSubmitted, verifactuLocationsChecked, verifactuLocationsRemaining,
-                    fiscalIssuersBackfilled, 0, 0, 0, 0, 0);
+                    fiscalIssuersBackfilled, 0, 0, 0, 0, 0, 0, 0, 0);
         }
     }
 
@@ -72,9 +93,11 @@ public class InternalJobsController {
     private final VerifactuSubmissionJob verifactuSubmission;
     private final FiscalIssuerBackfillJob fiscalIssuerBackfill;
     private final ContractLifecycleJob contractLifecycle;
-    private final es.brasatech.fastbite.application.platform.PromotionService promotionService;
+    private final PromotionService promotionService;
     private final AccountMailOutboxService accountMail;
     private final PendingSignupService pendingSignup;
+    // VERI*FACTU authorisation reconciliation & webhook event retention
+    private final VerifactuAuthorizationService verifactuAuthorizations;
     private final String secret;
     private final Clock clock;
 
@@ -83,9 +106,10 @@ public class InternalJobsController {
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             ContractLifecycleJob contractLifecycle,
-            @Autowired(required = false) es.brasatech.fastbite.application.platform.PromotionService promotionService,
+            @Autowired(required = false) PromotionService promotionService,
             @Autowired(required = false) AccountMailOutboxService accountMail,
             @Autowired(required = false) PendingSignupService pendingSignup,
+            @Autowired(required = false) VerifactuAuthorizationService verifactuAuthorizations,
             @Value("${fastbite.jobs.secret:}") String secret,
             Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
@@ -95,6 +119,7 @@ public class InternalJobsController {
         this.promotionService = promotionService;
         this.accountMail = accountMail;
         this.pendingSignup = pendingSignup;
+        this.verifactuAuthorizations = verifactuAuthorizations;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
@@ -107,14 +132,14 @@ public class InternalJobsController {
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, secret, Clock.systemUTC());
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, secret, Clock.systemUTC());
     }
 
     InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret, Clock clock) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, secret, clock);
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, secret, clock);
     }
 
     @PostMapping("/internal/jobs/run")
@@ -136,6 +161,10 @@ public class InternalJobsController {
         int backfilled = fiscalIssuerBackfill.run(deadline);
         int contractActions = contractLifecycle != null ? contractLifecycle.run(deadline) : 0;
         int promotionsSwept = promotionService != null ? promotionService.sweep() : 0;
+        // VERI*FACTU authorisation reconciliation & webhook event retention
+        VerifactuAuthorizationService.ReconcileSummary verifactuAuth = verifactuAuthorizations != null
+                ? verifactuAuthorizations.reconcile(deadline)
+                : VerifactuAuthorizationService.ReconcileSummary.EMPTY;
         return ResponseEntity.ok(new JobRunSummary(
                 provisioned,
                 verifactu.submitted(),
@@ -146,7 +175,10 @@ public class InternalJobsController {
                 promotionsSwept,
                 cleaned == null ? 0 : cleaned.tokens(),
                 cleaned == null ? 0 : cleaned.limits(),
-                cleaned == null ? 0 : cleaned.outbox()));
+                cleaned == null ? 0 : cleaned.outbox(),
+                verifactuAuth.checked(),
+                verifactuAuth.updated(),
+                verifactuAuth.webhookEventsPurged()));
     }
 
     @GetMapping(value = "/internal/jobs/unsubscribe-token", produces = MediaType.TEXT_PLAIN_VALUE)

@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.config;
 
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.domain.I18nField;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.domain.customization.CustomizationOptionDto;
@@ -15,6 +16,8 @@ import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.table.TableStatus;
 import es.brasatech.fastbite.domain.user.Customer;
 import es.brasatech.fastbite.domain.user.UserDto;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
 import es.brasatech.fastbite.dto.counter.CounterOrderRequest;
 import es.brasatech.fastbite.dto.menu.*;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
@@ -240,5 +243,10 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(es.brasatech.fastbite.domain.discount.DiscountRule.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(es.brasatech.fastbite.domain.discount.DiscountScope.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(es.brasatech.fastbite.domain.discount.DiscountType.class), MemberCategory.values());
+
+        // VERI*FACTU authorisation domain & reconciliation hints
+        hints.reflection().registerType(TypeReference.of(VerifactuAuthorization.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationStatus.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationService.ReconcileSummary.class), MemberCategory.values());
     }
 }

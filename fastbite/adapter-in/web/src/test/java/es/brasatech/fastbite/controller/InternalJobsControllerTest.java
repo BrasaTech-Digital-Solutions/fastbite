@@ -4,6 +4,7 @@ import es.brasatech.fastbite.TestConfig;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.SandboxProvisioningService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
@@ -63,6 +64,7 @@ class InternalJobsControllerTest {
         @MockitoBean ContractLifecycleJob contractLifecycle;
         @MockitoBean es.brasatech.fastbite.application.mail.AccountMailOutboxService accountMail;
         @MockitoBean es.brasatech.fastbite.application.platform.PromotionService promotionService;
+        @MockitoBean VerifactuAuthorizationService verifactuAuthorizations;
         @MockitoBean TenantLocationService tenantLocationService;
 
         @BeforeEach
@@ -83,6 +85,8 @@ class InternalJobsControllerTest {
             when(contractLifecycle.run(any())).thenReturn(2);
             when(promotionService.sweep()).thenReturn(3);
             when(accountMail.cleanup()).thenReturn(new es.brasatech.fastbite.application.mail.AccountMailOutboxPort.Cleanup(6, 7, 8));
+            when(verifactuAuthorizations.reconcile(any()))
+                    .thenReturn(new VerifactuAuthorizationService.ReconcileSummary(9, 2, 11));
 
             mockMvc.perform(post("/internal/jobs/run")
                             .header(InternalJobsController.SECRET_HEADER, SECRET))
@@ -96,10 +100,14 @@ class InternalJobsControllerTest {
                     .andExpect(jsonPath("$.promotionsSwept").value(3))
                     .andExpect(jsonPath("$.accountTokensDeleted").value(6))
                     .andExpect(jsonPath("$.accountEmailLimitsDeleted").value(7))
-                    .andExpect(jsonPath("$.accountEmailOutboxDeleted").value(8));
+                    .andExpect(jsonPath("$.accountEmailOutboxDeleted").value(8))
+                    .andExpect(jsonPath("$.verifactuAuthorizationsChecked").value(9))
+                    .andExpect(jsonPath("$.verifactuAuthorizationsUpdated").value(2))
+                    .andExpect(jsonPath("$.digitalSignWebhookEventsPurged").value(11));
 
             verify(accountMail).run(5);
             verify(accountMail).cleanup();
+            verify(verifactuAuthorizations).reconcile(any());
 
             String expectedToken = new es.brasatech.fastbite.application.tenant.MarketingUnsubscribeLink(SECRET, "http://localhost:8080")
                     .issueToken("ana").orElseThrow();

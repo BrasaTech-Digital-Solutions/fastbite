@@ -1,0 +1,292 @@
+package es.brasatech.fastbite.application.verifactu;
+
+import es.brasatech.fastbite.application.digitalsign.CallOptions;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignClient;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignException;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignProperties;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignRequest;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignRequest.RequestDocuments;
+import es.brasatech.fastbite.application.digitalsign.DigitalSignRequest.RequestSigner;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationDocumentStorage.StoredDocument;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.ReconcileSummary;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.WebhookOutcome;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class VerifactuAuthorizationServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-11-20T12:00:00Z");
+    private static final byte[] SIGNED_PDF = "%PDF-1.4\nsigned\n%%EOF".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] EVIDENCE_PDF = "%PDF-1.4\nevidence\n%%EOF".getBytes(StandardCharsets.UTF_8);
+
+    private VerifactuAuthorizationStore store;
+    private VerifactuAuthorizationDocumentStorage storage;
+    private DigitalSignClient client;
+    private DigitalSignProperties properties;
+    private VerifactuAuthorizationService service;
+
+    @BeforeEach
+    void setUp() {
+        store = mock(VerifactuAuthorizationStore.class);
+        storage = mock(VerifactuAuthorizationDocumentStorage.class);
+        client = mock(DigitalSignClient.class);
+        properties = new DigitalSignProperties();
+        properties.getVerifactu().setSignerRole("Representante");
+        when(client.isConfigured()).thenReturn(true);
+        when(store.update(any())).thenAnswer(inv -> {
+            VerifactuAuthorization arg = inv.getArgument(0);
+            return arg.withVersion(arg.version() + 1);
+        });
+
+        service = new VerifactuAuthorizationService(
+                store, storage, client, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void completedWithMatchingCertificateNifDownloadsBothPdfsAndTransitionsToValid() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-1");
+        when(store.findByDigitalSignRequestId("req-1")).thenReturn(Optional.of(auth));
+
+        // Second signer (Brasatech) has a different NIF; only the configured signer-role must be checked.
+        RequestSigner brasatechSigner = new RequestSigner(
+                "Colaborador", "Brasatech", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", null, "READY", Map.of("organizationIdentifier", "VATES-A12345674"));
+        RequestSigner restaurantSigner = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", "B09767898", "READY",
+                Map.of("subject", "CN=ANA LOPEZ, O=RESTAURANTE SL, OID.2.5.4.97=VATES-B09767898",
+                        "issuer", Map.of("organizationIdentifier", "VATES-Q2826004J")));
+
+        when(client.getRequest(eq("req-1"), any())).thenReturn(new DigitalSignRequest(
+                "req-1", "COMPLETED", auth.id().toString(), "Anexo I", NOW.minusSeconds(60), null, NOW,
+                List.of(brasatechSigner, restaurantSigner), new RequestDocuments(true, true)));
+        when(client.downloadSignedDocument(eq("req-1"), any())).thenReturn(SIGNED_PDF);
+        when(client.downloadEvidenceReport(eq("req-1"), any())).thenReturn(EVIDENCE_PDF);
+        when(storage.storeSignedPdf("B09767898", auth.id(), SIGNED_PDF))
+                .thenReturn(new StoredDocument("B09767898/" + auth.id() + "/signed.pdf", "a".repeat(64)));
+        when(storage.storeEvidencePdf("B09767898", auth.id(), EVIDENCE_PDF))
+                .thenReturn(new StoredDocument("B09767898/" + auth.id() + "/evidence.pdf", "b".repeat(64)));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-1").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.VALID);
+        assertThat(result.validFrom()).isEqualTo(NOW);
+        assertThat(result.certificateNif()).isEqualTo("B09767898");
+        assertThat(result.signerName()).isEqualTo("Ana Lopez");
+        assertThat(result.hasStoredDocuments()).isTrue();
+        assertThat(result.failureReason()).isNull();
+    }
+
+    @Test
+    void completedWithMismatchedCertificateNifMarksNifMismatchWithoutDownloadingPdfs() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-mismatch");
+        when(store.findByDigitalSignRequestId("req-mismatch")).thenReturn(Optional.of(auth));
+
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Luis Perez", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", "12345678Z", "READY",
+                Map.of("serialNumber", "IDCES-12345678Z"));
+        when(client.getRequest(eq("req-mismatch"), any())).thenReturn(new DigitalSignRequest(
+                "req-mismatch", "COMPLETED", auth.id().toString(), "Anexo I", NOW, null, NOW,
+                List.of(signer), new RequestDocuments(true, true)));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-mismatch").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.NIF_MISMATCH);
+        assertThat(result.certificateNif()).isEqualTo("12345678Z");
+        assertThat(result.validFrom()).isNull();
+        assertThat(VerifactuAuthorizationService.maskNif("B09767898")).isEqualTo("B0****898");
+        verify(client, never()).downloadSignedDocument(any(), any());
+        verify(client, never()).downloadEvidenceReport(any(), any());
+    }
+
+    @Test
+    void completedWithUnparseableOrMissingCertificateFailsClosedAsNifUnverified() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-unverified");
+        when(store.findByDigitalSignRequestId("req-unverified")).thenReturn(Optional.of(auth));
+
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Luis Perez", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", null, "READY",
+                Map.of("subject", "CN=UNKNOWN WITHOUT NIF"));
+        when(client.getRequest(eq("req-unverified"), any())).thenReturn(new DigitalSignRequest(
+                "req-unverified", "COMPLETED", auth.id().toString(), "Anexo I", NOW, null, NOW,
+                List.of(signer), new RequestDocuments(true, true)));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-unverified").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.NIF_UNVERIFIED);
+        assertThat(result.validFrom()).isNull();
+        verify(client, never()).downloadSignedDocument(any(), any());
+    }
+
+    @Test
+    void downloadFailureMarksDownloadFailedAndReconciliationRetriesToValid() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-dl");
+        when(store.findByDigitalSignRequestId("req-dl")).thenReturn(Optional.of(auth));
+
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", "B09767898", "READY",
+                Map.of("organizationIdentifier", "VATES-B09767898"));
+        DigitalSignRequest completed = new DigitalSignRequest(
+                "req-dl", "COMPLETED", auth.id().toString(), "Anexo I", NOW, null, NOW,
+                List.of(signer), new RequestDocuments(true, true));
+        when(client.getRequest(eq("req-dl"), any())).thenReturn(completed);
+        when(client.downloadSignedDocument(eq("req-dl"), any())).thenReturn(SIGNED_PDF);
+        when(storage.storeSignedPdf("B09767898", auth.id(), SIGNED_PDF))
+                .thenReturn(new StoredDocument("B09767898/" + auth.id() + "/signed.pdf", "a".repeat(64)));
+        when(client.downloadEvidenceReport(eq("req-dl"), any()))
+                .thenThrow(new DigitalSignException(
+                        DigitalSignException.Kind.NETWORK_ERROR, 0, "deadline_exceeded", null, "timeout"));
+
+        VerifactuAuthorization failed = service.syncRequestForWebhook("req-dl").orElseThrow();
+        assertThat(failed.status()).isEqualTo(VerifactuAuthorizationStatus.DOWNLOAD_FAILED);
+        assertThat(failed.failureReason()).isEqualTo("DOWNLOAD_TIMEOUT");
+        assertThat(failed.signedPdfPath()).isNotNull();
+        assertThat(failed.evidencePdfPath()).isNull();
+
+        // Now reconciliation retries and downloads only the missing evidence PDF -> VALID.
+        when(store.purgeWebhookEventsOlderThan(NOW.minus(Duration.ofDays(30)))).thenReturn(4);
+        when(store.findDueForReconciliation(eq(NOW.minus(Duration.ofHours(1))), eq(50)))
+                .thenReturn(List.of(failed));
+        when(store.findByDigitalSignRequestId("req-dl")).thenReturn(Optional.of(failed));
+        when(storage.exists(failed.signedPdfPath())).thenReturn(true);
+        when(client.downloadEvidenceReport(eq("req-dl"), any())).thenReturn(EVIDENCE_PDF);
+        when(storage.storeEvidencePdf("B09767898", auth.id(), EVIDENCE_PDF))
+                .thenReturn(new StoredDocument("B09767898/" + auth.id() + "/evidence.pdf", "b".repeat(64)));
+
+        ReconcileSummary summary = service.reconcile(NOW.plus(Duration.ofMinutes(2)));
+        assertThat(summary).isEqualTo(new ReconcileSummary(1, 1, 4));
+    }
+
+    @Test
+    void http410GoneTransitionsToTerminalDocumentsGone() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-410");
+        when(store.findByDigitalSignRequestId("req-410")).thenReturn(Optional.of(auth));
+
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW, null, List.of(),
+                "CERTIFICATE", "B09767898", "READY",
+                Map.of("organizationIdentifier", "VATES-B09767898"));
+        when(client.getRequest(eq("req-410"), any())).thenReturn(new DigitalSignRequest(
+                "req-410", "COMPLETED", auth.id().toString(), "Anexo I", NOW, null, NOW,
+                List.of(signer), new RequestDocuments(true, true)));
+        when(client.downloadSignedDocument(eq("req-410"), any()))
+                .thenThrow(new DigitalSignException(DigitalSignException.Kind.GONE, 410, "gone", null, "Purged"));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-410").orElseThrow();
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.DOCUMENTS_GONE);
+        assertThat(result.status().isActive()).isFalse();
+        assertThat(result.status().isTerminal()).isTrue();
+        assertThat(result.failureReason()).isEqualTo("DOCUMENTS_GONE");
+    }
+
+    @Test
+    void failedWebhookDeletesDedupEventSoRedeliverySucceeds() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-crash");
+        when(store.recordWebhookEventIfNew("evt_retry", "request.completed", "req-crash", NOW))
+                .thenReturn(true)
+                .thenReturn(true);
+        when(store.findByDigitalSignRequestId("req-crash"))
+                .thenThrow(new IllegalStateException("Transient DB outage"))
+                .thenReturn(Optional.of(auth));
+        when(client.getRequest(eq("req-crash"), any())).thenReturn(new DigitalSignRequest(
+                "req-crash", "DECLINED", auth.id().toString(), "Anexo I", NOW, null, null,
+                List.of(), new RequestDocuments(false, false)));
+
+        assertThatThrownBy(() -> service.handleWebhook("evt_retry", "request.completed", "req-crash"))
+                .isInstanceOf(IllegalStateException.class);
+        verify(store).deleteWebhookEvent("evt_retry");
+        verify(store, never()).markWebhookEventProcessed(eq("evt_retry"), any());
+
+        // Redelivery now succeeds
+        WebhookOutcome outcome = service.handleWebhook("evt_retry", "request.completed", "req-crash");
+        assertThat(outcome).isEqualTo(WebhookOutcome.PROCESSED);
+        verify(store).markWebhookEventProcessed("evt_retry", NOW);
+    }
+
+    @Test
+    void terminalRowsAreNotResynced() {
+        VerifactuAuthorization declined = inProgressAuth("B09767898", "req-term").withSync(
+                VerifactuAuthorizationStatus.DECLINED, null, null, null, null, null, null, "DECLINED", null, NOW);
+        when(store.findByDigitalSignRequestId("req-term")).thenReturn(Optional.of(declined));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-term").orElseThrow();
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.DECLINED);
+        verify(client, never()).getRequest(any(), any(CallOptions.class));
+    }
+
+    @Test
+    void duplicateWebhookEventSkipsApiCall() {
+        when(store.recordWebhookEventIfNew("evt_dup", "request.completed", "req-1", NOW)).thenReturn(false);
+
+        WebhookOutcome outcome = service.handleWebhook("evt_dup", "request.completed", "req-1");
+
+        assertThat(outcome).isEqualTo(WebhookOutcome.DUPLICATE);
+        verify(client, never()).getRequest(any(), any(CallOptions.class));
+        verify(store, never()).markWebhookEventProcessed(any(), any());
+    }
+
+    @Test
+    void mapsDeclinedExpiredAndCancelledDirectly() {
+        for (String status : List.of("DECLINED", "EXPIRED", "CANCELLED")) {
+            VerifactuAuthorization auth = inProgressAuth("B09767898", "req-" + status);
+            when(store.findByDigitalSignRequestId("req-" + status)).thenReturn(Optional.of(auth));
+            when(client.getRequest(eq("req-" + status), any())).thenReturn(new DigitalSignRequest(
+                    "req-" + status, status, auth.id().toString(), "Anexo I", NOW, null, null,
+                    List.of(), new RequestDocuments(false, false)));
+
+            VerifactuAuthorization updated = service.syncRequestForWebhook("req-" + status).orElseThrow();
+            assertThat(updated.status().name()).isEqualTo(status);
+            assertThat(updated.failureReason()).isEqualTo(status);
+        }
+    }
+
+    private static VerifactuAuthorization inProgressAuth(String nif, String requestId) {
+        return new VerifactuAuthorization(
+                UUID.randomUUID(),
+                nif,
+                "Restaurante Prueba SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS,
+                requestId,
+                "verifactu-" + nif + "-1",
+                1,
+                "tpl-anexo-1",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "owner1",
+                NOW.minusSeconds(120),
+                NOW.minusSeconds(120),
+                null,
+                null,
+                null,
+                0);
+    }
+}

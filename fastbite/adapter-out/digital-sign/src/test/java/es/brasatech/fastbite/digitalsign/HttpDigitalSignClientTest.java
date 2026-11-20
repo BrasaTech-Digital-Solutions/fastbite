@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import es.brasatech.fastbite.application.digitalsign.CertificateNifExtractor;
 import es.brasatech.fastbite.application.digitalsign.CertificateNifExtractor.Status;
+import es.brasatech.fastbite.application.digitalsign.CallOptions;
 import es.brasatech.fastbite.application.digitalsign.CreateRequestCommand;
 import es.brasatech.fastbite.application.digitalsign.CreateRequestCommand.RequestedFileInput;
 import es.brasatech.fastbite.application.digitalsign.CreateRequestCommand.SignerInput;
@@ -28,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -400,6 +402,85 @@ class HttpDigitalSignClientTest {
                 .isInstanceOf(DigitalSignException.class)
                 .satisfies(ex -> assertThat(((DigitalSignException) ex).getKind()).isEqualTo(Kind.NETWORK_ERROR));
         assertThat(recordedBackoffs).hasSize(2);
+    }
+
+    @Test
+    void respectsCallOptionsDeadlineAndNoRetries() {
+        AtomicInteger attempts = new AtomicInteger();
+        server.createContext("/api/v1/requests/no-retry-500", exchange -> {
+            attempts.incrementAndGet();
+            respondJson(exchange, 500, "{\"error\":{\"code\":\"internal_error\",\"message\":\"boom\",\"field\":null}}");
+        });
+
+        CallOptions noRetry = CallOptions.withDeadlineNoRetries(Instant.now().plusSeconds(5));
+        assertThatThrownBy(() -> client.getRequest("no-retry-500", noRetry))
+                .isInstanceOf(DigitalSignException.class)
+                .satisfies(ex -> assertThat(((DigitalSignException) ex).getKind()).isEqualTo(Kind.SERVER_ERROR));
+        assertThat(attempts.get()).isEqualTo(1);
+        assertThat(recordedBackoffs).isEmpty();
+
+        CallOptions expired = CallOptions.withDeadlineNoRetries(Instant.now().minusSeconds(1));
+        assertThatThrownBy(() -> client.downloadSignedDocument("no-retry-500", expired))
+                .isInstanceOf(DigitalSignException.class)
+                .satisfies(ex -> {
+                    DigitalSignException dse = (DigitalSignException) ex;
+                    assertThat(dse.getKind()).isEqualTo(Kind.NETWORK_ERROR);
+                    assertThat(dse.getErrorCode()).isEqualTo("deadline_exceeded");
+                });
+        assertThat(attempts.get()).isEqualTo(1);
+    }
+
+    @Test
+    void enforcesDeadlineAcrossSlowResponseBody() {
+        server.createContext("/api/v1/requests/slow-body/signed-document", exchange -> {
+            exchange.getResponseHeaders().add("Content-Type", "application/pdf");
+            exchange.sendResponseHeaders(200, 0); // chunked so headers arrive immediately
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write("%PDF-1.4\n".getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+                out.write("%%EOF".getBytes(StandardCharsets.UTF_8));
+            } catch (IOException ignored) {
+                // Client cancelled after deadline.
+            }
+        });
+
+        CallOptions tight = CallOptions.withDeadlineNoRetries(Instant.now().plusMillis(200));
+        assertThatThrownBy(() -> client.downloadSignedDocument("slow-body", tight))
+                .isInstanceOf(DigitalSignException.class)
+                .satisfies(ex -> {
+                    DigitalSignException dse = (DigitalSignException) ex;
+                    assertThat(dse.getKind()).isEqualTo(Kind.NETWORK_ERROR);
+                    assertThat(dse.getErrorCode()).isEqualTo("deadline_exceeded");
+                });
+    }
+
+    @Test
+    void rejectsPdfBodyLargerThan20Mb() {
+        server.createContext("/api/v1/requests/huge-pdf/signed-document", exchange -> {
+            exchange.getResponseHeaders().add("Content-Type", "application/pdf");
+            long oversized = (long) HttpDigitalSignClient.MAX_PDF_BYTES + 1024;
+            exchange.sendResponseHeaders(200, oversized);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write("%PDF-1.4\n".getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                Thread.sleep(500);
+            } catch (IOException | InterruptedException ignored) {
+                // Client rejected oversized Content-Length and closed the connection.
+            }
+        });
+
+        assertThatThrownBy(() -> client.downloadSignedDocument("huge-pdf", CallOptions.withDeadlineNoRetries(Instant.now().plusSeconds(5))))
+                .isInstanceOf(DigitalSignException.class)
+                .satisfies(ex -> {
+                    DigitalSignException dse = (DigitalSignException) ex;
+                    assertThat(dse.getKind()).isEqualTo(Kind.UNEXPECTED_RESPONSE);
+                    assertThat(dse.getErrorCode()).isEqualTo("response_too_large");
+                });
     }
 
     @Test

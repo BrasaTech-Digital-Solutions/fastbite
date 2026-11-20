@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.digitalsign;
 
+import es.brasatech.fastbite.application.digitalsign.CallOptions;
 import es.brasatech.fastbite.application.digitalsign.CreateRequestCommand;
 import es.brasatech.fastbite.application.digitalsign.CreateRequestResult;
 import es.brasatech.fastbite.application.digitalsign.DigitalSignClient;
@@ -24,13 +25,16 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -39,6 +43,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 /**
@@ -65,6 +75,8 @@ public class HttpDigitalSignClient implements DigitalSignClient {
     private static final Pattern SIGNING_URL_KV_PATTERN = Pattern.compile("(?i)signingUrl=\\S+");
     private static final Pattern BARE_SIGNING_LINK_PATTERN = Pattern.compile("(?i)https?://\\S*/sign/\\S+");
     private static final int MAX_ERROR_MESSAGE_LENGTH = 500;
+    static final int MAX_PDF_BYTES = 20 * 1024 * 1024;
+    private static final int MAX_JSON_BYTES = 4 * 1024 * 1024;
 
     @FunctionalInterface
     interface Sleeper {
@@ -75,11 +87,13 @@ public class HttpDigitalSignClient implements DigitalSignClient {
     private final ObjectMapper json;
     private final HttpClient http;
     private final Sleeper sleeper;
+    private final Clock clock;
 
     @Autowired
     public HttpDigitalSignClient(
             DigitalSignProperties properties,
-            ObjectProvider<ObjectMapper> objectMapperProvider) {
+            ObjectProvider<ObjectMapper> objectMapperProvider,
+            ObjectProvider<Clock> clockProvider) {
         this(
                 properties,
                 objectMapperProvider.getIfAvailable(ObjectMapper::new),
@@ -91,7 +105,8 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                     if (millis > 0) {
                         Thread.sleep(millis);
                     }
-                });
+                },
+                clockProvider.getIfAvailable(Clock::systemUTC));
     }
 
     HttpDigitalSignClient(
@@ -99,10 +114,20 @@ public class HttpDigitalSignClient implements DigitalSignClient {
             ObjectMapper json,
             HttpClient http,
             Sleeper sleeper) {
+        this(properties, json, http, sleeper, Clock.systemUTC());
+    }
+
+    HttpDigitalSignClient(
+            DigitalSignProperties properties,
+            ObjectMapper json,
+            HttpClient http,
+            Sleeper sleeper,
+            Clock clock) {
         this.properties = properties;
         this.json = json == null ? new ObjectMapper() : json;
         this.http = http;
         this.sleeper = sleeper;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
 
     @Override
@@ -148,13 +173,19 @@ public class HttpDigitalSignClient implements DigitalSignClient {
 
     @Override
     public DigitalSignRequest getRequest(String requestId) {
+        return getRequest(requestId, CallOptions.DEFAULT);
+    }
+
+    @Override
+    public DigitalSignRequest getRequest(String requestId, CallOptions options) {
         requireConfigured();
         requireNonBlank(requestId, "requestId");
-        HttpRequest request = baseRequest("/requests/" + encodeSegment(requestId))
+        CallOptions effective = options == null ? CallOptions.DEFAULT : options;
+        HttpRequest request = baseRequest("/requests/" + encodeSegment(requestId), effective, "GET /requests/{id}")
                 .header(HEADER_ACCEPT, MEDIA_JSON)
                 .GET()
                 .build();
-        HttpResponse<byte[]> response = sendWithRetries(request, "GET /requests/{id}");
+        HttpResponse<byte[]> response = sendWithRetries(request, "GET /requests/{id}", effective);
         JsonNode root = parseJson(response.body(), response.statusCode());
         return parseRequest(root);
     }
@@ -190,50 +221,98 @@ public class HttpDigitalSignClient implements DigitalSignClient {
 
     @Override
     public byte[] downloadSignedDocument(String requestId) {
+        return downloadSignedDocument(requestId, CallOptions.DEFAULT);
+    }
+
+    @Override
+    public byte[] downloadSignedDocument(String requestId, CallOptions options) {
         requireConfigured();
         requireNonBlank(requestId, "requestId");
-        HttpRequest request = baseRequest("/requests/" + encodeSegment(requestId) + "/signed-document")
+        CallOptions effective = options == null ? CallOptions.DEFAULT : options;
+        HttpRequest request = baseRequest(
+                        "/requests/" + encodeSegment(requestId) + "/signed-document",
+                        effective,
+                        "GET /requests/{id}/signed-document")
                 .header(HEADER_ACCEPT, MEDIA_PDF)
                 .GET()
                 .build();
-        HttpResponse<byte[]> response = sendWithRetries(request, "GET /requests/{id}/signed-document");
+        HttpResponse<byte[]> response = sendWithRetries(
+                request, "GET /requests/{id}/signed-document", effective, MAX_PDF_BYTES);
         return response.body() == null ? new byte[0] : response.body();
     }
 
     @Override
     public byte[] downloadEvidenceReport(String requestId) {
+        return downloadEvidenceReport(requestId, CallOptions.DEFAULT);
+    }
+
+    @Override
+    public byte[] downloadEvidenceReport(String requestId, CallOptions options) {
         requireConfigured();
         requireNonBlank(requestId, "requestId");
-        HttpRequest request = baseRequest("/requests/" + encodeSegment(requestId) + "/evidence-report")
+        CallOptions effective = options == null ? CallOptions.DEFAULT : options;
+        HttpRequest request = baseRequest(
+                        "/requests/" + encodeSegment(requestId) + "/evidence-report",
+                        effective,
+                        "GET /requests/{id}/evidence-report")
                 .header(HEADER_ACCEPT, MEDIA_PDF)
                 .GET()
                 .build();
-        HttpResponse<byte[]> response = sendWithRetries(request, "GET /requests/{id}/evidence-report");
+        HttpResponse<byte[]> response = sendWithRetries(
+                request, "GET /requests/{id}/evidence-report", effective, MAX_PDF_BYTES);
         return response.body() == null ? new byte[0] : response.body();
     }
 
     private HttpRequest.Builder baseRequest(String path) {
+        return baseRequest(path, CallOptions.DEFAULT, path);
+    }
+
+    private HttpRequest.Builder baseRequest(String path, CallOptions options, String operation) {
         URI uri = URI.create(properties.normalizedBaseUrl() + path);
+        Duration timeout = defaultIfNull(properties.getReadTimeout(), Duration.ofSeconds(4));
+        if (options != null && options.deadline() != null) {
+            Duration remaining = Duration.between(clock.instant(), options.deadline());
+            if (remaining.isZero() || remaining.isNegative()) {
+                throw new DigitalSignException(
+                        Kind.NETWORK_ERROR, 0, "deadline_exceeded", null,
+                        "Digital Sign deadline exceeded before " + operation);
+            }
+            if (remaining.compareTo(timeout) < 0) {
+                timeout = remaining;
+            }
+        }
         return HttpRequest.newBuilder(uri)
-                .timeout(defaultIfNull(properties.getReadTimeout(), Duration.ofSeconds(4)))
+                .timeout(timeout)
                 .header(HEADER_AUTHORIZATION, "Bearer " + properties.getApiToken());
     }
 
     private HttpResponse<byte[]> sendWithRetries(HttpRequest request, String operation) {
-        int maxRetries = Math.max(0, properties.getMaxRetries());
+        return sendWithRetries(request, operation, CallOptions.DEFAULT, MAX_JSON_BYTES);
+    }
+
+    private HttpResponse<byte[]> sendWithRetries(HttpRequest request, String operation, CallOptions options) {
+        return sendWithRetries(request, operation, options, MAX_JSON_BYTES);
+    }
+
+    private HttpResponse<byte[]> sendWithRetries(
+            HttpRequest request, String operation, CallOptions options, int maxBodyBytes) {
+        int maxRetries = options != null && options.maxRetries() >= 0
+                ? options.maxRetries()
+                : Math.max(0, properties.getMaxRetries());
+        Instant deadline = options == null ? null : options.deadline();
         Duration initialBackoff = defaultIfNull(properties.getRetryInitialBackoff(), Duration.ofMillis(200));
 
         for (int attempt = 0; ; attempt++) {
             try {
-                HttpResponse<byte[]> response = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                HttpResponse<byte[]> response = sendBounded(request, operation, deadline, maxBodyBytes);
                 int status = response.statusCode();
                 if (status >= 200 && status < 300) {
                     return response;
                 }
-                if (status >= 500 && status < 600 && attempt < maxRetries) {
+                if (status >= 500 && status < 600 && attempt < maxRetries
+                        && sleepBackoffIfWithinDeadline(initialBackoff, attempt, operation, deadline)) {
                     log.warn("Digital Sign {} returned HTTP {}, retrying (attempt {}/{})",
                             operation, status, attempt + 1, maxRetries);
-                    sleepBackoff(initialBackoff, attempt, operation);
                     continue;
                 }
                 throw mapError(status, response.body(), operation);
@@ -242,11 +321,15 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                 throw new DigitalSignException(
                         Kind.NETWORK_ERROR, 0, "interrupted", null,
                         "Interrupted during Digital Sign " + operation, e);
+            } catch (BodyTooLargeException e) {
+                throw new DigitalSignException(
+                        Kind.UNEXPECTED_RESPONSE, 0, "response_too_large", null,
+                        "Digital Sign " + operation + " exceeded maximum size of " + maxBodyBytes + " bytes", e);
             } catch (IOException e) {
-                if (attempt < maxRetries) {
+                if (attempt < maxRetries
+                        && sleepBackoffIfWithinDeadline(initialBackoff, attempt, operation, deadline)) {
                     log.warn("Digital Sign {} network error ({}), retrying (attempt {}/{})",
                             operation, e.getClass().getSimpleName(), attempt + 1, maxRetries);
-                    sleepBackoff(initialBackoff, attempt, operation);
                     continue;
                 }
                 throw new DigitalSignException(
@@ -256,8 +339,175 @@ public class HttpDigitalSignClient implements DigitalSignClient {
         }
     }
 
-    private void sleepBackoff(Duration initialBackoff, int attempt, String operation) {
+    private HttpResponse<byte[]> sendBounded(
+            HttpRequest request, String operation, Instant deadline, int maxBodyBytes)
+            throws IOException, InterruptedException, BodyTooLargeException {
+        HttpResponse.BodyHandler<byte[]> handler = boundedByteArrayHandler(maxBodyBytes);
+        if (deadline == null) {
+            try {
+                return http.send(request, handler);
+            } catch (IOException e) {
+                BodyTooLargeException tooLarge = findBodyTooLarge(e);
+                if (tooLarge != null) {
+                    throw tooLarge;
+                }
+                throw e;
+            }
+        }
+        long remainingMillis = Duration.between(clock.instant(), deadline).toMillis();
+        if (remainingMillis <= 0) {
+            throw new DigitalSignException(
+                    Kind.NETWORK_ERROR, 0, "deadline_exceeded", null,
+                    "Digital Sign deadline exceeded before " + operation);
+        }
+        CompletableFuture<HttpResponse<byte[]>> future = http.sendAsync(request, handler);
+        try {
+            return future.get(remainingMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new DigitalSignException(
+                    Kind.NETWORK_ERROR, 0, "deadline_exceeded", null,
+                    "Digital Sign " + operation + " exceeded deadline", e);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            throw e;
+        } catch (ExecutionException e) {
+            BodyTooLargeException tooLarge = findBodyTooLarge(e);
+            if (tooLarge != null) {
+                throw tooLarge;
+            }
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException io) {
+                throw io;
+            }
+            if (cause instanceof DigitalSignException dse) {
+                throw dse;
+            }
+            throw new IOException(cause == null ? e.getMessage() : cause.getMessage(), cause);
+        }
+    }
+
+    private static BodyTooLargeException findBodyTooLarge(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (current instanceof BodyTooLargeException tooLarge) {
+                return tooLarge;
+            }
+        }
+        return null;
+    }
+
+    private static HttpResponse.BodyHandler<byte[]> boundedByteArrayHandler(int maxBytes) {
+        return responseInfo -> {
+            long contentLength = responseInfo.headers().firstValueAsLong("Content-Length").orElse(-1L);
+            if (contentLength > maxBytes) {
+                return new FailingBodySubscriber(new BodyTooLargeException(maxBytes));
+            }
+            return new BoundedByteArraySubscriber(maxBytes);
+        };
+    }
+
+    private static final class BodyTooLargeException extends IOException {
+        BodyTooLargeException(int maxBytes) {
+            super("Response body exceeded " + maxBytes + " bytes");
+        }
+    }
+
+    private static final class FailingBodySubscriber implements HttpResponse.BodySubscriber<byte[]> {
+        private final CompletableFuture<byte[]> result = new CompletableFuture<>();
+
+        FailingBodySubscriber(Throwable error) {
+            result.completeExceptionally(error);
+        }
+
+        @Override
+        public CompletionStage<byte[]> getBody() {
+            return result;
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            subscription.cancel();
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> item) {
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            result.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+        }
+    }
+
+    private static final class BoundedByteArraySubscriber implements HttpResponse.BodySubscriber<byte[]> {
+        private final int maxBytes;
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private final CompletableFuture<byte[]> result = new CompletableFuture<>();
+        private Flow.Subscription subscription;
+        private int total;
+
+        BoundedByteArraySubscriber(int maxBytes) {
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public CompletionStage<byte[]> getBody() {
+            return result;
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            subscription.request(Long.MAX_VALUE);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> items) {
+            if (result.isDone()) {
+                return;
+            }
+            for (ByteBuffer item : items) {
+                int len = item.remaining();
+                if (len == 0) {
+                    continue;
+                }
+                if (total + len > maxBytes) {
+                    if (subscription != null) {
+                        subscription.cancel();
+                    }
+                    result.completeExceptionally(new BodyTooLargeException(maxBytes));
+                    return;
+                }
+                byte[] chunk = new byte[len];
+                item.get(chunk);
+                buffer.write(chunk, 0, len);
+                total += len;
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            result.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            if (!result.isDone()) {
+                result.complete(buffer.toByteArray());
+            }
+        }
+    }
+
+    private boolean sleepBackoffIfWithinDeadline(
+            Duration initialBackoff, int attempt, String operation, Instant deadline) {
         Duration delay = initialBackoff.multipliedBy(1L << Math.min(attempt, 10));
+        if (deadline != null && !clock.instant().plus(delay).isBefore(deadline)) {
+            return false;
+        }
         try {
             sleeper.sleep(delay);
         } catch (InterruptedException e) {
@@ -266,6 +516,7 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                     Kind.NETWORK_ERROR, 0, "interrupted", null,
                     "Interrupted while backing off for Digital Sign " + operation, e);
         }
+        return deadline == null || clock.instant().isBefore(deadline);
     }
 
     private DigitalSignException mapError(int status, byte[] bodyBytes, String operation) {
