@@ -20,6 +20,12 @@
   --color-border: #dee2e6;
   --color-sidebar: #2c3e50;
   --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  --color-highlight: #0d6efd;
+  --color-action: #0d6efd;
+  --color-action-muted: #6c757d;
+  --color-on-action-muted: #fff;
+  --gradient-dialog-header: none;
+  --color-on-dialog-header: var(--color-text-strong);
 
   /* Type, shape and depth */
   --font-body: 'Outfit', 'Segoe UI', sans-serif;
@@ -1057,6 +1063,13 @@ h6 {
   color: var(--color-on-primary);
   border-color: var(--color-primary);
   box-shadow: 0 5px 15px rgba(220, 53, 69, 0.2);
+}
+
+/* The check mark of a toast (the guest menu and the counter share the toast) */
+.toast-icon {
+  flex: none;
+  margin-right: 0.5rem;
+  color: var(--color-success);
 }
 
 /* Entrance Animations */

@@ -18,6 +18,12 @@
   --color-border: #000000;
   --color-sidebar: #000000;
   --gradient-brand: linear-gradient(135deg, #000000, #0000FF);
+  --color-highlight: #0000CD;
+  --color-action: #000000;
+  --color-action-muted: #555555;
+  --color-on-action-muted: #FFFF00;
+  --gradient-dialog-header: linear-gradient(135deg, #000000, #0000FF);
+  --color-on-dialog-header: #FFFF00;
   --font-body: 'Courier New', monospace;
   --radius: 0;
   --shadow-sm: 0 0 0 2px #000000;

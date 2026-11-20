@@ -131,7 +131,7 @@ class GuestCartPricingTest {
                 .andExpect(content().string(containsString(TAKEAWAY)))
                 .andExpect(content().string(not(containsString("id=\"tableNumber\""))))
                 .andExpect(content().string(containsString("id=\"takeawayFields\"")))
-                .andExpect(content().string(containsString("fa-qrcode")))
+                .andExpect(content().string(containsString("data-table-qr-hint")))
                 .andExpect(content().string(containsString("data-can-order=\"true\"")));
     }
 

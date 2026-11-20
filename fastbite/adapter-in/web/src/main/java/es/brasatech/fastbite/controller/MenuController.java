@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.discount.DiscountService;
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.order.OrderPricingService;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
@@ -14,6 +15,7 @@ import es.brasatech.fastbite.service.OrderCheckoutService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +37,7 @@ public class MenuController {
     private final OrderService orderService;
     private final RestaurantSettingsService settingsService;
     private final OrderCheckoutService orderCheckoutService;
+    private final ObjectProvider<FiscalProfileService> fiscalProfiles;
 
 
 
@@ -49,6 +52,7 @@ public class MenuController {
             Locale locale,
             Model model) {
         model.addAttribute("menuData", menuDataService.buildMenuData(locale));
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfiles));
         Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
         model.addAttribute("allergenChartUrl", (prefix != null ? prefix : "") + "/allergens");
         model.addAttribute("privacyUrl", (prefix != null ? prefix : "") + "/privacy");
@@ -121,6 +125,7 @@ public class MenuController {
             return "redirect:" + (prefix != null ? prefix : "") + "/menu";
         }
         model.addAttribute("order", order.get());
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfiles));
         if (order.get().status() == es.brasatech.fastbite.domain.order.OrderStatus.CANCELLED) {
             return "fastfood/orderCancelled";
         }

@@ -108,7 +108,7 @@ class OrderStatusEndpointTest {
 
         mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_paid"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("alert mt-3 mb-0 alert-success")))
+                .andExpect(content().string(containsString("class=\"notice payment-result notice-success\"")))
                 .andExpect(content().string(containsString("id=\"guest-ticket\"")));
         mockMvc.perform(get("/kebab/order-confirmation").session(session).param("session_id", "cs_other"))
                 .andExpect(status().isOk())

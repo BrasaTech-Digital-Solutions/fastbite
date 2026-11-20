@@ -102,6 +102,11 @@
                 <configuration>
                     <skip>false</skip>
                     <mainClass>es.brasatech.fastbite.Application</mainClass>
+                    <buildArgs>
+                        <!-- Without this the image only has the build machine's locale (en), so Spanish and
+                             Portuguese pages printed 1.80 instead of 1,80 (number, currency and date formats) -->
+                        <buildArg>-H:IncludeLocales=es,en,pt</buildArg>
+                    </buildArgs>
                 </configuration>
             </plugin>
 

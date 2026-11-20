@@ -117,13 +117,17 @@ class ThemeContractTest {
     }
 
     @Test
-    void theBaseStylesheetNamesNoTheme() throws IOException {
-        String base = read("static/css/style.css");
-        assertThat(base).doesNotContain("data-theme");
-        for (ThemeCatalog.Theme theme : themes.all()) {
-            assertThat(base).as("theme id %s in the base stylesheet", theme.id())
-                    .doesNotContainPattern("(?i)(?<![\\w-])" + Pattern.quote(theme.id()) + "(?![\\w-])");
+    void theBaseStylesheetsNameNoTheme() throws IOException {
+        for (String path : List.of("static/css/style.css", "static/css/restaurant.css")) {
+            String base = read(path);
+            assertThat(base).as(path).doesNotContain("data-theme");
+            for (ThemeCatalog.Theme theme : themes.all()) {
+                assertThat(base).as("theme id %s in %s", theme.id(), path)
+                        .doesNotContainPattern("(?i)(?<![\\w-])" + Pattern.quote(theme.id()) + "(?![\\w-])");
+            }
         }
+        // The guest pages' stylesheet reads the tokens and never sets one
+        assertThat(declaredTokens(withoutComments(read("static/css/restaurant.css")))).isEmpty();
     }
 
     @Test

@@ -1,17 +1,20 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org">
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="#{message.order.cancelled.title}">Order cancelled</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
+    <title th:text="#{message.order.cancelled.title} + ' · ' + (${restaurantName} ?: #{logo.title})">Order cancelled</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
+<link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
+<body class="guest">
+<svg th:replace="~{fastfood/fragments/guest :: icons}"></svg>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-<main class="container py-5">
+<header th:replace="~{fastfood/fragments/guest :: topbar(page='cancelled')}"></header>
+<main class="container guest-main cancelled-page">
     <h1 th:text="#{message.order.cancelled.title}">Order cancelled</h1>
     <p th:text="#{message.order.cancelled.help}">This order is no longer waiting for payment. Unpaid online takeaway orders expire after one hour. Please place a new order, or contact the restaurant if you already paid.</p>
-    <a class="btn btn-primary" th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" th:text="#{button.back.to.menu}">Back to menu</a>
+    <a class="button button-action" th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" th:text="#{button.back.to.menu}">Back to menu</a>
 </main>
 </body>
 </html>

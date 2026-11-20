@@ -345,7 +345,7 @@ for v in PAID_ORDER_ID TABLE_ORDER_ID GUEST_ORDER_ID ONLINE_ORDER_ID CANCEL_ORDE
 
 CANCELLED_PAGE=$(curl -sS -f -H 'Accept-Language: en' -b "$GUEST_CANCELLED_JAR" -c "$GUEST_CANCELLED_JAR" "$BASE/$T/select-payment")
 CANCELLED_TITLE=$(echo "$CANCELLED_PAGE" | tr -d '\r\n' | grep -o '<title[^>]*>[^<]*</title>' | head -1 || true)
-case "$CANCELLED_TITLE" in *'>Order cancelled</title>') ;; *) fail "cancelled guest /select-payment" "the Order cancelled page" "${CANCELLED_TITLE:-(no title)}";; esac
+case "$CANCELLED_TITLE" in *'>Order cancelled'*'</title>') ;; *) fail "cancelled guest /select-payment" "the Order cancelled page" "${CANCELLED_TITLE:-(no title)}";; esac
 
 # Kitchen queue: every seeded order is listed with the state it should have, and each guest's
 # /order-confirmation shows that order's number.

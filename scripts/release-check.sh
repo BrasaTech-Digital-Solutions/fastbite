@@ -1236,7 +1236,7 @@ done
 
 # A Spanish browser gets Spanish: the native image must contain every language of the messages
 SPANISH_MENU=$(curl -s -H 'Accept-Language: es' "$P/$T/menu" || true)
-if [[ "$SPANISH_MENU" == *"Pedir en L"* ]]; then
+if [[ "$SPANISH_MENU" == *'class="menu-title">Carta</h1>'* ]]; then
   record_match 1 "$P/$T/menu answers in Spanish to a Spanish browser"
 else
   record_match 0 "$P/$T/menu answers in Spanish to a Spanish browser"

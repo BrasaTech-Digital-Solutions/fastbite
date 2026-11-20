@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.order.OrderNumberService;
 import es.brasatech.fastbite.application.order.OrderPricingService;
 import es.brasatech.fastbite.application.order.OrderService;
@@ -18,6 +19,7 @@ import es.brasatech.fastbite.service.OrderCheckoutService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -45,6 +47,7 @@ public class OrderController {
     private final RestaurantSettingsService settingsService;
     private final OrderCheckoutService orderCheckoutService;
     private final es.brasatech.fastbite.service.OrderLiveEventService orderLiveEventService;
+    private final ObjectProvider<FiscalProfileService> fiscalProfiles;
 
     public record CreateOrderRequest(
         List<CartItem> items,
@@ -230,6 +233,7 @@ public class OrderController {
             Object prefix = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
             return "redirect:" + (prefix != null ? prefix : "") + "/select-payment";
         }
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfiles));
         return "fastfood/confirmation";
     }
 

@@ -1,7 +1,9 @@
 # Restaurant themes
 
 The guest and staff pages (menu, payment, confirmation, counter, kitchen, tickets) have one base stylesheet,
-`static/css/style.css` (the back office shares it until it moves), and one theme package per look. Each page carries
+`static/css/style.css` (the back office shares it until it moves), and one theme package per look. The guest pages
+(menu, payment, confirmation, cancelled order), which no longer load Bootstrap, add `static/css/restaurant.css`: their
+layout and components, written against the same tokens, with no theme id and no token of its own. Each page carries
 `data-theme="<id>"` on `<html>` and links the location's `theme.css` after the base.
 
 - **The base** holds layout and components, written against the tokens below. It sets every token's default once, on
@@ -31,6 +33,12 @@ The guest and staff pages (menu, payment, confirmation, counter, kitchen, ticket
 | `--color-border` | Neutral borders: cart, search field, table buttons, order cards, quantity buttons, summary box | `#dee2e6` |
 | `--color-sidebar` | Counter category sidebar (top of its gradient), cart header, back-office field labels | `#2c3e50` |
 | `--gradient-brand` | Top bar, active category, the counter's main and add buttons | `linear-gradient(135deg, var(--color-primary), var(--color-accent))` |
+| `--color-highlight` | Guest pages: prices on menu cards, the cart count, summary icons, links (Bootstrap's blue until now) | `#0d6efd` |
+| `--color-action` | Guest pages: the dialog's main button, outlined cart buttons, the item count, the cancelled page's button | `#0d6efd` |
+| `--color-action-muted` | Guest pages: the dialog's secondary button (Cancel) | `#6c757d` |
+| `--color-on-action-muted` | Text on `--color-action-muted` | `#fff` |
+| `--gradient-dialog-header` | Guest pages: background of a dialog's header (`none`: the dialog's surface) | `none` |
+| `--color-on-dialog-header` | Guest pages: the close button on a dialog's header | `var(--color-text-strong)` |
 | `--font-body` | All text, headings included | `'Outfit', 'Segoe UI', sans-serif` |
 | `--radius` | Corners of cards, cart items, price tags, the counter's header, search field and buttons, menus and dialogs | `20px` |
 | `--shadow-sm` | Top bar and cart items | `none` |

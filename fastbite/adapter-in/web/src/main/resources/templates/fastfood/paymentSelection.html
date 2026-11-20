@@ -1,29 +1,22 @@
 <!DOCTYPE html>
-<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" lang="en" xmlns:th="http://www.thymeleaf.org">
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org">
 
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="#{page.payment.title}">Payment Method - FastBite</title>
+    <title th:text="#{label.select.payment.method} + ' · ' + (${restaurantName} ?: #{logo.title})">Payment Method</title>
     <meta name="_csrf" th:content="${_csrf.token}" />
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
 
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
-<body>
+<body class="guest">
+<svg th:replace="~{fastfood/fragments/guest :: icons}"></svg>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'"><i class="fas fa-hamburger"></i> <span
-                    th:text="#{logo.title}">FastBite</span></a>
-        </div>
-    </nav>
+    <header th:replace="~{fastfood/fragments/guest :: topbar(page='payment')}"></header>
 
-    <!-- Main Content -->
-    <div class="container mt-4 mb-5">
+    <main class="container guest-main guest-main-bottom">
         <!-- Step Indicator -->
         <div class="step-indicator">
             <div class="step completed">1</div>
@@ -33,228 +26,121 @@
         </div>
 
         <!-- Payment Section -->
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <div class="confirmation-card">
-                    <h3 class="mb-4" th:text="#{label.select.payment.method}">Select Payment Method</h3>
+        <div class="page-column page-column-wide">
+            <div class="confirmation-card">
+                <h1 class="payment-title" th:text="#{label.select.payment.method}">Select Payment Method</h1>
 
-                    <form id="paymentForm">
-                        <!-- An online takeaway order is only prepared once it is paid -->
-                        <div class="alert alert-info" th:if="${payFirst}">
-                            <i class="fas fa-shopping-bag me-2"></i>
-                            <span th:text="#{message.takeaway.pay.first}">Takeaway orders are paid online. We start preparing yours as soon as the payment goes through.</span>
+                <form id="paymentForm">
+                    <!-- An online takeaway order is only prepared once it is paid -->
+                    <div class="notice notice-info" th:if="${payFirst}">
+                        <svg class="icon" aria-hidden="true"><use href="#i-bag"></use></svg>
+                        <span th:text="#{message.takeaway.pay.first}">Takeaway orders are paid online. We start preparing yours as soon as the payment goes through.</span>
+                    </div>
+
+                    <!-- Payment Options - Logo Style -->
+                    <div class="pay-options" th:classappend="${payFirst} ? 'pay-options-single'">
+                        <!-- Pay online with Stripe -->
+                        <div class="pay-option-cell">
+                            <input type="radio" class="pay-option-input" name="paymentMethod" id="stripe"
+                                value="stripe-checkout" checked>
+                            <label class="product-card pay-option" for="stripe">
+                                <span class="pay-option-logo brand-stripe" aria-hidden="true">stripe</span>
+                                <span class="pay-option-name" th:text="#{label.payment.online}">Pay online now</span>
+                                <small class="muted" th:text="#{label.payment.mobile.wallets}">Apple Pay,
+                                    Google Pay</small>
+                            </label>
                         </div>
 
-                        <!-- Payment Options - Logo Style -->
-                        <div class="row g-3 mb-4">
-                            <!-- Pay online with Stripe -->
-                            <div th:class="${payFirst} ? 'col-12' : 'col-md-6'">
-                                <input type="radio" class="btn-check" name="paymentMethod" id="stripe"
-                                    value="stripe-checkout" checked>
-                                <label class="card product-card h-100 text-center p-4" for="stripe"
-                                    style="cursor: pointer;">
-                                    <div class="mb-3">
-                                        <i class="fab fa-stripe fa-4x" style="color: #635bff;"></i>
-                                    </div>
-                                    <h6 class="fw-bold" th:text="#{label.payment.online}">Pay online now</h6>
-                                    <small class="text-muted" th:text="#{label.payment.mobile.wallets}">Apple Pay,
-                                        Google Pay</small>
-                                </label>
-                            </div>
-
-                            <!-- Pay in person -->
-                            <div class="col-md-6" th:unless="${payFirst}">
-                                <input type="radio" class="btn-check" name="paymentMethod" id="local" value="local">
-                                <label class="card product-card h-100 text-center p-4" for="local"
-                                    style="cursor: pointer;">
-                                    <div class="mb-3">
-                                        <i class="fa fa-credit-card fa-2x text-primary"></i>
-                                    </div>
-                                    <h6 class="fw-bold" th:text="#{label.payment.card} + ' | ' + #{label.payment.cash}">
-                                        Card | Money</h6>
-                                    <small class="text-muted" th:text="#{label.payment.counter.desc}">At the store
-                                        counter</small>
-                                </label>
-                            </div>
+                        <!-- Pay in person -->
+                        <div class="pay-option-cell" th:unless="${payFirst}">
+                            <input type="radio" class="pay-option-input" name="paymentMethod" id="local" value="local">
+                            <label class="product-card pay-option" for="local">
+                                <span class="pay-option-icon"><svg class="icon icon-2x icon-highlight" aria-hidden="true"><use href="#i-credit-card"></use></svg></span>
+                                <span class="pay-option-name" th:text="#{label.payment.card} + ' | ' + #{label.payment.cash}">
+                                    Card | Money</span>
+                                <small class="muted" th:text="#{label.payment.counter.desc}">At the store
+                                    counter</small>
+                            </label>
                         </div>
+                    </div>
 
-                        <!-- Tip, added to an online payment -->
-                        <div class="card mb-4 border-0 bg-light rounded-4 p-3 shadow-sm" id="tipCard">
-                            <h6 class="fw-bold mb-2 text-dark"><i class="fas fa-heart me-2 text-danger"></i><span
-                                    th:text="#{label.tip.add}">Add a tip</span></h6>
-                            <div class="d-flex flex-wrap gap-2 mb-2">
-                                <button th:each="percent : ${tipPercents}" type="button"
-                                    class="btn btn-sm rounded-pill tip-chip"
-                                    th:classappend="${percent == 0} ? 'btn-danger active' : 'btn-outline-danger'"
-                                    th:data-percent="${percent}" onclick="selectTip(this)">
-                                    <span th:if="${percent == 0}" th:text="#{label.tip.none}">No tip</span>
-                                    <span th:unless="${percent == 0}"><span th:text="${percent}">10</span>% (<span
-                                            class="tip-amount">0.00</span>)</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Order Summary -->
-                        <div class="order-summary mb-4">
-                            <h5 class="mb-3"><i class="fas fa-receipt me-2"></i><span
-                                    th:text="#{label.order.summary}">Order Summary</span> <span
-                                    th:text="'#' + ${order.orderNumber}">#12</span></h5>
-                            <div th:each="item : ${order.items}" class="d-flex justify-content-between mb-2">
-                                <span>
-                                    <span th:text="${item.quantity} + ' x ' + ${item.name}">1 x Coca Cola</span>
-                                    <small th:if="${not #lists.isEmpty(item.customizations)}" class="text-muted d-block"
-                                        th:text="${#strings.listJoin(item.customizations.![name], ', ')}">Large</small>
-                                </span>
-                                <span th:text="${#numbers.formatDecimal(item.totalPrice(), 1, 2)}">5.99</span>
-                            </div>
-                            <hr>
-                            <div class="d-flex justify-content-between mb-2">
-                                <span th:text="#{label.subtotal} + ':'">Subtotal:</span>
-                                <span th:text="${#numbers.formatDecimal(subtotal, 1, 2)}">5.99</span>
-                            </div>
-                            <div th:if="${discount > 0}" class="d-flex justify-content-between mb-2 text-danger">
-                                <span th:text="#{label.discount} + ':'">Discount:</span>
-                                <span th:text="'-' + ${#numbers.formatDecimal(discount, 1, 2)}">-1.00</span>
-                            </div>
-                            <div id="tipRow" class="justify-content-between mb-2" style="display: none;">
-                                <span><span th:text="#{label.tip}">Tip</span> (<span id="selectedTipPercent">0</span>%):</span>
-                                <span class="text-danger fw-bold" id="tipAmountDisplay">0.00</span>
-                            </div>
-                            <hr>
-                            <div class="d-flex justify-content-between fw-bold fs-5">
-                                <span th:text="#{label.total} + ':'">Total:</span>
-                                <span id="displayGrandTotal" th:text="${#numbers.formatDecimal(order.total, 1, 2)}">6.59</span>
-                            </div>
-                        </div>
-
-                        <!-- Security Badge -->
-                        <div class="alert alert-success text-center mb-4">
-                            <i class="fas fa-lock me-2"></i>
-                            <span th:text="#{message.secure.payment.desc}"><strong>Secure Payment</strong> - Your
-                                information is encrypted and secure</span>
-                        </div>
-
-                        <div class="alert alert-danger d-none" id="paymentError" role="alert"></div>
-
-                        <!-- Action Buttons -->
-                        <div class="text-center">
-                            <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="goBack()">
-                                <i class="fas fa-arrow-left"></i> <span th:text="#{button.back}">Back</span>
-                            </button>
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-lock"></i> <span th:text="#{button.proceed.to.payment}">Proceed to
-                                    Payment</span>
+                    <!-- Tip, added to an online payment -->
+                    <div class="tip-card" id="tipCard">
+                        <h2 class="tip-title"><svg class="icon is-danger" aria-hidden="true"><use href="#i-heart"></use></svg><span
+                                th:text="#{label.tip.add}">Add a tip</span></h2>
+                        <div class="tip-chips">
+                            <button th:each="percent : ${tipPercents}" type="button"
+                                class="tip-chip" th:classappend="${percent == 0} ? 'active'"
+                                th:aria-pressed="${percent == 0}"
+                                th:data-percent="${percent}">
+                                <span th:if="${percent == 0}" th:text="#{label.tip.none}">No tip</span>
+                                <span th:unless="${percent == 0}"><span th:text="${percent}">10</span>% (<span
+                                        class="tip-amount">0,00 €</span>)</span>
                             </button>
                         </div>
-                    </form>
-                </div>
+                    </div>
+
+                    <!-- Order Summary -->
+                    <div class="order-summary">
+                        <h2 class="order-summary-title"><svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg><span
+                                th:text="#{label.order.summary}">Order Summary</span> <span
+                                th:text="'#' + ${order.orderNumber}">#12</span></h2>
+                        <div th:each="item : ${order.items}" class="summary-row">
+                            <span>
+                                <span th:text="${item.quantity} + ' x ' + ${item.name}">1 x Coca Cola</span>
+                                <small th:if="${not #lists.isEmpty(item.customizations)}" class="muted summary-options"
+                                    th:text="${#strings.listJoin(item.customizations.![name], ', ')}">Large</small>
+                            </span>
+                            <span th:text="${#prices.format(item.totalPrice())}">5,99 €</span>
+                        </div>
+                        <hr>
+                        <div class="summary-row">
+                            <span th:text="#{label.subtotal} + ':'">Subtotal:</span>
+                            <span th:text="${#prices.format(subtotal)}">5,99 €</span>
+                        </div>
+                        <div th:if="${discount > 0}" class="summary-row is-danger">
+                            <span th:text="#{label.discount} + ':'">Discount:</span>
+                            <span th:text="'-' + ${#prices.format(discount)}">-1,00 €</span>
+                        </div>
+                        <div id="tipRow" class="summary-row" hidden>
+                            <span><span th:text="#{label.tip}">Tip</span> (<span id="selectedTipPercent">0</span>%):</span>
+                            <span class="is-danger strong" id="tipAmountDisplay">0,00 €</span>
+                        </div>
+                        <hr>
+                        <div class="summary-row summary-grand-total">
+                            <span th:text="#{label.total} + ':'">Total:</span>
+                            <span id="displayGrandTotal" th:text="${#prices.format(order.total)}">6,59 €</span>
+                        </div>
+                    </div>
+
+                    <!-- Security Badge -->
+                    <div class="notice notice-success notice-centered">
+                        <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+                        <span th:text="#{message.secure.payment.desc}"><strong>Secure Payment</strong> - Your
+                            information is encrypted and secure</span>
+                    </div>
+
+                    <div class="notice notice-danger" id="paymentError" role="alert" hidden></div>
+
+                    <!-- Action Buttons -->
+                    <div class="payment-actions">
+                        <button type="button" class="button button-outline button-lg" data-go-back>
+                            <svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg> <span th:text="#{button.back}">Back</span>
+                        </button>
+                        <button type="submit" class="button button-success button-lg">
+                            <svg class="icon" aria-hidden="true" data-submit-icon><use href="#i-lock"></use></svg> <span data-submit-label th:text="#{button.proceed.to.payment}">Proceed to
+                                Payment</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
+    </main>
 
-    <div id="paymentData" style="display:none" th:data-order-total="${order.total}"
+    <div id="paymentData" hidden th:data-order-total="${order.total}"
         th:data-processing="#{button.processing}" th:data-error="#{message.payment.unavailable}"></div>
 
-    <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-
-
-        const paymentData = document.getElementById('paymentData').dataset;
-        const orderTotal = parseFloat(paymentData.orderTotal) || 0;
-        let tipPercent = 0;
-
-        const selectedMethod = () => document.querySelector('input[name="paymentMethod"]:checked').value;
-
-        // Highlight the chosen payment card; a tip only makes sense when paying online
-        function showSelectedMethod() {
-            document.querySelectorAll('.btn-check').forEach(radio => {
-                const label = radio.nextElementSibling;
-                label.style.borderColor = radio.checked ? 'var(--color-primary)' : '';
-                label.style.backgroundColor = radio.checked ? 'var(--color-surface-tint)' : '';
-            });
-            document.getElementById('tipCard').style.display = selectedMethod() === 'stripe-checkout' ? '' : 'none';
-            updateTotals();
-        }
-        document.querySelectorAll('.btn-check').forEach(radio => radio.addEventListener('change', showSelectedMethod));
-
-        // What is shown here is only a preview: the server works out the amount to charge
-        function updateTotals() {
-            const percent = selectedMethod() === 'stripe-checkout' ? tipPercent : 0;
-            const tip = Math.round(orderTotal * percent) / 100;
-            document.querySelectorAll('.tip-chip').forEach(chip => {
-                const amount = chip.querySelector('.tip-amount');
-                if (amount) amount.innerText = (Math.round(orderTotal * chip.dataset.percent) / 100).toFixed(2);
-            });
-            document.getElementById('tipAmountDisplay').innerText = tip.toFixed(2);
-            document.getElementById('selectedTipPercent').innerText = percent;
-            document.getElementById('tipRow').style.display = percent > 0 ? 'flex' : 'none';
-            document.getElementById('displayGrandTotal').innerText = (orderTotal + tip).toFixed(2);
-        }
-
-        function selectTip(chip) {
-            document.querySelectorAll('.tip-chip').forEach(other => {
-                other.classList.remove('active', 'btn-danger');
-                other.classList.add('btn-outline-danger');
-            });
-            chip.classList.remove('btn-outline-danger');
-            chip.classList.add('active', 'btn-danger');
-            tipPercent = parseInt(chip.dataset.percent, 10);
-            updateTotals();
-        }
-
-        document.getElementById('paymentForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (selectedMethod() !== 'stripe-checkout') {
-                window.location.assign(getTenantPrefix() + '/order-confirmation');
-                return;
-            }
-
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            const errorBox = document.getElementById('paymentError');
-            const fail = message => {
-                errorBox.textContent = message || paymentData.error;
-                errorBox.classList.remove('d-none');
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            };
-            errorBox.classList.add('d-none');
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + paymentData.processing;
-            submitBtn.disabled = true;
-
-            fetch(getTenantPrefix() + '/api/stripe/create-checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]').content
-                },
-                body: JSON.stringify({ tipPercent: tipPercent })
-            })
-                .then(res => res.json())
-                .then(data => data.checkoutUrl ? window.location.assign(data.checkoutUrl) : fail(data.error))
-                .catch(() => fail());
-        });
-
-        function getTenantPrefix() {
-            const path = window.location.pathname;
-            const segments = path.split('/');
-            if (segments.length > 1) {
-                const firstSegment = segments[1];
-                const reserved = ["signup", "login", "css", "js", "images", "webjars", "stripe", "error", "favicon.ico", "actuator", "api", "counter", "backoffice", "dashboard", "logout", "menu", "select-payment", "order-confirmation", ".well-known", "appspecific"];
-                if (firstSegment && !reserved.includes(firstSegment)) {
-                    return '/' + firstSegment;
-                }
-            }
-            return '';
-        }
-
-        function goBack() {
-            window.history.back();
-        }
-
-        document.addEventListener('DOMContentLoaded', showSelectedMethod);
-    </script>
+    <script th:src="@{/js/payment-selection.js}" defer></script>
 </body>
 
 </html>

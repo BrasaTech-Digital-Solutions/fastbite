@@ -15,6 +15,10 @@
   --gradient-brand: linear-gradient(135deg, #1A1A1A, #2D3748);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --color-action: #1A1A1A;
+  --color-action-muted: #374151;
+  --gradient-dialog-header: var(--gradient-brand);
+  --color-on-dialog-header: #fff;
 }
 
 /* Kitchen: order card headers by status */

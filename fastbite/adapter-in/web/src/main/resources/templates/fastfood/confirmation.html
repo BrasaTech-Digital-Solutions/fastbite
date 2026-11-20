@@ -1,28 +1,21 @@
 <!DOCTYPE html>
-<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" lang="en" xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/xhtml">
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/xhtml">
 
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="#{page.title}">FastBite - Order Online</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title th:text="#{label.order.number} + ' ' + (${orderNumber} ?: '') + ' · ' + (${restaurantName} ?: #{logo.title})">Order</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
 
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
-<body>
+<body class="guest">
+<svg th:replace="~{fastfood/fragments/guest :: icons}"></svg>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#"><i class="fas fa-hamburger"></i> <span
-                    th:text="#{logo.title}">FastBite</span></a>
-        </div>
-    </nav>
+    <header th:replace="~{fastfood/fragments/guest :: topbar(page='confirmation')}"></header>
 
-    <!-- Main Content -->
-    <div class="container mt-4">
+    <main class="container guest-main">
         <!-- Step Indicator -->
         <div class="step-indicator">
             <div class="step completed" id="step1">1</div>
@@ -32,172 +25,73 @@
         </div>
 
         <!-- Success Section -->
-        <div id="successSection">
-            <div class="row justify-content-center">
-                <div class="col-lg-6">
-                    <div class="confirmation-card text-center">
-                        <div class="confirmation-header">
-                            <i class="fas fa-check-circle text-success fa-5x mb-3"></i>
-                            <h2 class="text-success mb-2" id="order-success-title" th:hidden="${paymentPending}" th:text="#{message.order.submitted.successfully}">Order
-                                Submitted Successfully!</h2>
-                            <p class="text-muted" id="order-success-detail" th:hidden="${paymentPending}" th:text="#{message.thank.you.details}">Gracias por tu pedido. Lo
-                                estamos preparando ya.</p>
-                            <!-- Shown when the guest comes back from paying online -->
-                            <div th:if="${paidOnline != null and !paymentPending}" class="alert mt-3 mb-0" id="paymentResult"
-                                th:classappend="${paidOnline} ? 'alert-success' : 'alert-warning'">
-                                <i class="fas me-2" th:classappend="${paidOnline} ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
-                                <span th:text="${paidOnline} ? #{message.payment.received} : #{message.payment.not.confirmed}">Payment received</span>
-                            </div>
-                        </div>
-
-                        <div class="py-4">
-                            <h6 class="text-muted text-uppercase fw-bold mb-2" th:text="#{label.order.number}">Order
-                                Number</h6>
-                            <h1 class="display-1 fw-bold text-dark" th:text="${orderNumber}" id="orderNumber"
-                                style="font-size: 8rem;">100</h1>
-                        </div>
-
-                        <!-- Live 4-Stage Visual Order Progress Bar (F-21) -->
-                        <div id="order-progress-card" th:hidden="${paymentPending}" class="card mb-4 border-0 bg-light rounded-4 p-4 shadow-sm text-start">
-                            <h6 class="fw-bold mb-3 text-dark text-center"><i class="fas fa-signal me-2 text-danger"></i>Live Kitchen Status Tracker</h6>
-                            
-                            <div class="progress mb-3" style="height: 12px; border-radius: 10px;">
-                                <div id="liveOrderProgressBar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 25%;"></div>
-                            </div>
-
-                            <div class="row text-center small fw-bold text-muted">
-                                <div class="col-3" id="stage1Col">
-                                    <i class="fas fa-inbox text-success fa-2x mb-1 d-block"></i> Received
-                                </div>
-                                <div class="col-3 opacity-50" id="stage2Col">
-                                    <i class="fas fa-fire-burner text-warning fa-2x mb-1 d-block"></i> Cooking
-                                </div>
-                                <div class="col-3 opacity-50" id="stage3Col">
-                                    <i class="fas fa-bell text-info fa-2x mb-1 d-block"></i> Ready
-                                </div>
-                                <div class="col-3 opacity-50" id="stage4Col">
-                                    <i class="fas fa-check-double text-success fa-2x mb-1 d-block"></i> Complete
-                                </div>
-                            </div>
-                        </div>
-
-                        <section th:if="${guestTicketExpected}" id="guest-ticket" class="bg-light p-3 rounded-4 mb-4 border"
-                                 th:attr="data-pending=#{guest.ticket.pending},data-timeout=#{guest.ticket.timeout},data-label=#{guest.ticket.number}">
-                            <p id="guest-ticket-status" role="status" th:text="#{guest.ticket.pending}">Preparing your ticket…</p>
-                            <a id="guest-ticket-link" class="btn btn-pos-primary btn-lg" hidden th:text="#{guest.ticket.open}">View and save your ticket</a>
-                        </section>
-
-                        <div class="d-grid gap-3">
-                            <a th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" class="btn btn-pos-primary btn-lg rounded-pill" id="startNewOrderBtn">
-                                <i class="fas fa-arrow-left me-2"></i> <span
-                                    th:text="#{button.place.another.order}">Place Another Order</span>
-                            </a>
-                        </div>
+        <div id="successSection" class="page-column page-column-narrow">
+            <div class="confirmation-card confirmation-card-centered">
+                <div class="confirmation-header">
+                    <svg class="icon icon-5x is-success" aria-hidden="true"><use href="#i-check-circle"></use></svg>
+                    <h2 class="success-title" id="order-success-title" th:hidden="${paymentPending}" th:text="#{message.order.submitted.successfully}">Order
+                        Submitted Successfully!</h2>
+                    <p class="muted" id="order-success-detail" th:hidden="${paymentPending}" th:text="#{message.thank.you.details}">Gracias por tu pedido. Lo
+                        estamos preparando ya.</p>
+                    <!-- Shown when the guest comes back from paying online -->
+                    <div th:if="${paidOnline != null and !paymentPending}" class="notice payment-result" id="paymentResult"
+                        th:classappend="${paidOnline} ? 'notice-success' : 'notice-warning'">
+                        <svg class="icon" aria-hidden="true"><use th:href="${paidOnline} ? '#i-check-circle' : '#i-warning'" href="#i-check-circle"></use></svg>
+                        <span th:text="${paidOnline} ? #{message.payment.received} : #{message.payment.not.confirmed}">Payment received</span>
                     </div>
+                </div>
+
+                <div class="order-number-block">
+                    <p class="order-number-label" th:text="#{label.order.number}">Order
+                        Number</p>
+                    <h1 class="order-number" th:text="${orderNumber}" id="orderNumber">100</h1>
+                </div>
+
+                <!-- Live 4-Stage Visual Order Progress Bar (F-21) -->
+                <section id="order-progress-card" th:hidden="${paymentPending}" class="tracker" data-stage="1"
+                    aria-labelledby="trackerTitle">
+                    <h2 class="tracker-title" id="trackerTitle"><svg class="icon is-danger" aria-hidden="true"><use href="#i-signal"></use></svg><span
+                            th:text="#{guest.tracker.title}">Your order status</span></h2>
+
+                    <div class="tracker-bar" role="progressbar" aria-valuemin="0" aria-valuemax="4" aria-valuenow="1"
+                        aria-labelledby="trackerTitle">
+                        <div id="liveOrderProgressBar" class="tracker-bar-fill"></div>
+                    </div>
+
+                    <ol class="tracker-stages">
+                        <li class="tracker-stage stage-received" id="stage1Col">
+                            <svg class="icon icon-2x" aria-hidden="true"><use href="#i-inbox"></use></svg> <span th:text="#{guest.tracker.received}">Received</span>
+                        </li>
+                        <li class="tracker-stage stage-cooking" id="stage2Col">
+                            <svg class="icon icon-2x" aria-hidden="true"><use href="#i-fire"></use></svg> <span th:text="#{guest.tracker.cooking}">Cooking</span>
+                        </li>
+                        <li class="tracker-stage stage-ready" id="stage3Col">
+                            <svg class="icon icon-2x" aria-hidden="true"><use href="#i-bell"></use></svg> <span th:text="#{guest.tracker.ready}">Ready</span>
+                        </li>
+                        <li class="tracker-stage stage-complete" id="stage4Col">
+                            <svg class="icon icon-2x" aria-hidden="true"><use href="#i-check-double"></use></svg> <span th:text="#{guest.tracker.complete}">Complete</span>
+                        </li>
+                    </ol>
+                </section>
+
+                <section th:if="${guestTicketExpected}" id="guest-ticket" class="guest-ticket"
+                         th:attr="data-pending=#{guest.ticket.pending},data-timeout=#{guest.ticket.timeout},data-label=#{guest.ticket.number}">
+                    <p id="guest-ticket-status" role="status" th:text="#{guest.ticket.pending}">Preparing your ticket…</p>
+                    <a id="guest-ticket-link" class="btn-pos-primary button-lg" hidden th:text="#{guest.ticket.open}">View and save your ticket</a>
+                </section>
+
+                <div class="button-stack button-stack-wide">
+                    <a th:href="${!#strings.isEmpty(tenantId)} ? @{/{tenantId}/menu(tenantId=${tenantId})} : '/menu'" class="btn-pos-primary button-pill button-lg" id="startNewOrderBtn">
+                        <svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg> <span
+                            th:text="#{button.place.another.order}">Place Another Order</span>
+                    </a>
                 </div>
             </div>
         </div>
-    </div>
-    <script th:src="@{/js/live-updates.js}"></script>
+    </main>
+    <script th:src="@{/js/live-updates.js}" defer></script>
+    <script th:src="@{/js/order-progress.js}" defer></script>
     <script th:src="@{/js/guest-ticket.js}" defer></script>
-    <script>
-
-
-        // Live Order Progress Tracker JS (F-21)
-        const FINISHED_STATUSES = ['COMPLETE', 'CANCELLED'];
-
-        function getTenantPrefix() {
-            const path = window.location.pathname;
-            const segments = path.split('/');
-            if (segments.length > 1) {
-                const firstSegment = segments[1];
-                const reserved = ["signup", "login", "css", "js", "images", "webjars", "stripe", "error", "favicon.ico", "actuator", "api", "counter", "backoffice", "dashboard", "logout", "menu", "select-payment", "order-confirmation", ".well-known", "appspecific"];
-                if (firstSegment && !reserved.includes(firstSegment)) {
-                    return '/' + firstSegment;
-                }
-            }
-            return '';
-        }
-
-        function startOrderProgressPolling() {
-            let liveUpdates = null;
-            const orderStatusUrl = getTenantPrefix() + '/api/order-status';
-            const sseUrl = getTenantPrefix() + '/api/order-status/live';
-
-            const pollOnce = () => {
-                fetch(orderStatusUrl)
-                    .then(res => res.ok ? res.json() : null)
-                    .then(order => {
-                        if (!order) return;
-                        updateProgressTracker(order.status);
-                        if (FINISHED_STATUSES.includes(order.status) && fallbackTimer) {
-                            clearInterval(fallbackTimer);
-                        }
-                    })
-                    .catch(err => console.error('Order status poll error:', err));
-            };
-
-            // Immediate initial poll
-            pollOnce();
-
-            liveUpdates = connectLiveUpdates(sseUrl, {
-                poll: pollOnce,
-                intervalMs: 5000,
-                onUpdate: function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data && data.status) {
-                            updateProgressTracker(data.status);
-                            if (FINISHED_STATUSES.includes(data.status) && liveUpdates) {
-                                liveUpdates.close();
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Failed to parse order-update event', e);
-                    }
-                }
-            });
-        }
-
-        function updateProgressTracker(status) {
-            const bar = document.getElementById('liveOrderProgressBar');
-            const s1 = document.getElementById('stage1Col');
-            const s2 = document.getElementById('stage2Col');
-            const s3 = document.getElementById('stage3Col');
-            const s4 = document.getElementById('stage4Col');
-
-            if (!bar) return;
-
-            if (s1) s1.classList.add('opacity-50');
-            if (s2) s2.classList.add('opacity-50');
-            if (s3) s3.classList.add('opacity-50');
-            if (s4) s4.classList.add('opacity-50');
-
-            if (status === 'CREATED' || status === 'ACCEPTED') {
-                bar.style.width = '25%';
-                if (s1) s1.classList.remove('opacity-50');
-            } else if (status === 'PROCESSING') {
-                bar.style.width = '50%';
-                if (s1) s1.classList.remove('opacity-50');
-                if (s2) s2.classList.remove('opacity-50');
-            } else if (status === 'DONE' || status === 'DELIVERED') {
-                bar.style.width = '75%';
-                if (s1) s1.classList.remove('opacity-50');
-                if (s2) s2.classList.remove('opacity-50');
-                if (s3) s3.classList.remove('opacity-50');
-            } else if (status === 'COMPLETE') {
-                bar.style.width = '100%';
-                if (s1) s1.classList.remove('opacity-50');
-                if (s2) s2.classList.remove('opacity-50');
-                if (s3) s3.classList.remove('opacity-50');
-                if (s4) s4.classList.remove('opacity-50');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            startOrderProgressPolling();
-        });
-    </script>
 </body>
 
 </html>

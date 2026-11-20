@@ -27,8 +27,10 @@ document.addEventListener('DOMContentLoaded', function () {
     updateCartDisplay();
 });
 
+// Prices in the page's language, as the server prints them: "1,80 €" on a Spanish page
+const priceFormat = new Intl.NumberFormat(document.documentElement.lang || 'es', { style: 'currency', currency: 'EUR' });
 function formatPrice(price) {
-    return parseFloat(price).toFixed(2);
+    return priceFormat.format(parseFloat(price) || 0);
 }
 
 // Render menu items
@@ -38,8 +40,9 @@ function handleAddEventListener() {
     document.getElementById('floatingCartBtn')?.addEventListener('click', toggleCart);
 
     // Combos Tab
-    const tabs = document.getElementById('menuTabs').dataset.availableTabs?.split(',');
+    const tabs = document.getElementById('menuTabs').dataset.availableTabs?.split(',').filter(Boolean) || [];
     tabs.forEach(tab => addListenerToMenuCategory(tab));
+    addCategoryTabs();
 
     // Customization Modal
     addEventListenerToCustomizationModel();
@@ -71,6 +74,32 @@ function addEventListenerToCustomizationModel() {
 
     document.getElementById('customizationCancelBtn').addEventListener('click', closeCustomizationModal);
     document.getElementById('customizationSubmitBtn').addEventListener('click', addCustomizedItem);
+}
+
+// Category tabs: one panel shows at a time; arrow keys move between tabs
+function addCategoryTabs() {
+    const tabButtons = Array.from(document.querySelectorAll('#menuTabs [role="tab"]'));
+    const select = button => {
+        tabButtons.forEach(other => {
+            const on = other === button;
+            other.classList.toggle('active', on);
+            other.setAttribute('aria-selected', String(on));
+            other.tabIndex = on ? 0 : -1;
+            const panel = document.getElementById(other.dataset.tabTarget);
+            if (panel) panel.hidden = !on;
+        });
+    };
+    tabButtons.forEach((button, index) => {
+        button.addEventListener('click', () => select(button));
+        button.addEventListener('keydown', event => {
+            const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+            if (!step) return;
+            event.preventDefault();
+            const next = tabButtons[(index + step + tabButtons.length) % tabButtons.length];
+            select(next);
+            next.focus();
+        });
+    });
 }
 
 function addListenerToMenuCategory(category) {
@@ -195,7 +224,7 @@ function showCustomizationModal(itemId, customizations = []) {
     customizationsModal.forEach(option => {
         const parent = document.getElementById(option);
         if (!parent) return;
-        parent.style.display = "none";
+        parent.hidden = true;
         // Reset radio buttons
         const radios = parent.querySelectorAll('input[type="radio"]');
         radios.forEach(radio => {
@@ -241,7 +270,7 @@ function showCustomizationModal(itemId, customizations = []) {
     customizationsModal.forEach(option => {
         let currentCustomizationElement = document.getElementById(option);
         if (currentCustomizationElement && (customizations || []).includes(option)) {
-            currentCustomizationElement.style.display = "block";
+            currentCustomizationElement.hidden = false;
         }
     });
 
@@ -255,9 +284,9 @@ function showCustomizationModal(itemId, customizations = []) {
         modalImg.alt = productName;
     }
 
-    const modalTitle = document.querySelector('#customizationsModal .modal-title');
+    const modalTitle = document.querySelector('#customizationsModal .dialog-title');
     if (modalTitle) {
-        modalTitle.textContent = (modalTitle.dataset.title || '') + ' ' + productName;
+        modalTitle.textContent = (modalTitle.dataset.title || '{0}').replace('{0}', productName);
     }
 
     // Update submit button text
@@ -271,8 +300,7 @@ function showCustomizationModal(itemId, customizations = []) {
         }
     }
 
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
+    window.FastBiteDialogs.open(modalElement, document.activeElement);
 }
 
 // Edit item in cart
@@ -327,8 +355,8 @@ function addCustomizedItem() {
     const customizationsMap = new Map();
     
     // Get visible customization groups
-    const visibleGroups = Array.from(document.querySelectorAll('#customizations > div'))
-        .filter(div => div.style.display !== 'none');
+    const visibleGroups = Array.from(document.querySelectorAll('#customizations > fieldset'))
+        .filter(group => !group.hidden);
 
     visibleGroups.forEach(group => {
         // Radios and Checkboxes
@@ -376,15 +404,9 @@ function addCustomizedItem() {
     document.getElementById(`qty-${currentCustomization.itemId}`).textContent = '1';
 }
 
-// Close the modal in accessibility-compliant way
+// Close the dialog: focus goes back to what opened it
 function closeCustomizationModal() {
-    const modalElement = document.getElementById('customizationsModal');
-    const focusedElement = modalElement.querySelector(':focus');
-    if (focusedElement) {
-        focusedElement.blur();
-    }
-    const modal = bootstrap.Modal.getInstance(modalElement);
-    modal.hide();
+    window.FastBiteDialogs.close(document.getElementById('customizationsModal'));
 }
 
 // Add item to cart
@@ -431,7 +453,7 @@ function updateCartDisplay() {
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
     cartCount.textContent = totalItems;
     const cartSection = document.getElementById('cartSection');
-    if (cartSection.style.display === 'block') {
+    if (!cartSection.hidden) {
         loadCartData()
     }
 
@@ -439,7 +461,7 @@ function updateCartDisplay() {
     const floatingCount = document.getElementById('floatingCartCount');
     if (floatingCount) {
         floatingCount.textContent = totalItems;
-        floatingCount.classList.toggle('d-none', totalItems === 0);
+        floatingCount.hidden = totalItems === 0;
     }
 }
 
@@ -464,14 +486,14 @@ function toggleCart() {
     const menuSection = document.getElementById('menuSection');
     const cartSection = document.getElementById('cartSection');
 
-    if (cartSection.style.display === 'none') {
+    if (cartSection.hidden) {
         loadCartData()
-        menuSection.style.display = 'none';
-        cartSection.style.display = 'block';
+        menuSection.hidden = true;
+        cartSection.hidden = false;
         updateStep(2);
     } else {
-        cartSection.style.display = 'none';
-        menuSection.style.display = 'block';
+        cartSection.hidden = true;
+        menuSection.hidden = false;
         cartSection.innerHTML = '';
         updateStep(1);
     }
@@ -506,8 +528,8 @@ function proceedToCheckout() {
     loadFragments(url).then(html => {
         const confirmationSection = document.getElementById('confirmationSection');
         confirmationSection.innerHTML = html;
-        document.getElementById('cartSection').style.display = 'none';
-        confirmationSection.style.display = 'block';
+        document.getElementById('cartSection').hidden = true;
+        confirmationSection.hidden = false;
         updateStep(3);
     }).catch(error => showToast(error.message));
 }
@@ -527,7 +549,6 @@ function disableNonCustomizableEditButtons() {
             const customizations = productMetadata.dataset.customizations;
             if (!customizations || customizations.trim() === '') {
                 button.disabled = true;
-                button.classList.add('opacity-50'); // Visual hint it's disabled
             }
         }
     });
@@ -535,16 +556,16 @@ function disableNonCustomizableEditButtons() {
 
 // Back to menu
 function backToMenu() {
-    document.getElementById('cartSection').style.display = 'none';
-    document.getElementById('menuSection').style.display = 'block';
+    document.getElementById('cartSection').hidden = true;
+    document.getElementById('menuSection').hidden = false;
     updateStep(1);
 }
 
 // Back to cart
 function backToCart() {
     const confirmationSection = document.getElementById('confirmationSection');
-    confirmationSection.style.display = 'none';
-    document.getElementById('cartSection').style.display = 'block';
+    confirmationSection.hidden = true;
+    document.getElementById('cartSection').hidden = false;
     updateStep(2);
     confirmationSection.innerHTML = '';
 }
@@ -574,7 +595,8 @@ function submitOrder() {
     const submitBtn = document.getElementById('submitOrderBtn');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Procesando...';
+        submitBtn.setAttribute('data-busy', '');
+        submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-spinner"></use></svg> Procesando...';
     }
 
     fetch(getApiSaveCartUrl(), {
@@ -598,7 +620,8 @@ function submitOrder() {
             showToast("Error al crear el pedido: " + (data.message || "Error desconocido"));
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Confirmar y enviar';
+                submitBtn.removeAttribute('data-busy');
+                submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-send"></use></svg> Confirmar y enviar';
             }
         }
     })
@@ -607,14 +630,15 @@ function submitOrder() {
         showToast("Error de conexión al enviar el pedido.");
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Confirmar y enviar';
+            submitBtn.removeAttribute('data-busy');
+            submitBtn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-send"></use></svg> Confirmar y enviar';
         }
     });
 }
 
 // Start new order
 function startNewOrder() {
-    document.getElementById('menuSection').style.display = 'block';
+    document.getElementById('menuSection').hidden = false;
     updateStep(1);
 }
 
@@ -659,7 +683,7 @@ function showToast(message) {
 function createToastContainer() {
     const container = document.createElement('div');
     container.id = 'toastContainer';
-    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    container.className = 'toast-container';
     document.body.appendChild(container);
     return container;
 }

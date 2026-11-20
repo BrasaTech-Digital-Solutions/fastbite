@@ -280,7 +280,7 @@ async function main() {
         for (const [w, h] of [[375, 812], [1280, 800]]) {
           await captureShot(guestCtx, path.join(themeDir, `menu-allergen-filter-${w}x${h}.png`), w, h, `${base}/${tenant}/menu`, async (p) => {
             await tap(p.locator('.allergen-filter-btn'));
-            await shown(p, '#allergenModal.show', 'allergen filter dialog');
+            await shown(p, '#allergenModal:is(.show, [open])', 'allergen filter dialog');
           }, { fullPage: false, clearStorage: true });
           // The customization dialog opens from a cart line whose product has customizations.
           await captureShot(guestCtx, path.join(themeDir, `menu-customize-${w}x${h}.png`), w, h, `${base}/${tenant}/menu`, async (p) => {
@@ -291,7 +291,7 @@ async function main() {
             await tap(p.locator('#navBarCheckoutBtn'));
             await shown(p, `.edit-cart-button[data-product-id="${id}"]:enabled`, 'cart line edit button');
             await tap(p.locator(`.edit-cart-button[data-product-id="${id}"]`));
-            await shown(p, '#customizationsModal.show', 'customization dialog');
+            await shown(p, '#customizationsModal:is(.show, [open])', 'customization dialog');
             await noToasts(p);
           }, { fullPage: false, clearStorage: true });
           await captureShot(guestCtx, path.join(themeDir, `menu-cart-${w}x${h}.png`), w, h, `${base}/${tenant}/menu`, async (p) => {

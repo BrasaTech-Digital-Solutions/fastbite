@@ -27,6 +27,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         hints.reflection().registerType(ThemeCatalog.Theme.class, MemberCategory.values());
+        // #prices in the guest templates (PriceDialect): SpEL calls Prices.format reflectively
+        hints.reflection().registerType(Prices.class, MemberCategory.INVOKE_PUBLIC_METHODS);
         hints.reflection().registerType(es.brasatech.fastbite.application.office.StaffAccountPort.Staff.class, MemberCategory.values());
         hints.resources().registerPattern("themes/**");
         hints.reflection().registerType(es.brasatech.fastbite.domain.tenant.SetupProgress.class, org.springframework.aot.hint.MemberCategory.values());
