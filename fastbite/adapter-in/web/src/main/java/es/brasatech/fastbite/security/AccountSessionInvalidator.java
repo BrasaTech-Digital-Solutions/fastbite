@@ -18,11 +18,18 @@ public class AccountSessionInvalidator {
     public void invalidate(String username, String homeTenantId, String keepSessionId) {
         sessions.findByPrincipalName(username).forEach((id, session) -> {
             if (id.equals(keepSessionId)) return;
-            SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+            SecurityContext context = securityContext(id, session);
             if (context == null || context.getAuthentication() == null
                     || !(context.getAuthentication().getPrincipal() instanceof TenantUser user)) return;
             boolean sameTenant = homeTenantId == null ? user.isPlatformAccount() : user.belongsTo(homeTenantId);
             if (sameTenant && username.equals(user.getUsername())) sessions.deleteById(id);
         });
+    }
+
+    private SecurityContext securityContext(String id, Session session) {
+        SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        if (context != null) return context;
+        Session reloaded = sessions.findById(id);
+        return reloaded == null ? null : reloaded.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
     }
 }

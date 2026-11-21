@@ -10,6 +10,7 @@ import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.domain.user.Role;
+import es.brasatech.fastbite.security.AccountSessionInvalidator;
 import es.brasatech.fastbite.service.StripeService;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -104,7 +105,7 @@ class UserValidationLoggingTest {
     @Test void invalidStaffPasswordIsWarningAndStillRendersItsMessage() {
         var staff = mock(OwnerStaffService.class); when(staff.listStaff("alice", "pizza")).thenReturn(List.of());
         var messages = new StaticMessageSource(); messages.addMessage("password.policy", Locale.ENGLISH, "Password is too short.");
-        var controller = new OwnerStaffController(staff, mock(PasswordEncoder.class), messages);
+        var controller = new OwnerStaffController(staff, mock(PasswordEncoder.class), messages, mock(AccountSessionInvalidator.class));
         var model = new ExtendedModelMap(); var appender = capture(OwnerStaffController.class);
         try {
             controller.createUser("pizza", "bob", "Bob", "short", Role.COOK, () -> "alice", model);

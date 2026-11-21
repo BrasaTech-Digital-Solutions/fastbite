@@ -5,6 +5,7 @@ import es.brasatech.fastbite.domain.user.Role;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.user.UserDto;
 import es.brasatech.fastbite.application.tenant.PasswordPolicy;
+import es.brasatech.fastbite.security.AccountSessionInvalidator;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class OwnerStaffController {
     private final OwnerStaffService ownerStaffService;
     private final PasswordEncoder passwordEncoder;
     private final MessageSource messages;
+    private final AccountSessionInvalidator sessions;
 
     @GetMapping
     public String listUsers(
@@ -93,7 +95,15 @@ public class OwnerStaffController {
             Model model) {
 
         String ownerUsername = principal != null ? principal.getName() : null;
+        String deletedUsername = ownerStaffService.listStaff(ownerUsername, tenantId).stream()
+                .filter(u -> userId.equals(u.id()))
+                .map(UserDto::username)
+                .findFirst()
+                .orElse(null);
         List<UserDto> users = ownerStaffService.deleteStaff(ownerUsername, tenantId, userId);
+        if (deletedUsername != null && users.stream().noneMatch(u -> userId.equals(u.id()))) {
+            sessions.invalidate(deletedUsername, tenantId, null);
+        }
         model.addAttribute("users", users);
         model.addAttribute("tenantId", tenantId);
         model.addAttribute("roles", STAFF_ROLES);
