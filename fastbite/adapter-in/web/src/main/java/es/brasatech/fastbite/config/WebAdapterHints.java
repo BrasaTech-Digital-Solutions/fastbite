@@ -3,7 +3,9 @@ package es.brasatech.fastbite.config;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.controller.EnvironmentAdvice;
 import es.brasatech.fastbite.controller.OwnerWorkspaceController;
+import es.brasatech.fastbite.controller.PlatformVerifactuAdminController;
 import es.brasatech.fastbite.domain.I18nField;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.domain.customization.CustomizationOptionDto;
@@ -256,5 +258,8 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(OwnerWorkspaceController.VerifactuStepView.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationGate.HoldReason.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationRequiredException.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(EnvironmentAdvice.VerifactuBannerView.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(PlatformVerifactuAdminController.HeldLocationRow.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(PlatformVerifactuAdminController.NeedsRefundOrderRow.class), MemberCategory.values());
     }
 }

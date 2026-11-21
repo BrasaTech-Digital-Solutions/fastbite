@@ -95,4 +95,37 @@ class AccountMailOutboxServiceTest {
             logger.detachAppender(captured); captured.stop();
         }
     }
+
+    @Test void deliversVerifactuHoldAndOpenedNotifications() {
+        var holdClaim = new AccountMailOutboxPort.Claim("hold-1", "lease-1", "lacasita", 1, "VERIFACTU_ON_HOLD");
+        var trialClaim = new AccountMailOutboxPort.Claim("open-1", "lease-2", "lacasita", 1, "VERIFACTU_OPENED_TRIAL");
+        var freeClaim = new AccountMailOutboxPort.Claim("open-2", "lease-3", "lacasita", 1, "VERIFACTU_OPENED_FREE");
+        var reopenClaim = new AccountMailOutboxPort.Claim("open-3", "lease-4", "lacasita", 1, "VERIFACTU_REOPENED");
+        var recipient = new AccountMailOutboxPort.Recipient("owner@example.test", "ana", "es");
+        when(outbox.claimForSubject(eq("lacasita"), any())).thenReturn(
+                Optional.of(holdClaim), Optional.of(trialClaim), Optional.of(freeClaim), Optional.of(reopenClaim));
+        when(outbox.issue(eq(holdClaim), anyString(), any())).thenReturn(Optional.of(recipient));
+        when(outbox.issue(eq(trialClaim), anyString(), any())).thenReturn(Optional.of(recipient));
+        when(outbox.issue(eq(freeClaim), anyString(), any())).thenReturn(Optional.of(recipient));
+        when(outbox.issue(eq(reopenClaim), anyString(), any())).thenReturn(Optional.of(recipient));
+
+        var service = new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://fastbite.example");
+        service.runForLocation("lacasita");
+        service.runForLocation("lacasita");
+        service.runForLocation("lacasita");
+        service.runForLocation("lacasita");
+
+        verify(mail).sendVerifactuOnHold("owner@example.test", "lacasita",
+                "https://fastbite.example/owner/console?view=today&location=lacasita#opening-step-verifactu", "es", null);
+        verify(mail).sendVerifactuOpenedWithTrial("owner@example.test", "lacasita",
+                "https://fastbite.example/owner/console?view=today&location=lacasita", "es");
+        verify(mail).sendVerifactuOpenedWithoutTrial("owner@example.test", "lacasita",
+                "https://fastbite.example/owner/console?view=today&location=lacasita", "es");
+        verify(mail).sendVerifactuReopened("owner@example.test", "lacasita",
+                "https://fastbite.example/owner/console?view=today&location=lacasita", "es");
+        verify(outbox).sent(eq(holdClaim), any());
+        verify(outbox).sent(eq(trialClaim), any());
+        verify(outbox).sent(eq(freeClaim), any());
+        verify(outbox).sent(eq(reopenClaim), any());
+    }
 }

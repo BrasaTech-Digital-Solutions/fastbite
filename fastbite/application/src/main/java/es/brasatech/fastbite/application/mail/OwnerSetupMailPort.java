@@ -10,4 +10,18 @@ public interface OwnerSetupMailPort {
     void sendOwnerEmailNotice(String email, String language);
     void sendPasswordReset(String email, String username, String link, String language);
     void sendSignupNotice(String email, String language);
+    default void sendVerifactuOnHold(String email, String tenantId, String link, String language) {
+    }
+    default void sendVerifactuOnHold(String email, String tenantId, String link, String language, String holdReason) {
+        sendVerifactuOnHold(email, tenantId, link, language);
+    }
+    default void sendVerifactuOpened(String email, String tenantId, String link, String language) {
+        sendVerifactuOpenedWithTrial(email, tenantId, link, language);
+    }
+    default void sendVerifactuOpenedWithTrial(String email, String tenantId, String link, String language) {
+    }
+    default void sendVerifactuOpenedWithoutTrial(String email, String tenantId, String link, String language) {
+    }
+    default void sendVerifactuReopened(String email, String tenantId, String link, String language) {
+    }
 }

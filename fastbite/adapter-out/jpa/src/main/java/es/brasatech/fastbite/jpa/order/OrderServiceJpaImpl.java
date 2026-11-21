@@ -151,6 +151,14 @@ public class OrderServiceJpaImpl implements OrderService {
     }
 
     @Override
+    public List<Order> findOrdersNeedingRefund() {
+        return repository.findByPaymentStatusOrderByCreatedAtDesc(OrderPaymentStatus.NEEDS_REFUND)
+                .stream()
+                .map(this::toOrderWithTranslation)
+                .toList();
+    }
+
+    @Override
     public void markOrderUnpaid(String id) {
         var entityOpt = repository.findForUpdate(id);
         if (entityOpt.isEmpty()) return;

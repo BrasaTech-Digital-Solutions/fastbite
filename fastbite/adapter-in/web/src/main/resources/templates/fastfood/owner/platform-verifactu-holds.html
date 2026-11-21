@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title th:text="#{workspace.verifactu.holds.title}">VERI*FACTU holds — FastBite</title>
+<link rel="stylesheet" th:href="@{/css/platform.css}">
+<link rel="stylesheet" th:href="@{/css/workspace.css}">
+</head>
+<body class="workspace">
+<div th:replace="~{fastfood/fragments/environment :: banner}"></div><a class="skip-link" href="#workspace-main" th:text="#{workspace.rebuild.more.51}">Skip to content</a>
+<aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
+<div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
+<main class="workspace-main" id="workspace-main">
+<a class="text-link" href="/owner/console?view=settings" th:text="#{workspace.rebuild.more.52}">← Account &amp; billing</a>
+<p class="eyebrow" th:text="#{workspace.rebuild.more.70}">BRASATECH PLATFORM ADMINISTRATION</p>
+<h1 th:text="#{workspace.verifactu.holds.heading}">VERI*FACTU holds &amp; pending refunds</h1>
+<p th:text="#{workspace.verifactu.holds.intro}">Production locations currently blocked from issuing tickets, and online orders that still need a refund.</p>
+<section class="panel">
+<h2 th:text="#{workspace.verifactu.holds.switch.title}">Platform switch</h2>
+<p class="fine" th:text="${collaborationActive ? #messages.msg('workspace.verifactu.holds.switch.active') : #messages.msg('workspace.verifactu.holds.switch.inactive')}">Collaboration switch state</p>
+</section>
+<section class="panel ws-mt">
+<h2 th:text="#{workspace.verifactu.holds.locations.title}">Locations on hold</h2>
+<p class="fine" th:if="${#lists.isEmpty(heldLocations)}" th:text="#{workspace.verifactu.holds.locations.empty}">No production locations are currently on hold.</p>
+<div class="billing-row" th:each="row : ${heldLocations}">
+<div>
+<strong th:text="${row.tenantId()}">tenant</strong>
+<span class="fine" th:text="${#messages.msg('workspace.trials.owner', row.ownerUsername())}">Owner</span>
+<span class="fine" th:if="${row.nif() != null}" th:text="${'NIF: ' + row.nif() + (row.legalName() != null ? ' · ' + row.legalName() : '')}">NIF</span>
+<span class="fine" th:if="${row.authorizationStatus() != null}" th:text="${#messages.msg('workspace.verifactu.holds.auth.status', row.authorizationStatus())}">Auth status</span>
+<span class="fine" th:text="${#messages.msg(row.reasonMessageKey())}">Hold reason</span>
+</div>
+</div>
+</section>
+<section class="panel ws-mt">
+<h2 th:text="#{workspace.verifactu.holds.refunds.title}">Orders needing refund</h2>
+<p class="fine" th:if="${#lists.isEmpty(needsRefundOrders)}" th:text="#{workspace.verifactu.holds.refunds.empty}">No orders currently need a manual refund.</p>
+<div class="billing-row" th:each="ord : ${needsRefundOrders}">
+<div>
+<strong th:text="${ord.tenantId() + ' · #' + ord.orderNumber()}">tenant · #1</strong>
+<span class="fine" th:text="${#messages.msg('workspace.trials.owner', ord.ownerUsername())}">Owner</span>
+<span class="fine" th:if="${ord.customerName() != null && !#strings.isEmpty(ord.customerName())}" th:text="${ord.customerName()}">Guest</span>
+<span class="fine" th:if="${ord.total() != null}" th:text="${#prices.format(ord.total())}">0,00 €</span>
+<span class="fine" th:if="${ord.createdAt() != null}" th:text="${#temporals.format(ord.createdAt(), 'dd/MM/yyyy HH:mm')}">Date</span>
+<span class="fine" th:if="${ord.cancelReason() != null}" th:text="${ord.cancelReason()}">Reason</span>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body>
+</html>

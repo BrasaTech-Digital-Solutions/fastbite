@@ -1003,6 +1003,7 @@ else
 fi
 
 # Production fiscal issuer registration: saving a valid NIF records in production only
+VF_NIF=$("$PY" -c 'import random; n=random.randint(10000000,99999999); print(f"{n:08d}"+"TRWAGMYFPDXBNJZSQVHLCKE"[n%23])')
 PROD_LEGAL_PAGE=$(curl -s -b "$J" -c "$J" "$P/owner/console?view=location-settings&section=legal&location=$T")
 PROD_LEGAL_CSRF=$(echo "$PROD_LEGAL_PAGE" | meta)
 PROD_LEGAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
@@ -1010,7 +1011,7 @@ PROD_LEGAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
   --data-urlencode "_csrf=$PROD_LEGAL_CSRF" \
   --data-urlencode "legalName=Test Release Cafe S.L." \
   --data-urlencode "tradeName=Release Cafe" \
-  --data-urlencode "taxId=B12345674" \
+  --data-urlencode "taxId=$VF_NIF" \
   --data-urlencode "addressLine=Calle Mayor 1" \
   --data-urlencode "postalCode=28013" \
   --data-urlencode "city=Madrid" \
@@ -1021,18 +1022,153 @@ PROD_LEGAL_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
 PROD_LEGAL_CODE=$(echo "$PROD_LEGAL_RESP" | head -n 1 | awk '{print $2}')
 record "${PROD_LEGAL_CODE:-000}" 302 "POST $P/owner/workspace/$T/legal (production valid fiscal profile save)"
 
-PROD_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.fiscal_issuers where tenant_id='$T' and tax_id='B12345674'" 2>/dev/null | tr -d '\r')
+PROD_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.fiscal_issuers where tenant_id='$T' and tax_id='$VF_NIF'" 2>/dev/null | tr -d '\r')
 if [ "$PROD_ISSUER_ROWS" = "1" ]; then
-  record_match 1 "fastbite_production.public.fiscal_issuers recorded B12345674 for $T"
+  record_match 1 "fastbite_production.public.fiscal_issuers recorded $VF_NIF for $T"
 else
-  record_match 0 "fastbite_production.public.fiscal_issuers recorded B12345674 for $T (got: $PROD_ISSUER_ROWS)"
+  record_match 0 "fastbite_production.public.fiscal_issuers recorded $VF_NIF for $T (got: $PROD_ISSUER_ROWS)"
 fi
 
-SAND_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select count(*) from public.fiscal_issuers where tax_id='B12345674'" 2>/dev/null | tr -d '\r')
+SAND_ISSUER_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_sandbox -tAc "select count(*) from public.fiscal_issuers where tax_id='$VF_NIF'" 2>/dev/null | tr -d '\r')
 if [ "$SAND_ISSUER_ROWS" = "0" ]; then
-  record_match 1 "fastbite_sandbox.public.fiscal_issuers does not contain B12345674"
+  record_match 1 "fastbite_sandbox.public.fiscal_issuers does not contain $VF_NIF"
 else
-  record_match 0 "fastbite_sandbox.public.fiscal_issuers does not contain B12345674 (got: $SAND_ISSUER_ROWS)"
+  record_match 0 "fastbite_sandbox.public.fiscal_issuers does not contain $VF_NIF (got: $SAND_ISSUER_ROWS)"
+fi
+
+# VERI*FACTU authorisation gate (local digital-sign-mock): held before signing, open after webhook
+DS_MOCK="http://127.0.0.1:${FASTBITE_DIGITALSIGN_MOCK_PORT:-8099}"
+PROD_HELD_CT=$(curl -s -b "$J" -c "$J" "$P/$T/counter" | meta)
+PROD_HELD_SALE=$(curl -s -w '\n%{http_code}' -b "$J" -c "$J" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-TOKEN: $PROD_HELD_CT" \
+  -H "Referer: $P/$T/counter" \
+  -d "{\"items\":[{\"id\":\"p0\",\"itemId\":\"$PRODUCT\",\"quantity\":1,\"customizations\":[]}],\"paid\":true,\"paymentMethod\":\"CASH\",\"cashReceived\":50}" \
+  "$P/counter/api/order")
+PROD_HELD_CODE=$(echo "$PROD_HELD_SALE" | tail -n 1)
+PROD_HELD_BODY=$(echo "$PROD_HELD_SALE" | head -n -1)
+record "$PROD_HELD_CODE" 403 "POST $P/counter/api/order (blocked on hold before VERI*FACTU authorisation)"
+if echo "$PROD_HELD_BODY" | grep -q 'VERIFACTU_AUTHORIZATION_REQUIRED'; then
+  record_match 1 "Blocked production order returns VERIFACTU_AUTHORIZATION_REQUIRED"
+else
+  record_match 0 "Blocked production order returns VERIFACTU_AUTHORIZATION_REQUIRED"
+fi
+
+PROD_COUNTER_HELD=$(curl -s -H 'Accept-Language: es' -b "$J" -c "$J" "$P/$T/counter")
+if grep -qF -- 'Este local no puede emitir tickets: falta la autorización VERI*FACTU' <<<"$PROD_COUNTER_HELD"; then
+  record_match 1 "Held production counter page shows Spanish VERI*FACTU staff banner"
+else
+  record_match 0 "Held production counter page shows Spanish VERI*FACTU staff banner"
+fi
+
+PROD_KITCHEN_HELD=$(curl -s -H 'Accept-Language: es' -b "$J" -c "$J" "$P/$T/dashboard")
+if grep -qF -- 'Este local no puede emitir tickets: falta la autorización VERI*FACTU' <<<"$PROD_KITCHEN_HELD"; then
+  record_match 1 "Held production kitchen page shows Spanish VERI*FACTU staff banner"
+else
+  record_match 0 "Held production kitchen page shows Spanish VERI*FACTU staff banner"
+fi
+
+PROD_GUEST_HELD=$(curl -s -H 'Accept-Language: es' -b "$G" -c "$G" "$P/$T/menu")
+if grep -qF -- 'El restaurante no admite pedidos ahora mismo' <<<"$PROD_GUEST_HELD" && ! grep -qF -- 'VERI*FACTU' <<<"$PROD_GUEST_HELD"; then
+  record_match 1 "Held production guest menu shows neutral Spanish hold banner without VERI*FACTU jargon"
+else
+  record_match 0 "Held production guest menu shows neutral Spanish hold banner without VERI*FACTU jargon"
+fi
+
+PROD_OWNER_HELD=$(curl -s -H 'Accept-Language: es' -b "$J" -c "$J" "$P/owner/console?location=$T")
+if grep -qF -- 'Este local está en pausa y no puede emitir tickets' <<<"$PROD_OWNER_HELD" && grep -qF -- '#opening-step-verifactu' <<<"$PROD_OWNER_HELD"; then
+  record_match 1 "Held production owner workspace shows hold banner and link to VERI*FACTU step"
+else
+  record_match 0 "Held production owner workspace shows hold banner and link to VERI*FACTU step"
+fi
+
+HOLDS_NONADMIN_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" "$P/owner/platform/verifactu-holds")
+record "$HOLDS_NONADMIN_CODE" 404 "GET $P/owner/platform/verifactu-holds (404 for non-admin owner)"
+
+# Start VERI*FACTU signing against local digital-sign-mock and complete it via HMAC-signed webhook
+VF_CSRF=$(echo "$PROD_OWNER_HELD" | meta)
+VF_START_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
+  --data-urlencode "_csrf=$VF_CSRF" \
+  "$P/owner/workspace/$T/verifactu/authorize")
+VF_START_CODE=$(echo "$VF_START_RESP" | head -n 1 | awk '{print $2}')
+VF_START_LOC=$(echo "$VF_START_RESP" | loc)
+record "${VF_START_CODE:-000}" 302 "POST $P/owner/workspace/$T/verifactu/authorize (redirect to mock signing URL)"
+
+VF_REQ_ID=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select digital_sign_request_id from public.verifactu_authorizations where nif='$VF_NIF' order by attempt desc limit 1" 2>/dev/null | tr -d '\r')
+if [ -n "$VF_REQ_ID" ]; then
+  record_match 1 "VERI*FACTU signing request created against local mock ($VF_REQ_ID)"
+  VF_COMPLETE_RESP=$(curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$DS_MOCK/_mock/complete/$VF_REQ_ID")
+  VF_COMPLETE_CODE=$(echo "$VF_COMPLETE_RESP" | tail -n 1)
+  VF_COMPLETE_BODY=$(echo "$VF_COMPLETE_RESP" | head -n -1)
+  record "${VF_COMPLETE_CODE:-000}" 200 "POST $DS_MOCK/_mock/complete/$VF_REQ_ID (mock fires HMAC webhook)"
+  if echo "$VF_COMPLETE_BODY" | grep -q '"webhookStatus":200'; then
+    record_match 1 "Digital Sign mock webhook delivered with 200 OK"
+  else
+    record_match 0 "Digital Sign mock webhook delivered with 200 OK (got: $VF_COMPLETE_BODY)"
+  fi
+else
+  record_match 0 "VERI*FACTU signing request created against local mock (request id was empty)"
+fi
+
+VF_VALID_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.verifactu_authorizations where nif='$VF_NIF' and status='VALID' and signed_pdf_path is not null and evidence_pdf_path is not null" 2>/dev/null | tr -d '\r')
+if [ "$VF_VALID_ROWS" = "1" ]; then
+  record_match 1 "VERI*FACTU authorisation for $VF_NIF is VALID with both PDFs stored privately"
+else
+  record_match 0 "VERI*FACTU authorisation for $VF_NIF is VALID with both PDFs stored privately (got: ${VF_VALID_ROWS:-0})"
+fi
+
+# Complete the remaining opening steps (service without takeaway + preview) so the location opens and starts its trial
+OPEN_SVC_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
+  --data-urlencode "_csrf=$VF_CSRF" \
+  -d "dineIn=true&takeaway=false&yellow=5&red=10" \
+  "$P/owner/workspace/$T/service")
+record "${OPEN_SVC_CODE:-000}" 302 "POST $P/owner/workspace/$T/service (complete service opening step)"
+
+OPEN_PREV_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" \
+  --data-urlencode "_csrf=$VF_CSRF" \
+  -d "action=preview" \
+  "$P/owner/workspace/$T/setup")
+record "${OPEN_PREV_CODE:-000}" 302 "POST $P/owner/workspace/$T/setup (complete preview opening step)"
+
+curl -s -o /dev/null -b "$J" -c "$J" "$P/owner/console?location=$T"
+PROD_OPENED_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select opened from public.owner_onboarding where tenant_id='$T'" 2>/dev/null | tr -d '\r')
+PROD_TRIAL_DB=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.tenant_billing where tenant_id='$T' and trial_started_at is not null" 2>/dev/null | tr -d '\r')
+if [ "$PROD_OPENED_DB" = "t" ] && [ "$PROD_TRIAL_DB" = "1" ]; then
+  record_match 1 "Production location $T is open and its 30-day trial started"
+else
+  record_match 0 "Production location $T is open and its 30-day trial started (opened=${PROD_OPENED_DB:-empty}, trial=${PROD_TRIAL_DB:-0})"
+fi
+
+# Verify Mailpit received the OPENED email for this owner
+VF_OPEN_MAIL=$("$PY" - "$LEGACY_EMAIL" "$T" <<'PYCODE'
+import json, sys, time, urllib.parse, urllib.request
+email, tenant = sys.argv[1], sys.argv[2]
+for _ in range(10):
+    try:
+        q = urllib.parse.quote('to:' + email)
+        search = json.load(urllib.request.urlopen('http://localhost:8027/api/v1/search?query=' + q, timeout=3))
+        for item in search.get('messages', []):
+            subj = item.get('Subject', '') or ''
+            if tenant in subj and ('open' in subj.lower() or 'abierto' in subj.lower() or 'aberto' in subj.lower()):
+                print('OK'); sys.exit(0)
+    except Exception:
+        pass
+    time.sleep(1)
+sys.exit(1)
+PYCODE
+)
+if [ "$VF_OPEN_MAIL" = "OK" ]; then
+  record_match 1 "Owner received VERI*FACTU opened email in Mailpit"
+else
+  record_match 0 "Owner received VERI*FACTU opened email in Mailpit"
+fi
+
+PROD_COUNTER_OPEN=$(curl -s -H 'Accept-Language: es' -b "$J" -c "$J" "$P/$T/counter")
+PROD_GUEST_OPEN=$(curl -s -H 'Accept-Language: es' -b "$G" -c "$G" "$P/$T/menu")
+if ! grep -qF -- 'fb-verifactu-banner' <<<"$PROD_COUNTER_OPEN" && ! grep -qF -- 'fb-verifactu-banner' <<<"$PROD_GUEST_OPEN"; then
+  record_match 1 "VERI*FACTU hold banners clear after authorisation becomes VALID"
+else
+  record_match 0 "VERI*FACTU hold banners clear after authorisation becomes VALID"
 fi
 
 # Production location reset preserves fiscal tickets and VERI*FACTU records across sales
@@ -1110,7 +1246,7 @@ record "$FREE_VERIFY_CODE" 302 "verify Free plan signup"
 
 FREE_MENU_CSRF=$(curl -s -b "$GF" -c "$GF" "$P/$TF/menu" | meta)
 FREE_ORDER_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$GF" -c "$GF"   -H "Content-Type: application/json"   -H "X-CSRF-TOKEN: $FREE_MENU_CSRF"   -H "Referer: $P/$TF/menu"   -d '{"items":[{"id":"f1","itemId":"1","quantity":1,"price":5.00}],"customerName":"Free Guest"}'   "$P/$TF/api/create-order")
-record "$FREE_ORDER_CODE" 402 "POST $P/$TF/api/create-order (Free plan without Stripe Connect gets 402)"
+record "$FREE_ORDER_CODE" 403 "POST $P/$TF/api/create-order (unauthorised Free plan location gets 403 before 402)"
 
 FREE_LOGIN_HTML=$(curl -s -c "$JF" -b "$JF" "$P/login")
 FREE_LOGIN_CSRF=$(echo "$FREE_LOGIN_HTML" | csrf)
@@ -1263,7 +1399,7 @@ for url in "$P/nosuchplace$T/menu" "$S/nosuchplace$T/counter" "$P/$T/menu/no-suc
 done
 
 # The public schema holds only platform tables (V23); restaurant data lives in tenant_* schemas.
-PLATFORM_TABLES="account_email_limits account_email_outbox account_tokens fiscal_issuers flyway_schema_history group_quote_requests guest_action_limits guest_action_lock legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens pending_registrations sandbox_provisioning sandbox_sign_in signup_reservation_lock spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users"
+PLATFORM_TABLES="account_email_limits account_email_outbox account_tokens digital_sign_webhook_events fiscal_issuers flyway_schema_history group_quote_requests guest_action_limits guest_action_lock legal_acceptances location_appearance location_promotion_lease location_promotions owner_appearance owner_onboarding owner_setup_tokens pending_registrations sandbox_provisioning sandbox_sign_in signup_reservation_lock spring_session spring_session_attributes tenant_billing tenant_lifecycle tenant_locations user_roles users verifactu_authorizations"
 for db in fastbite_production fastbite_sandbox; do
   PUBLIC_TABLES=$($DC exec -T postgres psql -U fastbite -d "$db" -tAc "select string_agg(table_name, ' ' order by table_name) from information_schema.tables where table_schema = 'public'" 2>/dev/null | tr -d '\r')
   if [ "$PUBLIC_TABLES" = "$PLATFORM_TABLES" ]; then

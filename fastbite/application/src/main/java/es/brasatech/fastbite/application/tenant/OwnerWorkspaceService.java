@@ -7,6 +7,7 @@ import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuNotificationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
@@ -53,6 +54,7 @@ public class OwnerWorkspaceService {
     private final TableSignatureUtil tableSignatures;
     private final VerifactuAuthorizationService verifactuAuthorizations;
     private final SubscriptionService subscriptions;
+    private final VerifactuNotificationService verifactuNotifications;
 
     public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
             FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu,
@@ -60,7 +62,18 @@ public class OwnerWorkspaceService {
             OrderService orders, UserService users,
             TableService tables, TableSignatureUtil tableSignatures) {
         this(locations, progress, products, settings, fiscalProfiles, tickets, verifactu, fiscalIssuers,
-                environment, clock, orders, users, tables, tableSignatures, null, null);
+                environment, clock, orders, users, tables, tableSignatures, null, null, null);
+    }
+
+    public OwnerWorkspaceService(TenantLocationService locations, OwnerWorkspacePort progress, ProductService products, RestaurantSettingsService settings,
+            FiscalProfileService fiscalProfiles, FiscalTicketRepository tickets, VerifactuService verifactu,
+            FiscalIssuerPort fiscalIssuers, PlatformEnvironment environment, Clock clock,
+            OrderService orders, UserService users,
+            TableService tables, TableSignatureUtil tableSignatures,
+            VerifactuAuthorizationService verifactuAuthorizations,
+            SubscriptionService subscriptions) {
+        this(locations, progress, products, settings, fiscalProfiles, tickets, verifactu, fiscalIssuers,
+                environment, clock, orders, users, tables, tableSignatures, verifactuAuthorizations, subscriptions, null);
     }
 
     @Autowired
@@ -69,8 +82,9 @@ public class OwnerWorkspaceService {
             FiscalIssuerPort fiscalIssuers, PlatformEnvironment environment, Clock clock,
             OrderService orders, UserService users,
             TableService tables, TableSignatureUtil tableSignatures,
-            VerifactuAuthorizationService verifactuAuthorizations,
-            SubscriptionService subscriptions) {
+            @Autowired(required = false) VerifactuAuthorizationService verifactuAuthorizations,
+            @Autowired(required = false) SubscriptionService subscriptions,
+            @Autowired(required = false) VerifactuNotificationService verifactuNotifications) {
         this.locations = Objects.requireNonNull(locations, "locations");
         this.progress = Objects.requireNonNull(progress, "progress");
         this.products = Objects.requireNonNull(products, "products");
@@ -87,6 +101,7 @@ public class OwnerWorkspaceService {
         this.tableSignatures = Objects.requireNonNull(tableSignatures, "tableSignatures");
         this.verifactuAuthorizations = verifactuAuthorizations;
         this.subscriptions = subscriptions;
+        this.verifactuNotifications = verifactuNotifications;
     }
 
     public void requireOwner(String owner, String tenant) {
@@ -119,10 +134,12 @@ public class OwnerWorkspaceService {
                     && verifactuAuthorizations.isCollaborationActive();
             Summary summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
                     hasStaff, chargesEnabled, environment.sandbox(), verifactuAuthorized, verifactuCollaborationActive);
+            boolean trialStartedNow = false;
             if (!environment.sandbox() && !updated.opened() && summary.ready()) {
                 progress.update(tenant, p -> p.withOpening(p.workAlone(), true));
                 updated = progress.read(tenant);
                 if (subscriptions != null) {
+                    trialStartedNow = subscriptions.isTrialNotStarted(tenant);
                     subscriptions.startTrialIfNeeded(tenant, clock.instant());
                 }
                 summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
@@ -131,6 +148,10 @@ public class OwnerWorkspaceService {
             if (!environment.sandbox() && updated.opened() && subscriptions != null
                     && subscriptions.isTrialNotStarted(tenant)) {
                 subscriptions.startTrialIfNeeded(tenant, clock.instant());
+                trialStartedNow = true;
+            }
+            if (!environment.sandbox() && verifactuNotifications != null) {
+                verifactuNotifications.evaluateLocation(tenant, trialStartedNow);
             }
             return summary;
         });
@@ -309,6 +330,9 @@ public class OwnerWorkspaceService {
                     SpanishTaxId.parse(profile.taxId()).ifPresent(taxId ->
                             fiscalIssuers.recordIfAbsent(taxId.value(), tenant, clock.instant()));
                 }
+                if (environment.production() && verifactuNotifications != null) {
+                    verifactuNotifications.evaluateLocation(tenant, false);
+                }
             }
             return wrong;
         });
@@ -324,6 +348,12 @@ public class OwnerWorkspaceService {
     public List<VerifactuRecord> verifactuRecords(String owner, String tenant, boolean training) {
         requireOwner(owner, tenant);
         return inTenant(tenant, () -> verifactu.chain(training));
+    }
+
+    /** Online orders captured while the location could not issue a ticket and still needing a refund. */
+    public List<Order> ordersNeedingRefund(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        return inTenant(tenant, orders::findOrdersNeedingRefund);
     }
 
     /** Every ticket ever issued by the location, oldest first, for the owner to inspect and download. */

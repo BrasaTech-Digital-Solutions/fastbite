@@ -23,6 +23,7 @@ import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -133,6 +134,12 @@ public class VerifactuAuthorizationService {
     private final String brasatechLegalName;
     private final String brasatechTaxId;
     private final String brasatechAddress;
+    private ObjectProvider<VerifactuNotificationService> notificationServiceProvider;
+
+    @Autowired(required = false)
+    void setNotificationServiceProvider(ObjectProvider<VerifactuNotificationService> notificationServiceProvider) {
+        this.notificationServiceProvider = notificationServiceProvider;
+    }
 
     public VerifactuAuthorizationService(
             VerifactuAuthorizationStore store,
@@ -793,7 +800,21 @@ public class VerifactuAuthorizationService {
             int casAttempt) {
         UpdateResult result = store.compareAndSet(candidate);
         if (result.applied()) {
-            return Optional.of(result.authorization());
+            VerifactuAuthorization applied = result.authorization();
+            if (applied.status() != VerifactuAuthorizationStatus.IN_PROGRESS) {
+                VerifactuNotificationService notifier = notificationServiceProvider == null
+                        ? null
+                        : notificationServiceProvider.getIfAvailable();
+                if (notifier != null) {
+                    try {
+                        notifier.evaluateForNifEnqueueOnly(applied.nif());
+                    } catch (RuntimeException e) {
+                        log.warn("Failed to enqueue VERI*FACTU notification for authorisation {}: {}",
+                                applied.id(), e.getMessage());
+                    }
+                }
+            }
+            return Optional.of(applied);
         }
         VerifactuAuthorization latest = store.findById(candidate.id()).orElse(result.authorization());
         if (casAttempt < MAX_CAS_RETRIES && latest.status().isActive()) {

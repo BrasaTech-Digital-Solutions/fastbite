@@ -28,6 +28,8 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, String> {
     List<OrderEntity> findByServiceTypeAndPaymentStatusAndStatusNotInOrderByCreatedAt(ServiceType serviceType,
             OrderPaymentStatus paymentStatus, Collection<OrderStatus> closed);
 
+    List<OrderEntity> findByPaymentStatusOrderByCreatedAtDesc(OrderPaymentStatus paymentStatus);
+
     @org.springframework.data.jpa.repository.Query("""
             select count(o) from DiningTable t join t.orderIds oid, Order o
             where t.id = :tableId and o.id = oid

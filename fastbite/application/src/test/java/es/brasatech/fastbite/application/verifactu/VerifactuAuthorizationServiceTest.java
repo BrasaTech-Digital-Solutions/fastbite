@@ -23,6 +23,7 @@ import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
@@ -530,6 +531,32 @@ class VerifactuAuthorizationServiceTest {
 
         assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_UNAVAILABLE);
         verify(client, never()).createRequest(any(), anyString());
+    }
+
+    @Test
+    void webhookStateChangeEnqueuesNotificationWithoutSmtpAndSwallowsNotifierErrors() {
+        VerifactuAuthorization inProgress = inProgressAuth("B09767898", "req-notify-1");
+        when(store.recordWebhookEventIfNew(eq("evt-notify-1"), eq("request.declined"), eq("req-notify-1"), any())).thenReturn(true);
+        when(store.findByDigitalSignRequestId("req-notify-1")).thenReturn(Optional.of(inProgress));
+        when(client.getRequest(eq("req-notify-1"), any())).thenReturn(new DigitalSignRequest(
+                "req-notify-1", "DECLINED", inProgress.id().toString(), "Anexo I",
+                NOW, NOW.plusSeconds(3600), null,
+                List.of(new RequestSigner("Representante", "Ana", null, "es", "DECLINED", null, null, List.of(), "CERTIFICATE", "B09767898", null, null)),
+                new RequestDocuments(false, false)));
+
+        VerifactuNotificationService notifier = mock(VerifactuNotificationService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<VerifactuNotificationService> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(notifier);
+        when(notifier.evaluateForNifEnqueueOnly("B09767898")).thenThrow(new RuntimeException("mail db hiccup"));
+        service.setNotificationServiceProvider(provider);
+
+        WebhookOutcome outcome = service.handleWebhook("evt-notify-1", "request.declined", "req-notify-1");
+
+        assertThat(outcome).isEqualTo(WebhookOutcome.PROCESSED);
+        verify(notifier).evaluateForNifEnqueueOnly("B09767898");
+        verify(notifier, never()).evaluateForNif(any());
+        verify(store).markWebhookEventProcessed(eq("evt-notify-1"), any());
     }
 
     private static FiscalProfile completeProfile(String nif) {

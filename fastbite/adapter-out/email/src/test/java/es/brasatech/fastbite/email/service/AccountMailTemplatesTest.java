@@ -95,4 +95,55 @@ class AccountMailTemplatesTest {
             assertThat(parts.html()).contains("&lt;b&gt;cafe&lt;/b&gt;").doesNotContain("<b>cafe</b>", "word-break:break-all");
         }
     }
+
+    @Test void verifactuHoldAndOpenedEmailsRenderEachLanguageSafely() throws Exception {
+        String tenant = "<b>lacasita</b>";
+        String url = "https://fastbite.example/owner/console?view=today&location=lacasita#opening-step-verifactu";
+        String htmlUrl = url.replace("&", "&amp;");
+        for (String language : new String[]{"en", "es", "pt"}) {
+            var holdParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOnHold("owner@example.test", tenant, url, language, "COLLABORATION_INACTIVE");
+            });
+            assertThat(holdParts.subject()).contains(tenant);
+            assertThat(holdParts.text()).contains(url);
+            assertThat(holdParts.text().toLowerCase()).containsAnyOf("temporarily", "temporalmente", "temporariamente");
+            assertThat(holdParts.html()).contains(htmlUrl).contains("&lt;b&gt;lacasita&lt;/b&gt;").doesNotContain("<b>lacasita</b>");
+
+            var mismatchParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOnHold("owner@example.test", tenant, url, language, "NIF_MISMATCH");
+            });
+            assertThat(mismatchParts.text()).contains("NIF");
+
+            var trialParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOpenedWithTrial("owner@example.test", tenant, url, language);
+            });
+            assertThat(trialParts.subject()).contains(tenant);
+            assertThat(trialParts.text()).contains(url).contains("30");
+            assertThat(trialParts.html()).contains(htmlUrl).contains("&lt;b&gt;lacasita&lt;/b&gt;").doesNotContain("<b>lacasita</b>");
+
+            var freeParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOpenedWithoutTrial("owner@example.test", tenant, url, language);
+            });
+            assertThat(freeParts.subject()).contains(tenant);
+            assertThat(freeParts.text()).contains(url).doesNotContain("30");
+            assertThat(freeParts.text().toLowerCase()).doesNotContain("trial").doesNotContain("prueba").doesNotContain("experimental");
+
+            var reopenedParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuReopened("owner@example.test", tenant, url, language);
+            });
+            assertThat(reopenedParts.subject()).contains(tenant);
+            assertThat(reopenedParts.text()).contains(url).doesNotContain("30");
+            assertThat(reopenedParts.text().toLowerCase()).doesNotContain("trial").doesNotContain("prueba").doesNotContain("experimental");
+        }
+    }
 }

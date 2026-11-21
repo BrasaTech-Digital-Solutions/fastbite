@@ -75,6 +75,20 @@ services:
     ports:
       - "${FASTBITE_MAIL_UI_PORT:-8027}:8025"
 
+  # VERI*FACTU Digital Sign local mock (never used against live digital-sign.brasatech.es)
+  digital-sign-mock:
+    build:
+      context: ./docker/digital-sign-mock
+    ports:
+      - "127.0.0.1:${FASTBITE_DIGITALSIGN_MOCK_PORT:-8099}:8099"
+    environment:
+      PORT: "8099"
+      MOCK_API_TOKEN: ${DIGITALSIGN_MOCK_API_TOKEN:-local-digitalsign-mock-token}
+      MOCK_WEBHOOK_SECRET: ${DIGITALSIGN_MOCK_WEBHOOK_SECRET:-local-digitalsign-mock-webhook-secret}
+      MOCK_WEBHOOK_URL: http://production:8080/api/webhooks/digital-sign
+      MOCK_TEMPLATE_ID: tpl_verifactu_anexo1_local
+      MOCK_SIGNER_ROLE: Representante
+
   migrate-production:
     <<: *image
     build:
@@ -139,12 +153,28 @@ services:
       FASTBITE_LINK_SECRET: ${FASTBITE_LINK_SECRET:-local-link-secret-for-docker-compose-only}
       # Never sends to the AEAT's production environment from a laptop
       VERIFACTU_PRODUCTION_ENABLED: "false"
+      # VERI*FACTU authorisation gate wired to the local Digital Sign mock
+      VERIFACTU_COLLABORATION_ACTIVE: "true"
+      DIGITALSIGN_BASE_URL: http://digital-sign-mock:8099/api/v1
+      DIGITALSIGN_API_TOKEN: ${DIGITALSIGN_MOCK_API_TOKEN:-local-digitalsign-mock-token}
+      DIGITALSIGN_WEBHOOKS_SECRET_KEY: ${DIGITALSIGN_MOCK_WEBHOOK_SECRET:-local-digitalsign-mock-webhook-secret}
+      DIGITALSIGN_VERIFACTU_TEMPLATE_ID: tpl_verifactu_anexo1_local
+      DIGITALSIGN_VERIFACTU_SIGNER_ROLE: Representante
+      DIGITALSIGN_VERIFACTU_FIELD_LEGAL_NAME: fld_legal_name
+      DIGITALSIGN_VERIFACTU_FIELD_NIF: fld_nif
+      DIGITALSIGN_VERIFACTU_FIELD_ADDRESS: fld_address
+      DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_NAME: fld_brasatech_name
+      DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_NIF: fld_brasatech_nif
+      DIGITALSIGN_VERIFACTU_FIELD_BRASATECH_ADDRESS: fld_brasatech_address
+      DIGITALSIGN_ALLOW_INSECURE_LOCAL: "true"
     volumes:
       - production-storage:/storage
     depends_on:
       migrate-production:
         condition: service_completed_successfully
       mailpit:
+        condition: service_started
+      digital-sign-mock:
         condition: service_started
 
   sandbox:

@@ -1,6 +1,9 @@
 package es.brasatech.fastbite.application.mail;
 
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -21,6 +24,13 @@ public class AccountMailOutboxService {
     private final PlatformEnvironment environment;
     private final Clock clock;
     private final String origin;
+    private ObjectProvider<VerifactuAuthorizationGate> verifactuGateProvider;
+
+    @Autowired(required = false)
+    void setVerifactuGateProvider(ObjectProvider<VerifactuAuthorizationGate> verifactuGateProvider) {
+        this.verifactuGateProvider = verifactuGateProvider;
+    }
+
     public AccountMailOutboxService(AccountMailOutboxPort outbox, OwnerSetupMailPort mail, PlatformEnvironment environment,
             Clock clock, @Value("${fastbite.public-url:http://localhost:8080}") String origin) {
         this.outbox = outbox; this.mail = mail; this.environment = environment; this.clock = clock;
@@ -45,6 +55,10 @@ public class AccountMailOutboxService {
         if (!deliveryAllowed()) return;
         outbox.claimForSubject(signupId, clock.instant()).ifPresent(this::deliver);
     }
+    public void runForLocation(String tenantId) {
+        if (!deliveryAllowed() || tenantId == null || tenantId.isBlank()) return;
+        outbox.claimForSubject(tenantId.strip(), clock.instant()).ifPresent(this::deliver);
+    }
     private boolean deliveryAllowed() {
         return !environment.sandbox() && !TransactionSynchronizationManager.isActualTransactionActive();
     }
@@ -64,6 +78,19 @@ public class AccountMailOutboxService {
                 case "OWNER_VERIFY" -> mail.sendOwnerVerification(target.email(), target.username(), origin + "/verify-email?token=" + token, target.language());
                 case "OWNER_EMAIL_NOTICE" -> mail.sendOwnerEmailNotice(target.email(), target.language());
                 case "SIGNUP_NOTICE" -> mail.sendSignupNotice(target.email(), target.language());
+                case "VERIFACTU_ON_HOLD" -> {
+                    VerifactuAuthorizationGate gate = verifactuGateProvider == null ? null : verifactuGateProvider.getIfAvailable();
+                    String holdReason = gate == null ? null : gate.holdReason(item.subjectId()).map(Enum::name).orElse(null);
+                    mail.sendVerifactuOnHold(target.email(), item.subjectId(),
+                            origin + "/owner/console?view=today&location=" + item.subjectId() + "#opening-step-verifactu",
+                            target.language(), holdReason);
+                }
+                case "VERIFACTU_OPENED", "VERIFACTU_OPENED_TRIAL" -> mail.sendVerifactuOpenedWithTrial(target.email(), item.subjectId(),
+                        origin + "/owner/console?view=today&location=" + item.subjectId(), target.language());
+                case "VERIFACTU_OPENED_FREE" -> mail.sendVerifactuOpenedWithoutTrial(target.email(), item.subjectId(),
+                        origin + "/owner/console?view=today&location=" + item.subjectId(), target.language());
+                case "VERIFACTU_REOPENED" -> mail.sendVerifactuReopened(target.email(), item.subjectId(),
+                        origin + "/owner/console?view=today&location=" + item.subjectId(), target.language());
                 default -> throw new IllegalStateException("Unknown account email purpose");
             }
             outbox.sent(item, clock.instant());

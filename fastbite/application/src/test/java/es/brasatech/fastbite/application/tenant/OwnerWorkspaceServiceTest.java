@@ -3,6 +3,7 @@ import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuNotificationService;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import java.math.BigDecimal;
@@ -292,6 +293,22 @@ class OwnerWorkspaceServiceTest {
 
         assertTrue(production.summary("owner", "cafe").opened());
         verify(subscriptions).startTrialIfNeeded("cafe", now);
+    }
+    @Test void saveFiscalProfileEvaluatesVerifactuNotificationsInProduction() {
+        var verifactuAuth = mock(VerifactuAuthorizationService.class);
+        var subscriptions = mock(SubscriptionService.class);
+        var notifications = mock(VerifactuNotificationService.class);
+        Instant now = Instant.parse("2026-11-20T14:00:00Z");
+        var production = new OwnerWorkspaceService(locations, port, products, settings, fiscal, tickets,
+                mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class),
+                issuers, new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"),
+                Clock.fixed(now, ZoneOffset.UTC), orders, users, tables, tableSignatures,
+                verifactuAuth, subscriptions, notifications);
+        when(locations.isOwnerOf("owner", "cafe")).thenReturn(true);
+        when(tickets.anyRealTicket()).thenReturn(false);
+
+        assertTrue(production.saveFiscalProfile("owner", "cafe", COMPLETE).isEmpty());
+        verify(notifications).evaluateLocation("cafe", false);
     }
     @Test void existingRealTicketDoesNotBypassVerifactuOpeningGate() {
         var production = createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);

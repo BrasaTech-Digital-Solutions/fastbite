@@ -6,6 +6,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
 
     private Optional<Claim> claim(String subjectId, Instant now) {
         return transaction(connection -> {
-            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE', 'OWNER_VERIFY', 'OWNER_EMAIL_NOTICE', 'PASSWORD_RESET', 'STAFF_VERIFY') AND "
+            String sql = "SELECT id, subject_id, attempts, purpose FROM public.account_email_outbox WHERE purpose IN ('OWNER_SETUP', 'SIGNUP_VERIFY', 'SIGNUP_NOTICE', 'OWNER_VERIFY', 'OWNER_EMAIL_NOTICE', 'PASSWORD_RESET', 'STAFF_VERIFY', 'VERIFACTU_ON_HOLD', 'VERIFACTU_OPENED', 'VERIFACTU_OPENED_TRIAL', 'VERIFACTU_OPENED_FREE', 'VERIFACTU_REOPENED') AND "
                     + (subjectId == null ? "" : "subject_id = ? AND ")
                     + "((state = 'PENDING' AND available_at <= ?) OR (state = 'CLAIMED' AND claimed_at <= ?)) ORDER BY created_at FETCH FIRST 1 ROWS ONLY FOR UPDATE SKIP LOCKED";
             Object[] args = subjectId == null ? new Object[]{now.toEpochMilli(), now.toEpochMilli() - LEASE_MS}
@@ -119,6 +120,14 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
                     username = row.getString(1); language = row.getString(2); email = destination;
                 }
                 limitKey = "signup:" + email;
+            } else if (isVerifactuPurpose(claim.purpose())) {
+                try (var query = statement(connection,
+                        "SELECT u.email, u.username, COALESCE(u.account_language, 'en') FROM public.tenant_locations l JOIN public.users u ON u.username = l.owner_username LEFT JOIN public.tenant_billing b ON b.tenant_id = l.tenant_id WHERE l.tenant_id = ? AND b.closed_at IS NULL AND u.active = TRUE AND u.email IS NOT NULL AND u.email_verified_at IS NOT NULL",
+                        claim.subjectId()); var row = query.executeQuery()) {
+                    if (!row.next()) return cancel(connection, claim, now);
+                    email = row.getString(1); username = row.getString(2); language = row.getString(3);
+                }
+                limitKey = "verifactu:" + claim.subjectId();
             } else return cancel(connection, claim, now);
             long time = now.toEpochMilli(), window = time - Duration.ofDays(1).toMillis();
             try (var query = statement(connection, "SELECT COUNT(*), MAX(sent_at), MIN(sent_at) FROM public.account_email_limits WHERE subject_key = ? AND purpose = ? AND sent_at > ?", limitKey, claim.purpose(), window); var row = query.executeQuery()) {
@@ -168,6 +177,76 @@ public class AccountMailOutboxJdbcAdapter implements AccountMailOutboxPort {
             String state = claim.attempts() >= MAX_ATTEMPTS ? "FAILED" : "PENDING";
             int updated = update(connection, "UPDATE public.account_email_outbox SET state = ?, available_at = ?, finished_at = ?, claim_id = NULL, claimed_at = NULL WHERE id = ? AND state = 'CLAIMED' AND claim_id = ?", state, now.toEpochMilli() + backoff, "FAILED".equals(state) ? now.toEpochMilli() : null, claim.id(), claim.claimId());
             return updated == 1 ? state : "STALE";
+        });
+    }
+
+    private static boolean isVerifactuPurpose(String purpose) {
+        return "VERIFACTU_ON_HOLD".equals(purpose)
+                || "VERIFACTU_OPENED".equals(purpose)
+                || "VERIFACTU_OPENED_TRIAL".equals(purpose)
+                || "VERIFACTU_OPENED_FREE".equals(purpose)
+                || "VERIFACTU_REOPENED".equals(purpose);
+    }
+
+    @Override
+    public boolean enqueueVerifactuNotification(String tenantId, String purpose, Instant now) {
+        if (tenantId == null || tenantId.isBlank() || !isVerifactuPurpose(purpose)) {
+            return false;
+        }
+        String normalizedTenant = tenantId.strip();
+        Instant effectiveNow = now == null ? Instant.now() : now;
+        boolean onHold = "VERIFACTU_ON_HOLD".equals(purpose);
+        return transaction(connection -> {
+            String ownerUsername;
+            boolean alreadyNotified;
+            boolean wasOnHold;
+            try (var query = statement(connection,
+                    "SELECT owner_username, verifactu_hold_notified_at, verifactu_opened_notified_at FROM public.tenant_locations WHERE tenant_id = ? FOR UPDATE",
+                    normalizedTenant); var row = query.executeQuery()) {
+                if (!row.next()) {
+                    return false;
+                }
+                ownerUsername = row.getString(1);
+                wasOnHold = row.getTimestamp(2) != null;
+                boolean wasOpened = row.getTimestamp(3) != null;
+                alreadyNotified = onHold ? wasOnHold : wasOpened;
+            }
+            if (alreadyNotified) {
+                return false;
+            }
+            try (var query = statement(connection,
+                    "SELECT closed_at FROM public.tenant_billing WHERE tenant_id = ?",
+                    normalizedTenant); var row = query.executeQuery()) {
+                if (row.next() && row.getTimestamp(1) != null) {
+                    return false;
+                }
+            }
+            String email;
+            String language;
+            try (var query = statement(connection,
+                    "SELECT email, COALESCE(account_language, 'en') FROM public.users WHERE username = ? AND active = TRUE AND email IS NOT NULL AND email_verified_at IS NOT NULL",
+                    ownerUsername); var row = query.executeQuery()) {
+                if (!row.next()) {
+                    return false;
+                }
+                email = row.getString(1);
+                language = row.getString(2);
+            }
+            String effectivePurpose = (!onHold && wasOnHold) ? "VERIFACTU_REOPENED" : purpose;
+            if (onHold) {
+                update(connection,
+                        "UPDATE public.tenant_locations SET verifactu_hold_notified_at = ?, verifactu_opened_notified_at = NULL WHERE tenant_id = ?",
+                        Timestamp.from(effectiveNow), normalizedTenant);
+            } else {
+                update(connection,
+                        "UPDATE public.tenant_locations SET verifactu_opened_notified_at = ?, verifactu_hold_notified_at = NULL WHERE tenant_id = ?",
+                        Timestamp.from(effectiveNow), normalizedTenant);
+            }
+            long time = effectiveNow.toEpochMilli();
+            update(connection,
+                    "INSERT INTO public.account_email_outbox (id, purpose, subject_type, subject_id, tenant_id, language, recipient_email, state, attempts, available_at, created_at) VALUES (?, ?, 'LOCATION', ?, ?, ?, ?, 'PENDING', 0, ?, ?)",
+                    UUID.randomUUID().toString(), effectivePurpose, normalizedTenant, normalizedTenant, language, email, time, time);
+            return true;
         });
     }
     private static PreparedStatement statement(Connection connection, String sql, Object... args) throws SQLException {

@@ -1,10 +1,12 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.TestConfig;
+import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.SandboxProvisioningService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuNotificationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
@@ -228,5 +230,24 @@ class InternalJobsControllerTest {
         assertThat(summary.submitted()).isEqualTo(6);
         assertThat(summary.locationsChecked()).isEqualTo(2);
         assertThat(summary.locationsRemaining()).isEqualTo(1);
+    }
+
+    @Test
+    void jobsRunTriggersVerifactuNotificationSweep() {
+        var sandboxJob = mock(SandboxProvisioningJob.class);
+        var verifactuJob = mock(VerifactuSubmissionJob.class);
+        when(verifactuJob.run(any())).thenReturn(new VerifactuSubmissionJob.Summary(0, 0, 0));
+        var backfillJob = mock(FiscalIssuerBackfillJob.class);
+        var accountMail = mock(AccountMailOutboxService.class);
+        var notifications = mock(VerifactuNotificationService.class);
+
+        var controller = new InternalJobsController(
+                sandboxJob, verifactuJob, backfillJob, null, null, accountMail, null, null, notifications,
+                SECRET, Clock.systemUTC());
+
+        var response = controller.run(SECRET);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(notifications).sweep();
+        verify(accountMail).run(10);
     }
 }

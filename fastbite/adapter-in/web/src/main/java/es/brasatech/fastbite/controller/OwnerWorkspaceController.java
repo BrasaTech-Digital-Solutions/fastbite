@@ -190,6 +190,7 @@ public class OwnerWorkspaceController {
                 }
                 if (!environment.sandbox() && view.equals("overview")) {
                     model.addAttribute("verifactuStep", buildVerifactuStep(setup.fiscal()));
+                    model.addAttribute("ordersNeedingRefund", workspace.ordersNeedingRefund(owner.getName(), selected.tenantId()));
                 }
                 if (view.equals("overview") && setup.opened() && !environment.sandbox()) {
                     model.addAttribute("todayVerifactu", workspace.verifactuSummary(owner.getName(), selected.tenantId(), false));

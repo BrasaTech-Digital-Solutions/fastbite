@@ -17,4 +17,13 @@ public interface AccountMailOutboxPort {
     default Optional<Recipient> issueOwnerSetup(Claim claim, String hash, Instant now) { return issue(claim, hash, now); }
     void sent(Claim claim, Instant now);
     String failed(Claim claim, Instant now);
+    /**
+     * Enqueues a VERI*FACTU state-transition email ({@code VERIFACTU_ON_HOLD} or
+     * {@code VERIFACTU_OPENED}) once per transition for the given production location.
+     *
+     * @return {@code true} when a new outbox row was queued
+     */
+    default boolean enqueueVerifactuNotification(String tenantId, String purpose, Instant now) {
+        return false;
+    }
 }

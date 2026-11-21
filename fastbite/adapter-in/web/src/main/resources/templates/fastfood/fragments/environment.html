@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
+<th:block th:fragment="banner">
 <!-- On every page of the sandbox: it must never be mistaken for production -->
-<div th:fragment="banner" th:if="${platform != null && platform.sandbox()}" class="fb-sandbox-banner" role="note">
+<div th:if="${platform != null && platform.sandbox()}" class="fb-sandbox-banner" role="note">
     <style>
         .fb-sandbox-banner{position:sticky;top:0;z-index:2000;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.25rem .75rem;
             padding:.45rem 1rem;font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1a14;text-align:center;
@@ -22,5 +23,25 @@
         })();
     </script>
 </div>
+<!--/* Production VERI*FACTU hold banner: shown when the location cannot issue tickets yet */-->
+<div th:if="${platform != null && !platform.sandbox() && verifactuBanner != null}"
+     th:class="${'fb-verifactu-banner fb-verifactu-banner--' + verifactuBanner.audience()}"
+     role="status">
+    <style>
+        .fb-verifactu-banner{position:sticky;top:0;z-index:1900;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.3rem .75rem;
+            padding:.55rem 1rem;font:600 13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:center;
+            color:var(--fb-hold-ink,#451a03);background:var(--fb-hold-bg,#fef3c7);border-bottom:2px solid var(--fb-hold-border,#d97706)}
+        .fb-verifactu-banner--guest{color:var(--fb-guest-hold-ink,#1f2937);background:var(--fb-guest-hold-bg,#f3f4f6);border-bottom-color:var(--fb-guest-hold-border,#9ca3af)}
+        .fb-verifactu-banner__reason{font-weight:500}
+        .fb-verifactu-banner__link{color:inherit;text-decoration:underline;font-weight:700}
+        @media print{.fb-verifactu-banner{display:none}}
+    </style>
+    <span class="fb-verifactu-banner__text" th:text="${#messages.msg(verifactuBanner.messageKey())}">This location cannot issue tickets yet.</span>
+    <span class="fb-verifactu-banner__reason" th:if="${verifactuBanner.reasonKey() != null}"
+          th:text="${'— ' + #messages.msg(verifactuBanner.reasonKey())}">Reason</span>
+    <a class="fb-verifactu-banner__link" th:if="${verifactuBanner.actionUrl() != null}"
+       th:href="${verifactuBanner.actionUrl()}" th:text="${#messages.msg(verifactuBanner.actionLabelKey())}">Go to VERI*FACTU step</a>
+</div>
+</th:block>
 </body>
 </html>
