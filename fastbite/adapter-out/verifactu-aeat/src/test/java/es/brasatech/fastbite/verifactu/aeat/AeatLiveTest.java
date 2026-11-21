@@ -43,7 +43,7 @@ class AeatLiveTest {
                 .contains(nif);
         VerifactuSystem system = new VerifactuSystem(name, nif, "FastBite", "FB", "1.0", "Servicios de restauración");
         var submitter = new AeatVerifactuSubmitter(env("VERIFACTU_CERTIFICATE_PATH"),
-                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system);
+                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system, (issuer, at) -> false);
         assertThat(submitter.configured()).as("certificate loads").isTrue();
 
         // A new series and installation each run, so the AEAT sees a new invoice in a new chain
@@ -72,7 +72,7 @@ class AeatLiveTest {
         String name = env("VERIFACTU_LIVE_NAME");
         VerifactuSystem system = new VerifactuSystem(name, nif, "FastBite", "FB", "1.0", "Servicios de restauración");
         var submitter = new AeatVerifactuSubmitter(env("VERIFACTU_CERTIFICATE_PATH"),
-                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system);
+                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system, (issuer, at) -> false);
 
         String series = "FBSUB" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
         var installation = new VerifactuSubmitter.Installation("live-" + series, false);
@@ -106,7 +106,7 @@ class AeatLiveTest {
         String name = env("VERIFACTU_LIVE_NAME");
         VerifactuSystem system = new VerifactuSystem(name, nif, "FastBite", "FB", "1.0", "Servicios de restauración");
         var submitter = new AeatVerifactuSubmitter(env("VERIFACTU_CERTIFICATE_PATH"),
-                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system);
+                env("VERIFACTU_CERTIFICATE_PASSWORD"), false, false, "", system, (issuer, at) -> false);
         String series = "FBANU" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMddHHmmss"));
         var installation = new VerifactuSubmitter.Installation("live-" + series, false);
         OffsetDateTime now = OffsetDateTime.now(ZoneId.of("Europe/Madrid")).truncatedTo(ChronoUnit.SECONDS);

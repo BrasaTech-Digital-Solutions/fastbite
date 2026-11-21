@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.verifactu.aeat;
 
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuSubmitter;
 import es.brasatech.fastbite.application.verifactu.VerifactuSystem;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
@@ -31,8 +32,10 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 /**
@@ -62,6 +65,7 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
     private final String productionEndpoint;
     private final boolean productionEnabled;
     private final Set<String> issuers;
+    private final BiPredicate<String, Instant> authorizedAt;
     private final Clock clock;
     private final String problem;
     /** When each issuer may be sent records again, as the AEAT asked. */
@@ -74,7 +78,20 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
             @Value("${fastbite.verifactu.aeat.seal-certificate:false}") boolean sealCertificate,
             @Value("${fastbite.verifactu.aeat.production-enabled:false}") boolean productionEnabled,
             @Value("${fastbite.verifactu.aeat.issuers:}") String issuers,
-            VerifactuSystem system) {
+            VerifactuSystem system,
+            VerifactuAuthorizationService authorizations) {
+        this(certificatePath, certificatePassword, sealCertificate, productionEnabled, issuers, system,
+                Objects.requireNonNull(authorizations, "authorizations")::wasAuthorizedAt);
+    }
+
+    AeatVerifactuSubmitter(
+            String certificatePath,
+            String certificatePassword,
+            boolean sealCertificate,
+            boolean productionEnabled,
+            String issuers,
+            VerifactuSystem system,
+            BiPredicate<String, Instant> authorizedAt) {
         String problem = null;
         HttpClient http = null;
         if (certificatePath == null || certificatePath.isBlank()) {
@@ -98,18 +115,26 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
         this.productionEndpoint = sealCertificate ? PRODUCTION_SEAL : PRODUCTION;
         this.productionEnabled = productionEnabled;
         this.issuers = parseIssuers(issuers);
+        this.authorizedAt = Objects.requireNonNull(authorizedAt, "authorizedAt");
         this.clock = Clock.systemUTC();
     }
 
-    /** For tests: talks to the given endpoints with the given client. */
+    /** For tests: talks to the given endpoints with the given client (fail-closed in production unless authorized). */
     AeatVerifactuSubmitter(HttpClient http, String testEndpoint, String productionEndpoint, boolean productionEnabled,
             Set<String> issuers, Clock clock) {
+        this(http, testEndpoint, productionEndpoint, productionEnabled, issuers, (nif, issuedAt) -> false, clock);
+    }
+
+    /** For tests: talks to the given endpoints with an explicit per-NIF authorisation predicate. */
+    AeatVerifactuSubmitter(HttpClient http, String testEndpoint, String productionEndpoint, boolean productionEnabled,
+            Set<String> issuers, BiPredicate<String, Instant> authorizedAt, Clock clock) {
         this.http = http;
         this.problem = null;
         this.testEndpoint = testEndpoint;
         this.productionEndpoint = productionEndpoint;
         this.productionEnabled = productionEnabled;
         this.issuers = issuers;
+        this.authorizedAt = Objects.requireNonNull(authorizedAt, "authorizedAt");
         this.clock = clock;
     }
 
@@ -143,7 +168,7 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
             if (invalid != null) {
                 // The AEAT would refuse the whole submission for it; say why here instead
                 results.add(new Result(record.id(), VerifactuStatus.REJECTED, invalid, null));
-            } else if (issuers.isEmpty() || issuers.contains(record.issuerNif())) {
+            } else if (allowed(submission, production)) {
                 byIssuer.computeIfAbsent(record.issuerNif(), nif -> new ArrayList<>()).add(submission);
             }
         }
@@ -199,6 +224,41 @@ public class AeatVerifactuSubmitter implements VerifactuSubmitter {
         log.info("VERI*FACTU: AEAT answered {} for {} records of {} (CSV {})", answer.state(), records.size(), issuer,
                 answer.csv());
         return results;
+    }
+
+    /**
+     * In sandbox/test mode, an empty {@code VERIFACTU_ISSUERS} list allows all test NIFs as before.
+     * In production, a record may be sent ONLY when its issuer NIF is explicitly listed in
+     * {@code VERIFACTU_ISSUERS} (for Brasatech's own test NIF) OR had a valid VERI*FACTU
+     * authorisation at the moment the ticket was issued (so records issued before a later
+     * revocation still submit, including subsanaciones of those tickets).
+     */
+    private boolean allowed(Submission submission, boolean production) {
+        VerifactuRecord record = submission.record();
+        String nif = record.issuerNif();
+        if (!production) {
+            return issuers.isEmpty() || issuers.contains(nif);
+        }
+        if (issuers.contains(nif)) {
+            return true;
+        }
+        Instant issuedAt = issuedAt(submission);
+        return issuedAt != null && authorizedAt.test(nif, issuedAt);
+    }
+
+    private static Instant issuedAt(Submission submission) {
+        VerifactuRecord record = submission.record();
+        // An anulación is a new record sent in Brasatech's name and requires authorisation when generated.
+        if (record != null && record.cancels() && record.generatedAt() != null) {
+            return record.generatedAt().toInstant();
+        }
+        if (submission.ticket() != null && submission.ticket().issuedAt() != null) {
+            return submission.ticket().issuedAt().toInstant();
+        }
+        if (record != null && record.generatedAt() != null) {
+            return record.generatedAt().toInstant();
+        }
+        return null;
     }
 
     /** Why the AEAT could not take this record at all, or null. */

@@ -3,6 +3,7 @@ package es.brasatech.fastbite.application.fiscal;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
@@ -31,6 +32,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -71,23 +73,27 @@ public class FiscalTicketService {
     private final PlatformEnvironment environment;
     private final TableService tables;
     private final VerifactuService verifactu;
+    private final VerifactuAuthorizationGate verifactuGate;
     private final Clock clock;
 
     @Autowired
     public FiscalTicketService(OrderService orders, FiscalTicketRepository tickets, FiscalProfileService profiles,
             PlatformEnvironment environment, TableService tables, VerifactuService verifactu,
+            VerifactuAuthorizationGate verifactuGate,
             @Value("${fastbite.orders.time-zone:Europe/Madrid}") ZoneId timeZone) {
-        this(orders, tickets, profiles, environment, tables, verifactu, Clock.system(timeZone));
+        this(orders, tickets, profiles, environment, tables, verifactu, verifactuGate, Clock.system(timeZone));
     }
 
     public FiscalTicketService(OrderService orders, FiscalTicketRepository tickets, FiscalProfileService profiles,
-            PlatformEnvironment environment, TableService tables, VerifactuService verifactu, Clock clock) {
+            PlatformEnvironment environment, TableService tables, VerifactuService verifactu,
+            VerifactuAuthorizationGate verifactuGate, Clock clock) {
         this.orders = orders;
         this.tickets = tickets;
         this.profiles = profiles;
         this.environment = environment;
         this.tables = tables;
         this.verifactu = verifactu;
+        this.verifactuGate = Objects.requireNonNull(verifactuGate, "verifactuGate");
         this.clock = clock;
     }
 
@@ -105,7 +111,8 @@ public class FiscalTicketService {
         if (payment.method() == PaymentMethod.ONLINE) {
             throw new LocalizedRejection("ticket.error.onlineAtCounter", "Online payments are recorded when the guest pays online");
         }
-        requireReady();
+        requireFiscalDetails();
+        verifactuGate.requireMayIssueTickets();
         List<Order> charged = new ArrayList<>();
         for (String orderId : new LinkedHashSet<>(orderIds)) {
             Order order = orders.findById(orderId)
@@ -136,6 +143,7 @@ public class FiscalTicketService {
         if (issued.isPresent()) {
             return issued.get();
         }
+        verifactuGate.requireMayIssueTickets();
         Order order = orders.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Paid order " + orderId + " does not exist"));
         // The money has arrived: a missing business detail must not lose the record of it
@@ -167,7 +175,8 @@ public class FiscalTicketService {
         if (customer == null) {
             throw new LocalizedRejection("recipient.error.name", "Enter the customer's details for the invoice");
         }
-        requireReady();
+        requireFiscalDetails();
+        verifactuGate.requireMayIssueTickets();
         return add(TicketKind.REPLACEMENT, original.training(), original.lines(), original.discount(), original.total(),
                 new Payment(original.paymentMethod(), null, original.tip(), original.paymentReference()), customer,
                 new FiscalTicket.Correction(original.id(), original.fullNumber(), original.issuedOn(), null),
@@ -194,7 +203,8 @@ public class FiscalTicketService {
         tickets.findCorrection(ticketId, TicketKind.RECTIFYING).ifPresent(done -> {
             throw new LocalizedRejection("ticket.error.alreadyRefunded", "Ticket " + original.fullNumber() + " was already refunded by " + done.fullNumber(), original.fullNumber(), done.fullNumber());
         });
-        requireReady();
+        requireFiscalDetails();
+        verifactuGate.requireMayIssueTickets();
         FiscalTicket refund = add(TicketKind.RECTIFYING, original.training(),
                 original.lines().stream().map(TicketLine::negated).toList(), original.discount().negate(),
                 original.total().negate(),
@@ -216,6 +226,7 @@ public class FiscalTicketService {
     public record CancellationResult(TicketCancellation cancellation, boolean ordersMissing) {}
 
     public CancellationResult cancel(String ticketId, String reason, String cancelledBy) {
+        verifactuGate.requireMayIssueTickets();
         tickets.lock(ticketId);
         FiscalTicket ticket = find(ticketId);
         if (ticket.kind() != TicketKind.SIMPLIFIED && ticket.kind() != TicketKind.FULL) {
@@ -309,14 +320,14 @@ public class FiscalTicketService {
         return environment.sandbox();
     }
 
-    /** Whether payments can be taken: always in the sandbox, with complete business details in production. */
+    /** Whether payments can be taken: always in the sandbox, with complete business details and VERI*FACTU authorisation in production. */
     @Transactional(readOnly = true)
     public boolean ready() {
-        return environment.sandbox() || profiles.get().complete();
+        return environment.sandbox() || (profiles.get().complete() && verifactuGate.mayIssueTickets());
     }
 
-    private void requireReady() {
-        if (!ready()) {
+    private void requireFiscalDetails() {
+        if (!environment.sandbox() && !profiles.get().complete()) {
             throw new LocalizedRejection("ticket.error.notReady", NOT_READY);
         }
     }
@@ -355,6 +366,7 @@ public class FiscalTicketService {
     private FiscalTicket add(TicketKind kind, boolean training, List<TicketLine> lines, BigDecimal discount,
             BigDecimal total, Payment payment, TicketRecipient recipient, FiscalTicket.Correction corrects,
             List<String> orderIds, String orderNumbers, String tableName, String issuedBy) {
+        verifactuGate.requireMayIssueTickets();
         FiscalProfile profile = profiles.get();
         OffsetDateTime now = OffsetDateTime.now(clock);
         String prefix = profile.seriesPrefix() != null ? profile.seriesPrefix() : "DEMO";

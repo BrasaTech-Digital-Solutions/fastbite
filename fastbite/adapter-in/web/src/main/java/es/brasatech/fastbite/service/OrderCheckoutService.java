@@ -5,6 +5,7 @@ import com.stripe.model.checkout.Session;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.order.OrderStatus;
@@ -191,6 +192,14 @@ public class OrderCheckoutService {
         if (order.paymentStatus() == OrderPaymentStatus.PAID && fiscalTicketService.findForOrder(orderId).isPresent()) {
             return true;
         }
+        if (order.paymentStatus() == OrderPaymentStatus.REFUNDED) {
+            return false;
+        }
+        if (order.paymentStatus() == OrderPaymentStatus.NEEDS_REFUND) {
+            // Never fall through to settleOnline for a cancelled NEEDS_REFUND order: only retry the refund.
+            attemptVerifactuHoldRefund(orderId, session, "NEEDS_REFUND replay");
+            return false;
+        }
         long paid = session.getAmountTotal() != null ? session.getAmountTotal() : 0;
         long due = StripeService.toCents(order.total());
         if (paid < due) {
@@ -200,8 +209,41 @@ public class OrderCheckoutService {
         }
         // Whatever was paid above the order is the tip the guest chose
         BigDecimal tip = BigDecimal.valueOf(paid - due).movePointLeft(2);
-        var ticket = fiscalTicketService.settleOnline(orderId, tip, session.getPaymentIntent());
-        log.info("Order {} paid online through checkout {}, ticket {}", orderId, session.getId(), ticket.fullNumber());
-        return true;
+        try {
+            var ticket = fiscalTicketService.settleOnline(orderId, tip, session.getPaymentIntent());
+            log.info("Order {} paid online through checkout {}, ticket {}", orderId, session.getId(), ticket.fullNumber());
+            return true;
+        } catch (VerifactuAuthorizationRequiredException blocked) {
+            attemptVerifactuHoldRefund(orderId, session, String.valueOf(blocked.reason()));
+            return false;
+        }
+    }
+
+    /**
+     * A Stripe payment was captured in the race window after the location lost VERI*FACTU
+     * authorisation: no ticket may be issued. Refund the PaymentIntent automatically with a stable
+     * idempotency key; if the refund call cannot complete, persist {@link OrderPaymentStatus#NEEDS_REFUND}
+     * so the owner and platform admins can resolve it.
+     */
+    private void attemptVerifactuHoldRefund(String orderId, Session session, String reason) {
+        String paymentIntent = session.getPaymentIntent();
+        if (paymentIntent != null && !paymentIntent.isBlank() && stripeService.isConfigured()) {
+            try {
+                String refundId = stripeService.refundPaymentIntent(
+                        paymentIntent, "verifactu-hold-refund-" + orderId);
+                orderService.cancelOrder(orderId, Order.VERIFACTU_HOLD_REFUNDED_REASON);
+                orderService.markOrderRefunded(orderId);
+                log.warn("VERI*FACTU hold ({}) prevented ticket for paid order {} (checkout {}); automatic Stripe refund {} issued",
+                        reason, orderId, session.getId(), refundId);
+                return;
+            } catch (StripeException | RuntimeException refundError) {
+                log.error("VERI*FACTU hold ({}) prevented ticket for paid order {} (checkout {}) and automatic refund failed ({}); marking order NEEDS_REFUND",
+                        reason, orderId, session.getId(), refundError.getMessage());
+            }
+        } else {
+            log.error("VERI*FACTU hold ({}) prevented ticket for paid order {} (checkout {}) with no refundable PaymentIntent; marking order NEEDS_REFUND",
+                    reason, orderId, session.getId());
+        }
+        orderService.markOrderNeedsRefund(orderId, Order.VERIFACTU_HOLD_NEEDS_REFUND_REASON);
     }
 }

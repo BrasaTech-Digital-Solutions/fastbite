@@ -3,6 +3,8 @@ package es.brasatech.fastbite.jpa.order;
 import es.brasatech.fastbite.application.office.I18nConfig;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent;
+import es.brasatech.fastbite.domain.event.OrderStatusChangedEvent;
 import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.order.OrderChannel;
@@ -19,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -129,6 +132,22 @@ public class OrderServiceJpaImpl implements OrderService {
         entity.setPaymentStatus(refundedOrder.paymentStatus());
         entity.setUpdatedAt(java.time.LocalDateTime.now());
         publishEvent(new es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent(toOrderWithTranslation(entity)));
+    }
+
+    @Override
+    public void markOrderNeedsRefund(String id, String reason) {
+        var entityOpt = repository.findForUpdate(id);
+        if (entityOpt.isEmpty()) return;
+        var entity = entityOpt.get();
+        Order order = toOrderWithTranslation(entity);
+        Order needsRefund = order.markNeedsRefund(reason);
+        entity.setStatus(needsRefund.status());
+        entity.setPaymentStatus(needsRefund.paymentStatus());
+        entity.setCancelReason(needsRefund.cancelReason());
+        entity.setUpdatedAt(LocalDateTime.now());
+        Order updated = toOrderWithTranslation(entity);
+        publishEvent(new OrderPaymentStatusChangedEvent(updated));
+        publishEvent(new OrderStatusChangedEvent(updated));
     }
 
     @Override

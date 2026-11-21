@@ -503,6 +503,35 @@ class VerifactuAuthorizationServiceTest {
         verify(client, times(1)).createRequest(any(), anyString());
     }
 
+    @Test
+    void startSigningReturnsUnavailableWhenVerifiedOwnerEmailIsMissingEvenIfFiscalProfileHasEmail() {
+        when(client.isConfigured()).thenReturn(true);
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().setSignerRole("Representante");
+        properties.getVerifactu().getFields().setLegalName("fld_name");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        properties.getVerifactu().getFields().setBrasatechNif("fld_bt_nif");
+        DigitalSignTemplate template = new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(1, "Representante", true, List.of())),
+                List.of(
+                        new TemplateField("fld_name", "Razón social", "TEXT", true, "NONE"),
+                        new TemplateField("fld_nif", "NIF", "TEXT", true, "DNI_NIE"),
+                        new TemplateField("fld_bt_nif", "NIF Brasatech", "TEXT", true, "DNI_NIE")));
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(template);
+
+        FiscalProfile completeWithEmail = completeProfile("B09767898");
+        assertThat(completeWithEmail.email()).isEqualTo("ana@example.es");
+
+        StartSigningResult result = service.startSigning(completeWithEmail, "owner1", "Ana Lopez", null, "es");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_UNAVAILABLE);
+        verify(client, never()).createRequest(any(), anyString());
+    }
+
     private static FiscalProfile completeProfile(String nif) {
         return new FiscalProfile("Restaurante Prueba SL", "Prueba", nif,
                 "Calle Mayor 1", "28013", "Madrid", "Madrid", "600123456", "ana@example.es", "RP", new BigDecimal("10"));

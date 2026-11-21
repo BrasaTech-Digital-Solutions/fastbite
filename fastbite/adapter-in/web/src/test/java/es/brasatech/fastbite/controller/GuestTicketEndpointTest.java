@@ -10,6 +10,7 @@ import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
 import es.brasatech.fastbite.application.mail.GuestTicketMailPort;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
@@ -66,9 +67,11 @@ class GuestTicketEndpointTest {
     @MockitoBean PublicOrigin publicOrigin;
     @MockitoBean OrderService orders;
     @MockitoBean VerifactuService verifactu;
+    @MockitoBean VerifactuAuthorizationGate verifactuGate;
     @MockitoBean TenantLocationService locations;
 
     @BeforeEach void setup() {
+        when(verifactuGate.mayIssueTickets(any())).thenReturn(true);
         when(publicOrigin.configuredPublicUrl()).thenReturn("https://example.test");
         es.brasatech.fastbite.config.RegisteredTenants.all(locations);
         when(locations.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());

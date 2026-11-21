@@ -319,9 +319,9 @@ public class VerifactuAuthorizationService {
         }
 
         String signerName = resolveNewSignerName(ownerName, ownerUsername);
-        String signerEmail = resolveNewSignerEmail(ownerEmail, fiscalProfile);
+        String signerEmail = resolveNewSignerEmail(ownerEmail);
         if (signerEmail == null) {
-            log.warn("VERI*FACTU signing unavailable: no valid email available for signer");
+            log.warn("VERI*FACTU signing unavailable: no verified owner email available for signer");
             return StartSigningResult.unavailable("SIGNING_UNAVAILABLE");
         }
         String dsLang = "en".equalsIgnoreCase(language) ? "en" : "es";
@@ -586,13 +586,9 @@ public class VerifactuAuthorizationService {
         return truncate(ownerUsername == null ? "" : ownerUsername.strip(), 120);
     }
 
-    private static String resolveNewSignerEmail(String ownerEmail, FiscalProfile profile) {
+    private static String resolveNewSignerEmail(String ownerEmail) {
         if (ownerEmail != null && !ownerEmail.isBlank() && EMAIL_PATTERN.matcher(ownerEmail.strip()).matches()) {
             return ownerEmail.strip();
-        }
-        if (profile != null && profile.email() != null && !profile.email().isBlank()
-                && EMAIL_PATTERN.matcher(profile.email().strip()).matches()) {
-            return profile.email().strip();
         }
         return null;
     }

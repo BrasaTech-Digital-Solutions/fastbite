@@ -4,8 +4,12 @@ import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
+import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
+import com.stripe.param.RefundCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import es.brasatech.fastbite.domain.order.Order;
 import org.springframework.beans.factory.annotation.Value;
@@ -114,6 +118,38 @@ public class StripeService {
     public Session retrieveSession(String sessionId) throws StripeException {
         requireSecretKey();
         return Session.retrieve(sessionId);
+    }
+
+    /**
+     * Refunds a captured PaymentIntent in full, with a stable idempotency key so retries never
+     * double-refund (used when a payment arrives in the race window after a location loses
+     * VERI*FACTU authorisation and no ticket may be issued). Transfer reversal and application-fee
+     * refund are derived from the PaymentIntent that was actually paid, so a later change of the
+     * location's Stripe account or plan cannot break the refund.
+     */
+    public String refundPaymentIntent(String paymentIntentId, String idempotencyKey) throws StripeException {
+        requireSecretKey();
+        PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);
+        boolean hasTransfer = paymentIntent.getTransferData() != null
+                && paymentIntent.getTransferData().getDestination() != null
+                && !paymentIntent.getTransferData().getDestination().isBlank();
+        boolean hasApplicationFee = paymentIntent.getApplicationFeeAmount() != null
+                && paymentIntent.getApplicationFeeAmount() > 0L;
+        RefundCreateParams.Builder params = RefundCreateParams.builder()
+                .setPaymentIntent(paymentIntentId)
+                .setReason(RefundCreateParams.Reason.REQUESTED_BY_CUSTOMER);
+        if (hasTransfer) {
+            params.setReverseTransfer(true);
+            if (hasApplicationFee) {
+                params.setRefundApplicationFee(true);
+            }
+        }
+        RequestOptions.RequestOptionsBuilder options = RequestOptions.builder();
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            options.setIdempotencyKey(idempotencyKey);
+        }
+        Refund refund = Refund.create(params.build(), options.build());
+        return refund.getId();
     }
 
     /**

@@ -2,10 +2,12 @@ package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.fiscal.GuestActionRateLimit;
-import es.brasatech.fastbite.application.mail.GuestTicketMailPort;
-import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
+import es.brasatech.fastbite.application.mail.GuestTicketMailPort;
 import es.brasatech.fastbite.application.order.OrderService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
+import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.dto.counter.InvoiceDetails;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
@@ -53,6 +55,7 @@ public class GuestTicketController {
     private final GuestActionRateLimit actionLimit;
     private final GuestTicketMailPort ticketMail;
     private final PublicOrigin publicOrigin;
+    private final VerifactuAuthorizationGate verifactuGate;
 
     private static void privateHeaders(HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
@@ -108,6 +111,16 @@ public class GuestTicketController {
         if (!signatures.valid(tenant, ticketId, signature) || tickets.findById(ticketId).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+        model.addAttribute("invoiceName", name);
+        model.addAttribute("invoiceTaxId", taxId);
+        model.addAttribute("invoiceCountry", country);
+        model.addAttribute("invoiceAddress", address);
+        if (!verifactuGate.mayIssueTickets(tenant)) {
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            model.addAttribute("invoiceError", messages.getMessage("guest.invoice.unavailable", null,
+                    "This restaurant cannot issue invoices right now. Please try again later.", locale));
+            return ticket(ticketId, signature, request, response, model);
+        }
         String ticketKey = signatures.sign(tenant, "invoice-ticket:" + ticketId);
         String clientKey = signatures.sign("guest-invoice-client", request.getRemoteAddr());
         if (!invoiceLimit.tryAcquire(ticketKey, clientKey)) {
@@ -115,15 +128,16 @@ public class GuestTicketController {
             model.addAttribute("invoiceError", messages.getMessage("guest.invoice.limit", null, locale));
             return ticket(ticketId, signature, request, response, model);
         }
-        model.addAttribute("invoiceName", name);
-        model.addAttribute("invoiceTaxId", taxId);
-        model.addAttribute("invoiceCountry", country);
-        model.addAttribute("invoiceAddress", address);
         try {
             FiscalTicket invoice = tickets.replace(ticketId, new InvoiceDetails(taxId, country, name, address).toRecipient(), "cliente online");
             Object attribute = request.getAttribute(TenantRoutingResolver.TENANT_URL_PREFIX);
             String prefix = attribute == null ? "" : attribute.toString();
             return "redirect:" + url(prefix, tenant, invoice.id());
+        } catch (VerifactuAuthorizationRequiredException blocked) {
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            model.addAttribute("invoiceError", messages.getMessage("guest.invoice.unavailable", null,
+                    "This restaurant cannot issue invoices right now. Please try again later.", locale));
+            return ticket(ticketId, signature, request, response, model);
         } catch (LocalizedRejection rejection) {
             response.setStatus(400);
             model.addAttribute("invoiceError", messages.getMessage(rejection.key(), rejection.args(), rejection.getMessage(), locale));

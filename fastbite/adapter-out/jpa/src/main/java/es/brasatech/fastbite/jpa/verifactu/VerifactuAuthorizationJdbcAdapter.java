@@ -249,6 +249,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 SELECT COUNT(*)
                 FROM public.verifactu_authorizations
                 WHERE nif = ?
+                  AND status IN ('VALID', 'REVOKED')
                   AND valid_from IS NOT NULL
                   AND valid_from <= ?
                   AND (revoked_at IS NULL OR ? < revoked_at)

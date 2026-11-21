@@ -3,6 +3,9 @@ package es.brasatech.fastbite.application.fiscal;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
@@ -17,6 +20,8 @@ import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
 import es.brasatech.fastbite.domain.product.ProductCustomizer;
 import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.table.TableStatus;
+import es.brasatech.fastbite.domain.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -82,17 +87,25 @@ class FiscalTicketServiceTest {
     MemoryTickets tickets = new MemoryTickets();
     es.brasatech.fastbite.application.verifactu.VerifactuService verifactu =
             mock(es.brasatech.fastbite.application.verifactu.VerifactuService.class);
+    VerifactuAuthorizationService authorizations = mock(VerifactuAuthorizationService.class);
+    VerifactuAuthorizationGate productionGate = new VerifactuAuthorizationGate(
+            new PlatformEnvironment("production"), profiles, authorizations);
+    VerifactuAuthorizationGate sandboxGate = new VerifactuAuthorizationGate(
+            new PlatformEnvironment("sandbox"), profiles, authorizations);
     FiscalTicketService production = new FiscalTicketService(orders, tickets, profiles,
-            new PlatformEnvironment("production"), tables, verifactu, NOON);
+            new PlatformEnvironment("production"), tables, verifactu, productionGate, NOON);
     FiscalTicketService sandbox = new FiscalTicketService(orders, tickets, profiles,
-            new PlatformEnvironment("sandbox"), tables, verifactu, NOON);
+            new PlatformEnvironment("sandbox"), tables, verifactu, sandboxGate, NOON);
 
     Order kebab;
     Order beer;
 
     @BeforeEach
     void setUp() {
+        TenantContext.setCurrentTenant("bistro");
         when(profiles.get()).thenReturn(ANA);
+        when(authorizations.isCollaborationActive()).thenReturn(true);
+        when(authorizations.hasValidAuthorization("12345678Z")).thenReturn(true);
         kebab = order(12, new CartItem("l1", "kebab", "Kebab", null, null, 2,
                 List.of(new ProductCustomizer("garlic", "Garlic sauce", new BigDecimal("0.50"), 1)), new BigDecimal("6.50"),
                 new BigDecimal("10.00")));
@@ -100,6 +113,11 @@ class FiscalTicketServiceTest {
                 new BigDecimal("21.00")));
         when(tables.findTableByOrderId(kebab.id())).thenReturn(Optional.of(
                 new Table("t4", "Terrace 4", 4, TableStatus.OCCUPIED, true, List.of(kebab.id(), beer.id()))));
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     private Order order(int number, CartItem line) {
@@ -302,7 +320,7 @@ class FiscalTicketServiceTest {
         FiscalTicket sale = production.settle(List.of(beer.id()), FiscalTicketService.Payment.of(PaymentMethod.CASH,
                 new BigDecimal("5.00")), null, "carla");
         FiscalTicketService tomorrow = new FiscalTicketService(orders, tickets, profiles, new PlatformEnvironment("production"),
-                tables, verifactu, Clock.offset(NOON, java.time.Duration.ofDays(1)));
+                tables, verifactu, productionGate, Clock.offset(NOON, java.time.Duration.ofDays(1)));
 
         assertThat(key(() -> production.cancel(online.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelOnline");
         assertThat(key(() -> production.cancel(sale.id(), " ", "manager"))).isEqualTo("ticket.error.cancelReason");
@@ -311,6 +329,47 @@ class FiscalTicketServiceTest {
         assertThat(key(() -> production.cancel(sale.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelCorrected");
         assertThat(key(() -> production.cancel(refund.id(), "Mistake", "manager"))).isEqualTo("ticket.error.cancelKind");
         verify(orders, never()).markOrderUnpaid(any());
+    }
+
+    @Test
+    void productionBlocksEveryTicketPathWhenVerifactuAuthorisationIsMissingOrRevoked() {
+        // First issue a valid ticket so we can also prove post-sale replace/refund/cancel are blocked after hold/revocation
+        FiscalTicket existing = production.settle(List.of(beer.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CASH, new BigDecimal("5.00")), null, "carla");
+
+        // Authorisation becomes unavailable (e.g. revoked or missing)
+        when(authorizations.hasValidAuthorization("12345678Z")).thenReturn(false);
+
+        assertThat(production.ready()).isFalse();
+        assertThatThrownBy(() -> production.settle(List.of(kebab.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CASH, new BigDecimal("20.00")), null, "carla"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class);
+        assertThatThrownBy(() -> production.settleOnline(kebab.id(), BigDecimal.ZERO, "pi_blocked"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class);
+        assertThatThrownBy(() -> production.replace(existing.id(),
+                new TicketRecipient("B09767898", "ES", "Cliente SL", "Calle 1"), "carla"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class);
+        assertThatThrownBy(() -> production.refund(existing.id(), "Wrong dish", "manager"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class);
+        assertThatThrownBy(() -> production.cancel(existing.id(), "Mistake", "manager"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class);
+
+        // Sandbox remains completely unaffected even with no authorisation
+        assertThat(sandbox.ready()).isTrue();
+        FiscalTicket training = sandbox.settle(List.of(kebab.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CASH, new BigDecimal("20.00")), null, "carla");
+        assertThat(training.training()).isTrue();
+    }
+
+    @Test
+    void productionBlocksTicketIssuanceWhenCollaborationSwitchIsOff() {
+        when(authorizations.isCollaborationActive()).thenReturn(false);
+        assertThat(production.ready()).isFalse();
+        assertThatThrownBy(() -> production.settle(List.of(kebab.id()),
+                FiscalTicketService.Payment.of(PaymentMethod.CASH, new BigDecimal("20.00")), null, "carla"))
+                .isInstanceOf(VerifactuAuthorizationRequiredException.class)
+                .satisfies(ex -> assertThat(((VerifactuAuthorizationRequiredException) ex).reason())
+                        .isEqualTo(VerifactuAuthorizationGate.HoldReason.COLLABORATION_INACTIVE));
     }
 
     private static String key(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {

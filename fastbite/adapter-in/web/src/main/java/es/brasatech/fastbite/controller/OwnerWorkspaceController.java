@@ -555,8 +555,7 @@ public class OwnerWorkspaceController {
                 .orElse(owner.getName());
         String ownerEmail = signerOpt.map(OwnerWorkspacePort.OwnerSigner::verifiedEmail)
                 .filter(email -> email != null && !email.isBlank())
-                .orElseGet(() -> subscriptions.resolveOwnerEmail(tenant, owner.getName())
-                        .orElse(fiscal != null ? fiscal.email() : null));
+                .orElse(null);
         String lang = locale != null ? locale.getLanguage() : "es";
         StartSigningResult result = verifactuAuthorizations.startSigning(
                 fiscal, owner.getName(), ownerName, ownerEmail, lang);

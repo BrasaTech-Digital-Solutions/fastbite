@@ -7,6 +7,7 @@ import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.table.TableService;
 import es.brasatech.fastbite.domain.order.CartItem;
 import es.brasatech.fastbite.domain.order.Order;
+import es.brasatech.fastbite.config.RequiresVerifactuAuthorization;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.order.OrderChannel;
 import es.brasatech.fastbite.domain.order.OrderPaymentStatus;
@@ -60,6 +61,7 @@ public class OrderController {
      * to that table orders for it; everyone else orders takeaway, paid online first.
      */
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @es.brasatech.fastbite.config.RequiresOrderingSubscription
     @PostMapping({"/{tenantId}/api/create-order", "/api/create-order"})
     public Map<String, Object> postOrder(@RequestBody CreateOrderRequest request, Locale locale, HttpSession session) {

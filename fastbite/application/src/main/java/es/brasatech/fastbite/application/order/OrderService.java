@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.application.order;
 
+import es.brasatech.fastbite.domain.event.OrderPaymentStatusChangedEvent;
 import es.brasatech.fastbite.domain.event.OrderStatusChangedEvent;
 import es.brasatech.fastbite.domain.order.*;
 import es.brasatech.fastbite.domain.table.TableStatus;
@@ -111,6 +112,26 @@ public interface OrderService {
 
     /** Marks an order's payment as given back after its ticket was refunded. */
     void markOrderRefunded(String id);
+
+    /**
+     * Marks an order as cancelled and needing a manual refund (used when an online payment arrives
+     * in the race window without VERI*FACTU authorisation and automatic refund could not complete).
+     */
+    default void markOrderNeedsRefund(String id, String reason) {
+        findById(id).ifPresent(order -> {
+            var updated = order.markNeedsRefund(reason);
+            update(id, updated);
+            publishEvent(new OrderPaymentStatusChangedEvent(updated));
+            publishEvent(new OrderStatusChangedEvent(updated));
+        });
+    }
+
+    /** Online orders whose payment was captured while the location could not issue a ticket and still need a refund. */
+    default List<Order> findOrdersNeedingRefund() {
+        return findAll().stream()
+                .filter(order -> order.paymentStatus() == OrderPaymentStatus.NEEDS_REFUND)
+                .toList();
+    }
 
     /** Marks an order unpaid again after the ticket that charged it was cancelled as a mistake. */
     void markOrderUnpaid(String id);

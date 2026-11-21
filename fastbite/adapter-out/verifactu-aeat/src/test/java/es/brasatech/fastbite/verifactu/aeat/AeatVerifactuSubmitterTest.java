@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import es.brasatech.fastbite.application.verifactu.VerifactuSubmitter;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.verifactu.VerifactuRecord;
 import es.brasatech.fastbite.domain.verifactu.VerifactuStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiPredicate;
 
 import static es.brasatech.fastbite.verifactu.aeat.AeatFixtures.SYSTEM;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,9 +65,14 @@ class AeatVerifactuSubmitterTest {
     }
 
     AeatVerifactuSubmitter submitter(boolean productionEnabled, Set<String> issuers) {
+        return submitter(productionEnabled, issuers, (nif, issuedAt) -> false);
+    }
+
+    AeatVerifactuSubmitter submitter(boolean productionEnabled, Set<String> issuers,
+            BiPredicate<String, Instant> authorizedAt) {
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         return new AeatVerifactuSubmitter(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
-                base + "/test", base + "/production", productionEnabled, issuers, clock);
+                base + "/test", base + "/production", productionEnabled, issuers, authorizedAt, clock);
     }
 
     @Test
@@ -106,10 +113,99 @@ class AeatVerifactuSubmitterTest {
     void productionStaysClosedUntilEnabled() {
         answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line("KH-T26-000001", "Correcto", null, null));
 
-        assertThat(submitter(false, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true)).isEmpty();
+        assertThat(submitter(false, Set.of(), (nif, at) -> true)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true)).isEmpty();
         assertThat(requests).isEmpty();
 
-        submitter(true, Set.of()).submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true);
+        submitter(true, Set.of(), (nif, at) -> true)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true);
+        assertThat(paths).containsExactly("/production");
+    }
+
+    @Test
+    void productionSkipsUnauthorizedRecordsEvenWhenIssuersListIsEmpty() {
+        answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line("KH-T26-000001", "Correcto", null, null));
+
+        var results = submitter(true, Set.of(), (nif, at) -> false)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, AeatFixtures.chain().subList(0, 1), true);
+
+        assertThat(results).isEmpty();
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void productionSubmitsRecordsIssuedWhileAuthorisedEvenAfterLaterRevocationAndSkipsPostRevocation() {
+        var first = AeatFixtures.chain().get(0);
+        Instant issuedAt = first.ticket().issuedAt().toInstant();
+        Instant validFrom = issuedAt.minusSeconds(60);
+        Instant revokedAt = issuedAt.plusSeconds(60);
+        BiPredicate<String, Instant> validWindow = (nif, at) ->
+                first.record().issuerNif().equals(nif) && !at.isBefore(validFrom) && at.isBefore(revokedAt);
+
+        answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line(first.record().invoiceNumber(), "Correcto", null, null));
+
+        // Record issued while valid (before revokedAt) IS submitted even though clock is now after revokedAt
+        clock.now = revokedAt.plusSeconds(3600);
+        var sent = submitter(true, Set.of(), validWindow)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(first), true);
+        assertThat(sent).hasSize(1);
+        assertThat(paths).containsExactly("/production");
+
+        // A record issued AFTER revokedAt is skipped and stays pending
+        requests.clear();
+        paths.clear();
+        BiPredicate<String, Instant> alreadyRevokedBeforeIssue = (nif, at) ->
+                first.record().issuerNif().equals(nif) && !at.isBefore(validFrom) && at.isBefore(issuedAt);
+        var skipped = submitter(true, Set.of(), alreadyRevokedBeforeIssue)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(first), true);
+        assertThat(skipped).isEmpty();
+        assertThat(requests).isEmpty();
+    }
+
+    @Test
+    void productionStillAllowsExplicitIssuersOverrideWithoutDatabaseAuthorisation() {
+        var first = AeatFixtures.chain().get(0);
+        answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line(first.record().invoiceNumber(), "Correcto", null, null));
+
+        var sent = submitter(true, Set.of(first.record().issuerNif()), (nif, at) -> false)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(first), true);
+
+        assertThat(sent).hasSize(1);
+        assertThat(paths).containsExactly("/production");
+    }
+
+    @Test
+    void productionSkipsCancellationGeneratedAfterRevocationWhileStillSendingOriginalAlta() {
+        var first = AeatFixtures.chain().get(0);
+        Instant ticketIssuedAt = first.ticket().issuedAt().toInstant();
+        Instant validFrom = ticketIssuedAt.minusSeconds(60);
+        Instant revokedAt = ticketIssuedAt.plusSeconds(60);
+        BiPredicate<String, Instant> validWindow = (nif, at) ->
+                first.record().issuerNif().equals(nif) && !at.isBefore(validFrom) && at.isBefore(revokedAt);
+
+        // An anulación generated AFTER revokedAt for a ticket issued BEFORE revokedAt must NOT be sent
+        VerifactuRecord r = first.record();
+        VerifactuRecord cancellationRecord = new VerifactuRecord(
+                "cancels-" + r.id(), r.ticketId(), r.chain(), r.sequence() + 1,
+                r.invoiceType(), r.issuerNif(), r.issuerName(), r.invoiceNumber(), r.issueDate(),
+                first.ticket().issuedAt().plusMinutes(5), r.taxTotal(), r.amountTotal(),
+                new VerifactuRecord.Link(r.issuerNif(), r.invoiceNumber(), r.issueDate(), r.fingerprint()),
+                r.fingerprint(), r.qrUrl(), null, null, new VerifactuRecord.Cancellation(false),
+                false, VerifactuRecord.Submission.PENDING);
+        var cancellation = new VerifactuSubmitter.Submission(cancellationRecord, first.ticket());
+
+        answer = AeatResponseTest.answer("Correcto", "60", AeatResponseTest.line(r.invoiceNumber(), "Correcto", null, null));
+
+        // Cancellation generated after revocation is skipped
+        var cancelledResults = submitter(true, Set.of(), validWindow)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(cancellation), true);
+        assertThat(cancelledResults).isEmpty();
+        assertThat(requests).isEmpty();
+
+        // Original alta issued before revocation still submits
+        var altaResults = submitter(true, Set.of(), validWindow)
+                .submit(SYSTEM, AeatFixtures.INSTALLATION, List.of(first), true);
+        assertThat(altaResults).hasSize(1);
         assertThat(paths).containsExactly("/production");
     }
 

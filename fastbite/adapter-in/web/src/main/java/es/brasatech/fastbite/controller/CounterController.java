@@ -9,6 +9,7 @@ import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.payment.PaymentService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.config.RequiresVerifactuAuthorization;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
 import es.brasatech.fastbite.domain.order.CartItem;
@@ -69,6 +70,7 @@ public class CounterController {
     }
 
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @es.brasatech.fastbite.config.RequiresOrderingSubscription
     @PostMapping("/counter/api/order")
     public Map<String, Object> createOrder(
@@ -206,6 +208,7 @@ public class CounterController {
      * untouched. The counter now pays through /counter/api/settle; this stays for older screens.
      */
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @PostMapping("/counter/api/orders/{orderId}/pay")
     public Map<String, Object> payOrder(@PathVariable String orderId,
             @RequestParam(defaultValue = "CASH") String method,

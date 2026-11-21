@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
 import es.brasatech.fastbite.domain.exception.ImageUploadRejection;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,6 +41,16 @@ public class BadRequestAdvice {
             return messages.getMessage(localized.key(), localized.args(), localized.getMessage(), locale);
         }
         return rejection.getMessage();
+    }
+
+    @ExceptionHandler(VerifactuAuthorizationRequiredException.class)
+    public ResponseEntity<Map<String, String>> verifactuAuthorizationRequired(
+            VerifactuAuthorizationRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "error", exception.getMessage(),
+                        "code", exception.code()));
     }
 
     @ExceptionHandler(ImageUploadRejection.class)

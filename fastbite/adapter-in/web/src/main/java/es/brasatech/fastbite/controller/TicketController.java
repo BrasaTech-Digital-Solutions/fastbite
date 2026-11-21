@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
+import es.brasatech.fastbite.config.RequiresVerifactuAuthorization;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
 import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
@@ -54,6 +55,7 @@ public class TicketController {
     }
 
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @PostMapping("/counter/api/settle")
     public Map<String, Object> settle(@RequestBody SettleRequest request, Authentication user) {
         FiscalTicket ticket = tickets.settle(request.orderIds(),
@@ -63,6 +65,7 @@ public class TicketController {
     }
 
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @PostMapping("/counter/api/tickets/{ticketId}/invoice")
     public Map<String, Object> invoice(@PathVariable String ticketId, @RequestBody InvoiceDetails request,
             Authentication user) {
@@ -70,6 +73,7 @@ public class TicketController {
     }
 
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @PostMapping("/counter/api/tickets/{ticketId}/refund")
     public Map<String, Object> refund(@PathVariable String ticketId, @RequestBody RefundRequest request,
             Authentication user) {
@@ -84,6 +88,7 @@ public class TicketController {
      * Like a refund, it is a manager's decision.
      */
     @ResponseBody
+    @RequiresVerifactuAuthorization
     @PostMapping("/counter/api/tickets/{ticketId}/cancel")
     public Map<String, Object> cancel(@PathVariable String ticketId, @RequestBody CancelRequest request,
             Authentication user, java.util.Locale locale) {

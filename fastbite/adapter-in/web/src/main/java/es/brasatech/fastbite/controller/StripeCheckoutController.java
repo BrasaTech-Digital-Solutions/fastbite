@@ -2,6 +2,8 @@ package es.brasatech.fastbite.controller;
 
 import com.stripe.model.checkout.Session;
 import es.brasatech.fastbite.application.order.OrderService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
+import es.brasatech.fastbite.config.RequiresVerifactuAuthorization;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.order.Order;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
@@ -37,6 +39,7 @@ public class StripeCheckoutController {
      * Level 2: a guest pays the order they placed in this browser session. The order and its total
      * come from the server; the page only chooses the tip.
      */
+    @RequiresVerifactuAuthorization
     @PostMapping({"/{tenantId}/api/stripe/create-checkout-session", "/api/stripe/create-checkout-session"})
     @ResponseBody
     public ResponseEntity<?> createRestaurantCheckoutSession(
@@ -70,6 +73,8 @@ public class StripeCheckoutController {
                     "checkoutUrl", session.getUrl(),
                     "sessionId", session.getId()
             ));
+        } catch (VerifactuAuthorizationRequiredException e) {
+            throw e;
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

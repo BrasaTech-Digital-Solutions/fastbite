@@ -1,5 +1,7 @@
 package es.brasatech.fastbite.config;
 
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
 import es.brasatech.fastbite.controller.OwnerWorkspaceController;
 import es.brasatech.fastbite.domain.I18nField;
@@ -252,5 +254,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationService.StartSigningResult.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationService.StartSigningResult.Outcome.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(OwnerWorkspaceController.VerifactuStepView.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationGate.HoldReason.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationRequiredException.class), MemberCategory.values());
     }
 }

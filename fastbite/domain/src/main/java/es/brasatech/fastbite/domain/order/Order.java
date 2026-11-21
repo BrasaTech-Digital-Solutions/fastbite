@@ -11,6 +11,8 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
 
     public static final String PAYMENT_EXPIRED_REASON = "Online payment not received within one hour";
     public static final String NEEDS_APPROVAL_TOO_MANY_ORDERS = "needs-approval:too-many-orders";
+    public static final String VERIFACTU_HOLD_REFUNDED_REASON = "VERI*FACTU authorisation missing: online payment automatically refunded";
+    public static final String VERIFACTU_HOLD_NEEDS_REFUND_REASON = "VERI*FACTU authorisation missing: online payment needs manual refund";
 
     public boolean paymentExpired(LocalDateTime now) {
         return heldUntilPaid() && status == OrderStatus.CREATED && createdAt != null
@@ -131,6 +133,12 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
                 cancelReason, OrderPaymentStatus.REFUNDED, orderChannel, orderLanguage, userId, customerName, serviceType);
     }
 
+    public Order markNeedsRefund(String reason) {
+        String effectiveReason = (reason == null || reason.isBlank()) ? VERIFACTU_HOLD_NEEDS_REFUND_REASON : reason;
+        return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), OrderStatus.CANCELLED, total,
+                effectiveReason, OrderPaymentStatus.NEEDS_REFUND, orderChannel, orderLanguage, userId, customerName, serviceType);
+    }
+
     public Order setPaymentStatus(OrderPaymentStatus paymentStatus) {
         if (paymentStatus == OrderPaymentStatus.PAID) {
             return markPaid();
@@ -138,6 +146,8 @@ public record Order(List<CartItem> items, int orderNumber, String id, LocalDateT
             return markUnpaid();
         } else if (paymentStatus == OrderPaymentStatus.REFUNDED) {
             return markRefunded();
+        } else if (paymentStatus == OrderPaymentStatus.NEEDS_REFUND) {
+            return markNeedsRefund(cancelReason);
         }
         return new Order(items, orderNumber, id, createdAt, LocalDateTime.now(), status, total, null, paymentStatus,
                 orderChannel, orderLanguage, userId, customerName, serviceType);
