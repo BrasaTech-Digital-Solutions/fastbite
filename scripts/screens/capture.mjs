@@ -317,11 +317,47 @@ async function main() {
       }
 
       if (!opts.sample) {
-        await captureShot(managerCtx, path.join(themeDir, `counter-payment-1280x800.png`), 1280, 800, `${base}/${tenant}/counter`, async (p) => {
-          await addCounterProduct(p);
-          await tap(p.locator('#btn-proceed-payment'));
-          await shown(p, '#paymentModal.show', 'counter payment dialog');
+        for (const [w, h] of [[768, 1024], [1024, 768], [1280, 800]]) {
+          await captureShot(managerCtx, path.join(themeDir, `counter-payment-${w}x${h}.png`), w, h, `${base}/${tenant}/counter`, async (p) => {
+            await addCounterProduct(p);
+            await tap(p.locator('#btn-proceed-payment'));
+            await shown(p, '#paymentModal:is(.show, [open])', 'counter payment dialog');
+          }, { fullPage: false });
+        }
+        await captureShot(managerCtx, path.join(themeDir, `counter-reassign-1280x800.png`), 1280, 800, `${base}/${tenant}/counter`, async (p) => {
+          if (!env.TABLE_1 || !env.TABLE_ORDER_ID) throw new Error('Reassign capture requires TABLE_1 and TABLE_ORDER_ID in the fixture');
+          await tap(p.locator('#btn-select-table'));
+          await shown(p, '#tableModal:is(.show, [open])', 'counter table dialog');
+          const table = p.locator(`#tables-list .table-btn[data-id=${JSON.stringify(env.TABLE_1)}]`);
+          await shown(p, `#tables-list .table-btn[data-id=${JSON.stringify(env.TABLE_1)}]`, 'fixture table');
+          await tap(table);
+          await shown(p, '#activeOrdersModal:is(.show, [open])', 'occupied table orders');
+          await tap(p.locator('#btn-load-table'));
+          await shown(p, '#cart-items .order-card', 'table order cart');
+          const orderButton = p.locator(`#cart-items button[onclick^="openReassignModal"][data-id=${JSON.stringify(env.TABLE_ORDER_ID)}]:enabled`);
+          const headings = p.locator('#cart-items .order-card [onclick^="toggleOrderDetails"]');
+          const count = await headings.count();
+          for (let i = 0; i < count && !(await orderButton.isVisible()); i++) {
+            const response = p.waitForResponse(res => res.url().includes('/counter/fragments/table-session-cart/') && res.ok());
+            await tap(headings.nth(i));
+            await response;
+            await p.waitForFunction(index => {
+              const heading = document.querySelectorAll('#cart-items .order-card [onclick^="toggleOrderDetails"]')[index];
+              return heading?.closest('.order-card')?.querySelector('button[onclick^="openReassignModal"]');
+            }, i);
+          }
+          if (!(await orderButton.isVisible())) throw new Error('Fixture table order cannot be reassigned');
+          await tap(orderButton);
+          await shown(p, '#reassignModal:is(.show, [open])', 'counter reassign dialog');
+          await shown(p, '#reassign-tables-list .table-btn', 'reassign table options');
         }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `counter-chime-on-1280x800.png`), 1280, 800, `${base}/${tenant}/counter`, async (p) => {
+          // AudioContext needs a real user gesture. DOM .click() does not grant autoplay permission.
+          await p.locator('#kitchenAudioToggleBtn').click();
+          await p.waitForFunction(() => window.kitchenChime && window.kitchenChime.enabled && !window.kitchenChime.blocked);
+          await p.waitForFunction(() => document.querySelector('#kitchenAudioText')?.textContent === 'Chime On');
+          await p.evaluate(() => localStorage.setItem('fastbite-kitchen-chime-enabled', 'false'));
+        }, { fullPage: false, clearStorage: true });
       }
 
       // 4. Kitchen / Dashboard

@@ -118,7 +118,7 @@ class ThemeContractTest {
 
     @Test
     void theBaseStylesheetsNameNoTheme() throws IOException {
-        for (String path : List.of("static/css/style.css", "static/css/restaurant.css")) {
+        for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css")) {
             String base = read(path);
             assertThat(base).as(path).doesNotContain("data-theme");
             for (ThemeCatalog.Theme theme : themes.all()) {
@@ -128,6 +128,7 @@ class ThemeContractTest {
         }
         // The guest pages' stylesheet reads the tokens and never sets one
         assertThat(declaredTokens(withoutComments(read("static/css/restaurant.css")))).isEmpty();
+        assertThat(declaredTokens(withoutComments(read("static/css/counter.css")))).isEmpty();
     }
 
     @Test

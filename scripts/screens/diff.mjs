@@ -222,10 +222,17 @@ function runCli(argv) {
 
   let totalChanged = 0;
   let filesChanged = 0;
+  let sizeMismatches = 0;
 
   for (const rel of all) {
     const imgA = decodePng(fs.readFileSync(path.join(dirA, rel)));
     const imgB = decodePng(fs.readFileSync(path.join(dirB, rel)));
+    if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
+      sizeMismatches++;
+      filesChanged++;
+      console.log(`${rel}: size mismatch ${imgA.width}x${imgA.height} vs ${imgB.width}x${imgB.height}`);
+      continue;
+    }
     const { changed, diff } = compareImages(imgA, imgB);
     if (changed > 0) {
       filesChanged++;
@@ -239,7 +246,8 @@ function runCli(argv) {
     console.log(`${rel}: ${changed} changed pixels`);
   }
   console.log(`Total: ${totalChanged} changed pixels across ${all.length} images (${filesChanged} changed)`);
-  console.log(`SUMMARY: ${all.length} pairs, ${filesChanged} changed files, ${totalChanged} changed pixels`);
+  console.log(`SUMMARY: ${all.length} pairs, ${filesChanged} changed files, ${totalChanged} changed pixels, ${sizeMismatches} size mismatches`);
+  if (sizeMismatches) process.exitCode = 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {

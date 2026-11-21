@@ -7,6 +7,10 @@
   --color-on-primary: #fff;
   --color-accent: #e85d75;
   --color-success: #28a745;
+  --color-payment-success: #198754;
+  --color-control-warning: #ffc107;
+  --color-on-control-warning: #856404;
+  --color-control-info: #0dcaf0;
   --color-info: #17a2b8;
   --color-warning: #ff9f43;
   --color-danger: #dc3545;
@@ -19,6 +23,7 @@
   --color-text-muted: #6c757d;
   --color-border: #dee2e6;
   --color-sidebar: #2c3e50;
+  --color-sidebar-brand: #212529;
   --gradient-brand: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   --color-highlight: #0d6efd;
   --color-action: #0d6efd;

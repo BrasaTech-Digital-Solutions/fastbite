@@ -99,21 +99,39 @@ class KitchenChime {
         const text = document.getElementById('kitchenAudioText');
         const btn = document.getElementById('kitchenAudioToggleBtn');
         if (!btn) return;
+        const nativeIcon = icon && icon.namespaceURI === 'http://www.w3.org/2000/svg';
+
+        // The counter has a native SVG icon; other staff screens still use Font Awesome.
+        const setIcon = (legacyClass, state) => {
+            if (!icon) return;
+            if (nativeIcon) {
+                icon.dataset.state = state;
+                btn.dataset.state = state;
+                const symbol = icon.querySelector('use');
+                if (symbol) symbol.setAttribute('href', state === 'blocked' ? '#i-volume-off' : state === 'on' ? '#i-bell-filled' : '#i-bell-off');
+            } else {
+                icon.className = legacyClass;
+            }
+        };
 
         if (this.blocked) {
-            if (icon) icon.className = 'fas fa-volume-mute me-1 text-warning';
+            setIcon('fas fa-volume-mute me-1 text-warning', 'blocked');
             if (text) text.textContent = this.tapToEnableText;
-            btn.classList.remove('btn-warning-subtle');
-            btn.classList.add('btn-warning');
+            if (!nativeIcon) {
+                btn.classList.remove('btn-warning-subtle');
+                btn.classList.add('btn-warning');
+            }
         } else if (this.enabled) {
-            if (icon) icon.className = 'fas fa-bell me-1 text-warning';
+            setIcon('fas fa-bell me-1 text-warning', 'on');
             if (text) text.textContent = 'Chime On';
-            btn.classList.remove('btn-warning');
-            btn.classList.add('btn-warning-subtle');
+            if (!nativeIcon) {
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-warning-subtle');
+            }
         } else {
-            if (icon) icon.className = 'fas fa-bell-slash me-1';
+            setIcon('fas fa-bell-slash me-1', 'off');
             if (text) text.textContent = 'Chime Off';
-            btn.classList.remove('btn-warning', 'btn-warning-subtle');
+            if (!nativeIcon) btn.classList.remove('btn-warning', 'btn-warning-subtle');
         }
     }
 

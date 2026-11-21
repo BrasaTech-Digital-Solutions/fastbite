@@ -67,7 +67,7 @@
 </div>
 
 <!-- Notes and coins, for counting: their total fills in the cash counted -->
-<details th:fragment="denominations" class="cash-check-denominations mb-3">
+<details th:fragment="denominations" class="cash-check-denominations" th:classappend="${counterNative} ? '' : 'mb-3'">
     <summary th:text="#{cash.check.denominations}">Count notes and coins</summary>
     <div class="cash-check-grid">
         <label th:each="value : ${ {'100', '50', '20', '10', '5', '2', '1', '0.50', '0.20', '0.10', '0.05', '0.02', '0.01'} }">
@@ -76,5 +76,49 @@
         </label>
     </div>
 </details>
+
+<!-- Native counterpart for the counter. Both versions share cash-check.js. -->
+<dialog th:fragment="counterModal(day)" class="dialog counter-cash-dialog" id="cashCheckModal" aria-labelledby="cashCheckTitle">
+    <div data-cash-check
+         th:data-url="${(tenantId != null ? '/' + tenantId : '') + '/counter/api/cash?date=' + #temporals.format(day, 'yyyy-MM-dd')}"
+         th:data-pending="#{cash.check.pending}" th:data-match="#{cash.check.match}"
+         th:data-over="#{cash.check.over('{0}')}" th:data-short="#{cash.check.short('{0}')}"
+         th:data-as-of="#{cash.check.asOf('{0}')}" th:data-error="#{cash.check.error}">
+        <header class="dialog-header">
+            <h2 class="dialog-title" id="cashCheckTitle"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-coins"></use></svg><span th:text="#{cash.check.title}">Check the cash</span></h2>
+            <button type="button" class="dialog-close" data-dialog-close th:aria-label="#{cash.check.close}"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+        </header>
+        <div class="dialog-body cash-check">
+            <p class="counter-help" th:text="#{cash.check.intro}">Count the drawer and compare it.</p>
+            <p class="counter-error" data-cash-out="error" role="alert"></p>
+            <label class="counter-field-label" for="cash-start" th:text="#{cash.check.start}">Starting cash</label>
+            <input class="counter-field" id="cash-start" data-cash="start" inputmode="decimal" autocomplete="off">
+            <dl class="cash-check-figures">
+                <dt th:text="#{cash.check.sales}">Cash sales today</dt><dd data-cash-out="sales">—</dd>
+                <dt th:text="#{cash.check.refunds}">Cash refunds today</dt><dd data-cash-out="refunds">—</dd>
+            </dl>
+            <p class="counter-help" data-cash-out="asOf"></p>
+            <div class="counter-cash-movements">
+                <div><label class="counter-field-label" for="cash-out" th:text="#{cash.check.out}">Cash taken out</label>
+                    <input class="counter-field" id="cash-out" data-cash="out" inputmode="decimal" autocomplete="off" placeholder="0,00" th:title="#{cash.check.out.hint}"></div>
+                <div><label class="counter-field-label" for="cash-in" th:text="#{cash.check.in}">Cash put in</label>
+                    <input class="counter-field" id="cash-in" data-cash="in" inputmode="decimal" autocomplete="off" placeholder="0,00" th:title="#{cash.check.in.hint}"></div>
+            </div>
+            <label class="counter-field-label" for="cash-counted" th:text="#{cash.check.counted}">Cash counted</label>
+            <input class="counter-field counter-cash-counted" id="cash-counted" data-cash="counted" inputmode="decimal" autocomplete="off">
+            <div th:replace="~{fastfood/fragments/cashCheck :: denominations(counterNative=true)}"></div>
+            <div class="cash-check-result">
+                <div class="counter-cash-result-row"><span th:text="#{cash.check.expected}">Expected in the drawer</span><strong data-cash-out="expected">—</strong></div>
+                <div class="counter-cash-result-row"><span th:text="#{cash.check.difference}">Difference</span><strong data-cash-out="difference">—</strong></div>
+                <p class="cash-check-status" data-cash-out="status" role="status" aria-live="polite"></p>
+            </div>
+        </div>
+        <footer class="dialog-footer">
+            <a class="counter-button counter-button-neutral counter-cash-report" th:href="${(tenantId != null ? '/' + tenantId : '') + '/counter/day-report'}"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-receipt"></use></svg><span th:text="#{dayreport.open}">End-of-day report</span></a>
+            <button type="button" class="counter-button counter-button-secondary-filled" data-dialog-close th:text="#{cash.check.close}">Close</button>
+        </footer>
+    </div>
+</dialog>
+
 </body>
 </html>

@@ -20,6 +20,7 @@
   --color-on-action-muted: #2D231E;
   --gradient-dialog-header: var(--gradient-brand);
   --color-on-dialog-header: #fff;
+  --color-sidebar-brand: #271510;
 }
 
 /* Kitchen: order card headers by status */
@@ -111,4 +112,32 @@
   background-color: #D2B48C !important;
   border-color: #D2B48C !important;
   color: #2D231E !important;
+}
+
+/* Counter components use the same theme treatment as their Bootstrap predecessors. */
+[data-theme="cafe"] .counter-dialog-header {
+  background: var(--gradient-brand);
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .counter-dialog-header-reassign { color: var(--color-text); }
+[data-theme="cafe"] .counter-dialog-header .counter-close { color: var(--color-on-primary); }
+[data-theme="cafe"] .counter-button-primary {
+  border-color: var(--color-primary) !important;
+  background-color: transparent !important;
+  color: var(--color-primary) !important;
+}
+[data-theme="cafe"] .counter-button-primary:hover:not(:disabled) {
+  border-color: var(--color-primary-hover) !important;
+  background-color: var(--color-primary-hover) !important;
+  color: var(--color-on-primary) !important;
+}
+[data-theme="cafe"] .counter-button-primary-filled {
+  border-color: var(--color-primary) !important;
+  background-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+}
+[data-theme="cafe"] .counter-dialog-footer .counter-button-secondary-filled {
+  background-color: var(--color-action-muted) !important;
+  border-color: var(--color-action-muted) !important;
+  color: var(--color-on-action-muted) !important;
 }

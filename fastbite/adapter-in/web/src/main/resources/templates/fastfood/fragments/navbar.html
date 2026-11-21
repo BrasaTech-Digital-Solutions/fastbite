@@ -120,3 +120,40 @@
         </div>
     </nav>
 </th:block>
+
+
+<!-- The counter's native navigation. The Bootstrap navigation above remains for staff pages pending migration. -->
+<header th:fragment="counter" class="topbar topbar-menu" xmlns:sec="http://www.w3.org/1999/xhtml">
+    <div class="topbar-inner">
+        <a class="topbar-brand" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}">
+            <span class="topbar-logo"><svg class="icon" aria-hidden="true"><use href="#i-logo"></use></svg></span>
+            <span class="topbar-name" th:text="#{logo.title}">FastBite</span>
+        </a>
+        <button type="button" class="topbar-toggle" aria-expanded="false" aria-controls="navbarContent" data-topbar-toggle th:aria-label="#{guest.nav.toggle}">
+            <svg class="icon" aria-hidden="true"><use href="#i-bars"></use></svg>
+        </button>
+        <div class="topbar-content" id="navbarContent">
+            <ul th:if="${param.preview == null}" class="topbar-links" sec:authorize="isAuthenticated()">
+                <li><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}"><svg class="icon" aria-hidden="true"><use href="#i-utensils"></use></svg> <span th:text="#{menu.title}">Menu</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}"><svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{label.dashboard}">Dashboard</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link is-active" aria-current="page" th:href="${tenantId != null ? '/' + tenantId + '/counter' : '/counter'}"><svg class="icon" aria-hidden="true"><use href="#i-register"></use></svg> <span th:text="#{page.title.counter}">Counter</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}"><svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{tickets.title}">Tickets</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}"><svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{backoffice.title}">BackOffice</span></a></li>
+            </ul>
+            <div class="topbar-actions">
+                <button class="topbar-cart" id="kitchenAudioToggleBtn" type="button" title="Toggle Kitchen Audio Chime" th:data-tap-to-enable="#{kitchen.audio.tapToEnable}" onclick="toggleKitchenAudio()">
+                    <svg class="icon" id="kitchenAudioIcon" aria-hidden="true"><use href="#i-bell-off"></use></svg> <span id="kitchenAudioText">Chime Off</span>
+                </button>
+                <details th:if="${param.preview == null}" class="topbar-account" sec:authorize="isAuthenticated()">
+                    <summary class="topbar-account-toggle" id="userDropdown"><svg class="icon" aria-hidden="true"><use href="#i-user-circle"></use></svg> <span sec:authentication="name">User</span></summary>
+                    <div class="topbar-account-menu">
+                        <p class="topbar-account-who"><span class="topbar-account-avatar"><svg class="icon" aria-hidden="true"><use href="#i-user"></use></svg></span><span><strong sec:authentication="name">Username</strong><small sec:authorize="hasRole('OWNER')" th:text="#{label.role.owner}">Restaurant owner</small></span></p>
+                        <a sec:authorize="hasRole('OWNER')" class="topbar-account-item" th:href="@{/owner/console(location=${tenantId})}"><svg class="icon" aria-hidden="true"><use href="#i-store"></use></svg> <span th:text="#{label.ownerWorkspace}">Owner workspace</span></a>
+                        <form th:action="${tenantId != null ? '/' + tenantId + '/logout' : '/logout'}" method="post"><button type="submit" class="topbar-account-item is-danger"><svg class="icon" aria-hidden="true"><use href="#i-logout"></use></svg> <span th:text="#{button.logout}">Logout</span></button></form>
+                    </div>
+                </details>
+                <a sec:authorize="!isAuthenticated()" class="topbar-login" th:href="${tenantId != null ? '/' + tenantId + '/login' : '/login'}"><svg class="icon" aria-hidden="true"><use href="#i-login"></use></svg> <span th:text="#{button.login}">Login</span></a>
+            </div>
+        </div>
+    </div>
+</header>

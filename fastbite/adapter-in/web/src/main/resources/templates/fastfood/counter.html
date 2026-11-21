@@ -8,111 +8,112 @@
     <meta name="_csrf" th:content="${_csrf.token}" />
     <meta name="_csrf_header" th:content="${_csrf.headerName}" />
 
-    <link rel="stylesheet" href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/webjars/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
+    <link rel="stylesheet" th:href="@{/css/counter.css}">
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
-<body>
+<body class="counter-page">
+<div th:replace="~{fastfood/fragments/guest :: icons}"></div>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <div class="pos-wrapper" id="posWrapper">
         <!-- Shared Navigation Header -->
-        <div th:replace="~{fastfood/fragments/navbar :: navbar(activeTab='counter')}"></div>
+        <div th:replace="~{fastfood/fragments/navbar :: counter}"></div>
 
         <div class="pos-container">
             <div class="cart-overlay" id="cart-overlay"></div>
-            <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 2000;"></div>
+            <div id="toastContainer" class="counter-toasts"></div>
             <!-- Categories Sidebar -->
             <div class="pos-sidebar">
-                <div class="p-3 bg-dark text-center">
+                <div class="counter-sidebar-brand">
                     <a th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}">
-                        <h4 class="m-0 text-white"><i class="fas fa-utensils me-2"></i><span
+                        <h4 class="counter-sidebar-brand-title"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-utensils"></use></svg><span
                             th:text="#{logo.title}">FastBite</span></h4>
                     </a>
                 </div>
-                <div class="cart-items flex-grow-1" id="categories-sidebar">
+                <div class="cart-items counter-categories" id="categories-sidebar">
                     <!-- Rendered JS -->
                     <div class="category-item active" data-group-id="all">
-                        <i class="fas fa-th me-2"></i> <span th:text="#{label.all.products}">All Products</span>
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-list"></use></svg> <span th:text="#{label.all.products}">All Products</span>
                     </div>
                 </div>
-                <div class="p-3 mt-auto">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-grow-1">
-                            <small class="text-white-50" th:text="#{label.logged.in.as}">Logged in as</small>
-                            <div class="fw-bold" sec:authentication="name">User</div>
+                <div class="counter-sidebar-account">
+                    <div class="counter-account-details">
+                        <div class="counter-account-name">
+                            <small class="counter-account-label" th:text="#{label.logged.in.as}">Logged in as</small>
+                            <div class="counter-emphasis" sec:authentication="name">User</div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-outline-light btn-sm w-100" id="btn-toggle-navbar">
-                        <i class="fas fa-bars me-1"></i> <span>Toggle Menu</span>
+                    <button type="button" class="counter-button counter-button-light counter-navbar-toggle" id="btn-toggle-navbar">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-bars"></use></svg> <span>Toggle Menu</span>
                     </button>
                 </div>
             </div>
 
         <!-- Main Product Area -->
         <div class="pos-main">
-            <header class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-                <div class="input-group pos-search">
-                    <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control border-start-0" id="productSearch"
+            <header class="counter-toolbar">
+                <div class="pos-search">
+                    <span class="counter-search-icon"><svg class="icon" aria-hidden="true"><use href="#i-search"></use></svg></span>
+                    <input type="text" class="counter-search-input" id="productSearch"
                         th:placeholder="#{placeholder.search.products}">
                 </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-outline-secondary" id="btn-select-table"
-                        th:classappend="${settings.dineIn} ? '' : 'd-none'">
-                        <i class="fas fa-table me-1"></i> <span id="selected-table-name"
+                <div class="counter-toolbar-actions">
+                    <button class="counter-button counter-button-neutral" id="btn-select-table"
+                        th:classappend="${settings.dineIn} ? '' : 'is-hidden'">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-table"></use></svg> <span id="selected-table-name"
                             th:text="#{label.assign.table}">Assign Table</span>
-                        <span class="badge bg-danger ms-1 d-none" id="table-count">0</span>
+                        <span class="counter-badge counter-count is-hidden" id="table-count">0</span>
                     </button>
-                    <button class="btn btn-outline-secondary" id="btn-takeaway"
-                        th:classappend="${settings.takeaway} ? '' : 'd-none'">
-                        <i class="fas fa-shopping-bag me-1"></i> <span th:text="#{label.takeaway}">Takeaway</span>
+                    <button class="counter-button counter-button-neutral" id="btn-takeaway"
+                        th:classappend="${settings.takeaway} ? '' : 'is-hidden'">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-bag"></use></svg> <span th:text="#{label.takeaway}">Takeaway</span>
                     </button>
-                    <button class="btn btn-outline-secondary" type="button" th:if="${handlesTill}"
-                        data-bs-toggle="modal" data-bs-target="#cashCheckModal">
-                        <i class="fas fa-coins me-1" aria-hidden="true"></i> <span th:text="#{cash.check.button}">Check the cash</span>
+                    <button class="counter-button counter-button-neutral" type="button" th:if="${handlesTill}"
+                        data-dialog-open="cashCheckModal">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-coins"></use></svg> <span th:text="#{cash.check.button}">Check the cash</span>
                     </button>
-                    <button class="btn btn-outline-secondary" id="btn-pickup-orders"
-                        th:classappend="${settings.takeaway} ? '' : 'd-none'">
-                        <i class="fas fa-hand-holding-usd me-1"></i> <span th:text="#{label.pickup.orders}">To collect</span>
-                        <span class="badge bg-danger ms-1 d-none" id="pickup-count">0</span>
+                    <button class="counter-button counter-button-neutral" id="btn-pickup-orders"
+                        th:classappend="${settings.takeaway} ? '' : 'is-hidden'">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-coins"></use></svg> <span th:text="#{label.pickup.orders}">To collect</span>
+                        <span class="counter-badge counter-count is-hidden" id="pickup-count">0</span>
                     </button>
-                    <a th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}" class="btn btn-outline-primary">
-                        <i class="fas fa-columns me-1"></i> <span th:text="#{button.dashboard}">Dashboard</span>
+                    <a th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}" class="counter-button counter-button-primary">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{button.dashboard}">Dashboard</span>
                     </a>
                 </div>
             </header>
 
-            <div class="row g-3" id="products-grid">
+            <div class="counter-products-grid" id="products-grid">
                 <!-- Rendered JS -->
             </div>
         </div>
 
         <!-- Cart Sidebar -->
         <div class="pos-cart">
-            <div class="cart-header d-flex justify-content-between align-items-center">
-                <h5 class="m-0"><i class="fas fa-receipt me-2"></i> <span th:text="#{label.current.order}">Current
+            <div class="cart-header">
+                <h5 class="counter-cart-title"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{label.current.order}">Current
                         Order</span></h5>
-                <div class="d-flex gap-2 align-items-center">
-                    <button class="btn btn-sm btn-outline-light" id="btn-clear-cart" th:title="#{button.clear}">
-                        <i class="fas fa-trash-alt"></i> <span th:text="#{button.clear}">CLEAR</span>
+                <div class="counter-cart-header-actions">
+                    <button class="counter-button counter-button-light counter-clear-button" id="btn-clear-cart" th:title="#{button.clear}">
+                        <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg> <span th:text="#{button.clear}">CLEAR</span>
                     </button>
-                    <button class="btn-close btn-close-white d-lg-none" id="btn-close-cart"></button>
+                    <button class="counter-close counter-cart-close" id="btn-close-cart" th:aria-label="#{button.cancel}"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
                 </div>
             </div>
             <div class="cart-items" id="cart-items">
-                <div class="text-center py-5 text-muted">
-                    <i class="fas fa-shopping-cart fa-3x mb-3 opacity-25"></i>
+                <div class="counter-initial-empty-cart">
+                    <svg class="icon counter-empty-cart-icon" aria-hidden="true"><use href="#i-cart"></use></svg>
                     <p th:text="#{message.order.is.empty}">Order is empty</p>
                 </div>
             </div>
 
             <div class="cart-total-section">
-                <div class="d-flex justify-content-between mb-1">
+                <div class="counter-cart-subtotal">
                     <span th:text="#{label.subtotal}">Subtotal</span>
                     <span id="cart-subtotal">€0,00</span>
                 </div>
-                <div class="d-flex justify-content-between mb-1 text-danger">
+                <div class="counter-cart-discount">
                     <span th:text="#{label.discount}">Discount</span>
                     <span id="cart-discount">-€0,00</span>
                 </div>
@@ -120,27 +121,27 @@
                     <span th:text="#{label.total}">TOTAL</span>
                     <span id="cart-total">€0,00</span>
                 </div>
-                <input type="text" class="form-control mb-2 d-none" id="takeaway-customer-name" maxlength="80"
+                <input type="text" class="counter-input counter-customer-name is-hidden" id="takeaway-customer-name" maxlength="80"
                     th:placeholder="#{placeholder.customer.name}">
-                <div class="d-flex gap-2" id="cart-actions-new">
-                    <button class="btn btn-outline-warning flex-grow-1 d-none" id="btn-billing">
-                        <i class="fas fa-file-invoice-dollar me-2"></i> <span th:text="#{button.billing}">BILLING</span>
+                <div class="counter-action-row" id="cart-actions-new">
+                    <button class="counter-button counter-button-warning counter-cart-action is-hidden" id="btn-billing">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{button.billing}">BILLING</span>
                     </button>
-                    <button class="btn btn-outline-primary flex-grow-1" id="btn-assign-table" disabled>
-                        <i class="fas fa-table me-2"></i> <span class="label-for-table"
+                    <button class="counter-button counter-button-primary counter-cart-action" id="btn-assign-table" disabled>
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-table"></use></svg> <span class="label-for-table"
                             th:text="#{button.assign.to.table}">ASSIGN TO TABLE</span><span class="label-for-takeaway"
                             th:text="#{button.pay.at.pickup}">PAY AT PICKUP</span>
                     </button>
-                    <button class="btn btn-pos-primary btn-pay flex-grow-1" id="btn-proceed-payment" disabled>
-                        <i class="fas fa-credit-card me-2"></i> <span th:text="#{button.pay.now}">PAY NOW</span>
+                    <button class="counter-button btn-pos-primary btn-pay counter-cart-action" id="btn-proceed-payment" disabled>
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-credit-card"></use></svg> <span th:text="#{button.pay.now}">PAY NOW</span>
                     </button>
                 </div>
-                <div class="d-flex gap-2 d-none" id="cart-actions-edit">
-                    <button class="btn btn-warning flex-grow-1 py-3 fw-bold" id="btn-save-order">
-                        <i class="fas fa-save me-2"></i> <span th:text="#{button.save}">SAVE</span>
+                <div class="counter-action-row is-hidden" id="cart-actions-edit">
+                    <button class="counter-button counter-button-warning-filled counter-cart-action" id="btn-save-order">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-save"></use></svg> <span th:text="#{button.save}">SAVE</span>
                     </button>
-                    <button class="btn btn-info flex-grow-1 py-3 fw-bold text-white" id="btn-billing">
-                        <i class="fas fa-file-invoice-dollar me-2"></i> <span th:text="#{button.billing}">BILLING</span>
+                    <button class="counter-button counter-button-info-filled counter-cart-action" id="btn-billing">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{button.billing}">BILLING</span>
                     </button>
                 </div>
             </div>
@@ -148,101 +149,75 @@
     </div>
 
     <!-- Table Selection Modal -->
-    <div class="modal fade" id="tableModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" th:text="#{modal.select.table.title}">Select Table</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <dialog class="dialog counter-dialog" id="tableModal" aria-labelledby="table-modal-title">
+        <div class="counter-dialog-frame">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header counter-dialog-header-table">
+                    <h5 id="table-modal-title" class="counter-dialog-title" th:text="#{modal.select.table.title}">Select Table</h5>
+                    <button type="button" class="counter-close counter-close-on-dark" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
-                <div class="modal-body">
+                <div class="counter-dialog-body">
                     <div class="table-grid" id="tables-list">
-                        <!-- Tables from model -->
-                        <div th:each="table : ${tables}" class="table-btn"
-                            th:classappend="${table.active ? '' : 'opacity-50 pointer-events-none'}"
-                            th:data-id="${table.id}" th:data-name="${table.name}" th:data-status="${table.status}">
-                            <div class="status-indicator"
-                                th:classappend="${'status-' + table.status.name().toLowerCase()}"></div>
-                            <i class="fas fa-chair mb-1"></i><br>
-                            <span th:text="${table.name}">T1</span>
-                            <div class="table-status-label small" th:text="${table.status}">AVAILABLE</div>
-                            <div class="mt-2 table-qr-mode">
-                                <span class="badge" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'bg-success' : 'bg-secondary'"
-                                    th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{table.qr.trusted} : #{table.qr.supervised}">Supervised</span>
-                                <span th:if="${table.qrTrusted != null and table.qrTrusted != settings.tableQrTrusted}"
-                                    class="badge bg-warning text-dark ms-1" th:text="#{table.qr.override}">Override</span>
-                            </div>
-                            <div class="mt-2 qr-trust-toggle-container">
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 qr-trust-toggle"
-                                    style="font-size: 0.75rem;"
-                                    th:data-id="${table.id}"
-                                    th:data-target-trusted="${!table.effectiveQrTrusted(settings.tableQrTrusted)}"
-                                    th:title="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}"
-                                    onclick="event.stopPropagation(); toggleTableQrTrust(this.dataset.id, this.dataset.targetTrusted);">
-                                    <i class="fas" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'fa-toggle-on text-success' : 'fa-toggle-off text-muted'"></i>
-                                    <span class="ms-1" th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}">Switch</span>
-                                </button>
-                            </div>
-                        </div>
+                        <th:block th:replace="~{fastfood/fragments/counter :: tables(${tables}, null)}"></th:block>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Payment Modal -->
-    <div class="modal fade" id="paymentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" th:text="#{modal.payment.title}">Process Payment</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <dialog class="dialog dialog-lg counter-dialog" id="paymentModal" aria-labelledby="payment-modal-title">
+        <div class="counter-dialog-frame counter-payment-dialog">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header counter-dialog-header-payment">
+                    <h5 id="payment-modal-title" class="counter-dialog-title" th:text="#{modal.payment.title}">Process Payment</h5>
+                    <button type="button" class="counter-close counter-close-on-dark" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning" role="alert" th:unless="${ticketsReady}" th:text="#{ticket.error.notReady}">
+                <div class="counter-dialog-body">
+                    <div class="counter-notice counter-notice-warning" role="alert" th:unless="${ticketsReady}" th:text="#{ticket.error.notReady}">
                         This location cannot issue tickets yet.
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 border-end">
-                            <h6 class="text-muted mb-3" th:text="#{label.order.summary}">Order Summary</h6>
-                            <div class="fs-4 mb-4 fw-bold text-center p-3 bg-light rounded">
+                    <div class="counter-payment-layout">
+                        <div class="counter-payment-methods">
+                            <h6 class="counter-payment-section-title" th:text="#{label.order.summary}">Order Summary</h6>
+                            <div class="counter-payment-total">
                                 <span th:text="#{label.total.to.pay}">Total to Pay</span>: <span
                                     id="payment-total">€0,00</span>
                             </div>
 
-                            <h6 class="text-muted mb-2" th:text="#{label.payment.option}">Payment Option</h6>
-                            <div class="d-flex gap-2 mb-4">
+                            <h6 class="counter-payment-section-title" th:text="#{label.payment.option}">Payment Option</h6>
+                            <div class="counter-payment-options">
                                 <button th:if="${#lists.contains(paymentConfig.activeModes, 'CASH')}" 
-                                    class="btn btn-outline-success flex-grow-1 py-3 payment-method-btn"
+                                    class="counter-button counter-button-success payment-method-btn"
                                     th:classappend="${paymentConfig.activeModes[0] == 'CASH' ? 'active' : ''}"
                                     data-method="CASH">
-                                    <i class="fas fa-money-bill-wave fa-lg"></i><br><span
+                                    <svg class="icon" aria-hidden="true"><use href="#i-cash"></use></svg><br><span
                                         th:text="#{label.payment.cash}">Cash</span>
                                 </button>
                                 <button th:if="${#lists.contains(paymentConfig.activeModes, 'CARD')}" 
-                                    class="btn btn-outline-success flex-grow-1 py-3 payment-method-btn"
+                                    class="counter-button counter-button-success payment-method-btn"
                                     th:classappend="${paymentConfig.activeModes[0] == 'CARD' ? 'active' : ''}"
                                     data-method="CARD">
-                                    <i class="fas fa-credit-card fa-lg"></i><br><span
+                                    <svg class="icon" aria-hidden="true"><use href="#i-credit-card"></use></svg><br><span
                                         th:text="#{label.payment.card}">Card</span>
                                 </button>
                             </div>
 
                             <div id="cash-payment-details">
-                                <label class="form-label" th:text="#{label.amount.received}">Amount Received</label>
-                                <input type="number" class="form-control form-control-lg mb-3" id="received-amount"
+                                <label class="counter-label" th:text="#{label.amount.received}">Amount Received</label>
+                                <input type="number" class="counter-input counter-payment-input" id="received-amount"
                                     step="0.01">
-                                <div class="fs-5 text-center p-2 bg-info bg-opacity-10 rounded text-info">
+                                <div class="counter-payment-change">
                                     <span th:text="#{label.payment.change}">Change</span>: <span
                                         id="payment-change">€0,00</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <h6 class="text-muted mb-3" th:text="#{label.quick.cash}">Quick Cash</h6>
+                        <div class="counter-payment-cash">
+                            <h6 class="counter-payment-section-title" th:text="#{label.quick.cash}">Quick Cash</h6>
                             <div class="denomination-grid">
                                 <button th:each="denom : ${paymentConfig.moneyDenominations}"
-                                    class="btn btn-outline-secondary py-2 money-btn"
+                                    class="counter-button counter-button-neutral money-btn"
                                     th:data-value="${denom.value}"
                                     th:classappend="${#strings.toLowerCase(denom.type)}">
                                     <img th:if="${denom.image}" th:src="${denom.image}" class="money-img" alt="money">
@@ -252,117 +227,117 @@
                         </div>
                     </div>
 
-                    <div class="row mt-3 pt-3 border-top">
-                        <div class="col-12">
-                            <div class="d-flex align-items-center gap-4">
-                                <div class="form-check form-switch mb-0">
-                                    <input class="form-check-input" type="checkbox" id="print-receipt-toggle" checked>
-                                    <label class="form-check-label fw-bold" for="print-receipt-toggle" th:text="#{label.print.receipt}">Print Receipt</label>
+                    <div class="counter-receipt-settings">
+                        <div class="counter-receipt-content">
+                            <div class="counter-receipt-options">
+                                <div class="counter-choice counter-print-switch">
+                                    <input class="counter-choice-input" type="checkbox" id="print-receipt-toggle" checked>
+                                    <label class="counter-choice-label" for="print-receipt-toggle" th:text="#{label.print.receipt}">Print Receipt</label>
                                 </div>
-                                <div id="receipt-type-container" class="d-flex gap-3 align-items-center">
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="radio" name="receiptType" id="type-simple" value="SIMPLE" checked>
-                                        <label class="form-check-label" for="type-simple" th:text="#{label.receipt.simple}">Simple</label>
+                                <div id="receipt-type-container" class="counter-receipt-types">
+                                    <div class="counter-choice">
+                                        <input class="counter-choice-input" type="radio" name="receiptType" id="type-simple" value="SIMPLE" checked>
+                                        <label class="counter-choice-label" for="type-simple" th:text="#{label.receipt.simple}">Simple</label>
                                     </div>
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="radio" name="receiptType" id="type-invoice" value="INVOICE">
-                                        <label class="form-check-label" for="type-invoice" th:text="#{label.receipt.invoice}">Invoice</label>
+                                    <div class="counter-choice">
+                                        <input class="counter-choice-input" type="radio" name="receiptType" id="type-invoice" value="INVOICE">
+                                        <label class="counter-choice-label" for="type-invoice" th:text="#{label.receipt.invoice}">Invoice</label>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div id="invoice-details" class="mt-3 p-3 bg-light rounded" style="display: none;">
-                                <h6 class="mb-2 fw-bold small text-uppercase text-muted" th:text="#{label.customer.details}">Customer Details</h6>
-                                <div th:replace="~{fastfood/fragments/invoice-fields :: fields('pay')}"></div>
+                            <div id="invoice-details" class="counter-invoice-details" hidden>
+                                <h6 class="counter-invoice-heading" th:text="#{label.customer.details}">Customer Details</h6>
+                                <div th:replace="~{fastfood/fragments/invoice-fields :: counterFields('pay')}"></div>
                             </div>
-                            <p class="small text-muted mt-2 mb-0" th:if="${trainingTickets}">
-                                <i class="fas fa-flask me-1" aria-hidden="true"></i><span th:text="#{tickets.training.banner}">Sandbox</span>
+                            <p class="counter-training-notice" th:if="${trainingTickets}">
+                                <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-flask"></use></svg><span th:text="#{tickets.training.banner}">Sandbox</span>
                             </p>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                <div class="counter-dialog-footer">
+                    <button type="button" class="counter-button counter-button-secondary-filled" data-dialog-close
                         th:text="#{button.cancel}">Cancel</button>
-                    <button type="button" class="btn btn-success px-5 py-2 fw-bold" id="btn-complete-order"
+                    <button type="button" class="counter-button counter-button-success-filled counter-complete-order" id="btn-complete-order"
                         th:disabled="${!ticketsReady}" th:text="#{button.complete.order}">COMPLETE
                         ORDER</button>
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Customization Modal (reuse if possible, otherwise Pos-specific) -->
-    <div class="modal fade" id="customizationModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="product-modal-name" th:text="#{customizer.title}">Customize</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <dialog class="dialog dialog-centered counter-dialog" id="customizationModal" aria-labelledby="product-modal-name">
+        <div class="counter-dialog-frame counter-customization-dialog">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header">
+                    <h5 class="counter-dialog-title" id="product-modal-name" th:text="#{customizer.title}">Customize</h5>
+                    <button type="button" class="counter-close counter-close-on-dark" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
-                <div class="modal-body" id="customization-options">
+                <div class="counter-dialog-body" id="customization-options">
                     <!-- Dynamic -->
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary w-100" id="btn-add-with-customs"
+                <div class="counter-dialog-footer">
+                    <button type="button" class="counter-button counter-button-primary-filled counter-add-customization" id="btn-add-with-customs"
                         th:text="#{button.add.to.order}">Add to Order</button>
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Active Orders Modal -->
-    <div class="modal fade" id="activeOrdersModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><span th:text="#{modal.active.orders.title}">Active Orders</span> - <span
+    <dialog class="dialog counter-dialog" id="activeOrdersModal" aria-labelledby="active-orders-modal-title">
+        <div class="counter-dialog-frame">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header counter-dialog-header-orders">
+                    <h5 id="active-orders-modal-title" class="counter-dialog-title"><span th:text="#{modal.active.orders.title}">Active Orders</span> - <span
                             id="active-orders-table-name">Table</span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="counter-close counter-close-on-dark" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="active-orders-list" class="list-group">
+                <div class="counter-dialog-body">
+                    <div id="active-orders-list" class="counter-list">
                         <!-- Dynamic -->
                     </div>
                 </div>
-                <div class="modal-footer d-flex gap-2">
-                    <button type="button" class="btn btn-primary flex-grow-1" id="btn-load-table">
-                        <i class="fas fa-eye me-2"></i><span th:text="#{button.load.table}">LOAD TABLE</span>
+                <div class="counter-dialog-footer counter-order-dialog-actions">
+                    <button type="button" class="counter-button counter-button-primary-filled counter-dialog-action" id="btn-load-table">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-eye"></use></svg><span th:text="#{button.load.table}">LOAD TABLE</span>
                     </button>
-                    <button type="button" class="btn btn-outline-primary flex-grow-1" id="btn-new-order-table">
-                        <i class="fas fa-plus me-2"></i><span th:text="#{button.new.order.table}">New Order for this
+                    <button type="button" class="counter-button counter-button-primary counter-cart-action" id="btn-new-order-table">
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-plus"></use></svg><span th:text="#{button.new.order.table}">New Order for this
                             Table</span>
                     </button>
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Reassign Table Modal -->
-    <div class="modal fade" id="reassignModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title"><i class="fas fa-exchange-alt me-2"></i><span
+    <dialog class="dialog counter-dialog" id="reassignModal" aria-labelledby="reassign-modal-title">
+        <div class="counter-dialog-frame">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header counter-dialog-header-reassign">
+                    <h5 id="reassign-modal-title" class="counter-dialog-title"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-exchange"></use></svg><span
                             th:text="#{label.reassign}">Reassign Order</span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="counter-close" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
-                <div class="modal-body">
+                <div class="counter-dialog-body">
                     <div id="reassign-tables-list" class="table-grid">
                         <!-- Dynamic -->
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </dialog>
 
     <!-- Mobile Cart Toggle -->
-    <button class="mobile-cart-toggle d-none" id="mobile-cart-toggle">
-        <i class="fas fa-shopping-cart"></i>
-        <span class="mobile-cart-badge d-none" id="mobile-cart-count">0</span>
+    <button class="mobile-cart-toggle" id="mobile-cart-toggle">
+        <svg class="icon" aria-hidden="true"><use href="#i-cart"></use></svg>
+        <span class="mobile-cart-badge is-hidden" id="mobile-cart-count">0</span>
     </button>
 
-    <div style="display:none" id="dictionary" th:data-message-item-updated="#{message.item.updated}"
+    <div hidden id="dictionary" th:data-message-item-updated="#{message.item.updated}"
         th:data-message-item-added="#{message.item.added}" th:data-message-item-removed="#{message.item.removed}"
         th:data-message-order-created-success="#{message.order.created.success}"
         th:data-message-order-updated-success="#{message.order.updated.success}"
@@ -388,7 +363,10 @@
 
     </div> <!-- pos-wrapper -->
 
-    <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <th:block th:if="${handlesTill}">
+        <div th:replace="~{fastfood/fragments/cashCheck :: counterModal(${today})}"></div>
+    </th:block>
+    <script th:src="@{/js/guest-ui.js}"></script>
     <script>
 
 
@@ -407,11 +385,8 @@
     <script th:src="@{/js/live-updates.js}"></script>
     <script th:src="@{/js/confirm-dialog.js}"></script>
     <script th:src="@{/js/counter.js}"></script>
-    <th:block th:if="${handlesTill}">
-        <div th:replace="~{fastfood/fragments/cashCheck :: modal(${today})}"></div>
-        <script th:src="@{/js/cash-check.js}"></script>
-    </th:block>
-    <iframe id="print-frame" style="visibility:hidden;position:absolute;width:0;height:0;border:none;"></iframe>
+    <script th:if="${handlesTill}" th:src="@{/js/cash-check.js}"></script>
+    <iframe id="print-frame" class="counter-print-frame"></iframe>
 </body>
 
 </html>

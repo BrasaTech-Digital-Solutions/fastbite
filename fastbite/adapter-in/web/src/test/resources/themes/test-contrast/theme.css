@@ -5,6 +5,10 @@
   --color-on-primary: #FFFF00;
   --color-accent: #0000FF;
   --color-success: #006400;
+  --color-payment-success: #006400;
+  --color-control-warning: #8B4500;
+  --color-on-control-warning: #FFFFFF;
+  --color-control-info: #00008B;
   --color-info: #00008B;
   --color-warning: #8B4500;
   --color-danger: #8B0000;
@@ -17,6 +21,7 @@
   --color-text-muted: #333333;
   --color-border: #000000;
   --color-sidebar: #000000;
+  --color-sidebar-brand: #00008B;
   --gradient-brand: linear-gradient(135deg, #000000, #0000FF);
   --color-highlight: #0000CD;
   --color-action: #000000;

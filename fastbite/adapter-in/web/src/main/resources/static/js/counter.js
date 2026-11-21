@@ -39,7 +39,7 @@ function selectPaymentMethod(method) {
     });
     const cashDetails = document.getElementById('cash-payment-details');
     if (cashDetails) {
-        cashDetails.style.display = method === 'CASH' ? 'block' : 'none';
+        cashDetails.hidden = method !== 'CASH';
     }
 }
 
@@ -145,7 +145,7 @@ function setupEventListeners() {
 
     // Table selection modal trigger
     document.getElementById('btn-select-table').addEventListener('click', () => {
-        new bootstrap.Modal(document.getElementById('tableModal')).show();
+        window.FastBiteDialogs.open(document.getElementById('tableModal'));
     });
 
     // Tables grid click (inside modal)
@@ -154,7 +154,7 @@ function setupEventListeners() {
             return;
         }
         const btn = e.target.closest('.table-btn');
-        if (!btn || btn.classList.contains('opacity-50')) return;
+        if (!btn || btn.classList.contains('is-inactive')) return;
 
         const tableId = btn.dataset.id;
         const tableName = btn.dataset.name;
@@ -165,7 +165,7 @@ function setupEventListeners() {
             selectedTable = { id: tableId, name: tableName };
             await loadTableOrders(tableId);
             hideModal('tableModal');
-            new bootstrap.Modal(document.getElementById('activeOrdersModal')).show();
+            window.FastBiteDialogs.open(document.getElementById('activeOrdersModal'));
         } else {
             selectAvailableTable(tableId, tableName);
             hideModal('tableModal');
@@ -258,7 +258,7 @@ function setupEventListeners() {
         radio.addEventListener('change', (e) => {
             const invoiceDetails = document.getElementById('invoice-details');
             if (invoiceDetails) {
-                invoiceDetails.style.display = e.target.value === 'INVOICE' ? 'block' : 'none';
+                invoiceDetails.hidden = e.target.value !== 'INVOICE';
             }
         });
     });
@@ -272,21 +272,7 @@ function toggleMobileCart() {
 }
 
 function hideModal(id) {
-    const modalEl = document.getElementById(id);
-    if (!modalEl) return;
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    if (modal) modal.hide();
-
-    // FORCE BACKDROP REMOVAL
-    setTimeout(() => {
-        const backdrop = document.querySelector('.modal-backdrop');
-        if (backdrop) {
-            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-            document.body.classList.remove('modal-open');
-            document.body.style.paddingRight = '';
-            document.body.style.overflow = '';
-        }
-    }, 150);
+    window.FastBiteDialogs.close(document.getElementById(id));
 }
 
 function calculateChange() {
@@ -328,10 +314,10 @@ function startNewOrder() {
         el.classList.toggle('active', el.dataset.id === selectedTable.id);
     });
 
-    document.getElementById('cart-actions-new').classList.remove('d-none');
-    document.getElementById('cart-actions-edit').classList.add('d-none');
-    document.getElementById('btn-assign-table').classList.remove('d-none');
-    document.getElementById('btn-billing').classList.add('d-none');
+    document.getElementById('cart-actions-new').classList.remove('is-hidden');
+    document.getElementById('cart-actions-edit').classList.add('is-hidden');
+    document.getElementById('btn-assign-table').classList.remove('is-hidden');
+    document.getElementById('btn-billing').classList.add('is-hidden');
 
     cart = [];
     showOrderTarget();
@@ -345,14 +331,14 @@ function showOrderTarget() {
     // A class, not the button text: the text is replaced by a spinner while an order is sent
     document.getElementById('cart-actions-new').classList.toggle('order-for-takeaway', takeaway);
     const name = document.getElementById('takeaway-customer-name');
-    name.classList.toggle('d-none', !takeaway || isTableMode || editingOrderId !== null);
+    name.classList.toggle('is-hidden', !takeaway || isTableMode || editingOrderId !== null);
     if (!takeaway) name.value = '';
 }
 
 async function loadTableOrders(tableId) {
     const list = document.getElementById('active-orders-list');
     if (!list) return;
-    list.innerHTML = `<div class="text-center p-3 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>${t('labelLoading')}</div>`;
+    list.innerHTML = `<div class="counter-loading"><span class="counter-spinner" aria-hidden="true"></span>${t('labelLoading')}</div>`;
 
     try {
         const res = await fetch(`/counter/fragments/active-orders/${tableId}`);
@@ -363,7 +349,7 @@ async function loadTableOrders(tableId) {
         }
     } catch (e) {
         console.error(e);
-        list.innerHTML = `<div class="alert alert-danger py-2 m-0 small">${t('messageOrderCreateError')}</div>`;
+        list.innerHTML = `<div class="counter-error" role="alert">${t('messageOrderCreateError')}</div>`;
     }
 }
 
@@ -446,8 +432,8 @@ async function renderTableCart() {
             });
             // Takeaway orders belong to different customers: each is paid on its own, never together
             document.getElementById('btn-proceed-payment').disabled = totalUnpaid <= 0 || isTakeaway();
-            document.getElementById('btn-assign-table').classList.add('d-none');
-            document.getElementById('btn-billing').classList.toggle('d-none', isTakeaway());
+            document.getElementById('btn-assign-table').classList.add('is-hidden');
+            document.getElementById('btn-billing').classList.toggle('is-hidden', isTakeaway());
         }
     } catch (e) {
         console.error(e);
@@ -457,12 +443,6 @@ async function renderTableCart() {
 function toggleOrderDetails(idx) {
     tableOrders[idx].expanded = !tableOrders[idx].expanded;
     renderTableCart();
-}
-
-function getStatusBadgeClass(paymentStatus, status) {
-    if (status === 'CANCELLED') return 'bg-danger';
-    if (paymentStatus === 'PAID') return 'bg-success';
-    return 'bg-warning text-dark';
 }
 
 function getLocalizedStatus(paymentStatus, status) {
@@ -481,7 +461,7 @@ async function payIndividualOrder(orderId) {
     document.getElementById('received-amount').value = order.total.toFixed(2);
     calculateChange();
 
-    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+    window.FastBiteDialogs.open(document.getElementById('paymentModal'));
 }
 
 async function cancelOrderFromTable(orderId) {
@@ -521,10 +501,10 @@ function editOrderFromTable(orderId) {
     }));
 
     isTableMode = false;
-    document.getElementById('cart-actions-new').classList.add('d-none');
-    document.getElementById('cart-actions-edit').classList.remove('d-none');
+    document.getElementById('cart-actions-new').classList.add('is-hidden');
+    document.getElementById('cart-actions-edit').classList.remove('is-hidden');
     // Billing is a table state; a takeaway order being edited is just saved
-    document.querySelector('#cart-actions-edit #btn-billing').classList.toggle('d-none', isTakeaway());
+    document.querySelector('#cart-actions-edit #btn-billing').classList.toggle('is-hidden', isTakeaway());
     showOrderTarget();
     updateCartUI();
 }
@@ -539,7 +519,7 @@ async function openReassignModal(orderId) {
         const res = await fetch(`/counter/fragments/reassign-tables?currentTableId=${currentTableId}`);
         if (res.ok) {
             container.innerHTML = await res.text();
-            new bootstrap.Modal(document.getElementById('reassignModal')).show();
+            window.FastBiteDialogs.open(document.getElementById('reassignModal'));
         }
     } catch (e) {
         console.error(e);
@@ -577,7 +557,7 @@ function showPaymentModal() {
     }
 
     calculateChange();
-    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+    window.FastBiteDialogs.open(document.getElementById('paymentModal'));
 }
 
 async function showPaymentModalForTable() {
@@ -601,14 +581,14 @@ async function showPaymentModalForTable() {
 
     calculateChange();
 
-    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+    window.FastBiteDialogs.open(document.getElementById('paymentModal'));
 }
 
 async function submitTableBulkPayment() {
     const btn = document.getElementById('btn-complete-order');
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${t('labelLoading')}`;
+    btn.innerHTML = `<span class="counter-spinner" aria-hidden="true"></span>${t('labelLoading')}`;
 
     try {
         const ordersToPay = payingSingleOrderId
@@ -689,7 +669,7 @@ async function submitOrder(paid = true) {
     const originalHtml = btn.innerHTML;
 
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${t('labelLoading')}`;
+    btn.innerHTML = `<span class="counter-spinner" aria-hidden="true"></span>${t('labelLoading')}`;
 
     try {
         const url = editingOrderId ? `/counter/api/orders/${editingOrderId}` : '/counter/api/order';
@@ -748,10 +728,10 @@ function resetPOS() {
     isTableMode = false;
     tableOrders = [];
     document.getElementById('selected-table-name').textContent = t('labelAssignTable');
-    document.getElementById('cart-actions-new').classList.remove('d-none');
-    document.getElementById('cart-actions-edit').classList.add('d-none');
-    document.getElementById('btn-billing').classList.add('d-none');
-    document.getElementById('btn-assign-table').classList.remove('d-none');
+    document.getElementById('cart-actions-new').classList.remove('is-hidden');
+    document.getElementById('cart-actions-edit').classList.add('is-hidden');
+    document.getElementById('btn-billing').classList.add('is-hidden');
+    document.getElementById('btn-assign-table').classList.remove('is-hidden');
     showOrderTarget();
     updateCartUI();
     refreshTables();
@@ -762,7 +742,7 @@ function showTableCount() {
     const busy = document.querySelectorAll('#tables-list .table-btn:not([data-status="AVAILABLE"])').length;
     const badge = document.getElementById('table-count');
     badge.textContent = busy;
-    badge.classList.toggle('d-none', busy === 0);
+    badge.classList.toggle('is-hidden', busy === 0);
 }
 
 // How many takeaway orders are waiting for collection
@@ -773,7 +753,7 @@ async function refreshPickupCount() {
         if (!res.ok) return;
         const waiting = (await res.json()).length;
         badge.textContent = waiting;
-        badge.classList.toggle('d-none', waiting === 0);
+        badge.classList.toggle('is-hidden', waiting === 0);
     } catch (error) {
         console.error('Error counting takeaway orders:', error);
     }
@@ -948,13 +928,13 @@ async function updateCartUI() {
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             if (mobileBadge) {
                 mobileBadge.textContent = totalItems;
-                mobileBadge.classList.toggle('d-none', totalItems === 0);
+                mobileBadge.classList.toggle('is-hidden', totalItems === 0);
             }
 
             document.getElementById('btn-proceed-payment').disabled = cart.length === 0;
             document.getElementById('btn-assign-table').disabled = !selectedTable || cart.length === 0;
-            document.getElementById('btn-assign-table').classList.remove('d-none');
-            document.getElementById('btn-billing').classList.add('d-none');
+            document.getElementById('btn-assign-table').classList.remove('is-hidden');
+            document.getElementById('btn-billing').classList.add('is-hidden');
         }
     } catch (e) {
         console.error(e);
@@ -1044,7 +1024,7 @@ async function showCustomizationModal(product, currentCustomizations = []) {
                 });
             }
 
-            new bootstrap.Modal(document.getElementById('customizationModal')).show();
+            window.FastBiteDialogs.open(document.getElementById('customizationModal'));
         }
     } catch (e) {
         console.error(e);
@@ -1172,7 +1152,7 @@ function resetPaymentModal() {
     
     // Hide details section just in case
     const details = document.getElementById('invoice-details');
-    if (details) details.style.display = 'none';
+    if (details) details.hidden = true;
 }
 
 function startRealtimeOrderUpdates() {

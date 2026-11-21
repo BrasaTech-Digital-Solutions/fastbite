@@ -6,23 +6,26 @@
     <!-- Categories Sidebar -->
     <th:block th:fragment="categories(categories, selectedGroup)">
         <div class="category-item" th:classappend="${selectedGroup == 'all' ? 'active' : ''}" data-group-id="all">
-            <i class="fas fa-th me-2"></i> <span th:text="#{label.all.products}">All Products</span>
+            <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-grid"></use></svg> <span th:text="#{label.all.products}">All Products</span>
         </div>
         <div th:each="cat : ${categories}" class="category-item"
             th:classappend="${selectedGroup == cat.id ? 'active' : ''}" th:data-group-id="${cat.id}">
-            <i th:class="${cat.icon ?: 'fas fa-tag'} + ' me-2'"></i>
+            <th:block th:with="iconName=${cat.icon ?: ''},iconClasses=${#strings.listSplit(cat.icon ?: '', ' ')},burger=${#lists.contains(iconClasses, 'fa-burger')},hamburger=${#lists.contains(iconClasses, 'fa-hamburger')},mug=${#lists.contains(iconClasses, 'fa-mug-hot')},whiskey=${#lists.contains(iconClasses, 'fa-glass-whiskey')},wine=${#lists.contains(iconClasses, 'fa-wine-glass')},bread=${#lists.contains(iconClasses, 'fa-bread-slice')},cookie=${#lists.contains(iconClasses, 'fa-cookie-bite')},layers=${#lists.contains(iconClasses, 'fa-layer-group')},utensils=${#lists.contains(iconClasses, 'fa-utensils')},tag=${#lists.contains(iconClasses, 'fa-tag')}">
+                <span class="counter-leading-icon" aria-hidden="true" th:if="${iconName == '⭐' or iconName == '🍨' or iconName == '🍾' or iconName == '🥢' or iconName == '🥩'}" th:text="${iconName}"></span>
+                <svg class="icon counter-leading-icon" aria-hidden="true" th:unless="${iconName == '⭐' or iconName == '🍨' or iconName == '🍾' or iconName == '🥢' or iconName == '🥩'}"><use th:attr="href=${'#' + (burger ? 'i-logo' : (hamburger ? 'i-logo' : (mug ? 'i-mug-hot' : (whiskey ? 'i-glass-whiskey' : (wine ? 'i-wine-glass' : (bread ? 'i-bread-slice' : (cookie ? 'i-cookie-bite' : (layers ? 'i-layers' : (utensils ? 'i-utensils' : (tag or iconName == '' ? 'i-tag' : 'i-list'))))))))))}"></use></svg>
+            </th:block>
             <span th:text="${cat.name}">Category Name</span>
         </div>
     </th:block>
 
     <!-- Products Grid -->
     <th:block th:fragment="products(products)">
-        <div th:each="p : ${products}" th:if="${p.active}" class="col-lg-3 col-md-4 col-6">
-            <div class="card product-card" th:data-id="${p.id}" onclick="handleProductClick(this.dataset.id)">
+        <div th:each="p : ${products}" th:if="${p.active}" class="counter-product-cell">
+            <div class="product-card" th:data-id="${p.id}" onclick="handleProductClick(this.dataset.id)">
                 <div class="price-tag" th:text="${#numbers.formatDecimal(p.price, 1, 2)}">0.00</div>
                 <img th:src="${p.image ?: '/images/placeholder.png'}" class="product-img" th:alt="${p.name}">
-                <div class="card-body">
-                    <h6 class="card-title" th:text="${p.name}">Product Name</h6>
+                <div class="counter-product-details">
+                    <h6 class="counter-product-name" th:text="${p.name}">Product Name</h6>
                     <span class="counter-allergens" th:if="${p.allergensDeclared() && !#sets.isEmpty(p.allergens())}"
                         th:title="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}"
                         th:aria-label="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}" role="img"
@@ -37,31 +40,30 @@
     <!-- Tables for Modal Selection -->
     <th:block th:fragment="tables(tables, selectedTableId)">
         <div th:each="table : ${tables}" class="table-btn"
-            th:classappend="${(table.active == false ? 'opacity-50 pointer-events-none' : '') + ' ' + (selectedTableId == table.id ? 'active' : '')}"
+            th:classappend="${(table.active == false ? 'is-inactive' : '') + ' ' + (selectedTableId == table.id ? 'active' : '')}"
             th:data-id="${table.id}" th:data-name="${table.name}" th:data-status="${table.status}">
             <div class="status-indicator" th:classappend="'status-' + ${#strings.toLowerCase(table.status)}"></div>
-            <i class="fas fa-chair mb-1"></i><br>
+            <svg class="icon counter-table-icon" aria-hidden="true"><use href="#i-chair"></use></svg><br>
             <span th:text="${table.name}">Table Name</span>
-            <div class="table-status-label small">
+            <div class="table-status-label">
                 <span th:if="${table.status == 'AVAILABLE'}" th:text="#{table.status.available}">Available</span>
                 <span th:if="${table.status == 'OCCUPIED'}" th:text="#{table.status.occupied}">Occupied</span>
                 <span th:if="${table.status == 'BILLING'}" th:text="#{table.status.billing}">Billing</span>
             </div>
-            <div class="mt-2 table-qr-mode">
-                <span class="badge" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'bg-success' : 'bg-secondary'"
+            <div class="table-qr-mode">
+                <span class="counter-badge" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'is-trusted' : 'is-supervised'"
                     th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{table.qr.trusted} : #{table.qr.supervised}">Supervised</span>
                 <span th:if="${table.qrTrusted != null and table.qrTrusted != settings.tableQrTrusted}"
-                    class="badge bg-warning text-dark ms-1" th:text="#{table.qr.override}">Override</span>
+                    class="counter-badge is-warning" th:text="#{table.qr.override}">Override</span>
             </div>
-            <div class="mt-2 qr-trust-toggle-container">
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 qr-trust-toggle"
-                    style="font-size: 0.75rem;"
+            <div class="qr-trust-toggle-container">
+                <button type="button" class="counter-button counter-button-neutral qr-trust-toggle"
                     th:data-id="${table.id}"
                     th:data-target-trusted="${!table.effectiveQrTrusted(settings.tableQrTrusted)}"
                     th:title="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}"
                     onclick="event.stopPropagation(); toggleTableQrTrust(this.dataset.id, this.dataset.targetTrusted);">
-                    <i class="fas" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'fa-toggle-on text-success' : 'fa-toggle-off text-muted'"></i>
-                    <span class="ms-1" th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}">Switch</span>
+                    <svg class="icon" aria-hidden="true"><use th:attr="href=${table.effectiveQrTrusted(settings.tableQrTrusted)} ? '#i-toggle-on' : '#i-toggle-off'"></use></svg>
+                    <span class="counter-switch-label" th:text="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? #{button.make.supervised} : #{button.make.trusted}">Switch</span>
                 </button>
             </div>
         </div>
@@ -72,76 +74,75 @@
         <div th:each="table : ${tables}" class="table-btn"
             th:classappend="${'status-' + #strings.toLowerCase(table.status) + ' ' + (currentTableId == table.id ? 'active' : '')}"
             th:data-id="${table.id}" onclick="reassignOrder(this.dataset.id)">
-            <div class="fw-bold" th:text="${table.name}">Table Name</div>
-            <div class="small opacity-75" th:text="${table.status}">Status</div>
+            <div class="counter-emphasis" th:text="${table.name}">Table Name</div>
+            <div class="counter-table-status" th:text="${table.status}">Status</div>
         </div>
     </th:block>
 
     <!-- Active Orders for Table Modal -->
     <th:block th:fragment="active-orders(orders)">
-        <div th:if="${#lists.isEmpty(orders)}" class="alert alert-info py-2 m-0 small"
+        <div th:if="${#lists.isEmpty(orders)}" class="counter-empty-notice"
             th:text="#{message.no.active.orders}">No active orders</div>
         <div th:each="order : ${orders}"
-            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center mb-1 rounded border">
+            class="counter-active-order">
             <div>
-                <div class="fw-bold text-primary"
+                <div class="counter-order-reference"
                     th:text="'#' + ${order.orderNumber} + ' - ' + ${#temporals.format(order.createdAt, 'HH:mm')}">#123 -
                     10:00</div>
-                <div class="small text-muted">
+                <div class="counter-order-meta">
                     <span th:text="${#lists.size(order.items)} + ' ' + #{label.items}">5 Items</span> -
                     <span th:text="${#numbers.formatDecimal(order.total, 1, 2)}">10.00</span>
                 </div>
             </div>
-            <button th:if="${!#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-success"
+            <button th:if="${!#strings.isEmpty(order.onlineTicket)}" class="counter-button counter-button-success"
                     th:data-ticket="${order.onlineTicket}" onclick="printTicket(this.dataset.ticket, true)">
                 <span th:text="#{ticket.payment.online}">Paid online</span> · <span th:text="#{counter.ticket.print}">Print ticket</span>
             </button>
-            <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)">
-                <i class="fas fa-print me-1"></i><span th:text="#{button.proforma} ?: 'Proforma'">Proforma</span>
+            <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="counter-button counter-button-info" th:aria-label="#{button.proforma}" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)">
+                <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-print"></use></svg><span th:text="#{button.proforma} ?: 'Proforma'">Proforma</span>
             </button>
         </div>
     </th:block>
 
     <!-- Normal Order Cart -->
     <th:block th:fragment="order-cart(items)">
-        <div th:if="${#lists.isEmpty(items)}" class="text-center py-5">
-            <div class="mb-4">
-                <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle"
-                    style="width: 100px; height: 100px;">
-                    <i class="fas fa-shopping-basket fa-3x text-muted opacity-50"></i>
+        <div th:if="${#lists.isEmpty(items)}" class="counter-empty-cart">
+            <div class="counter-empty-icon-wrap">
+                <div class="counter-empty-icon">
+                    <svg class="icon" aria-hidden="true"><use href="#i-basket"></use></svg>
                 </div>
             </div>
-            <h5 class="text-dark fw-bold mb-2" th:text="#{message.order.is.empty}">Your cart is empty</h5>
-            <p class="text-muted px-4 small" th:text="#{message.order.is.empty.hint}">Add some items to start</p>
+            <h5 class="counter-empty-title" th:text="#{message.order.is.empty}">Your cart is empty</h5>
+            <p class="counter-empty-hint" th:text="#{message.order.is.empty.hint}">Add some items to start</p>
         </div>
         <div th:each="item, iter : ${items}" class="cart-item">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="fw-bold" th:text="${item.name}">Item Name</span>
+            <div class="counter-cart-item-heading">
+                <span class="counter-emphasis" th:text="${item.name}">Item Name</span>
                 <span th:text="${#numbers.formatDecimal(item.price * item.quantity, 1, 2)}">10.00</span>
             </div>
-            <div th:if="${not #lists.isEmpty(item.customizations)}" class="small text-muted mb-2"
+            <div th:if="${not #lists.isEmpty(item.customizations)}" class="counter-cart-customizations"
                 th:text="${#strings.arrayJoin(item.customizations.![name], ', ')}">
                 Customization 1, Customization 2
             </div>
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-secondary" th:data-index="${iter.index}"
+            <div class="counter-cart-item-controls">
+                <div class="counter-quantity">
+                    <button class="counter-button counter-button-neutral" th:data-index="${iter.index}"
                         onclick="updateQty(parseInt(this.dataset.index), -1)">-</button>
-                    <span class="px-3 border-top border-bottom d-flex align-items-center"
+                    <span class="counter-quantity-value"
                         th:text="${item.quantity}">1</span>
-                    <button class="btn btn-outline-secondary" th:data-index="${iter.index}"
+                    <button class="counter-button counter-button-neutral" th:data-index="${iter.index}"
                         onclick="updateQty(parseInt(this.dataset.index), 1)">+</button>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-link text-primary p-0" th:data-index="${iter.index}"
+                <div class="counter-cart-item-actions">
+                    <button class="counter-button counter-button-edit" th:aria-label="#{button.edit}" th:data-index="${iter.index}"
                         th:data-customizable="${item.customizable}"
                         onclick="if(this.dataset.customizable === 'true') editItem(parseInt(this.dataset.index))"
                         th:disabled="${!item.customizable}">
-                        <i class="fas fa-pencil-alt"></i>
+                        <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
                     </button>
-                    <button class="btn btn-link text-danger p-0" th:data-index="${iter.index}"
+                    <button class="counter-button counter-button-delete" th:aria-label="#{button.delete}" th:data-index="${iter.index}"
                         onclick="removeItem(parseInt(this.dataset.index))">
-                        <i class="fas fa-trash"></i>
+                        <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
                     </button>
                 </div>
             </div>
@@ -151,20 +152,19 @@
     <!-- Table Session Cart (Accordion) -->
     <th:block th:fragment="table-session-cart(orders)">
         <div class="table-cart-view">
-            <div th:each="order, iter : ${orders}" class="card mb-3 border-0 shadow-sm order-card"
-                th:classappend="${order.status == 'CANCELLED' ? 'opacity-50' : ''}">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2"
-                    style="cursor:pointer" th:data-index="${iter.index}"
+            <div th:each="order, iter : ${orders}" class="order-card"
+                th:classappend="${order.status == 'CANCELLED' ? 'is-inactive' : ''}">
+                <div class="counter-order-heading"
+                    th:data-index="${iter.index}"
                     onclick="toggleOrderDetails(parseInt(this.dataset.index))">
-                    <div class="d-flex align-items-center overflow-hidden">
-                        <i class="fas me-2 text-primary small"
-                            th:classappend="${order.expanded ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
-                        <span class="fw-bold text-primary text-nowrap"
+                    <div class="counter-order-heading-details">
+                        <svg class="icon counter-order-chevron" aria-hidden="true"><use th:attr="href=${order.expanded} ? '#i-chevron-down' : '#i-chevron-right'"></use></svg>
+                        <span class="counter-order-reference"
                             th:text="#{label.order} + ' #' + ${order.orderNumber}">Order #123</span>
-                        <span th:if="${takeaway and !#strings.isEmpty(order.customerName)}" class="ms-2 text-truncate"
+                        <span th:if="${takeaway and !#strings.isEmpty(order.customerName)}" class="counter-order-customer"
                             th:text="${order.customerName}">Customer</span>
-                        <span class="badge ms-2"
-                            th:classappend="${order.status == 'CANCELLED' ? 'bg-danger' : (order.paymentStatus == 'PAID' ? 'bg-success' : 'bg-warning text-dark')}">
+                        <span class="counter-badge"
+                            th:classappend="${order.status == 'CANCELLED' ? 'is-cancelled' : (order.paymentStatus == 'PAID' ? 'is-trusted' : 'is-warning')}">
                             <span th:if="${order.status == 'CANCELLED'}"
                                 th:text="#{label.order.status.canceled}">Canceled</span>
                             <span th:if="${order.status != 'CANCELLED' and order.paymentStatus == 'PAID'}"
@@ -173,20 +173,20 @@
                                 th:text="#{label.order.status.unpaid}">Unpaid</span>
                         </span>
                     </div>
-                    <span class="fw-bold ms-2" th:text="${#numbers.formatDecimal(order.total, 1, 2)}">20.00</span>
+                    <span class="counter-order-amount" th:text="${#numbers.formatDecimal(order.total, 1, 2)}">20.00</span>
                 </div>
-                <div th:if="${!#strings.isEmpty(order.onlineTicket)}" class="px-2 py-2 border-top">
-                    <span class="me-2" th:text="#{ticket.payment.online}">Paid online</span> ·
-                    <button type="button" class="btn btn-sm btn-outline-success" th:data-ticket="${order.onlineTicket}"
+                <div th:if="${!#strings.isEmpty(order.onlineTicket)}" class="counter-online-ticket">
+                    <span class="counter-ticket-label" th:text="#{ticket.payment.online}">Paid online</span> ·
+                    <button type="button" class="counter-button counter-button-success" th:data-ticket="${order.onlineTicket}"
                             onclick="printTicket(this.dataset.ticket, true)" th:text="#{counter.ticket.print}">Print ticket</button>
                 </div>
-                <div th:if="${order.expanded}" class="card-body p-2 border-top">
-                    <div class="order-items-list mb-3">
+                <div th:if="${order.expanded}" class="counter-order-details">
+                    <div class="order-items-list">
                         <div th:each="item : ${order.items}"
-                            class="d-flex justify-content-between align-items-start mb-1 small">
+                            class="counter-order-item">
                             <div>
-                                <span class="fw-bold" th:text="${item.quantity} + 'x ' + ${item.name}">1x Burger</span>
-                                <div th:if="${not #lists.isEmpty(item.customizations)}" class="text-muted smaller"
+                                <span class="counter-emphasis" th:text="${item.quantity} + 'x ' + ${item.name}">1x Burger</span>
+                                <div th:if="${not #lists.isEmpty(item.customizations)}" class="counter-order-customizations"
                                     th:text="${#strings.arrayJoin(item.customizations.![name], ', ')}">
                                     Extra Cheese
                                 </div>
@@ -194,47 +194,47 @@
                             <span th:text="${#numbers.formatDecimal(item.totalPrice, 1, 2)}">10.00</span>
                         </div>
                     </div>
-                    <div class="border-top pt-2 mb-2 small">
-                        <div class="d-flex justify-content-between text-muted">
+                    <div class="counter-order-totals">
+                        <div class="counter-order-subtotal">
                             <span th:text="#{label.subtotal}">Subtotal</span>
                             <span th:text="${#numbers.formatDecimal(order.subtotal, 1, 2)}">10.00</span>
                         </div>
-                        <div th:if="${order.discount > 0}" class="d-flex justify-content-between text-danger">
+                        <div th:if="${order.discount > 0}" class="counter-order-discount">
                             <span th:text="#{label.discount}">Discount</span>
                             <span th:text="'-' + ${#numbers.formatDecimal(order.discount, 1, 2)}">-2.00</span>
                         </div>
-                        <div class="d-flex justify-content-between fw-bold">
+                        <div class="counter-order-total">
                             <span th:text="#{label.total}">Total</span>
                             <span th:text="${#numbers.formatDecimal(order.total, 1, 2)}">10.00</span>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 border-top pt-2">
-                        <button class="btn btn-sm btn-outline-primary" th:data-id="${order.id}"
+                    <div class="counter-order-actions">
+                        <button class="counter-button counter-button-primary" th:aria-label="#{button.edit}" th:data-id="${order.id}"
                             onclick="editOrderFromTable(this.dataset.id)"
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
-                            <i class="fas fa-edit"></i>
+                            <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
                         </button>
-                        <button th:if="${!takeaway}" class="btn btn-sm btn-outline-warning flex-grow-1" th:data-id="${order.id}"
+                        <button th:if="${!takeaway}" class="counter-button counter-button-warning" th:data-id="${order.id}"
                             onclick="openReassignModal(this.dataset.id)"
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
-                            <i class="fas fa-exchange-alt me-1"></i><span th:text="#{label.reassign}">Reassign</span>
+                            <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-exchange"></use></svg><span th:text="#{label.reassign}">Reassign</span>
                         </button>
-                        <button class="btn btn-sm flex-grow-1"
-                            th:classappend="${order.paymentStatus == 'PAID' ? 'btn-success' : 'btn-outline-success'}"
+                        <button class="counter-button counter-order-pay"
+                            th:classappend="${order.paymentStatus == 'PAID' ? 'counter-button-success-filled' : 'counter-button-success'}"
                             th:data-id="${order.id}" onclick="payIndividualOrder(this.dataset.id)"
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
-                            <i class="fas fa-check-circle me-1"></i>
+                            <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-check-circle"></use></svg>
                             <span
                                 th:text="${order.paymentStatus == 'PAID'} ? #{label.order.status.paid} : #{button.pay.now}">Pay</span>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" th:data-id="${order.id}"
+                        <button class="counter-button counter-button-danger" th:aria-label="#{button.cancel.order}" th:data-id="${order.id}"
                             onclick="cancelOrderFromTable(this.dataset.id)"
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
-                            <i class="fas fa-times"></i>
+                            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
                         </button>
-                        <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="btn btn-sm btn-outline-info" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)"
+                        <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="counter-button counter-button-info" th:aria-label="#{button.proforma}" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)"
                             th:disabled="${order.status == 'CANCELLED'}">
-                            <i class="fas fa-print"></i>
+                            <svg class="icon" aria-hidden="true"><use href="#i-print"></use></svg>
                         </button>
                     </div>
                 </div>
@@ -244,22 +244,22 @@
 
     <!-- Customization Options Modal Body -->
     <th:block th:fragment="customization-options(customizations, selectedOptions)">
-        <div th:each="cust : ${customizations}" th:if="${!#lists.isEmpty(cust.options)}" class="mb-4">
-            <h6 class="fw-bold border-bottom pb-2">
-                <i class="fas fa-utensils me-2"></i>
+        <div th:each="cust : ${customizations}" th:if="${!#lists.isEmpty(cust.options)}" class="counter-customization-group">
+            <h6 class="counter-customization-title">
+                <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-utensils"></use></svg>
                 <span th:text="${cust.name}">Customization Name</span>
             </h6>
-            <div th:if="${cust.type != 'quantity'}" th:each="opt, optIter : ${cust.options}" class="form-check mb-2">
-                <input class="form-check-input customization-input"
+            <div th:if="${cust.type != 'quantity'}" th:each="opt, optIter : ${cust.options}" class="counter-choice">
+                <input class="counter-choice-input customization-input"
                     th:type="${cust.type == 'radio' ? 'radio' : 'checkbox'}"
                     th:name="${cust.type == 'radio' ? cust.id : cust.id + '-opt-' + optIter.index}"
                     th:id="${cust.id + '-opt-' + optIter.index}" th:value="${opt.name}" th:data-price="${opt.price}"
                     th:data-option-id="${opt.id}"
                     th:checked="${#lists.contains(selectedOptions, opt.id) or #lists.contains(selectedOptions, cust.id + '-opt-' + optIter.index)}">
-                <label class="form-check-label d-flex justify-content-between w-100"
+                <label class="counter-choice-label"
                     th:for="${cust.id + '-opt-' + optIter.index}">
                     <span th:text="${opt.name}">Option Name</span>
-                    <span class="text-muted"
+                    <span class="counter-secondary-text"
                         th:text="${opt.price > 0 ? '+' + #numbers.formatDecimal(opt.price, 1, 2) : ''}">+1.00</span>
                 </label>
             </div>
@@ -271,7 +271,7 @@
                             th:title="#{${allergen.messageKey()}}" role="img"
                             th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</span>
                     </div>
-                    <div class="ingredient-price text-muted" th:if="${opt.price > 0}"
+                    <div class="ingredient-price" th:if="${opt.price > 0}"
                         th:text="${'(+' + #numbers.formatDecimal(opt.price, 1, 2) + ')'}">+1.00</div>
                 </div>
                 <div class="ingredient-quantity-control">
@@ -280,7 +280,7 @@
                         th:data-option-id="${opt.id}"
                         th:disabled="${opt.defaultValue == 0}"
                         onclick="changeCounterQuantityToggle(this.dataset.optionId, -1)">
-                        <i class="fas fa-minus"></i>
+                        <svg class="icon" aria-hidden="true"><use href="#i-minus"></use></svg>
                     </button>
                     <span th:id="${'counter-qty-' + opt.id}" class="ingredient-quantity"
                         th:text="${opt.defaultValue >= 1 ? 1 : 0}">1</span>
@@ -289,7 +289,7 @@
                         th:data-option-id="${opt.id}"
                         th:disabled="${opt.defaultValue >= 1}"
                         onclick="changeCounterQuantityToggle(this.dataset.optionId, 1)">
-                        <i class="fas fa-plus"></i>
+                        <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
                     </button>
                 </div>
                 <input class="customization-quantity-input" type="hidden"

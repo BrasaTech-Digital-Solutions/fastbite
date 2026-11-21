@@ -103,7 +103,7 @@ test('CLI rejects output paths that alias an input through a symlink', async t =
     });
 });
 
-test('CLI rejects missing screenshots, mismatched sizes and output inside inputs', async () => {
+test('CLI reports mismatched sizes and rejects missing screenshots and output inside inputs', async () => {
     await fixture(async ({ a, b, output }) => {
         await writeFile(join(b, 'extra.png'), encodePng(before));
         let result = run(a, b, output);
@@ -113,9 +113,30 @@ test('CLI rejects missing screenshots, mismatched sizes and output inside inputs
         await writeFile(join(b, 'cafe', 'page.png'), encodePng({ width: 1, height: 1, pixels: Buffer.alloc(4) }));
         result = run(a, b, output);
         assert.notEqual(result.status, 0);
-        assert.match(result.stderr, /sizes differ/);
+        assert.match(result.stdout, /size mismatch 2x1 vs 1x1/);
+        assert.match(result.stdout, /1 size mismatches/);
         result = run(a, b, join(a, 'output'));
         assert.notEqual(result.status, 0);
         assert.match(result.stderr, /separate/);
+    });
+});
+
+test('CLI reports every size mismatch and still compares later matching images', async () => {
+    await fixture(async ({ a, b, output }) => {
+        const small = { width: 1, height: 1, pixels: Buffer.alloc(4) };
+        await writeFile(join(b, 'cafe', 'page.png'), encodePng(small));
+        await writeFile(join(a, 'cafe', 'second.png'), encodePng(before));
+        await writeFile(join(b, 'cafe', 'second.png'), encodePng(after));
+        await writeFile(join(a, 'cafe', 'third.png'), encodePng(before));
+        await writeFile(join(b, 'cafe', 'third.png'), encodePng(small));
+        const result = run(a, b, output);
+        assert.equal(result.status, 1);
+        assert.match(result.stdout, /cafe\/page\.png: size mismatch 2x1 vs 1x1/);
+        assert.match(result.stdout, /cafe\/second\.png: 1 changed pixels/);
+        assert.match(result.stdout, /cafe\/third\.png: size mismatch 2x1 vs 1x1/);
+        assert.match(result.stdout, /SUMMARY: 3 pairs, 3 changed files, 1 changed pixels, 2 size mismatches/);
+        assert.deepEqual(decodePng(await readFile(join(output, 'cafe', 'second.png'))).pixels,
+            Buffer.from([0, 0, 0, 0, 255, 0, 0, 255]));
+        await assert.rejects(readFile(join(output, 'cafe', 'page.png')), { code: 'ENOENT' });
     });
 });

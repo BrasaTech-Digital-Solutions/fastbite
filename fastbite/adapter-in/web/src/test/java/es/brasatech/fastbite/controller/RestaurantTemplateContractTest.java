@@ -30,8 +30,6 @@ class RestaurantTemplateContractTest {
 
     /** Template → {inline styles, colour literals} still allowed. Every other guarded template allows none. */
     private static final Map<String, int[]> ALLOWED = Map.of(
-            "counter.html", new int[]{5, 0},
-            "fragments/counter.html", new int[]{3, 0},
             "dashboard.html", new int[]{8, 0},
             "tickets.html", new int[]{2, 0},
             "tableQrCodes.html", new int[]{0, 1});
@@ -50,9 +48,13 @@ class RestaurantTemplateContractTest {
     private static final String[] GUEST_SCRIPTS = {
             "menu.js", "allergen-filter.js", "guest-ui.js", "payment-selection.js", "order-progress.js",
             "guest-ticket.js", "live-updates.js"};
+    /** The latter two are shared with Bootstrap pages, but neither path sets inline styles or names a theme. */
+    private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
     private static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
     private static final Pattern SCRIPT_STYLE = Pattern.compile("\\.style\\.|\\.cssText|setProperty\\(");
+    private static final Pattern SCRIPT_THEME = Pattern.compile(
+            "(?i)data-theme|(?<![\\w-])(?:fastfood|cafe|modern|test-contrast)(?![\\w-])");
 
     @Test
     void restaurantTemplatesGainNoInlineStyleOrHardCodedColour() throws IOException {
@@ -80,11 +82,53 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void counterAndItsNativeSharedFragmentsUseTheRestaurantContract() throws IOException {
+        for (String template : new String[]{"counter.html", "fragments/counter.html"}) {
+            assertNativeCounter(template, readTemplate(template));
+        }
+        // The legacy parts remain for dashboard, dayReport, tickets, tableQrCodes and backOffice until item 4.
+        assertNativeCounter("counter navbar", fragment("fragments/navbar.html", "<header th:fragment=\"counter\"", "</header>"));
+        assertNativeCounter("counter cash check", fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"));
+        assertNativeCounter("counter invoice fields", fragment("fragments/invoice-fields.html", "<div th:fragment=\"counterFields(prefix)\"", "</body>"));
+    }
+
+    private static void assertNativeCounter(String label, String html) {
+        assertThat(count(INLINE_STYLE, html)).as("inline styles in %s", label).isZero();
+        assertThat(count(COLOUR, html)).as("colours in %s", label).isZero();
+        assertThat(BOOTSTRAP_OR_FONT_AWESOME.matcher(html).results().map(MatchResult::group).toList())
+                .as("Bootstrap or Font Awesome in %s", label).isEmpty();
+    }
+
+    private static String readTemplate(String name) throws IOException {
+        return new ClassPathResource("templates/fastfood/" + name).getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    private static String fragment(String name, String begin, String end) throws IOException {
+        String html = readTemplate(name);
+        int start = html.indexOf(begin);
+        assertThat(start).as("fragment in %s", name).isGreaterThanOrEqualTo(0);
+        int finish = html.indexOf(end, start);
+        assertThat(finish).as("fragment end in %s", name).isGreaterThan(start);
+        return html.substring(start, finish + end.length());
+    }
+
+    @Test
     void guestScriptsChangeOnlyClassesAndAttributes() throws IOException {
         for (String script : GUEST_SCRIPTS) {
             String js = new ClassPathResource("static/js/" + script).getContentAsString(StandardCharsets.UTF_8);
             assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by %s", script).isZero();
             assertThat(count(COLOUR, js)).as("colours in %s", script).isZero();
+        }
+    }
+
+    @Test
+    void counterScriptsChangeOnlyStateAndNeverNameATheme() throws IOException {
+        for (String script : COUNTER_SCRIPTS) {
+            String js = new ClassPathResource("static/js/" + script).getContentAsString(StandardCharsets.UTF_8);
+            assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by %s", script).isZero();
+            assertThat(count(COLOUR, js)).as("colours in %s", script).isZero();
+            assertThat(SCRIPT_THEME.matcher(js).results().map(MatchResult::group).toList())
+                    .as("theme-specific logic in %s", script).isEmpty();
         }
     }
 
