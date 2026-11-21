@@ -157,6 +157,7 @@ public class EnvironmentAdvice {
             case CANCELLED -> "verifactu.hold.reason.cancelled";
             case NIF_MISMATCH -> "verifactu.hold.reason.nif_mismatch";
             case NIF_UNVERIFIED -> "verifactu.hold.reason.nif_unverified";
+            case TEST_ENVIRONMENT -> "verifactu.hold.reason.test_environment";
             case DOCUMENTS_GONE -> "verifactu.hold.reason.documents_gone";
             case REVOKED -> "verifactu.hold.reason.revoked";
             case SIGNING_UNAVAILABLE -> "verifactu.hold.reason.signing_unavailable";

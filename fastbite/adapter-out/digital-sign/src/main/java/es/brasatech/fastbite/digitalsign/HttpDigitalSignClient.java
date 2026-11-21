@@ -711,7 +711,8 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                 instantOrNull(root, "expiresAt"),
                 instantOrNull(root, "completedAt"),
                 signers,
-                docs);
+                docs,
+                boolOrFalse(root, "test"));
     }
 
     private static Object toPlainObject(JsonNode node) {

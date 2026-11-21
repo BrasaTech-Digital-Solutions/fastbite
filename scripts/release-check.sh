@@ -1085,8 +1085,46 @@ fi
 HOLDS_NONADMIN_CODE=$(curl -s -o /dev/null -w '%{http_code}' -b "$J" -c "$J" "$P/owner/platform/verifactu-holds")
 record "$HOLDS_NONADMIN_CODE" 404 "GET $P/owner/platform/verifactu-holds (404 for non-admin owner)"
 
-# Start VERI*FACTU signing against local digital-sign-mock and complete it via HMAC-signed webhook
+# VERI*FACTU test-environment refusal: a Digital Sign response with test=true must never become VALID in production
 VF_CSRF=$(echo "$PROD_OWNER_HELD" | meta)
+VF_TEST_START_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
+  --data-urlencode "_csrf=$VF_CSRF" \
+  "$P/owner/workspace/$T/verifactu/authorize")
+VF_TEST_START_CODE=$(echo "$VF_TEST_START_RESP" | head -n 1 | awk '{print $2}')
+record "${VF_TEST_START_CODE:-000}" 302 "POST $P/owner/workspace/$T/verifactu/authorize (first attempt to test refusal of test=true)"
+
+VF_TEST_REQ_ID=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select digital_sign_request_id from public.verifactu_authorizations where nif='$VF_NIF' order by attempt desc limit 1" 2>/dev/null | tr -d '\r')
+if [ -n "$VF_TEST_REQ_ID" ]; then
+  VF_TEST_COMPLETE_RESP=$(curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"test":true}' "$DS_MOCK/_mock/complete/$VF_TEST_REQ_ID")
+  VF_TEST_COMPLETE_CODE=$(echo "$VF_TEST_COMPLETE_RESP" | tail -n 1)
+  record "${VF_TEST_COMPLETE_CODE:-000}" 200 "POST $DS_MOCK/_mock/complete/$VF_TEST_REQ_ID with test=true (mock fires HMAC webhook)"
+else
+  record_match 0 "VERI*FACTU test-refusal request created against local mock (request id was empty)"
+fi
+
+VF_TEST_STATUS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select status from public.verifactu_authorizations where digital_sign_request_id='$VF_TEST_REQ_ID'" 2>/dev/null | tr -d '\r')
+if [ "$VF_TEST_STATUS" = "TEST_ENVIRONMENT" ]; then
+  record_match 1 "VERI*FACTU authorisation with test=true is refused and marked TEST_ENVIRONMENT"
+else
+  record_match 0 "VERI*FACTU authorisation with test=true is refused and marked TEST_ENVIRONMENT (got: ${VF_TEST_STATUS:-empty})"
+fi
+
+VF_TEST_VALID_ROWS=$($DC exec -T postgres psql -U fastbite -d fastbite_production -tAc "select count(*) from public.verifactu_authorizations where nif='$VF_NIF' and status='VALID'" 2>/dev/null | tr -d '\r')
+if [ "$VF_TEST_VALID_ROWS" = "0" ]; then
+  record_match 1 "No VALID VERI*FACTU authorisation exists after test=true refusal"
+else
+  record_match 0 "No VALID VERI*FACTU authorisation exists after test=true refusal (got: ${VF_TEST_VALID_ROWS:-empty})"
+fi
+
+PROD_OWNER_TEST_HELD=$(curl -s -H 'Accept-Language: es' -b "$J" -c "$J" "$P/owner/console?location=$T")
+if grep -qF -- 'Firmada en el entorno de pruebas de Digital Sign; no vale para producción.' <<<"$PROD_OWNER_TEST_HELD"; then
+  record_match 1 "Owner workspace shows plain Spanish hold reason for Digital Sign test environment"
+else
+  record_match 0 "Owner workspace shows plain Spanish hold reason for Digital Sign test environment"
+fi
+
+# Start VERI*FACTU signing against local digital-sign-mock and complete it via HMAC-signed webhook
+VF_CSRF=$(echo "$PROD_OWNER_TEST_HELD" | meta)
 VF_START_RESP=$(curl -s -D - -o /dev/null -b "$J" -c "$J" \
   --data-urlencode "_csrf=$VF_CSRF" \
   "$P/owner/workspace/$T/verifactu/authorize")

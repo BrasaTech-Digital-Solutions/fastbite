@@ -17,6 +17,8 @@ public enum VerifactuAuthorizationStatus {
     NIF_MISMATCH,
     /** Signed with a certificate from which no valid Spanish NIF could be extracted (fail closed). */
     NIF_UNVERIFIED,
+    /** Signed or created in Digital Sign's test environment; never valid in production. */
+    TEST_ENVIRONMENT,
     /** Signer declined the request in Digital Sign. */
     DECLINED,
     /** Signing request expired in Digital Sign. */

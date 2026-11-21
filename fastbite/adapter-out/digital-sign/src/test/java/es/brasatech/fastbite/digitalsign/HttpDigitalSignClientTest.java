@@ -484,6 +484,48 @@ class HttpDigitalSignClientTest {
     }
 
     @Test
+    void getRequestParsesTestFlagTrueFalseNullAndMissing() {
+        server.createContext("/api/v1/requests/req-test-true", exchange -> respondJson(exchange, 200, """
+                {
+                  "id": "req-test-true",
+                  "status": "COMPLETED",
+                  "test": true,
+                  "signers": [],
+                  "documents": { "signedDocument": true, "evidenceReport": true }
+                }
+                """));
+        server.createContext("/api/v1/requests/req-test-false", exchange -> respondJson(exchange, 200, """
+                {
+                  "id": "req-test-false",
+                  "status": "COMPLETED",
+                  "test": false,
+                  "signers": [],
+                  "documents": { "signedDocument": true, "evidenceReport": true }
+                }
+                """));
+        server.createContext("/api/v1/requests/req-test-missing", exchange -> respondJson(exchange, 200, """
+                {
+                  "id": "req-test-missing",
+                  "status": "IN_PROGRESS",
+                  "signers": []
+                }
+                """));
+        server.createContext("/api/v1/requests/req-test-null", exchange -> respondJson(exchange, 200, """
+                {
+                  "id": "req-test-null",
+                  "status": "IN_PROGRESS",
+                  "test": null,
+                  "signers": []
+                }
+                """));
+
+        assertThat(client.getRequest("req-test-true").test()).isTrue();
+        assertThat(client.getRequest("req-test-false").test()).isFalse();
+        assertThat(client.getRequest("req-test-missing").test()).isFalse();
+        assertThat(client.getRequest("req-test-null").test()).isFalse();
+    }
+
+    @Test
     void unconfiguredClientThrowsWithoutMakingNetworkCalls() {
         DigitalSignProperties unconfigured = new DigitalSignProperties();
         unconfigured.setApiToken("");

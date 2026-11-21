@@ -140,6 +140,10 @@ public class OwnerSetupMailAdapter implements OwnerSetupMailPort {
                     "Could not verify a Spanish NIF in the signing certificate.",
                     "No se pudo verificar un NIF español en el certificado utilizado.",
                     "Não foi possível verificar um NIF espanhol no certificado utilizado.");
+            case "TEST_ENVIRONMENT" -> actionLabel(language,
+                    "Signed in Digital Sign's test environment; not valid for production.",
+                    "Firmada en el entorno de pruebas de Digital Sign; no vale para producción.",
+                    "Assinada no ambiente de testes da Digital Sign; não é válida para produção.");
             case "DOCUMENTS_GONE" -> actionLabel(language,
                     "The signed documents are no longer available to download.",
                     "Los documentos firmados ya no están disponibles para descarga.",

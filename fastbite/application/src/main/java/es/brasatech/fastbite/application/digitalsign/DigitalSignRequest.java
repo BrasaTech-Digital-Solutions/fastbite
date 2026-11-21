@@ -18,7 +18,21 @@ public record DigitalSignRequest(
         Instant expiresAt,
         Instant completedAt,
         List<RequestSigner> signers,
-        RequestDocuments documents) {
+        RequestDocuments documents,
+        boolean test) {
+
+    public DigitalSignRequest(
+            String id,
+            String status,
+            String externalReference,
+            String title,
+            Instant createdAt,
+            Instant expiresAt,
+            Instant completedAt,
+            List<RequestSigner> signers,
+            RequestDocuments documents) {
+        this(id, status, externalReference, title, createdAt, expiresAt, completedAt, signers, documents, false);
+    }
 
     public DigitalSignRequest {
         signers = signers == null ? List.of() : List.copyOf(signers);

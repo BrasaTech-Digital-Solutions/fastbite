@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -59,6 +60,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
@@ -234,5 +236,25 @@ class OwnerVerifactuOpeningControllerTest {
                 .andExpect(flash().attributeExists("error"));
 
         verify(verifactuAuthorizations).startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), isNull(), eq("es"));
+    }
+
+    @Test
+    void testEnvironmentStatusShowsPlainReasonAndAllowsRetry() throws Exception {
+        VerifactuAuthorization testEnv = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.TEST_ENVIRONMENT, "req-test-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, "TEST_ENVIRONMENT", OWNER,
+                Instant.now(), Instant.now(), null, null, Instant.now(), 1, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.refreshForNifOnPageLoad("B09767898")).thenReturn(Optional.of(testEnv));
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(testEnv));
+
+        mockMvc.perform(get("/owner/console").param("location", TENANT)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "Firmada en el entorno de pruebas de Digital Sign; no vale para producción.")))
+                .andExpect(content().string(containsString("Firmar de nuevo")));
     }
 }

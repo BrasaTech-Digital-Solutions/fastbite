@@ -15,6 +15,7 @@ import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate;
 import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate.TemplateField;
 import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate.TemplateSigner;
 import es.brasatech.fastbite.application.digitalsign.SigningUrlResponse;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationDocumentStorage.StoredDocument;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationStore.UpdateResult;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
@@ -129,6 +130,7 @@ public class VerifactuAuthorizationService {
     private final VerifactuAuthorizationDocumentStorage documentStorage;
     private final DigitalSignClient digitalSignClient;
     private final DigitalSignProperties digitalSignProperties;
+    private final PlatformEnvironment environment;
     private final Clock clock;
     private final boolean collaborationActive;
     private final String brasatechLegalName;
@@ -147,7 +149,8 @@ public class VerifactuAuthorizationService {
             DigitalSignClient digitalSignClient,
             DigitalSignProperties digitalSignProperties,
             Clock clock) {
-        this(store, documentStorage, digitalSignClient, digitalSignProperties, clock, false,
+        this(store, documentStorage, digitalSignClient, digitalSignProperties,
+                new PlatformEnvironment("production"), clock, false,
                 "BRASATECH DIGITAL SOLUTIONS, S.L.U.", "B09767898",
                 "Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España");
     }
@@ -158,6 +161,7 @@ public class VerifactuAuthorizationService {
             VerifactuAuthorizationDocumentStorage documentStorage,
             DigitalSignClient digitalSignClient,
             DigitalSignProperties digitalSignProperties,
+            PlatformEnvironment environment,
             Clock clock,
             @Value("${fastbite.verifactu.collaboration-active:false}") boolean collaborationActive,
             @Value("${fastbite.legal.company-name:BRASATECH DIGITAL SOLUTIONS, S.L.U.}") String brasatechLegalName,
@@ -167,6 +171,7 @@ public class VerifactuAuthorizationService {
         this.documentStorage = Objects.requireNonNull(documentStorage, "documentStorage");
         this.digitalSignClient = Objects.requireNonNull(digitalSignClient, "digitalSignClient");
         this.digitalSignProperties = Objects.requireNonNull(digitalSignProperties, "digitalSignProperties");
+        this.environment = environment == null ? new PlatformEnvironment("production") : environment;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         this.collaborationActive = collaborationActive;
         this.brasatechLegalName = brasatechLegalName == null ? "" : brasatechLegalName.strip();
@@ -373,6 +378,39 @@ public class VerifactuAuthorizationService {
         }
 
         Instant now = clock.instant();
+        if (environment.production() && remoteRequest.test()) {
+            String remoteId = truncate(remoteRequest.id().strip(), 64);
+            log.warn("Refusing Digital Sign test-environment request {} on create for VERI*FACTU authorisation {} (nif={})",
+                    remoteId, authorizationId, maskNif(nif));
+            VerifactuAuthorization refused = new VerifactuAuthorization(
+                    authorizationId,
+                    nif,
+                    legalName,
+                    VerifactuAuthorizationStatus.TEST_ENVIRONMENT,
+                    remoteId,
+                    idempotencyKey,
+                    attempt,
+                    truncate(templateId, 64),
+                    signerName,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "TEST_ENVIRONMENT",
+                    truncate(ownerUsername, 160),
+                    now,
+                    now,
+                    null,
+                    null,
+                    now,
+                    0,
+                    0,
+                    null);
+            store.insert(refused);
+            return StartSigningResult.unavailable("TEST_ENVIRONMENT");
+        }
+
         VerifactuAuthorization record = new VerifactuAuthorization(
                 authorizationId,
                 nif,
@@ -724,6 +762,25 @@ public class VerifactuAuthorizationService {
         String remoteStatus = remote.status() == null ? "" : remote.status().strip().toUpperCase(Locale.ROOT);
         RequestSigner configuredSigner = findConfiguredSigner(remote.signers());
         String signerName = resolveSignerName(configuredSigner, current.signerName());
+
+        if (environment.production() && remote.test()) {
+            log.warn("Refusing Digital Sign test-environment request {} for VERI*FACTU authorisation {} (nif={}, remoteStatus={})",
+                    current.digitalSignRequestId(), current.id(), maskNif(current.nif()), remoteStatus);
+            VerifactuAuthorization candidate = current.withSync(
+                    VerifactuAuthorizationStatus.TEST_ENVIRONMENT,
+                    signerName,
+                    current.certificateNif(),
+                    current.signedPdfPath(),
+                    current.signedPdfSha256(),
+                    current.evidencePdfPath(),
+                    current.evidencePdfSha256(),
+                    "TEST_ENVIRONMENT",
+                    null,
+                    now,
+                    0,
+                    null);
+            return persistWithCasRetry(candidate, requestId, deadline, allowRetries, countFailure, casAttempt);
+        }
 
         VerifactuAuthorization candidate = switch (remoteStatus) {
             case "DECLINED" -> current.withSync(

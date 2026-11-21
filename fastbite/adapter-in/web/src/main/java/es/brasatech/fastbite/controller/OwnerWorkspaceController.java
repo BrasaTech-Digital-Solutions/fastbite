@@ -571,9 +571,11 @@ public class OwnerWorkspaceController {
                 yield "redirect:/owner/console?location=" + tenant;
             }
             case SIGNING_UNAVAILABLE -> {
-                String msgKey = "DOWNLOAD_FAILED".equals(result.reason())
-                        ? "opening.verifactu.reason.download_failed"
-                        : "opening.verifactu.reason.signing_unavailable";
+                String msgKey = switch (result.reason() == null ? "" : result.reason()) {
+                    case "DOWNLOAD_FAILED" -> "opening.verifactu.reason.download_failed";
+                    case "TEST_ENVIRONMENT" -> "opening.verifactu.reason.test_environment";
+                    default -> "opening.verifactu.reason.signing_unavailable";
+                };
                 flash.addFlashAttribute("error", workspaceMessage(msgKey));
                 yield "redirect:/owner/console?location=" + tenant;
             }
@@ -664,6 +666,7 @@ public class OwnerWorkspaceController {
             case CANCELLED -> "opening.verifactu.reason.cancelled";
             case NIF_MISMATCH -> "opening.verifactu.reason.nif_mismatch";
             case NIF_UNVERIFIED -> "opening.verifactu.reason.nif_unverified";
+            case TEST_ENVIRONMENT -> "opening.verifactu.reason.test_environment";
             case DOCUMENTS_GONE -> {
                 if ("REQUEST_NOT_FOUND".equals(auth.failureReason())) {
                     yield "opening.verifactu.reason.request_not_found";

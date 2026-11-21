@@ -10,6 +10,7 @@ const SIGNER_ROLE = process.env.MOCK_SIGNER_ROLE || 'Representante';
 
 const requests = new Map();
 const idempotency = new Map();
+let defaultTestMode = String(process.env.MOCK_TEST_MODE || 'false').toLowerCase() === 'true';
 
 function minimalPdf(label) {
   const safe = String(label).replace(/[()\\]/g, '');
@@ -123,7 +124,19 @@ const server = http.createServer(async (req, res) => {
     const method = req.method || 'GET';
 
     if (method === 'GET' && path === '/health') {
-      return sendJson(res, 200, { status: 'ok' });
+      return sendJson(res, 200, { status: 'ok', test: defaultTestMode });
+    }
+
+    if (method === 'POST' && path === '/_mock/test-mode') {
+      const raw = await readBody(req);
+      let opts = {};
+      if (raw && raw.trim()) {
+        opts = JSON.parse(raw);
+      }
+      if (typeof opts.test === 'boolean') {
+        defaultTestMode = opts.test;
+      }
+      return sendJson(res, 200, { test: defaultTestMode });
     }
 
     if (method === 'GET' && path.startsWith('/_mock/sign/')) {
@@ -147,6 +160,9 @@ const server = http.createServer(async (req, res) => {
       const targetStatus = String(opts.status || 'COMPLETED').toUpperCase();
       const nowIso = new Date().toISOString();
       stored.status = targetStatus;
+      if (typeof opts.test === 'boolean') {
+        stored.test = opts.test;
+      }
       if (targetStatus === 'COMPLETED') {
         stored.completedAt = nowIso;
         stored.documents = { signedDocument: true, evidenceReport: true };
@@ -167,6 +183,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         requestId: id,
         status: stored.status,
+        test: stored.test,
         webhookStatus: webhookResult.status,
         webhookBody: webhookResult.body
       });
@@ -217,7 +234,8 @@ const server = http.createServer(async (req, res) => {
           expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString(),
           completedAt: null,
           signers,
-          documents: { signedDocument: false, evidenceReport: false }
+          documents: { signedDocument: false, evidenceReport: false },
+          test: defaultTestMode
         };
         requests.set(id, created);
         if (key) {

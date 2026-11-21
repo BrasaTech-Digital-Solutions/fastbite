@@ -118,6 +118,13 @@ class AccountMailTemplatesTest {
             });
             assertThat(mismatchParts.text()).contains("NIF");
 
+            var testEnvParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOnHold("owner@example.test", tenant, url, language, "TEST_ENVIRONMENT");
+            });
+            assertThat(testEnvParts.text()).contains("Digital Sign");
+
             var trialParts = render(sender -> {
                 var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
                         new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));

@@ -125,6 +125,28 @@ class VerifactuAuthorizationGateTest {
     }
 
     @Test
+    void productionMapsTestEnvironmentToHoldReasonWhileSandboxAllows() {
+        when(authorizations.isCollaborationActive()).thenReturn(true);
+        when(authorizations.hasValidAuthorization("B09767898")).thenReturn(false);
+        Instant now = Instant.parse("2026-11-20T10:00:00Z");
+        VerifactuAuthorization testEnv = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Kebab House SL", VerifactuAuthorizationStatus.TEST_ENVIRONMENT,
+                "req-test", "verifactu-B09767898-1", 1, "tpl-1", "Ana", null,
+                null, null, null, null, "TEST_ENVIRONMENT", "ana", now, now, null, null, now, 1);
+        when(authorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(testEnv));
+
+        VerifactuAuthorizationGate prodGate = new VerifactuAuthorizationGate(
+                new PlatformEnvironment("production"), fiscalProfiles, authorizations);
+        assertThat(prodGate.mayIssueTickets("bistro")).isFalse();
+        assertThat(prodGate.holdReason("bistro")).contains(HoldReason.TEST_ENVIRONMENT);
+
+        VerifactuAuthorizationGate sandboxGate = new VerifactuAuthorizationGate(
+                new PlatformEnvironment("sandbox"), fiscalProfiles, authorizations);
+        assertThat(sandboxGate.mayIssueTickets("bistro")).isTrue();
+        assertThat(sandboxGate.holdReason("bistro")).isEmpty();
+    }
+
+    @Test
     void holdReasonSwitchesAndRestoresTenantContext() {
         TenantContext.setCurrentTenant("other-tenant");
         when(fiscalProfiles.get()).thenAnswer(inv -> {

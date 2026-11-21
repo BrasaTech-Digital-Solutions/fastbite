@@ -534,6 +534,92 @@ class VerifactuAuthorizationServiceTest {
     }
 
     @Test
+    void completedTestRequestInProductionIsRefusedAndNeverValid() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-test-completed");
+        when(store.findByDigitalSignRequestId("req-test-completed")).thenReturn(Optional.of(auth));
+
+        RequestSigner restaurantSigner = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW,
+                "https://digital-sign.brasatech.es/sign/secret-token-should-never-log", List.of(),
+                "CERTIFICATE", "B09767898", "READY",
+                Map.of("subject", "CN=ANA LOPEZ, OID.2.5.4.97=VATES-B09767898"));
+
+        when(client.getRequest(eq("req-test-completed"), any())).thenReturn(new DigitalSignRequest(
+                "req-test-completed", "COMPLETED", auth.id().toString(), "Anexo I", NOW.minusSeconds(60), null, NOW,
+                List.of(restaurantSigner), new RequestDocuments(true, true), true));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-test-completed").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.TEST_ENVIRONMENT);
+        assertThat(result.status().isTerminal()).isTrue();
+        assertThat(result.isCurrentlyValid()).isFalse();
+        assertThat(result.validFrom()).isNull();
+        assertThat(result.failureReason()).isEqualTo("TEST_ENVIRONMENT");
+        verify(client, never()).downloadSignedDocument(any(), any());
+        verify(client, never()).downloadEvidenceReport(any(), any());
+    }
+
+    @Test
+    void inProgressTestRequestInProductionIsRefusedOnSync() {
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-test-progress");
+        when(store.findByDigitalSignRequestId("req-test-progress")).thenReturn(Optional.of(auth));
+
+        RequestSigner restaurantSigner = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "PENDING", null,
+                "https://digital-sign.brasatech.es/sign/secret-token-xyz", List.of(),
+                "CERTIFICATE", "B09767898", "PENDING", null);
+
+        when(client.getRequest(eq("req-test-progress"), any())).thenReturn(new DigitalSignRequest(
+                "req-test-progress", "IN_PROGRESS", auth.id().toString(), "Anexo I", NOW.minusSeconds(60), null, null,
+                List.of(restaurantSigner), new RequestDocuments(false, false), true));
+
+        VerifactuAuthorization result = service.syncRequestForWebhook("req-test-progress").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.TEST_ENVIRONMENT);
+        assertThat(result.failureReason()).isEqualTo("TEST_ENVIRONMENT");
+        assertThat(result.validFrom()).isNull();
+    }
+
+    @Test
+    void startSigningRefusesTestRequestInProductionWithoutReturningSigningUrl() {
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setLegalName("fld_legal");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(1);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(
+                        new TemplateField("fld_legal", "Razón social", "TEXT", true, "NONE"),
+                        new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Ana Lopez", "ana@example.es", "es", "PENDING", null,
+                "https://digital-sign.brasatech.es/sign/test-secret-url", List.of(),
+                "CERTIFICATE", "B09767898", "PENDING", null);
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1")))
+                .thenReturn(new CreateRequestResult(
+                        new DigitalSignRequest("req-test-create", "IN_PROGRESS", "ext", "Anexo I", NOW, null, null,
+                                List.of(signer), new RequestDocuments(false, false), true),
+                        false));
+
+        StartSigningResult result = service.startSigning(
+                completeProfile("B09767898"), "owner1", "Ana Lopez", "ana@example.es", "es");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_UNAVAILABLE);
+        assertThat(result.reason()).isEqualTo("TEST_ENVIRONMENT");
+        assertThat(result.signingUrl()).isNull();
+        ArgumentCaptor<VerifactuAuthorization> inserted = ArgumentCaptor.forClass(VerifactuAuthorization.class);
+        verify(store).insert(inserted.capture());
+        assertThat(inserted.getValue().status()).isEqualTo(VerifactuAuthorizationStatus.TEST_ENVIRONMENT);
+        assertThat(inserted.getValue().failureReason()).isEqualTo("TEST_ENVIRONMENT");
+        assertThat(inserted.getValue().validFrom()).isNull();
+        verify(client, never()).createSigningUrl(anyString(), anyString());
+    }
+
+    @Test
     void webhookStateChangeEnqueuesNotificationWithoutSmtpAndSwallowsNotifierErrors() {
         VerifactuAuthorization inProgress = inProgressAuth("B09767898", "req-notify-1");
         when(store.recordWebhookEventIfNew(eq("evt-notify-1"), eq("request.declined"), eq("req-notify-1"), any())).thenReturn(true);
