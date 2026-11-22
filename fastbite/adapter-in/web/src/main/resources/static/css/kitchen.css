@@ -1,0 +1,623 @@
+/* Kitchen display components, loaded by the kitchen page only.
+   Reads only tokens from themes/README.md, defines no tokens, and names no theme. */
+
+.kitchen-main {
+  width: 100%;
+  padding: 1.5rem 0.75rem 3rem;
+}
+
+.kitchen-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .kitchen-board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.kitchen-column,
+.kitchen-manager-card,
+.kitchen-unpaid-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.kitchen-column-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.kitchen-column-header[data-column="cashier"] {
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.kitchen-column-header[data-column="queue"] {
+  background: var(--color-control-warning);
+  color: var(--color-text-strong);
+}
+
+.kitchen-column-header[data-column="cook"] {
+  background: var(--color-control-info);
+  color: var(--color-text-strong);
+}
+
+.kitchen-column-header[data-column="waiter"] {
+  background: var(--color-payment-success);
+  color: var(--color-on-primary);
+}
+
+.kitchen-column-header[data-column="manager"] {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.kitchen-column-heading {
+  min-width: 0;
+}
+
+.kitchen-column-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  color: inherit;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.kitchen-column-subtitle {
+  display: block;
+  margin-top: 0.125rem;
+  color: inherit;
+  font-size: 0.85rem;
+  opacity: 0.92;
+}
+
+.kitchen-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.15em 0.5em;
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-surface-alt);
+  color: var(--color-text-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kitchen-column-header[data-column="queue"] .kitchen-count-badge,
+.kitchen-column-header[data-column="cook"] .kitchen-count-badge {
+  background: var(--color-text-strong);
+  color: var(--color-on-primary);
+}
+
+.kitchen-column-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.kitchen-batch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-surface-alt);
+  color: var(--color-text-strong);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.kitchen-batch-btn:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.kitchen-column-header[data-column="queue"] .kitchen-batch-btn,
+.kitchen-column-header[data-column="cook"] .kitchen-batch-btn {
+  border-color: var(--color-text-strong);
+  background: var(--color-text-strong);
+  color: var(--color-on-primary);
+}
+
+.kitchen-batch-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kitchen-column-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 600px;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.kitchen-empty,
+.kitchen-table td.kitchen-empty {
+  padding: 2.5rem 1rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.kitchen-empty-icon {
+  display: block;
+  margin: 0 auto 0.75rem;
+}
+
+.kitchen-empty p {
+  margin: 0;
+}
+
+/* Order cards */
+.kitchen-card {
+  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 12px);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.kitchen-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.kitchen-card-meta {
+  min-width: 0;
+}
+
+.kitchen-card-title {
+  margin: 0 0 0.25rem;
+  color: var(--color-text-strong);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.kitchen-card-takeaway,
+.kitchen-card-approval,
+.kitchen-card-time {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.kitchen-card-takeaway {
+  margin-bottom: 0.2rem;
+}
+
+.kitchen-card-approval {
+  margin-bottom: 0.2rem;
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.kitchen-card-time {
+  color: var(--color-text-muted);
+}
+
+.kitchen-card-items {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.kitchen-card-item {
+  overflow-wrap: anywhere;
+}
+
+.kitchen-card-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.kitchen-card-price {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.kitchen-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kitchen-card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.kitchen-card-action-row > .kitchen-btn {
+  flex: 1 1 auto;
+}
+
+/* Badges */
+.kitchen-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3em 0.6em;
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-text-muted);
+  color: var(--color-on-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.kitchen-badge[data-timer="normal"],
+.kitchen-badge[data-status="created"] {
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge[data-timer="warning"],
+.kitchen-badge[data-status="accepted"] {
+  background: var(--color-control-warning);
+  color: var(--color-text-strong);
+}
+
+.kitchen-badge[data-timer="danger"],
+.kitchen-badge[data-status="cancelled"] {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge[data-status="processing"] {
+  background: var(--color-control-info);
+  color: var(--color-text-strong);
+}
+
+.kitchen-badge[data-status="done"],
+.kitchen-badge[data-status="delivered"] {
+  background: var(--color-payment-success);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge[data-status="complete"],
+.kitchen-badge-muted {
+  background: var(--color-text-muted);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge-dark {
+  background: var(--color-text-strong);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge-danger {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.kitchen-badge-warning {
+  background: var(--color-control-warning);
+  color: var(--color-text-strong);
+}
+
+/* Buttons */
+.kitchen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: min(var(--radius), 6px);
+  background: transparent;
+  color: var(--color-text-strong);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.kitchen-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kitchen-btn-primary {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.kitchen-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.kitchen-btn-info {
+  border-color: var(--color-control-info);
+  background: var(--color-control-info);
+  color: var(--color-text-strong);
+}
+
+.kitchen-btn-info:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.kitchen-btn-success {
+  border-color: var(--color-payment-success);
+  background: var(--color-payment-success);
+  color: var(--color-on-primary);
+}
+
+.kitchen-btn-success:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.kitchen-btn-danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.kitchen-btn-danger:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.kitchen-btn-secondary {
+  border-color: var(--color-action-muted);
+  background: var(--color-action-muted);
+  color: var(--color-on-action-muted);
+}
+
+.kitchen-btn-secondary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.kitchen-btn-outline-primary {
+  border-color: var(--color-action);
+  color: var(--color-action);
+}
+
+.kitchen-btn-outline-primary:hover:not(:disabled) {
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.kitchen-btn-outline-danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.kitchen-btn-outline-danger:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.kitchen-btn-outline-secondary {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+}
+
+.kitchen-btn-outline-secondary:hover:not(:disabled) {
+  background: var(--color-text-muted);
+  color: var(--color-on-primary);
+}
+
+/* Manager section & ARIA tabs */
+.kitchen-manager-body {
+  padding: 1rem;
+}
+
+.kitchen-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  border-bottom: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.kitchen-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  margin-bottom: -1px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: min(var(--radius), 6px) min(var(--radius), 6px) 0 0;
+  background: transparent;
+  color: var(--color-action);
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kitchen-tab:hover {
+  border-color: var(--color-border);
+}
+
+.kitchen-tab[aria-selected="true"] {
+  border-color: var(--color-border);
+  border-bottom: 1px solid var(--color-surface);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+
+/* Tables */
+.kitchen-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.kitchen-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.kitchen-table th,
+.kitchen-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.kitchen-table thead th {
+  background: var(--color-surface-alt);
+  color: var(--color-text-strong);
+  font-weight: 600;
+}
+
+.kitchen-table tbody tr:hover {
+  background: var(--color-surface-alt);
+}
+
+.kitchen-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.kitchen-col-order { width: 15%; }
+.kitchen-col-status { width: 25%; }
+.kitchen-col-items { width: 35%; }
+.kitchen-col-total { width: 12%; }
+.kitchen-col-wait { width: 13%; }
+
+/* Unpaid groups */
+.kitchen-unpaid-group {
+  margin-bottom: 1rem;
+}
+
+.kitchen-unpaid-group[data-kind="table"] {
+  border-color: var(--color-danger);
+}
+
+.kitchen-unpaid-group[data-kind="counter"] {
+  border-color: var(--color-warning);
+}
+
+.kitchen-unpaid-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+}
+
+.kitchen-unpaid-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kitchen-unpaid-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-strong);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.kitchen-unpaid-icon-primary {
+  color: var(--color-action);
+}
+
+.kitchen-unpaid-icon-muted {
+  color: var(--color-text-muted);
+}
+
+.kitchen-unpaid-customer {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+/* Dialogs */
+.kitchen-dialog .dialog-title {
+  color: var(--color-on-dialog-header);
+}
+
+.kitchen-field-group {
+  margin-bottom: 1rem;
+}
+
+.kitchen-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-strong);
+  font-weight: 500;
+}
+
+.kitchen-field-control {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* Toasts */
+.kitchen-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.kitchen-toast[data-tone="error"] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.kitchen-toast-text {
+  overflow-wrap: break-word;
+}

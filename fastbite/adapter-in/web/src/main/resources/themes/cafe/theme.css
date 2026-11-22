@@ -139,3 +139,43 @@
   border-color: var(--color-action-muted) !important;
   color: var(--color-on-action-muted) !important;
 }
+
+/* Kitchen components use the same warm coffee palette as their Bootstrap predecessors. */
+[data-theme="cafe"] .kitchen-column-header[data-column="queue"] {
+  background-color: #8C6239;
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .kitchen-column-header[data-column="cook"] {
+  background-color: #5C4033;
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .kitchen-column-header[data-column="waiter"] {
+  background-color: var(--color-success);
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .kitchen-column-header[data-column="manager"] {
+  background-color: #4E2725;
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .kitchen-column-header[data-column="queue"] .kitchen-count-badge,
+[data-theme="cafe"] .kitchen-column-header[data-column="cook"] .kitchen-count-badge,
+[data-theme="cafe"] .kitchen-column-header[data-column="queue"] .kitchen-batch-btn,
+[data-theme="cafe"] .kitchen-column-header[data-column="cook"] .kitchen-batch-btn {
+  border-color: var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text-strong);
+}
+[data-theme="cafe"] .kitchen-badge[data-timer="normal"],
+[data-theme="cafe"] .kitchen-badge[data-status="created"] {
+  background-color: #D2B48C;
+  color: #2D231E;
+}
+[data-theme="cafe"] .kitchen-badge[data-status="processing"] {
+  background-color: #8C6239;
+  color: var(--color-on-primary);
+}
+[data-theme="cafe"] .kitchen-badge[data-status="done"],
+[data-theme="cafe"] .kitchen-badge[data-status="delivered"] {
+  background-color: var(--color-success);
+  color: var(--color-on-primary);
+}

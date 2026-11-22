@@ -413,11 +413,30 @@ async function main() {
       }
 
       if (!opts.sample) {
+        const cancelTrigger = '[data-action="cancel"], button[onclick^="showCancelModal"]';
         await captureShot(managerCtx, path.join(themeDir, `dashboard-cancel-1280x800.png`), 1280, 800, `${base}/${tenant}/dashboard`, async (p) => {
-          await shown(p, 'button[onclick^="showCancelModal"]', 'kitchen order cancel button');
-          await tap(p.locator('button[onclick^="showCancelModal"]'));
-          await shown(p, '#cancelModal.show', 'kitchen cancel dialog');
+          await shown(p, cancelTrigger, 'kitchen order cancel button');
+          await tap(p.locator(cancelTrigger));
+          await shown(p, '#cancelModal:is(.show, [open])', 'kitchen cancel dialog');
         }, { fullPage: false });
+
+        const statusTrigger = '[data-action="status-change"], button[onclick^="showStatusChangeModal"]';
+        await captureShot(managerCtx, path.join(themeDir, `dashboard-status-1280x800.png`), 1280, 800, `${base}/${tenant}/dashboard`, async (p) => {
+          await shown(p, statusTrigger, 'kitchen status change button');
+          await tap(p.locator(statusTrigger));
+          await shown(p, '#statusChangeModal:is(.show, [open])', 'kitchen status change dialog');
+          await p.locator('#newStatus').selectOption('CANCELLED');
+          await p.waitForTimeout(100);
+        }, { fullPage: false });
+
+        for (const [tabName, panelId] of [['cancelled', 'cancelledOrders'], ['completed', 'completedOrders'], ['unpaid', 'unpaidOrders']]) {
+          const tabSel = `[aria-controls="${panelId}"], [data-bs-target="#${panelId}"]`;
+          await captureShot(managerCtx, path.join(themeDir, `dashboard-tab-${tabName}-1280x800.png`), 1280, 800, `${base}/${tenant}/dashboard`, async (p) => {
+            await p.waitForTimeout(400);
+            await tap(p.locator(tabSel));
+            await p.waitForTimeout(200);
+          });
+        }
       }
 
       // 5. Other staff pages

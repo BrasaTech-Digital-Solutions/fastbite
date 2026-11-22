@@ -6,6 +6,7 @@ import org.springframework.core.io.ClassPathResource;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -35,7 +36,6 @@ class RestaurantTemplateContractTest {
 
     /** Template → {inline styles, colour literals} still allowed. Every other guarded template allows none. */
     private static final Map<String, int[]> ALLOWED = Map.of(
-            "dashboard.html", new int[]{8, 0},
             "tickets.html", new int[]{2, 0},
             "tableQrCodes.html", new int[]{0, 1});
 
@@ -55,18 +55,22 @@ class RestaurantTemplateContractTest {
             "guest-ticket.js", "live-updates.js"};
     /** The latter two are shared with Bootstrap pages, but neither path sets inline styles or names a theme. */
     private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
+    private static final String[] KITCHEN_SCRIPTS = {"dashboard.js", "kitchen-audio.js", "live-updates.js", "guest-ui.js"};
     static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
     /**
      * Staff pages still on Bootstrap and the legacy navigation ({@code navbar :: navbar}), outside the native checks
-     * until their own item: the kitchen, tickets, day report and table QR codes in item 4, the back office after it.
+     * until their own item: tickets, day report and table QR codes in item 4b, the back office after it.
      */
     static final List<String> STAFF_PAGES_WAITING = List.of(
-            "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html", "backOffice.html");
+            "tickets.html", "dayReport.html", "tableQrCodes.html", "backOffice.html");
     /** Every fragment the counter renders, on its page or through its fragment endpoints. All are native. */
     private static final Set<String> COUNTER_FRAGMENTS = Set.of(
-            "guest :: icons", "environment :: banner", "navbar :: counter", "counter :: tables",
+            "guest :: icons", "environment :: banner", "navbar :: staff", "counter :: tables",
             "invoice-fields :: counterFields", "cashCheck :: counterModal", "cashCheck :: denominations");
+    /** Every fragment the kitchen renders. All are native. */
+    private static final Set<String> KITCHEN_FRAGMENTS = Set.of(
+            "guest :: icons", "environment :: banner", "navbar :: staff");
     private static final Pattern SCRIPT_LINK = Pattern.compile("@\\{/js/([\\w.-]+\\.js)}");
     private static final Pattern FRAGMENT_REFERENCE = Pattern.compile("~\\{fastfood/fragments/([\\w-]+) :: ([\\w-]+)");
     /**
@@ -109,7 +113,7 @@ class RestaurantTemplateContractTest {
             assertNativeCounter(template, readTemplate(template));
         }
         // The legacy parts of these shared files remain for STAFF_PAGES_WAITING.
-        assertNativeCounter("counter navbar", fragment("fragments/navbar.html", "<header th:fragment=\"counter\"", "</header>"));
+        assertNativeCounter("staff navbar", fragment("fragments/navbar.html", "<header th:fragment=\"staff(activeTab)\"", "</header>"));
         assertNativeCounter("counter cash check", fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"));
         assertNativeCounter("cash check notes and coins", fragment("fragments/cashCheck.html", "<details th:fragment=\"denominations\"", "</details>"));
         assertNativeCounter("counter invoice fields", fragment("fragments/invoice-fields.html", "<div th:fragment=\"counterFields(prefix)\"", "</body>"));
@@ -122,15 +126,80 @@ class RestaurantTemplateContractTest {
                 fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"))) {
             FRAGMENT_REFERENCE.matcher(html).results().forEach(ref -> used.add(ref.group(1) + " :: " + ref.group(2)));
         }
-        assertThat(used).as("fragments the counter renders").isSubsetOf(COUNTER_FRAGMENTS).contains("navbar :: counter");
-        assertThat(readTemplate("counter.html")).as("the counter loads no Bootstrap page script")
-                .doesNotContain("/webjars/").doesNotContain("navbar :: navbar");
+        assertThat(used).as("fragments the counter renders").isSubsetOf(COUNTER_FRAGMENTS).contains("navbar :: staff");
+        assertThat(readTemplate("counter.html")).as("the counter loads no Bootstrap page script and no kitchen.css")
+                .doesNotContain("/webjars/").doesNotContain("navbar :: navbar").doesNotContain("kitchen.css");
         // Every script it loads is checked, as a counter or guest script, or is listed as waiting
         Set<String> checked = new TreeSet<>(List.of(COUNTER_SCRIPTS));
         checked.addAll(List.of(GUEST_SCRIPTS));
         checked.addAll(COUNTER_SCRIPTS_WAITING);
         assertThat(SCRIPT_LINK.matcher(readTemplate("counter.html")).results().map(link -> link.group(1)).toList())
                 .as("scripts the counter loads").isNotEmpty().allMatch(checked::contains);
+    }
+
+    @Test
+    void kitchenUsesTheRestaurantContract() throws IOException {
+        String html = readTemplate("dashboard.html");
+        assertNativeCounter("dashboard.html", html);
+        assertThat(html).as("dashboard has no inline onclick handlers").doesNotContain("onclick=");
+        assertThat(html).as("dashboard loads kitchen.css").contains("/css/kitchen.css");
+        Set<String> used = new TreeSet<>();
+        FRAGMENT_REFERENCE.matcher(html).results().forEach(ref -> used.add(ref.group(1) + " :: " + ref.group(2)));
+        assertThat(used).as("fragments the kitchen renders").isSubsetOf(KITCHEN_FRAGMENTS).contains("navbar :: staff");
+        Set<String> checked = new TreeSet<>(List.of(KITCHEN_SCRIPTS));
+        assertThat(SCRIPT_LINK.matcher(html).results().map(link -> link.group(1)).toList())
+                .as("scripts the kitchen loads").isNotEmpty().allMatch(checked::contains);
+    }
+
+    @Test
+    void kitchenScriptsChangeOnlyStateAndNeverNameATheme() throws IOException {
+        String js = new ClassPathResource("static/js/dashboard.js").getContentAsString(StandardCharsets.UTF_8);
+        assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by dashboard.js").isZero();
+        assertThat(count(COLOUR, js)).as("colours in dashboard.js").isZero();
+        assertThat(SCRIPT_THEME.matcher(js).results().map(MatchResult::group).toList())
+                .as("theme-specific logic in dashboard.js").isEmpty();
+        assertThat(js).as("Bootstrap modal usage in dashboard.js").doesNotContain("bootstrap.Modal");
+    }
+
+    @Test
+    void dashboardJsEscapesInterpolatedOrderAndItemFields() throws IOException {
+        String js = new ClassPathResource("static/js/dashboard.js").getContentAsString(StandardCharsets.UTF_8);
+        Pattern unescapedTemplateField = Pattern.compile(
+                "\\$\\{\\s*(?!escapeHtml\\()(?:item\\.name|cust\\.name|order\\.id|order\\.orderNumber|order\\.cancelReason|order\\.customerName|group\\.tableName)\\b");
+        Pattern unescapedCustName = Pattern.compile("(?<!escapeHtml\\()\\bcust\\.name\\b");
+        List<String> violations = new ArrayList<>();
+        unescapedTemplateField.matcher(js).results().forEach(m -> violations.add(m.group()));
+        unescapedCustName.matcher(js).results().forEach(m -> violations.add(m.group()));
+        assertThat(violations).as("unescaped order/item/customization interpolations in dashboard.js").isEmpty();
+    }
+
+    @Test
+    void kitchenTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "dashboard.modal.status.prompt",
+                "dashboard.js.sec.ago",
+                "dashboard.js.weeks.ago",
+                "dashboard.js.months.ago",
+                "dashboard.js.duration.min",
+                "dashboard.js.na",
+                "dashboard.js.table.prefix",
+                "dashboard.js.toast.previous",
+                "dashboard.js.toast.batch.next",
+                "dashboard.js.toast.batch.previous",
+                "dashboard.js.toast.cancelled",
+                "dashboard.table.cancelled.at",
+                "dashboard.table.cancelled.reason",
+                "dashboard.table.completed.at",
+                "dashboard.table.duration");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
     }
 
     @Test

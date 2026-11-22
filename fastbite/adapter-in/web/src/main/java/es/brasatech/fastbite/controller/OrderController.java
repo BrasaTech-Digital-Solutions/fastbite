@@ -242,6 +242,7 @@ public class OrderController {
     @GetMapping({"/{tenantId}/dashboard", "/dashboard"})
     public String dashboard(Model model) {
         model.addAttribute("settings", settingsService.get());
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfiles));
         return "fastfood/dashboard";
     }
 }

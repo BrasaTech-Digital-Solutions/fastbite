@@ -1897,3 +1897,55 @@ hr {
 .dialog-footer .btn-pos-primary {
   padding-inline: 1.5rem;
 }
+
+/* Shared staff top bar and kitchen audio chime button (moved from counter.css for counter, kitchen, and future staff pages) */
+#kitchenAudioText {
+  display: none;
+  font-size: 0.875em;
+  font-weight: 700;
+}
+
+#kitchenAudioToggleBtn[data-state="blocked"] {
+  background: var(--color-warning);
+  color: var(--color-text);
+}
+
+#kitchenAudioToggleBtn[data-state="on"] #kitchenAudioIcon {
+  color: var(--color-control-warning);
+}
+
+@media (min-width: 768px) {
+  #kitchenAudioText {
+    display: inline;
+  }
+}
+
+@media (min-width: 992px) {
+  .topbar-staff .topbar-inner { flex-wrap: nowrap; }
+  .topbar-staff .topbar-brand { flex-shrink: 0; }
+  /* The links wrap their words first and never get narrower than their longest word, so they never
+     run under the actions. The actions get their full width before the links grow; the signed-in
+     name is cut with "…" only when the links cannot give any more room. */
+  .topbar-staff .topbar-content { display: grid; grid-template-columns: minmax(min-content, 1fr) minmax(0, max-content); min-width: 0; }
+  .topbar-staff .topbar-links { min-width: min-content; gap: 0; }
+  .topbar-staff .topbar-links li { flex: 1 1 auto; min-width: min-content; }
+  .topbar-staff .topbar-link { display: flex; padding-inline: 0.5rem; white-space: normal; }
+  .topbar-staff .topbar-actions { min-width: 0; margin-left: 0; justify-content: flex-end; gap: 0.5rem; }
+  .topbar-staff #kitchenAudioToggleBtn { flex: none; }
+  .topbar-staff .topbar-account { flex: 0 1 auto; min-width: 0; }
+  .topbar-staff .topbar-account-toggle { max-width: 100%; }
+  .topbar-staff .topbar-account-toggle > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* Narrow desktops: "Chime / Off" on two lines, as before, so the signed-in name keeps more room. */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .topbar-staff #kitchenAudioText { width: min-content; text-align: center; }
+  /* A long restaurant name ends in "…" here, so the signed-in name keeps room too. */
+  .topbar-staff .topbar-brand { max-width: 13rem; min-width: 0; }
+  .topbar-staff .topbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* Native dialogs on staff pages keep the sandbox banner above the backdrop scrim. */
+.staff-page:has(dialog:modal)::before { content: ''; position: fixed; inset: 0; z-index: 1999; background: rgba(0, 0, 0, 0.5); pointer-events: none; }
+.staff-page dialog:modal::backdrop { background: transparent; }
+.staff-page:has(.fb-sandbox-banner) dialog.dialog:not(.dialog-centered) { max-height: calc(100dvh - 4rem); margin-top: 2.5rem; }

@@ -125,7 +125,7 @@ class ThemeContractTest {
 
     @Test
     void theBaseStylesheetsNameNoTheme() throws IOException {
-        for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css")) {
+        for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css", "static/css/kitchen.css")) {
             String base = read(path);
             assertThat(base).as(path).doesNotContain("data-theme");
             for (ThemeCatalog.Theme theme : themes.all()) {
@@ -133,9 +133,10 @@ class ThemeContractTest {
                         .doesNotContainPattern("(?i)(?<![\\w-])" + Pattern.quote(theme.id()) + "(?![\\w-])");
             }
         }
-        // The guest pages' stylesheet reads the tokens and never sets one
+        // The guest and staff pages' stylesheets read the tokens and never set one
         assertThat(declaredTokens(withoutComments(read("static/css/restaurant.css")))).isEmpty();
         assertThat(declaredTokens(withoutComments(read("static/css/counter.css")))).isEmpty();
+        assertThat(declaredTokens(withoutComments(read("static/css/kitchen.css")))).isEmpty();
     }
 
     @Test
@@ -222,6 +223,26 @@ class ThemeContractTest {
         assertThat(dashboard)
                 .doesNotContain("Chime Off")
                 .contains("Sin sonido", "data-text-on=\"Con sonido\"", "data-text-off=\"Sin sonido\"");
+    }
+
+    @Test
+    void theKitchenRendersNativeSpanishMarkupWithTabsAndDialogs() throws Exception {
+        Locale spanish = Locale.forLanguageTag("es");
+        String managerHtml = render(as("MANAGER", get("/kebab/dashboard")).locale(spanish));
+        assertThat(RestaurantTemplateContractTest.INLINE_STYLE.matcher(managerHtml).find()).as("inline style in dashboard").isFalse();
+        assertThat(RestaurantTemplateContractTest.COLOUR.matcher(managerHtml).find()).as("colour in dashboard").isFalse();
+        assertThat(RestaurantTemplateContractTest.BOOTSTRAP_OR_FONT_AWESOME.matcher(managerHtml).find())
+                .as("Bootstrap or Font Awesome in dashboard").isFalse();
+        assertThat(managerHtml)
+                .contains("lang=\"es\"", "/css/kitchen.css", "role=\"tablist\"", "aria-selected=\"true\"",
+                        "<dialog", "id=\"cancelModal\"", "id=\"statusChangeModal\"",
+                        "id=\"toastContainer\"", "role=\"status\"", "Duración")
+                .doesNotContain("Change status for order #", "Chime Off");
+
+        String cookHtml = render(as("COOK", get("/kebab/dashboard")).locale(spanish));
+        assertThat(cookHtml)
+                .contains("id=\"cookDashboard\"", "id=\"queueDashboard\"")
+                .doesNotContain("id=\"cashierDashboard\"", "id=\"waiterDashboard\"", "id=\"managerTabs\"");
     }
 
     @Test

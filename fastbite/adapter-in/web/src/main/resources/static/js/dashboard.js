@@ -1,5 +1,6 @@
-// Demo orders data
+// Kitchen order management board (native dialogs, ARIA tabs, delegated actions)
 let orders = [];
+const inFlightActions = new Set();
 
 function getTenantPrefix() {
     const path = window.location.pathname;
@@ -21,21 +22,56 @@ const batchNextStatusUrl = () => getTenantPrefix() + '/api/order/batch/next';
 const batchPreviousStatusUrl = () => getTenantPrefix() + '/api/order/batch/previous';
 const cancelOrderUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/cancel';
 const changeOrderStatusUrl = (id) => getTenantPrefix() + '/api/order/' + id + '/status';
+
 let currentCancelOrderId = null;
 let currentStatusChangeOrderId = null;
 let i18n = {};
+let currencyFormatter = null;
 
-// Helper for formatting
+function pageLang() {
+    return document.documentElement.lang || 'es';
+}
+
+function formatMoney(amount) {
+    if (!currencyFormatter) {
+        currencyFormatter = new Intl.NumberFormat(pageLang(), { style: 'currency', currency: 'EUR' });
+    }
+    return currencyFormatter.format(Number(amount || 0));
+}
+
+function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        return i18n.labelNa || '';
+    }
+    return date.toLocaleString(pageLang());
+}
+
 function format(str, ...args) {
     if (!str) return '';
     return str.replace(/{(\d+)}/g, function (match, number) {
-        return typeof args[number] != 'undefined' ? args[number] : match;
+        return typeof args[number] !== 'undefined' ? args[number] : match;
     });
 }
 
-// Initialize dashboards
+// Escape text for both HTML element content and quoted HTML attribute values
+function escapeHtml(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function iconSvg(symbolId, extraClass) {
+    const cls = extraClass ? `icon ${extraClass}` : 'icon';
+    return `<svg class="${cls}" aria-hidden="true"><use href="#${symbolId}"></use></svg>`;
+}
+
 function initializeDashboards() {
     loadI18n();
+    initManagerTabs();
     renderAllDashboards();
     startRealtimeUpdates();
 }
@@ -48,7 +84,49 @@ function loadI18n() {
     }
 }
 
-// Render all dashboards
+function initManagerTabs() {
+    const tablist = document.getElementById('managerTabs');
+    if (!tablist) return;
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+
+    function activateTab(tab, shouldFocus) {
+        tabs.forEach(t => {
+            const selected = t === tab;
+            t.setAttribute('aria-selected', String(selected));
+            t.tabIndex = selected ? 0 : -1;
+            const panelId = t.getAttribute('aria-controls');
+            const panel = panelId ? document.getElementById(panelId) : null;
+            if (panel) {
+                panel.hidden = !selected;
+            }
+        });
+        if (shouldFocus) {
+            tab.focus();
+        }
+    }
+
+    tablist.addEventListener('click', event => {
+        const tab = event.target.closest('[role="tab"]');
+        if (tab && tablist.contains(tab)) {
+            activateTab(tab, false);
+        }
+    });
+
+    tablist.addEventListener('keydown', event => {
+        const currentIndex = tabs.indexOf(document.activeElement);
+        if (currentIndex === -1) return;
+        let nextIndex = null;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = tabs.length - 1;
+        if (nextIndex !== null) {
+            event.preventDefault();
+            activateTab(tabs[nextIndex], true);
+        }
+    });
+}
+
 function renderAllDashboards() {
     renderCashierDashboard();
     renderQueueDashboard();
@@ -57,214 +135,227 @@ function renderAllDashboards() {
     renderManagerDashboard();
 }
 
-// Render Cashier Dashboard (CREATED)
+function emptyColumnMarkup(message) {
+    return `<div class="kitchen-empty">${iconSvg('i-inbox', 'icon-3x kitchen-empty-icon')}<p>${escapeHtml(message)}</p></div>`;
+}
+
+function emptyTableRowMarkup(colspan, message) {
+    return `<tr><td colspan="${colspan}" class="kitchen-empty">${iconSvg('i-inbox', 'icon-2x kitchen-empty-icon')}<p>${escapeHtml(message)}</p></td></tr>`;
+}
+
 function renderCashierDashboard() {
     const dashboard = document.getElementById('cashierDashboard');
     if (!dashboard) return;
     const createdOrders = orders.filter(o => o.status === 'CREATED');
-    document.getElementById('cashierCount').textContent = createdOrders.length;
+    const countEl = document.getElementById('cashierCount');
+    if (countEl) countEl.textContent = createdOrders.length;
 
     if (createdOrders.length === 0) {
-        dashboard.innerHTML = `<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3"></i><p>${i18n.emptyCreated}</p></div>`;
+        dashboard.innerHTML = emptyColumnMarkup(i18n.emptyCreated);
         return;
     }
 
     dashboard.innerHTML = createdOrders.map(order => createOrderCard(order, 'cashier')).join('');
 }
 
-// Render Queue Dashboard (ACCEPTED)
 function renderQueueDashboard() {
     const dashboard = document.getElementById('queueDashboard');
     if (!dashboard) return;
     const acceptedOrders = orders.filter(o => o.status === 'ACCEPTED');
-    document.getElementById('queueCount').textContent = acceptedOrders.length;
+    const countEl = document.getElementById('queueCount');
+    if (countEl) countEl.textContent = acceptedOrders.length;
 
     if (acceptedOrders.length === 0) {
-        dashboard.innerHTML = `<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3"></i><p>${i18n.emptyConfirmed}</p></div>`;
+        dashboard.innerHTML = emptyColumnMarkup(i18n.emptyConfirmed);
         return;
     }
 
     dashboard.innerHTML = acceptedOrders.map(order => createOrderCard(order, 'queue')).join('');
 }
 
-// Render Cook Dashboard (PROCESSING)
 function renderCookDashboard() {
     const dashboard = document.getElementById('cookDashboard');
     if (!dashboard) return;
     const processingOrders = orders.filter(o => o.status === 'PROCESSING');
-    document.getElementById('cookCount').textContent = processingOrders.length;
+    const countEl = document.getElementById('cookCount');
+    if (countEl) countEl.textContent = processingOrders.length;
 
     if (processingOrders.length === 0) {
-        dashboard.innerHTML = `<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3"></i><p>${i18n.emptyPreparing}</p></div>`;
+        dashboard.innerHTML = emptyColumnMarkup(i18n.emptyPreparing);
         return;
     }
 
     dashboard.innerHTML = processingOrders.map(order => createOrderCard(order, 'cook')).join('');
 }
 
-// Render Waiter Dashboard (DONE)
 function renderWaiterDashboard() {
     const dashboard = document.getElementById('waiterDashboard');
     if (!dashboard) return;
     const doneOrders = orders.filter(o => o.status === 'DONE');
-    document.getElementById('waiterCount').textContent = doneOrders.length;
+    const countEl = document.getElementById('waiterCount');
+    if (countEl) countEl.textContent = doneOrders.length;
 
     if (doneOrders.length === 0) {
-        dashboard.innerHTML = `<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3"></i><p>${i18n.emptyReady}</p></div>`;
+        dashboard.innerHTML = emptyColumnMarkup(i18n.emptyReady);
         return;
     }
 
     dashboard.innerHTML = doneOrders.map(order => createOrderCard(order, 'waiter')).join('');
 }
 
-// Render Manager Dashboard
 function renderManagerDashboard() {
-    // All Orders
     const allOrdersTable = document.getElementById('allOrdersTable');
     if (!allOrdersTable) return;
     const activeOrders = orders.filter(o => o.status !== 'COMPLETE');
 
     if (activeOrders.length === 0) {
-        allOrdersTable.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>${i18n.emptyAll}</p></td></tr>`;
+        allOrdersTable.innerHTML = emptyTableRowMarkup(6, i18n.emptyAll);
     } else {
         allOrdersTable.innerHTML = activeOrders.map(order => createManagerRow(order)).join('');
     }
 
-    // Cancelled Orders
     const cancelledOrdersTable = document.getElementById('cancelledOrdersTable');
     const cancelledOrders = orders.filter(o => o.status === 'CANCELLED');
 
     if (cancelledOrders.length === 0) {
-        cancelledOrdersTable.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>${i18n.emptyCancelled}</p></td></tr>`;
+        cancelledOrdersTable.innerHTML = emptyTableRowMarkup(5, i18n.emptyCancelled);
     } else {
         cancelledOrdersTable.innerHTML = cancelledOrders.map(order => createCancelledRow(order)).join('');
     }
 
-    // Completed Orders
     const completedOrdersTable = document.getElementById('completedOrdersTable');
     const completedOrders = orders.filter(o => o.status === 'COMPLETE');
 
     if (completedOrders.length === 0) {
-        completedOrdersTable.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>${i18n.emptyCompleted}</p></td></tr>`;
+        completedOrdersTable.innerHTML = emptyTableRowMarkup(5, i18n.emptyCompleted);
     } else {
         completedOrdersTable.innerHTML = completedOrders.map(order => createCompletedRow(order)).join('');
     }
 
-    // Unpaid Orders
     renderUnpaidOrders();
 }
 
-function getKdsTimerBadgeClass(order) {
+function getKdsTimerState(order) {
     const configEl = document.getElementById('kds-timer-config');
     const yellow = configEl ? parseInt(configEl.dataset.yellowMinutes || '0', 10) : 0;
     const red = configEl ? parseInt(configEl.dataset.redMinutes || '0', 10) : 0;
 
-    // When threshold is 0, timer styling is deactivated and defaults to Blue (bg-primary)
+    // When threshold is 0, timer styling is deactivated and defaults to normal
     if (!yellow || yellow <= 0) {
-        return 'bg-primary';
+        return 'normal';
     }
 
     const date = new Date(order.createdAt || order.updatedAt);
     const elapsedMinutes = Math.floor((new Date() - date) / 60000);
 
     if (red > 0 && elapsedMinutes >= red) {
-        return 'bg-danger text-white';
+        return 'danger';
     }
     if (yellow > 0 && elapsedMinutes >= yellow) {
-        return 'bg-warning text-dark';
+        return 'warning';
     }
-    return 'bg-primary';
+    return 'normal';
 }
 
-// Customer names are typed in by guests: never put them into the page as markup
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text ?? '';
-    return div.innerHTML;
+function getStatusState(status) {
+    const map = {
+        'CREATED': 'created',
+        'ACCEPTED': 'accepted',
+        'PROCESSING': 'processing',
+        'DONE': 'done',
+        'DELIVERED': 'delivered',
+        'COMPLETE': 'complete',
+        'CANCELLED': 'cancelled'
+    };
+    return map[status] || 'complete';
 }
 
-// Create order card
 function createOrderCard(order, role) {
     const timeAgo = getTimeAgo(order.updatedAt);
-    const items = order.items.map(item =>
-        `<div class="small">${item.quantity}x ${item.name} ${item.customizations.length > 0 ? '<span class="badge bg-secondary">' + item.customizations.map(cust => cust.name).join(', ') + '</span>' : ''}</div>`
-    ).join('');
+    const items = (order.items || []).map(item => {
+        const customs = Array.isArray(item.customizations) && item.customizations.length > 0
+            ? ` <span class="kitchen-badge kitchen-badge-muted">${item.customizations.map(cust => escapeHtml(cust.name)).join(', ')}</span>`
+            : '';
+        return `<div class="kitchen-card-item">${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}${customs}</div>`;
+    }).join('');
 
     const actions = getActionsForRole(order, role);
-    const timerBadgeClass = getKdsTimerBadgeClass(order);
+    const timerState = getKdsTimerState(order);
     const takeaway = order.serviceType === 'TAKEAWAY'
-        ? `<div class="small"><span class="badge bg-dark"><i class="fas fa-shopping-bag me-1"></i>${i18n.labelTakeaway}</span> ${escapeHtml(order.customerName)}</div>`
+        ? `<div class="kitchen-card-takeaway"><span class="kitchen-badge kitchen-badge-dark">${iconSvg('i-bag')} ${escapeHtml(i18n.labelTakeaway)}</span> ${escapeHtml(order.customerName)}</div>`
         : '';
     const approvalNotice = order.cancelReason
-        ? `<div class="small text-danger fw-bold"><i class="fas fa-shield-alt me-1"></i>${escapeHtml(order.cancelReason === 'needs-approval:too-many-orders' ? (i18n.approvalTooManyOrders || 'needs approval: too many orders') : order.cancelReason)}</div>`
+        ? `<div class="kitchen-card-approval">${iconSvg('i-shield')} ${escapeHtml(order.cancelReason === 'needs-approval:too-many-orders' ? (i18n.approvalTooManyOrders || '') : order.cancelReason)}</div>`
         : '';
 
     return `
-        <div class="cart-item mb-2">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                    <h6 class="mb-1 fw-bold">${i18n.labelOrder}${order.orderNumber}</h6>
+        <article class="kitchen-card">
+            <div class="kitchen-card-head">
+                <div class="kitchen-card-meta">
+                    <h3 class="kitchen-card-title">${escapeHtml(i18n.labelOrder)}${escapeHtml(order.orderNumber)}</h3>
                     ${takeaway}
                     ${approvalNotice}
-                    <small class="text-muted">${timeAgo}</small>
+                    <small class="kitchen-card-time">${escapeHtml(timeAgo)}</small>
                 </div>
-                <span class="badge ${timerBadgeClass}">${getStatusLabel(order.status)}</span>
+                <span class="kitchen-badge" data-timer="${escapeHtml(timerState)}">${escapeHtml(getStatusLabel(order.status))}</span>
             </div>
-            <div class="mb-2">${items}</div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <strong>${i18n.labelTotal}</strong>
-                <strong class="text-danger">${order.total.toFixed(2)}</strong>
+            <div class="kitchen-card-items">${items}</div>
+            <div class="kitchen-card-total">
+                <strong>${escapeHtml(i18n.labelTotal)}</strong>
+                <strong class="kitchen-card-price">${escapeHtml(formatMoney(order.total))}</strong>
             </div>
-            <div class="d-flex gap-2">${actions}</div>
-        </div>
+            <div class="kitchen-card-actions">${actions}</div>
+        </article>
     `;
 }
 
-// Get actions for role
 function getActionsForRole(order, role) {
-    const cancelBtn = `<button class="btn btn-outline-danger btn-sm flex-grow-1" onclick="showCancelModal('${order.id}')"><i class="fas fa-times"></i> ${i18n.actionCancel}</button>`;
-    const prevBtn = `<button class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="moveToPreviousStatus('${order.id}')"><i class="fas fa-undo"></i> ${i18n.actionPrevious}</button>`;
+    const safeId = escapeHtml(order.id);
+    const cancelBtn = `<button type="button" class="kitchen-btn kitchen-btn-outline-danger" data-action="cancel" data-order-id="${safeId}">${iconSvg('i-x')} ${escapeHtml(i18n.actionCancel)}</button>`;
+    const prevBtn = `<button type="button" class="kitchen-btn kitchen-btn-outline-secondary" data-action="previous" data-order-id="${safeId}">${iconSvg('i-undo')} ${escapeHtml(i18n.actionPrevious)}</button>`;
 
     switch (role) {
         case 'cashier':
             return `
-                <button class="btn btn-primary btn-sm flex-grow-1" onclick="moveToNextStatus('${order.id}')">
-                    <i class="fas fa-check"></i> ${i18n.actionAccept}
-                </button>
-                ${cancelBtn}
+                <div class="kitchen-card-action-row">
+                    <button type="button" class="kitchen-btn kitchen-btn-primary" data-action="next" data-order-id="${safeId}">
+                        ${iconSvg('i-check')} ${escapeHtml(i18n.actionAccept)}
+                    </button>
+                    ${cancelBtn}
+                </div>
             `;
         case 'queue':
             return `
-                <div class="d-flex w-100 gap-2 mb-2">
-                    <button class="btn btn-info btn-sm flex-grow-1" onclick="moveToNextStatus('${order.id}')">
-                        <i class="fas fa-fire"></i> ${i18n.actionCook}
+                <div class="kitchen-card-action-row">
+                    <button type="button" class="kitchen-btn kitchen-btn-info" data-action="next" data-order-id="${safeId}">
+                        ${iconSvg('i-fire')} ${escapeHtml(i18n.actionCook)}
                     </button>
                 </div>
-                <div class="d-flex w-100 gap-2">
+                <div class="kitchen-card-action-row">
                     ${prevBtn}
                     ${cancelBtn}
                 </div>
             `;
         case 'cook':
             return `
-                <div class="d-flex w-100 gap-2 mb-2">
-                    <button class="btn btn-success btn-sm flex-grow-1" onclick="moveToNextStatus('${order.id}')">
-                        <i class="fas fa-check"></i> ${i18n.actionDone}
+                <div class="kitchen-card-action-row">
+                    <button type="button" class="kitchen-btn kitchen-btn-success" data-action="next" data-order-id="${safeId}">
+                        ${iconSvg('i-check')} ${escapeHtml(i18n.actionDone)}
                     </button>
                 </div>
-                <div class="d-flex w-100 gap-2">
+                <div class="kitchen-card-action-row">
                     ${prevBtn}
                     ${cancelBtn}
                 </div>
             `;
         case 'waiter':
             return `
-                <div class="d-flex w-100 gap-2 mb-2">
-                    <button class="btn btn-success btn-sm flex-grow-1" onclick="moveToNextStatus('${order.id}')">
-                        <i class="fas fa-check-double"></i> ${i18n.actionDelivered}
+                <div class="kitchen-card-action-row">
+                    <button type="button" class="kitchen-btn kitchen-btn-success" data-action="next" data-order-id="${safeId}">
+                        ${iconSvg('i-check-double')} ${escapeHtml(i18n.actionDelivered)}
                     </button>
                 </div>
-                <div class="d-flex w-100 gap-2">
+                <div class="kitchen-card-action-row">
                     ${prevBtn}
                     ${cancelBtn}
                 </div>
@@ -274,80 +365,66 @@ function getActionsForRole(order, role) {
     }
 }
 
-// Create manager table row
 function createManagerRow(order) {
-    const items = order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+    const safeId = escapeHtml(order.id);
+    const items = (order.items || []).map(item => `${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}`).join(', ');
     const timeAgo = getTimeAgo(order.createdAt);
 
-    // Create cancel button only if order is not already cancelled
     const cancelButton = order.status !== 'CANCELLED'
-        ? `<button class="btn btn-sm btn-outline-danger" onclick="showCancelModal('${order.id}')">
-               <i class="fas fa-ban"></i> ${i18n.actionCancel}
+        ? `<button type="button" class="kitchen-btn kitchen-btn-outline-danger" data-action="cancel" data-order-id="${safeId}">
+               ${iconSvg('i-ban')} ${escapeHtml(i18n.actionCancel)}
            </button>`
         : '';
 
     return `
         <tr>
-            <td><strong>${order.orderNumber}</strong></td>
+            <td><strong>${escapeHtml(order.orderNumber)}</strong></td>
             <td>${items}</td>
-            <td>${order.total.toFixed(2)}</td>
-            <td><span class="badge ${getStatusBadgeClass(order.status)}">${getStatusLabel(order.status)}</span></td>
-            <td>${timeAgo}</td>
+            <td>${escapeHtml(formatMoney(order.total))}</td>
+            <td><span class="kitchen-badge" data-status="${escapeHtml(getStatusState(order.status))}">${escapeHtml(getStatusLabel(order.status))}</span></td>
+            <td>${escapeHtml(timeAgo)}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="showStatusChangeModal('${order.id}')">
-                    <i class="fas fa-edit"></i> ${i18n.actionChange}
-                </button>
-                ${cancelButton}
+                <div class="kitchen-table-actions">
+                    <button type="button" class="kitchen-btn kitchen-btn-outline-primary" data-action="status-change" data-order-id="${safeId}">
+                        ${iconSvg('i-pencil')} ${escapeHtml(i18n.actionChange)}
+                    </button>
+                    ${cancelButton}
+                </div>
             </td>
         </tr>
     `;
 }
 
-// Create cancelled row
 function createCancelledRow(order) {
-    const items = order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-    const cancelledAt = order.updatedAt.toLocaleString();
+    const items = (order.items || []).map(item => `${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}`).join(', ');
+    const cancelledAt = formatDateTime(order.updatedAt);
 
     return `
         <tr>
-            <td><strong>${order.orderNumber}</strong></td>
+            <td><strong>${escapeHtml(order.orderNumber)}</strong></td>
             <td>${items}</td>
-            <td>${order.total.toFixed(2)}</td>
-            <td>${cancelledAt}</td>
-            <td>${order.cancelReason || 'N/A'}</td>
+            <td>${escapeHtml(formatMoney(order.total))}</td>
+            <td>${escapeHtml(cancelledAt)}</td>
+            <td>${escapeHtml(order.cancelReason || i18n.labelNa || '')}</td>
         </tr>
     `;
 }
 
-// Create completed row
 function createCompletedRow(order) {
-    const items = order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-    const completedAt = order.updatedAt.toLocaleString();
-    const duration = Math.floor((new Date(order.updatedAt) - new Date(order.createdAt)) / 60000) + ' min';
+    const items = (order.items || []).map(item => `${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}`).join(', ');
+    const completedAt = formatDateTime(order.updatedAt);
+    const mins = Math.max(0, Math.floor((new Date(order.updatedAt) - new Date(order.createdAt)) / 60000));
+    const duration = format(i18n.durationMin || '{0} min', mins);
 
     return `
         <tr>
-            <td><strong>${order.orderNumber}</strong></td>
+            <td><strong>${escapeHtml(order.orderNumber)}</strong></td>
             <td>${items}</td>
-            <td>${order.total.toFixed(2)}</td>
-            <td>${completedAt}</td>
-            <td>${duration}</td>
+            <td>${escapeHtml(formatMoney(order.total))}</td>
+            <td>${escapeHtml(completedAt)}</td>
+            <td>${escapeHtml(duration)}</td>
         </tr>
     `;
-}
-
-// Get status badge class
-function getStatusBadgeClass(status) {
-    const classes = {
-        'CREATED': 'bg-primary',
-        'ACCEPTED': 'bg-warning text-dark',
-        'PROCESSING': 'bg-info',
-        'DONE': 'bg-success',
-        'DELIVERED': 'bg-success',
-        'COMPLETE': 'bg-secondary',
-        'CANCELLED': 'bg-danger'
-    };
-    return classes[status] || 'bg-secondary';
 }
 
 function getStatusLabel(status) {
@@ -363,13 +440,21 @@ function getStatusLabel(status) {
     return map[status] || status;
 }
 
-// Render Unpaid Orders Tab
+function getRoleLabel(role) {
+    const map = {
+        'cashier': i18n.roleCashier,
+        'queue': i18n.roleQueue,
+        'cook': i18n.roleCook,
+        'waiter': i18n.roleWaiter
+    };
+    return map[role] || role;
+}
+
 function renderUnpaidOrders() {
     const container = document.getElementById('unpaidOrdersContainer');
     const countEl = document.getElementById('unpaidCount');
     if (!container) return;
 
-    // Filter unpaid active orders (exclude cancelled, paid, refunded, and held online orders)
     const unpaid = orders.filter(o =>
         o.paymentStatus === 'UNPAID' &&
         o.status !== 'CANCELLED' &&
@@ -378,15 +463,14 @@ function renderUnpaidOrders() {
 
     if (countEl) {
         countEl.textContent = unpaid.length;
-        countEl.style.display = unpaid.length > 0 ? 'inline-block' : 'none';
+        countEl.hidden = unpaid.length === 0;
     }
 
     if (unpaid.length === 0) {
-        container.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2"></i><p>${i18n.emptyUnpaid || 'No unpaid orders'}</p></div>`;
+        container.innerHTML = `<div class="kitchen-empty">${iconSvg('i-inbox', 'icon-2x kitchen-empty-icon')}<p>${escapeHtml(i18n.emptyUnpaid)}</p></div>`;
         return;
     }
 
-    // Group table orders by tableId/tableName, and takeaway/counter orders together
     const tableGroups = new Map();
     const counterOrders = [];
 
@@ -396,7 +480,7 @@ function renderUnpaidOrders() {
             if (!tableGroups.has(key)) {
                 tableGroups.set(key, {
                     tableId: order.tableId,
-                    tableName: order.tableName || ('Table ' + order.tableId),
+                    tableName: order.tableName || format(i18n.tablePrefix || '{0}', order.tableId),
                     orders: []
                 });
             }
@@ -408,84 +492,79 @@ function renderUnpaidOrders() {
 
     let html = '';
 
-    // Render table groups
     tableGroups.forEach(group => {
         const total = group.orders.reduce((sum, o) => sum + (o.total || 0), 0);
         const count = group.orders.length;
+        const formattedTotal = formatMoney(total);
         const summaryText = count === 1
-            ? format(i18n.unpaidTableOwesSingle || '{0} owes {1} across 1 order', group.tableName, total.toFixed(2))
-            : format(i18n.unpaidTableOwes || '{0} owes {1} across {2} orders', group.tableName, total.toFixed(2), count);
+            ? format(i18n.unpaidTableOwesSingle, group.tableName, formattedTotal)
+            : format(i18n.unpaidTableOwes, group.tableName, formattedTotal, count);
 
         const counterUrl = getTenantPrefix() + '/counter';
-        const chargeBtn = `<a href="${counterUrl}" class="btn btn-sm btn-outline-primary"><i class="fas fa-cash-register me-1"></i>${escapeHtml(i18n.unpaidChargeAtCounter || 'Charge at counter')}</a>`;
-
+        const chargeBtn = `<a href="${escapeHtml(counterUrl)}" class="kitchen-btn kitchen-btn-outline-primary">${iconSvg('i-register')} ${escapeHtml(i18n.unpaidChargeAtCounter)}</a>`;
         const rows = group.orders.map(order => createUnpaidRow(order)).join('');
 
         html += `
-            <div class="card mb-3 border-danger shadow-sm">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="fs-5 fw-bold text-dark"><i class="fas fa-chair me-2 text-primary"></i>${escapeHtml(group.tableName)}</span>
-                        <span class="badge bg-danger fs-6">${summaryText}</span>
+            <section class="kitchen-unpaid-group" data-kind="table">
+                <header class="kitchen-unpaid-header">
+                    <div class="kitchen-unpaid-summary">
+                        <span class="kitchen-unpaid-name">${iconSvg('i-chair', 'kitchen-unpaid-icon-primary')}${escapeHtml(group.tableName)}</span>
+                        <span class="kitchen-badge kitchen-badge-danger">${escapeHtml(summaryText)}</span>
                     </div>
                     <div>${chargeBtn}</div>
+                </header>
+                <div class="kitchen-table-wrap">
+                    <table class="kitchen-table">
+                        <thead>
+                            <tr>
+                                <th class="kitchen-col-order">${escapeHtml(i18n.labelOrder)}</th>
+                                <th class="kitchen-col-status">${escapeHtml(i18n.labelStatus)}</th>
+                                <th class="kitchen-col-items">${escapeHtml(i18n.labelFood)}</th>
+                                <th class="kitchen-col-total">${escapeHtml(i18n.labelTotal)}</th>
+                                <th class="kitchen-col-wait">${escapeHtml(i18n.unpaidTimeWaiting)}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 15%;">${i18n.labelOrder || 'Order #'}</th>
-                                    <th style="width: 25%;">${i18n.labelStatus || 'Status'}</th>
-                                    <th style="width: 35%;">${i18n.labelFood || 'Items'}</th>
-                                    <th style="width: 12%;">${i18n.labelTotal || 'Total'}</th>
-                                    <th style="width: 13%;">${i18n.unpaidTimeWaiting || 'Waiting'}</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            </section>
         `;
     });
 
-    // Render counter/takeaway group if present
     if (counterOrders.length > 0) {
         const total = counterOrders.reduce((sum, o) => sum + (o.total || 0), 0);
         const count = counterOrders.length;
-        const groupTitle = i18n.unpaidCounterGroup || 'Counter / Takeaway';
+        const groupTitle = i18n.unpaidCounterGroup || '';
+        const formattedTotal = formatMoney(total);
         const summaryText = count === 1
-            ? format(i18n.unpaidTableOwesSingle || '{0} owes {1} across 1 order', groupTitle, total.toFixed(2))
-            : format(i18n.unpaidTableOwes || '{0} owes {1} across {2} orders', groupTitle, total.toFixed(2), count);
+            ? format(i18n.unpaidTableOwesSingle, groupTitle, formattedTotal)
+            : format(i18n.unpaidTableOwes, groupTitle, formattedTotal, count);
 
         const rows = counterOrders.map(order => createUnpaidRow(order)).join('');
 
         html += `
-            <div class="card mb-3 border-warning shadow-sm">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div class="d-flex align-items-center gap-3">
-                        <span class="fs-5 fw-bold text-dark"><i class="fas fa-shopping-bag me-2 text-secondary"></i>${escapeHtml(groupTitle)}</span>
-                        <span class="badge bg-warning text-dark fs-6">${summaryText}</span>
+            <section class="kitchen-unpaid-group" data-kind="counter">
+                <header class="kitchen-unpaid-header">
+                    <div class="kitchen-unpaid-summary">
+                        <span class="kitchen-unpaid-name">${iconSvg('i-bag', 'kitchen-unpaid-icon-muted')}${escapeHtml(groupTitle)}</span>
+                        <span class="kitchen-badge kitchen-badge-warning">${escapeHtml(summaryText)}</span>
                     </div>
+                </header>
+                <div class="kitchen-table-wrap">
+                    <table class="kitchen-table">
+                        <thead>
+                            <tr>
+                                <th class="kitchen-col-order">${escapeHtml(i18n.labelOrder)}</th>
+                                <th class="kitchen-col-status">${escapeHtml(i18n.labelStatus)}</th>
+                                <th class="kitchen-col-items">${escapeHtml(i18n.labelFood)}</th>
+                                <th class="kitchen-col-total">${escapeHtml(i18n.labelTotal)}</th>
+                                <th class="kitchen-col-wait">${escapeHtml(i18n.unpaidTimeWaiting)}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 15%;">${i18n.labelOrder || 'Order #'}</th>
-                                    <th style="width: 25%;">${i18n.labelStatus || 'Status'}</th>
-                                    <th style="width: 35%;">${i18n.labelFood || 'Items'}</th>
-                                    <th style="width: 12%;">${i18n.labelTotal || 'Total'}</th>
-                                    <th style="width: 13%;">${i18n.unpaidTimeWaiting || 'Waiting'}</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            </section>
         `;
     }
 
@@ -493,17 +572,17 @@ function renderUnpaidOrders() {
 }
 
 function createUnpaidRow(order) {
-    const items = order.items.map(item => `${item.quantity}x ${escapeHtml(item.name)}`).join(', ');
+    const items = (order.items || []).map(item => `${escapeHtml(item.quantity)}x ${escapeHtml(item.name)}`).join(', ');
     const timeAgo = getTimeAgo(order.createdAt);
-    const customer = order.customerName ? ` <small class="text-muted">(${escapeHtml(order.customerName)})</small>` : '';
+    const customer = order.customerName ? ` <small class="kitchen-unpaid-customer">(${escapeHtml(order.customerName)})</small>` : '';
 
     return `
         <tr>
-            <td><strong>#${order.orderNumber}</strong>${customer}</td>
-            <td><span class="badge ${getStatusBadgeClass(order.status)}">${escapeHtml(getStatusLabel(order.status))}</span></td>
+            <td><strong>#${escapeHtml(order.orderNumber)}</strong>${customer}</td>
+            <td><span class="kitchen-badge" data-status="${escapeHtml(getStatusState(order.status))}">${escapeHtml(getStatusLabel(order.status))}</span></td>
             <td>${items}</td>
-            <td><strong class="text-danger">${order.total.toFixed(2)}</strong></td>
-            <td><small class="text-muted">${timeAgo}</small></td>
+            <td><strong class="kitchen-card-price">${escapeHtml(formatMoney(order.total))}</strong></td>
+            <td><small class="kitchen-card-time">${escapeHtml(timeAgo)}</small></td>
         </tr>
     `;
 }
@@ -530,49 +609,41 @@ function getPreviousStatus(status) {
     return classes[status];
 }
 
-// Get time ago
 function getTimeAgo(dateString) {
-    // Parse the datetime string
     const date = new Date(dateString);
-
-    // Validate date
     if (isNaN(date.getTime())) {
         console.error('Invalid date:', dateString);
-        return i18n.timeJustNow;
+        return i18n.timeJustNow || '';
     }
 
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
+    if (seconds < 0) return i18n.timeJustNow || '';
+    if (seconds < 60) return format(i18n.timeSecAgo || '{0}s', seconds);
 
-    // Handle future dates
-    if (seconds < 0) return i18n.timeJustNow;
-
-    // Less than a minute
-    if (seconds < 60) return `${seconds}s ago`;
-
-    // Less than an hour
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} ${i18n.timeMinAgo}`;
+    if (minutes < 60) return `${minutes} ${i18n.timeMinAgo || ''}`.trim();
 
-    // Less than a day
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} ${i18n.timeHoursAgo}`;
+    if (hours < 24) return `${hours} ${i18n.timeHoursAgo || ''}`.trim();
 
-    // Days
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} ${i18n.timeDaysAgo}`;
+    if (days < 7) return `${days} ${i18n.timeDaysAgo || ''}`.trim();
 
-    // Weeks
     const weeks = Math.floor(days / 7);
-    if (weeks < 4) return `${weeks}w ago`;
+    if (weeks < 4) return format(i18n.timeWeeksAgo || '{0}w', weeks);
 
-    // Months
     const months = Math.floor(days / 30);
-    return `${months}mo ago`;
+    return format(i18n.timeMonthsAgo || '{0}mo', months);
 }
 
-// Move to next status
-function moveToNextStatus(orderId) {
+function csrfToken() {
+    return document.querySelector('meta[name="_csrf"]')?.content;
+}
+
+function moveToNextStatus(orderId, triggerBtn) {
+    const actionKey = `order:${orderId}`;
+    if (inFlightActions.has(actionKey)) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -580,12 +651,29 @@ function moveToNextStatus(orderId) {
     if (window.kitchenChime && nextStatus) {
         window.kitchenChime.expectOwn(order.id, nextStatus);
     }
-    callAPI(moveToNextStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
-    showToast(format(i18n.toastUpdated, nextStatus));
+
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
+    callAPI(moveToNextStatusUrl(order.id))
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            showToast(format(i18n.toastUpdated, getStatusLabel(nextStatus)));
+            return updateOrders();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast(i18n.toastError, 'error');
+        })
+        .finally(() => {
+            inFlightActions.delete(actionKey);
+            if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+        });
 }
 
-// Move to previous status
-function moveToPreviousStatus(orderId) {
+function moveToPreviousStatus(orderId, triggerBtn) {
+    const actionKey = `order:${orderId}`;
+    if (inFlightActions.has(actionKey)) return;
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -593,11 +681,29 @@ function moveToPreviousStatus(orderId) {
     if (window.kitchenChime && prevStatus) {
         window.kitchenChime.expectOwn(order.id, prevStatus);
     }
-    callAPI(moveToPreviousStatusUrl(order.id)).then(response => updateOrders()).catch(error => console.error('Error:', error));
-    showToast(`Order #${order.orderNumber} moved to previous status`);
+
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
+    callAPI(moveToPreviousStatusUrl(order.id))
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            showToast(format(i18n.toastPrevious, order.orderNumber));
+            return updateOrders();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast(i18n.toastError, 'error');
+        })
+        .finally(() => {
+            inFlightActions.delete(actionKey);
+            if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+        });
 }
 
-function moveAllToNext(role) {
+function moveAllToNext(role, triggerBtn) {
+    const actionKey = `batch:${role}`;
+    if (inFlightActions.has(actionKey)) return;
     const statusMap = {
         'cashier': 'CREATED',
         'queue': 'ACCEPTED',
@@ -607,7 +713,6 @@ function moveAllToNext(role) {
     const targetStatus = statusMap[role];
     const ordersToMove = orders.filter(o => o.status === targetStatus);
     const orderIds = ordersToMove.map(o => o.id);
-    
     if (orderIds.length === 0) return;
 
     const nextStatus = getNextStatus(targetStatus);
@@ -615,20 +720,32 @@ function moveAllToNext(role) {
         ordersToMove.forEach(o => window.kitchenChime.expectOwn(o.id, nextStatus));
     }
 
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
     fetch(batchNextStatusUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
+            'X-CSRF-TOKEN': csrfToken()
         },
         body: JSON.stringify(orderIds)
     }).then(response => {
-        updateOrders();
-        showToast(`All ${role} orders moved to next status`);
-    }).catch(error => console.error('Error:', error));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        showToast(format(i18n.toastBatchNext, getRoleLabel(role)));
+        return updateOrders();
+    }).catch(error => {
+        console.error('Error:', error);
+        showToast(i18n.toastError, 'error');
+    }).finally(() => {
+        inFlightActions.delete(actionKey);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+    });
 }
 
-function moveAllToPrevious(role) {
+function moveAllToPrevious(role, triggerBtn) {
+    const actionKey = `batch:${role}`;
+    if (inFlightActions.has(actionKey)) return;
     const statusMap = {
         'queue': 'ACCEPTED',
         'cook': 'PROCESSING',
@@ -637,7 +754,6 @@ function moveAllToPrevious(role) {
     const targetStatus = statusMap[role];
     const ordersToMove = orders.filter(o => o.status === targetStatus);
     const orderIds = ordersToMove.map(o => o.id);
-    
     if (orderIds.length === 0) return;
 
     const prevStatus = getPreviousStatus(targetStatus);
@@ -645,116 +761,186 @@ function moveAllToPrevious(role) {
         ordersToMove.forEach(o => window.kitchenChime.expectOwn(o.id, prevStatus));
     }
 
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
     fetch(batchPreviousStatusUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
+            'X-CSRF-TOKEN': csrfToken()
         },
         body: JSON.stringify(orderIds)
     }).then(response => {
-        updateOrders();
-        showToast(`All ${role} orders moved to previous status`);
-    }).catch(error => console.error('Error:', error));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        showToast(format(i18n.toastBatchPrevious, getRoleLabel(role)));
+        return updateOrders();
+    }).catch(error => {
+        console.error('Error:', error);
+        showToast(i18n.toastError, 'error');
+    }).finally(() => {
+        inFlightActions.delete(actionKey);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+    });
 }
 
-// Show cancel modal
-function showCancelModal(orderId) {
-    currentCancelOrderId = orderId;
-    document.getElementById('cancelOrderNumber').textContent = orders.find(o => o.id === orderId)?.orderNumber ?? '';
-    document.getElementById('cancelReason').value = '';
-    const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
-    modal.show();
-}
-
-// Confirm cancel
-function confirmCancel() {
-    const order = orders.find(o => o.id === currentCancelOrderId);
-
-    if (order) {
-        if (window.kitchenChime) {
-            window.kitchenChime.expectOwn(order.id, 'CANCELLED');
-        }
-        const cancelReason = document.getElementById('cancelReason').value;
-        fetch(cancelOrderUrl(order.id), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
-            },
-            body: JSON.stringify({ value: cancelReason })
-        }).then(response => {
-            updateOrders();
-            showToast(`Order #${order.orderNumber} cancelled`);
-            bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
-        })
-            .catch(error => console.error('Error:', error));
-    }
-}
-
-// Show status change modal
-function showStatusChangeModal(orderId) {
-    currentStatusChangeOrderId = orderId;
+function showCancelModal(orderId, opener) {
     const order = orders.find(o => o.id === orderId);
-    document.getElementById('statusOrderNumber').textContent = order.orderNumber;
-    document.getElementById('newStatus').value = order.status;
-    document.getElementById('statusCancelReasonDiv').style.display = order.status === 'CANCELLED' ? 'block' : 'none';
-    document.getElementById('statusCancelReason').value = order.cancelReason || '';
-    const modal = new bootstrap.Modal(document.getElementById('statusChangeModal'));
-    modal.show();
+    if (!order) return;
+    currentCancelOrderId = orderId;
+    const numberEl = document.getElementById('cancelOrderNumber');
+    if (numberEl) numberEl.textContent = order.orderNumber ?? '';
+    const reasonEl = document.getElementById('cancelReason');
+    if (reasonEl) reasonEl.value = '';
+    const dialog = document.getElementById('cancelModal');
+    if (window.FastBiteDialogs && dialog) {
+        window.FastBiteDialogs.open(dialog, opener);
+        if (reasonEl) reasonEl.focus();
+    }
 }
 
-// Confirm status change
-function confirmStatusChange() {
-    const order = orders.find(o => o.id === currentStatusChangeOrderId);
-    if (order) {
-        const newStatus = document.getElementById('newStatus').value;
-        const reason = document.getElementById('statusCancelReason').value;
+function confirmCancel(triggerBtn) {
+    const actionKey = 'dialog:cancel';
+    if (inFlightActions.has(actionKey)) return;
+    const order = orders.find(o => o.id === currentCancelOrderId);
+    if (!order) return;
 
-        if (window.kitchenChime && newStatus) {
-            window.kitchenChime.expectOwn(order.id, newStatus);
-        }
-
-        if (newStatus === 'CANCELLED') {
-            fetch(cancelOrderUrl(order.id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
-                },
-                body: JSON.stringify({ value: reason })
-            }).then(response => {
-                updateOrders();
-                showToast(`Order #${order.orderNumber} cancelled`);
-                bootstrap.Modal.getInstance(document.getElementById('statusChangeModal')).hide();
-            }).catch(error => console.error('Error:', error));
-        } else {
-            fetch(changeOrderStatusUrl(order.id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
-                },
-                body: JSON.stringify({ value: newStatus })
-            }).then(response => {
-                updateOrders();
-                showToast(format(i18n.toastUpdated, newStatus));
-                bootstrap.Modal.getInstance(document.getElementById('statusChangeModal')).hide();
-            }).catch(error => console.error('Error:', error));
-        }
+    if (window.kitchenChime) {
+        window.kitchenChime.expectOwn(order.id, 'CANCELLED');
     }
 
+    const cancelReason = document.getElementById('cancelReason')?.value || '';
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
+    fetch(cancelOrderUrl(order.id), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken()
+        },
+        body: JSON.stringify({ value: cancelReason })
+    }).then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        showToast(format(i18n.toastCancelled, order.orderNumber));
+        const dialog = document.getElementById('cancelModal');
+        if (window.FastBiteDialogs && dialog) {
+            window.FastBiteDialogs.close(dialog);
+        }
+        return updateOrders();
+    }).catch(error => {
+        console.error('Error:', error);
+        showToast(i18n.toastError, 'error');
+    }).finally(() => {
+        inFlightActions.delete(actionKey);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+    });
 }
 
-// Show toast
-function showToast(message) {
-    // Simple alert for demo, you can implement a proper toast
-    console.log(message);
+function showStatusChangeModal(orderId, opener) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    currentStatusChangeOrderId = orderId;
+    const promptEl = document.getElementById('statusChangePrompt');
+    if (promptEl) {
+        const orderNum = escapeHtml(order.orderNumber);
+        promptEl.innerHTML = escapeHtml(i18n.statusPrompt || '#{0}')
+            .replace('{0}', `<span id="statusOrderNumber">${orderNum}</span>`);
+    }
+    const statusSelect = document.getElementById('newStatus');
+    if (statusSelect) statusSelect.value = order.status;
+    const reasonDiv = document.getElementById('statusCancelReasonDiv');
+    if (reasonDiv) reasonDiv.hidden = order.status !== 'CANCELLED';
+    const reasonInput = document.getElementById('statusCancelReason');
+    if (reasonInput) reasonInput.value = order.cancelReason || '';
+
+    const dialog = document.getElementById('statusChangeModal');
+    if (window.FastBiteDialogs && dialog) {
+        window.FastBiteDialogs.open(dialog, opener);
+        if (statusSelect) statusSelect.focus();
+    }
 }
 
-// Start realtime updates via Server-Sent Events (SSE) with fallback polling
+function confirmStatusChange(triggerBtn) {
+    const actionKey = 'dialog:status';
+    if (inFlightActions.has(actionKey)) return;
+    const order = orders.find(o => o.id === currentStatusChangeOrderId);
+    if (!order) return;
+
+    const newStatus = document.getElementById('newStatus')?.value;
+    const reason = document.getElementById('statusCancelReason')?.value || '';
+    if (!newStatus) return;
+
+    if (window.kitchenChime) {
+        window.kitchenChime.expectOwn(order.id, newStatus);
+    }
+
+    inFlightActions.add(actionKey);
+    if (triggerBtn) triggerBtn.disabled = true;
+
+    const url = newStatus === 'CANCELLED' ? cancelOrderUrl(order.id) : changeOrderStatusUrl(order.id);
+    const body = newStatus === 'CANCELLED' ? { value: reason } : { value: newStatus };
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken()
+        },
+        body: JSON.stringify(body)
+    }).then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        showToast(newStatus === 'CANCELLED'
+            ? format(i18n.toastCancelled, order.orderNumber)
+            : format(i18n.toastUpdated, getStatusLabel(newStatus)));
+        const dialog = document.getElementById('statusChangeModal');
+        if (window.FastBiteDialogs && dialog) {
+            window.FastBiteDialogs.close(dialog);
+        }
+        return updateOrders();
+    }).catch(error => {
+        console.error('Error:', error);
+        showToast(i18n.toastError, 'error');
+    }).finally(() => {
+        inFlightActions.delete(actionKey);
+        if (triggerBtn && triggerBtn.isConnected) triggerBtn.disabled = false;
+    });
+}
+
+// Accessible toast: #toastContainer is the single role="status" live region; toasts inside carry no role.
+function showToast(message, tone) {
+    if (!message) return;
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast kitchen-toast';
+    if (tone === 'error') {
+        toast.dataset.tone = 'error';
+    }
+
+    const text = document.createElement('span');
+    text.className = 'kitchen-toast-text';
+    text.textContent = message;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.dataset.toastClose = '';
+    closeBtn.setAttribute('aria-label', i18n.labelClose || 'Close');
+
+    toast.appendChild(text);
+    toast.appendChild(closeBtn);
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 4000);
+}
+
+// Start realtime updates via Server-Sent Events (SSE) with fallback polling.
+// Live updates stay silent on screen (chime audio notifies staff).
 function startRealtimeUpdates() {
-    // Periodic time-ago ticker
     setInterval(() => {
         renderAllDashboards();
     }, 15000);
@@ -764,12 +950,9 @@ function startRealtimeUpdates() {
     connectLiveUpdates(sseUrl, {
         poll: updateOrders,
         intervalMs: 5000,
-        onUpdate: function(event) {
+        onUpdate: function (event) {
             try {
                 const data = JSON.parse(event.data);
-                if (data && data.orderNumber) {
-                    showToast(`Order #${data.orderNumber} status changed: ${data.status}`);
-                }
                 if (window.kitchenChime && data && data.id && data.status) {
                     window.kitchenChime.observe([data]);
                 }
@@ -781,32 +964,14 @@ function startRealtimeUpdates() {
     });
 }
 
-// Add demo order (for testing)
-function addDemoOrder() {
-    const newOrder = {
-        id: 'FB' + (1000 + orders.length + 1),
-        items: [
-            { name: 'Classic Cheeseburger', quantity: 1, customizations: ['No Onions'] }
-        ],
-        total: 8.99,
-        status: 'CREATED',
-        createdAt: new Date(),
-        updatedAt: new Date()
-    };
-    orders.push(newOrder);
-    renderAllDashboards();
-    showToast(`New order #${newOrder.orderNumber} received!`);
-}
-
 let isInitialOrdersLoad = true;
 
-// Add demo order (for testing)
 function updateOrders() {
-    fetch(getOrderListUrl(), {
+    return fetch(getOrderListUrl(), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
+            'X-CSRF-TOKEN': csrfToken()
         }
     }).then(response => {
         if (!response.ok) {
@@ -830,27 +995,60 @@ function callAPI(url) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="_csrf"]')?.content
+            'X-CSRF-TOKEN': csrfToken()
         }
-    })
-        .then(response => response);
+    });
 }
 
-// Initialize on page load
+document.addEventListener('click', event => {
+    const btn = event.target.closest('[data-action]');
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset.action;
+    const orderId = btn.dataset.orderId;
+    const role = btn.dataset.role;
+
+    switch (action) {
+        case 'next':
+            if (orderId) moveToNextStatus(orderId, btn);
+            break;
+        case 'previous':
+            if (orderId) moveToPreviousStatus(orderId, btn);
+            break;
+        case 'cancel':
+            if (orderId) showCancelModal(orderId, btn);
+            break;
+        case 'status-change':
+            if (orderId) showStatusChangeModal(orderId, btn);
+            break;
+        case 'batch-next':
+            if (role) moveAllToNext(role, btn);
+            break;
+        case 'batch-previous':
+            if (role) moveAllToPrevious(role, btn);
+            break;
+        case 'confirm-cancel':
+            confirmCancel(btn);
+            break;
+        case 'confirm-status-change':
+            confirmStatusChange(btn);
+            break;
+        default:
+            break;
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     initializeDashboards();
 
-    // Event listener for status change modal
     const newStatusSelect = document.getElementById('newStatus');
     if (newStatusSelect) {
         newStatusSelect.addEventListener('change', function () {
             const reasonDiv = document.getElementById('statusCancelReasonDiv');
             if (reasonDiv) {
-                reasonDiv.style.display = this.value === 'CANCELLED' ? 'block' : 'none';
+                reasonDiv.hidden = this.value !== 'CANCELLED';
             }
         });
     }
 
-    // Initial orders load
     updateOrders();
 });

@@ -3,10 +3,6 @@
 .is-inactive { opacity: 0.5; }
 .counter-loading { padding: 1rem; color: var(--color-text-muted); text-align: center; }
 .counter-spinner { display: inline-block; width: 1em; height: 1em; margin-right: 0.5rem; border: 0.15em solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -0.125em; animation: icon-spin 0.75s linear infinite; }
-#kitchenAudioText { display: none; font-size: 0.875em; font-weight: 700; }
-#kitchenAudioToggleBtn[data-state="blocked"] { background: var(--color-warning); color: var(--color-text); }
-#kitchenAudioToggleBtn[data-state="on"] #kitchenAudioIcon { color: var(--color-control-warning); }
-@media (min-width: 768px) { #kitchenAudioText { display: inline; } }
 @media (prefers-reduced-motion: reduce) { .counter-spinner { animation: none; } }
 dialog.dialog:modal { overscroll-behavior: contain; }
 dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
@@ -76,29 +72,6 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-choice-label { display: flex; flex: 1; justify-content: space-between; }
 .counter-switch-label { margin-left: 0.25rem; }
 .counter-page .navbar-hidden > .topbar { display: none; }
-@media (min-width: 992px) {
-  .counter-page .topbar-inner { flex-wrap: nowrap; }
-  .counter-page .topbar-brand { flex-shrink: 0; }
-  /* The links wrap their words first and never get narrower than their longest word, so they never
-     run under the actions. The actions get their full width before the links grow; the signed-in
-     name is cut with "…" only when the links cannot give any more room. */
-  .counter-page .topbar-content { display: grid; grid-template-columns: minmax(min-content, 1fr) minmax(0, max-content); min-width: 0; }
-  .counter-page .topbar-links { min-width: min-content; gap: 0; }
-  .counter-page .topbar-links li { flex: 1 1 auto; min-width: min-content; }
-  .counter-page .topbar-link { display: flex; padding-inline: 0.5rem; white-space: normal; }
-  .counter-page .topbar-actions { min-width: 0; margin-left: 0; justify-content: flex-end; gap: 0.5rem; }
-  .counter-page #kitchenAudioToggleBtn { flex: none; }
-  .counter-page .topbar-account { flex: 0 1 auto; min-width: 0; }
-  .counter-page .topbar-account-toggle { max-width: 100%; }
-  .counter-page .topbar-account-toggle > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
-/* Narrow desktops: "Chime / Off" on two lines, as before, so the signed-in name keeps more room. */
-@media (min-width: 992px) and (max-width: 1199.98px) {
-  .counter-page #kitchenAudioText { width: min-content; text-align: center; }
-  /* A long restaurant name ends in "…" here, so the signed-in name keeps room too. */
-  .counter-page .topbar-brand { max-width: 13rem; min-width: 0; }
-  .counter-page .topbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
 .counter-toasts { position: fixed; right: 0; bottom: 0; z-index: 2000; display: grid; gap: 0.75rem; max-width: 100%; padding: 1rem; }
 .order-card.is-inactive { filter: grayscale(0.5); }
 .counter-sidebar-account { margin-top: auto; padding: 1rem; }
