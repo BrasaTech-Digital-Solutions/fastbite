@@ -4,9 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -145,6 +147,75 @@ class RestaurantTemplateContractTest {
         for (String key : List.of("staff.nav.menu", "staff.nav.kitchen", "staff.nav.counter", "staff.nav.tickets", "staff.nav.backoffice")) {
             assertThat(navbar.split(Pattern.quote("#{" + key + "}"), -1)).as(key).hasSize(3);
         }
+    }
+
+    @Test
+    void counterTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "counter.navbar.toggle",
+                "counter.customizer.title",
+                "kitchen.audio.on",
+                "kitchen.audio.off",
+                "kitchen.audio.toggle");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    void onlyColouredCounterDialogHeadersCarryCloseOnDark() throws IOException {
+        String counter = readTemplate("counter.html");
+        var headers = Pattern.compile("(?s)<div class=\"(counter-dialog-header[^\"]*)\">(.*?)</div>").matcher(counter);
+        int found = 0;
+        while (headers.find()) {
+            found++;
+            String classes = headers.group(1);
+            String body = headers.group(2);
+            if (body.contains("counter-close-on-dark")) {
+                assertThat(classes).as("dialog header with counter-close-on-dark")
+                        .matches(".*\\bcounter-dialog-header-(?:table|payment|orders)\\b.*");
+            }
+        }
+        assertThat(found).isGreaterThanOrEqualTo(6);
+    }
+
+    @Test
+    void everyCounterJsDictionaryKeyExistsInCounterHtml() throws IOException {
+        String js = new ClassPathResource("static/js/counter.js").getContentAsString(StandardCharsets.UTF_8);
+        String counter = readTemplate("counter.html");
+        String dict = fragment("counter.html", "<div hidden id=\"dictionary\"", "</div>");
+        Set<String> declared = new TreeSet<>();
+        Pattern.compile("(?:th:)?data-([a-z0-9-]+)=").matcher(dict).results()
+                .forEach(m -> declared.add(toCamelCase(m.group(1))));
+        Set<String> missing = new TreeSet<>();
+        Pattern.compile("\\bt\\(['\"]([A-Za-z0-9]+)['\"]\\)").matcher(js).results()
+                .map(m -> m.group(1))
+                .forEach(key -> {
+                    if (!declared.contains(key)) missing.add(key);
+                });
+        assertThat(missing).as("t(...) keys used in counter.js missing from counter.html #dictionary").isEmpty();
+        assertThat(counter).contains("id=\"tableModal\"", "id=\"reassignModal\"");
+    }
+
+    private static String toCamelCase(String kebab) {
+        StringBuilder out = new StringBuilder();
+        boolean upper = false;
+        for (int i = 0; i < kebab.length(); i++) {
+            char c = kebab.charAt(i);
+            if (c == '-') {
+                upper = true;
+            } else {
+                out.append(upper ? Character.toUpperCase(c) : c);
+                upper = false;
+            }
+        }
+        return out.toString();
     }
 
     private static void assertNativeCounter(String label, String html) {

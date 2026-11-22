@@ -375,7 +375,7 @@ async function main() {
           // AudioContext needs a real user gesture. DOM .click() does not grant autoplay permission.
           await p.locator('#kitchenAudioToggleBtn').click();
           await p.waitForFunction(() => window.kitchenChime && window.kitchenChime.enabled && !window.kitchenChime.blocked);
-          await p.waitForFunction(() => document.querySelector('#kitchenAudioText')?.textContent === 'Chime On');
+          await p.waitForFunction(() => document.querySelector('#kitchenAudioToggleBtn')?.dataset.state === 'on');
           await p.evaluate(() => localStorage.setItem('fastbite-kitchen-chime-enabled', 'false'));
         }, { fullPage: false, clearStorage: true });
         // A long order (15 lines, more than the cart shows at once): "Pay now" must stay on screen

@@ -618,7 +618,7 @@ h6 {
 /* Tables in Counter */
 .table-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 15px;
 }
 
@@ -647,8 +647,10 @@ h6 {
 
 .table-status-label {
   margin-top: 5px;
+  font-size: 0.875rem;
   font-weight: bold;
   opacity: 0.8;
+  text-align: center;
 }
 
 .pointer-events-none {

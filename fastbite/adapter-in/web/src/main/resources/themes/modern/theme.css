@@ -120,7 +120,6 @@
   background: var(--gradient-brand);
   color: var(--color-on-primary);
 }
-[data-theme="modern"] .counter-dialog-header-reassign { color: var(--color-text); }
 [data-theme="modern"] .counter-dialog-header .counter-close { color: var(--color-on-primary); }
 [data-theme="modern"] .counter-button-primary {
   border-color: var(--color-primary) !important;

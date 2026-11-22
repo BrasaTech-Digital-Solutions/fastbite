@@ -14,12 +14,22 @@ class KitchenChime {
         this.lastKnownStatus = new Map();
         this.ownActions = new Map();
         this.tapToEnableText = 'Tap to enable sound';
+        this.textOn = 'Chime On';
+        this.textOff = 'Chime Off';
     }
 
     init() {
         const btn = document.getElementById('kitchenAudioToggleBtn');
-        if (btn && btn.dataset && btn.dataset.tapToEnable) {
-            this.tapToEnableText = btn.dataset.tapToEnable;
+        if (btn && btn.dataset) {
+            if (btn.dataset.tapToEnable) {
+                this.tapToEnableText = btn.dataset.tapToEnable;
+            }
+            if (btn.dataset.textOn) {
+                this.textOn = btn.dataset.textOn;
+            }
+            if (btn.dataset.textOff) {
+                this.textOff = btn.dataset.textOff;
+            }
         }
 
         if (this.enabled) {
@@ -123,14 +133,14 @@ class KitchenChime {
             }
         } else if (this.enabled) {
             setIcon('fas fa-bell me-1 text-warning', 'on');
-            if (text) text.textContent = 'Chime On';
+            if (text) text.textContent = this.textOn;
             if (!nativeIcon) {
                 btn.classList.remove('btn-warning');
                 btn.classList.add('btn-warning-subtle');
             }
         } else {
             setIcon('fas fa-bell-slash me-1', 'off');
-            if (text) text.textContent = 'Chime Off';
+            if (text) text.textContent = this.textOff;
             if (!nativeIcon) btn.classList.remove('btn-warning', 'btn-warning-subtle');
         }
     }

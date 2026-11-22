@@ -118,7 +118,6 @@
   background: var(--gradient-brand);
   color: var(--color-on-primary);
 }
-[data-theme="cafe"] .counter-dialog-header-reassign { color: var(--color-text); }
 [data-theme="cafe"] .counter-dialog-header .counter-close { color: var(--color-on-primary); }
 [data-theme="cafe"] .counter-button-primary {
   border-color: var(--color-primary) !important;

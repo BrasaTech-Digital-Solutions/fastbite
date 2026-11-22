@@ -47,9 +47,7 @@
             <svg class="icon counter-table-icon" aria-hidden="true"><use href="#i-chair"></use></svg><br>
             <span th:text="${table.name}">Table Name</span>
             <div class="table-status-label">
-                <span th:if="${table.status == 'AVAILABLE'}" th:text="#{table.status.available}">Available</span>
-                <span th:if="${table.status == 'OCCUPIED'}" th:text="#{table.status.occupied}">Occupied</span>
-                <span th:if="${table.status == 'BILLING'}" th:text="#{table.status.billing}">Billing</span>
+                <span th:text="#{${'table.status.' + #strings.toLowerCase(table.status)}}">Available</span>
             </div>
             <div class="table-qr-mode">
                 <span class="counter-badge" th:classappend="${table.effectiveQrTrusted(settings.tableQrTrusted)} ? 'is-trusted' : 'is-supervised'"
@@ -76,7 +74,9 @@
             th:classappend="${'status-' + #strings.toLowerCase(table.status) + ' ' + (currentTableId == table.id ? 'active' : '')}"
             th:data-id="${table.id}" onclick="reassignOrder(this.dataset.id)">
             <div class="counter-emphasis" th:text="${table.name}">Table Name</div>
-            <div class="counter-table-status" th:text="${table.status}">Status</div>
+            <div class="counter-table-status">
+                <span th:text="#{${'table.status.' + #strings.toLowerCase(table.status)}}">Available</span>
+            </div>
         </div>
     </th:block>
 
@@ -220,14 +220,6 @@
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
                             <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-exchange"></use></svg><span th:text="#{label.reassign}">Reassign</span>
                         </button>
-                        <button class="counter-button counter-order-pay"
-                            th:classappend="${order.paymentStatus == 'PAID' ? 'counter-button-success-filled' : 'counter-button-success'}"
-                            th:data-id="${order.id}" onclick="payIndividualOrder(this.dataset.id)"
-                            th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
-                            <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-check-circle"></use></svg>
-                            <span
-                                th:text="${order.paymentStatus == 'PAID'} ? #{label.order.status.paid} : #{button.pay.now}">Pay</span>
-                        </button>
                         <button class="counter-button counter-button-danger" th:aria-label="#{button.cancel.order}" th:data-id="${order.id}"
                             onclick="cancelOrderFromTable(this.dataset.id)"
                             th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
@@ -236,6 +228,14 @@
                         <button th:if="${#strings.isEmpty(order.onlineTicket)}" class="counter-button counter-button-info" th:aria-label="#{button.proforma}" th:data-id="${order.id}" onclick="printProforma(this.dataset.id)"
                             th:disabled="${order.status == 'CANCELLED'}">
                             <svg class="icon" aria-hidden="true"><use href="#i-print"></use></svg>
+                        </button>
+                        <button class="counter-button counter-order-pay"
+                            th:classappend="${order.paymentStatus == 'PAID' ? 'counter-button-success-filled' : 'counter-button-success'}"
+                            th:data-id="${order.id}" onclick="payIndividualOrder(this.dataset.id)"
+                            th:disabled="${order.paymentStatus == 'PAID' or order.status == 'CANCELLED'}">
+                            <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-check-circle"></use></svg>
+                            <span
+                                th:text="${order.paymentStatus == 'PAID'} ? #{label.order.status.paid} : #{button.pay.now}">Pay</span>
                         </button>
                     </div>
                 </div>

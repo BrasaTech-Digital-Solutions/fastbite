@@ -51,7 +51,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-empty-title { font-weight: 700; }
 .counter-empty-notice { padding: 0.5rem 1rem; border: 1px solid var(--color-info); border-radius: min(var(--radius), 6px); }
 .counter-cart-item-actions, .counter-order-actions, .counter-quantity { display: flex; align-items: center; gap: 0.5rem; }
-.counter-order-actions { align-items: stretch; }
+.counter-order-actions { align-items: stretch; flex-wrap: wrap; }
 .counter-quantity { align-items: stretch; gap: 0; }
 .counter-quantity-value { display: flex; align-items: center; padding: 0 1rem; border-block: 1px solid var(--color-border); font-size: 0.875rem; line-height: 1.5; }
 .counter-quantity .counter-button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
@@ -64,7 +64,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .table-cart-view .counter-order-item { align-items: flex-start; margin-bottom: 0.25rem; }
 .table-cart-view .order-items-list { margin-bottom: 1rem; }
 .table-cart-view .counter-order-subtotal { color: var(--color-text-muted); }
-.counter-order-actions > .counter-button-warning, .counter-order-actions > .counter-order-pay { flex: 1 1 auto; }
+.counter-order-actions > .counter-button-warning, .counter-order-actions > .counter-order-pay { flex: 1 1 auto; white-space: nowrap; }
 .counter-order-heading-details { min-width: 0; justify-content: flex-start; }
 .counter-order-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .counter-order-details, .counter-online-ticket { padding: 0.5rem; border-top: 1px solid var(--color-border); }
@@ -191,7 +191,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-dialog-header-reassign { background: var(--color-control-warning); color: var(--color-text); }
 .counter-dialog-header-reassign + .counter-dialog-body .counter-table-status { color: inherit; opacity: 0.75; }
 .counter-dialog-header-reassign + .counter-dialog-body .status-occupied { color: var(--color-on-primary); }
-.counter-dialog-title { margin: 0; font-size: 1.25rem; line-height: 1.5; }
+.counter-dialog-title { margin: 0; color: inherit; font-size: 1.25rem; line-height: 1.5; }
 .counter-dialog-body { padding: 1rem; }
 .counter-dialog-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; padding: 0.75rem; border-top: 1px solid var(--color-border); }
 .counter-dialog-footer > * { margin: 0.25rem; }
@@ -277,4 +277,3 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 /* Allergens under a product name, named as on the guest menu ("Lácteos"), not a bare icon */
 .counter-product-details .allergen-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; letter-spacing: 0; line-height: 1.2; }
 .counter-product-details .allergen-chip { padding: 2px 8px; font-size: 11px; }
-.counter-dialog-header-confirm .counter-dialog-title { color: inherit; }

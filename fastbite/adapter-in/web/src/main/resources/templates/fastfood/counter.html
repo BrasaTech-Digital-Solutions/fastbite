@@ -33,7 +33,7 @@
                 </div>
                 <div class="counter-sidebar-account">
                     <button type="button" class="counter-button counter-button-light counter-navbar-toggle" id="btn-toggle-navbar">
-                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-bars"></use></svg> <span>Toggle Menu</span>
+                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-bars"></use></svg> <span th:text="#{counter.navbar.toggle}">Show/hide menu</span>
                     </button>
                 </div>
             </div>
@@ -134,7 +134,7 @@
     </div>
 
     <!-- Table Selection Modal -->
-    <dialog class="dialog counter-dialog" id="tableModal" aria-labelledby="table-modal-title">
+    <dialog class="dialog dialog-lg counter-dialog" id="tableModal" aria-labelledby="table-modal-title">
         <div class="counter-dialog-frame">
             <div class="counter-dialog-content">
                 <div class="counter-dialog-header counter-dialog-header-table">
@@ -258,7 +258,7 @@
             <div class="counter-dialog-content">
                 <div class="counter-dialog-header">
                     <h5 class="counter-dialog-title" id="product-modal-name" th:text="#{customizer.title}">Customize</h5>
-                    <button type="button" class="counter-close counter-close-on-dark" data-dialog-close th:aria-label="#{button.cancel}"></button>
+                    <button type="button" class="counter-close" data-dialog-close th:aria-label="#{button.cancel}"></button>
                 </div>
                 <div class="counter-dialog-body" id="customization-options">
                     <!-- Dynamic -->
@@ -299,7 +299,7 @@
     </dialog>
 
     <!-- Reassign Table Modal -->
-    <dialog class="dialog counter-dialog" id="reassignModal" aria-labelledby="reassign-modal-title">
+    <dialog class="dialog dialog-lg counter-dialog" id="reassignModal" aria-labelledby="reassign-modal-title">
         <div class="counter-dialog-frame">
             <div class="counter-dialog-content">
                 <div class="counter-dialog-header counter-dialog-header-reassign">
@@ -362,6 +362,7 @@
         th:data-button-cancel="#{button.cancel}" th:data-button-back="#{button.back}" th:data-label-assign-table="#{label.assign.table}"
         th:data-button-cancel-order="#{button.cancel.order}"
         th:data-label-table-name="#{label.table.name}" th:data-label-loading="#{label.loading}"
+        th:data-customizer-title="#{counter.customizer.title}"
         th:data-message-no-pickup-orders="#{message.no.pickup.orders}">
     </div>
 

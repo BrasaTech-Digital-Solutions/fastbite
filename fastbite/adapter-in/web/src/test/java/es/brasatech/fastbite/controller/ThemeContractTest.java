@@ -75,7 +75,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * sets only those tokens, under its own scope; and a theme that exists only in test resources styles the guest menu,
  * the counter and the kitchen with no template, JS or Java change.
  */
-@WebMvcTest(controllers = {MenuController.class, CounterController.class, OrderController.class, AppearanceController.class})
+@WebMvcTest(controllers = {MenuController.class, CounterController.class, OrderController.class, AppearanceController.class},
+        properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, MenuController.class, CounterController.class, OrderController.class,
         AppearanceController.class, AppearanceAdvice.class, ThemeCatalog.class,
         SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
@@ -202,10 +203,39 @@ class ThemeContractTest {
         }
         // The page's language reaches the scripts, which format with Intl.NumberFormat like the server
         assertThat(page).contains("lang=\"es\"", "id=\"clearOrderModal\"", ">0,00\u00a0€<");
-        // A price with its currency, and the allergen named next to its icon (this context has no message bundle)
+        // A price with its currency, and the allergen named next to its icon in Spanish
         assertThat(products).contains(">1,80\u00a0€<", "role=\"list\"")
-                .containsPattern("<span aria-hidden=\"true\">\\x{1F95B}</span> <span>[^<]*allergen\\.milk");
+                .containsPattern("<span aria-hidden=\"true\">\\x{1F95B}</span> <span>Lácteos</span>");
         assertThat(cart).contains(">3,60\u00a0€<");
+    }
+
+    @Test
+    void counterAndDashboardRenderTranslatedMenuAndChimeLabelsInSpanish() throws Exception {
+        Locale spanish = Locale.forLanguageTag("es");
+        String counter = render(as("MANAGER", get("/kebab/counter")).locale(spanish));
+        assertThat(counter)
+                .doesNotContain("Toggle Menu", "Chime Off")
+                .contains("Mostrar/ocultar menú", "Sin sonido",
+                        "data-text-on=\"Con sonido\"", "data-text-off=\"Sin sonido\"");
+
+        String dashboard = render(as("COOK", get("/kebab/dashboard")).locale(spanish));
+        assertThat(dashboard)
+                .doesNotContain("Chime Off")
+                .contains("Sin sonido", "data-text-on=\"Con sonido\"", "data-text-off=\"Sin sonido\"");
+    }
+
+    @Test
+    void cafeAndModernDoNotSetColorOnReassignDialogHeader() throws IOException {
+        for (String themeId : List.of("cafe", "modern")) {
+            String css = withoutComments(themes.asset(themeId, "theme.css").getContentAsString(StandardCharsets.UTF_8));
+            Matcher rule = RULE.matcher(css);
+            while (rule.find()) {
+                if (rule.group(1).contains(".counter-dialog-header-reassign")) {
+                    assertThat(rule.group(0)).as("%s should not set color on .counter-dialog-header-reassign", themeId)
+                            .doesNotContainPattern("(?<![\\w-])color\\s*:");
+                }
+            }
+        }
     }
 
     private String render(MockHttpServletRequestBuilder request) throws Exception {

@@ -69,11 +69,13 @@
                     <!-- Kitchen Audio Chime Toggle (Staff on Dashboard/Counter) -->
                     <button th:if="${activeTab == 'dashboard' || activeTab == 'counter'}" 
                             class="btn btn-glass py-2 px-3 rounded-pill shadow-sm d-flex align-items-center" 
-                            id="kitchenAudioToggleBtn" type="button" title="Toggle Kitchen Audio Chime"
+                            id="kitchenAudioToggleBtn" type="button" th:title="#{kitchen.audio.toggle}"
                             th:data-tap-to-enable="#{kitchen.audio.tapToEnable}"
+                            th:data-text-on="#{kitchen.audio.on}"
+                            th:data-text-off="#{kitchen.audio.off}"
                             onclick="toggleKitchenAudio()">
                         <i class="fas fa-bell-slash me-1" id="kitchenAudioIcon"></i>
-                        <span class="d-none d-md-inline small fw-bold" id="kitchenAudioText">Chime Off</span>
+                        <span class="d-none d-md-inline small fw-bold" id="kitchenAudioText" th:text="#{kitchen.audio.off}">Chime Off</span>
                     </button>
 
                     <!-- User Profile & Logout -->
@@ -141,8 +143,8 @@
                 <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}"><svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{staff.nav.backoffice}">Management</span></a></li>
             </ul>
             <div class="topbar-actions">
-                <button class="topbar-cart" id="kitchenAudioToggleBtn" type="button" title="Toggle Kitchen Audio Chime" th:data-tap-to-enable="#{kitchen.audio.tapToEnable}" onclick="toggleKitchenAudio()">
-                    <svg class="icon" id="kitchenAudioIcon" aria-hidden="true"><use href="#i-bell-off"></use></svg> <span id="kitchenAudioText">Chime Off</span>
+                <button class="topbar-cart" id="kitchenAudioToggleBtn" type="button" th:title="#{kitchen.audio.toggle}" th:data-tap-to-enable="#{kitchen.audio.tapToEnable}" th:data-text-on="#{kitchen.audio.on}" th:data-text-off="#{kitchen.audio.off}" onclick="toggleKitchenAudio()">
+                    <svg class="icon" id="kitchenAudioIcon" aria-hidden="true"><use href="#i-bell-off"></use></svg> <span id="kitchenAudioText" th:text="#{kitchen.audio.off}">Chime Off</span>
                 </button>
                 <details th:if="${param.preview == null}" class="topbar-account" sec:authorize="isAuthenticated()">
                     <summary class="topbar-account-toggle" id="userDropdown"><svg class="icon" aria-hidden="true"><use href="#i-user-circle"></use></svg> <span sec:authentication="name">User</span></summary>
