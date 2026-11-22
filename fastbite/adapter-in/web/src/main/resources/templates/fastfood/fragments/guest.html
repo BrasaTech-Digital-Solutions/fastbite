@@ -88,19 +88,19 @@
             <div class="topbar-content" id="topbarContent">
                 <ul th:if="${param.preview == null}" class="topbar-links" sec:authorize="isAuthenticated()">
                     <li><a class="topbar-link is-active" th:href="${menuUrl}" aria-current="page">
-                        <svg class="icon" aria-hidden="true"><use href="#i-utensils"></use></svg> <span th:text="#{menu.title}">Menu</span></a></li>
+                        <svg class="icon" aria-hidden="true"><use href="#i-utensils"></use></svg> <span th:text="#{staff.nav.menu}">Menu</span></a></li>
                     <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link"
                         th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}">
-                        <svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{label.dashboard}">Dashboard</span></a></li>
+                        <svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{staff.nav.kitchen}">Kitchen</span></a></li>
                     <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link"
                         th:href="${tenantId != null ? '/' + tenantId + '/counter' : '/counter'}">
-                        <svg class="icon" aria-hidden="true"><use href="#i-register"></use></svg> <span th:text="#{page.title.counter}">Counter</span></a></li>
+                        <svg class="icon" aria-hidden="true"><use href="#i-register"></use></svg> <span th:text="#{staff.nav.counter}">Counter</span></a></li>
                     <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')"><a class="topbar-link"
                         th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}">
-                        <svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{tickets.title}">Tickets</span></a></li>
+                        <svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{staff.nav.tickets}">Tickets</span></a></li>
                     <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"><a class="topbar-link"
                         th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}">
-                        <svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{backoffice.title}">BackOffice</span></a></li>
+                        <svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{staff.nav.backoffice}">Management</span></a></li>
                 </ul>
                 <div class="topbar-actions">
                     <button type="button" class="topbar-cart" id="navBarCheckoutBtn">

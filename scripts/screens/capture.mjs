@@ -3,7 +3,8 @@
 // Uses Playwright already installed on the machine (no npm install in repo).
 //
 // Usage:
-//   node scripts/screens/capture.mjs <fixture.env> [--out=<dir>] [--themes=fastfood,cafe,modern] [--sample]
+//   node scripts/screens/capture.mjs <fixture.env> [--out=<dir>] [--themes=fastfood,cafe,modern] [--sample] [--pages=counter,tickets]
+//   --pages keeps only the shots whose file name starts with one of the given prefixes.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,15 +26,16 @@ function resolvePlaywright() {
 }
 
 function parseArgs(argv) {
-  const opts = { fixture: null, out: null, themes: ['fastfood', 'cafe', 'modern'], sample: false };
+  const opts = { fixture: null, out: null, themes: ['fastfood', 'cafe', 'modern'], sample: false, pages: null };
   for (const arg of argv.slice(2)) {
     if (arg === '--sample') opts.sample = true;
     else if (arg.startsWith('--out=')) opts.out = arg.slice(6);
+    else if (arg.startsWith('--pages=')) opts.pages = arg.slice(8).split(',').map(s => s.trim()).filter(Boolean);
     else if (arg.startsWith('--themes=')) opts.themes = arg.slice(9).split(',').map(s => s.trim()).filter(Boolean);
     else if (!opts.fixture) opts.fixture = arg;
   }
   if (!opts.fixture) {
-    console.error('Usage: node scripts/screens/capture.mjs <fixture.env> [--out=<dir>] [--themes=fastfood,cafe,modern] [--sample]');
+    console.error('Usage: node scripts/screens/capture.mjs <fixture.env> [--out=<dir>] [--themes=fastfood,cafe,modern] [--sample] [--pages=counter,tickets]');
     process.exit(2);
   }
   return opts;
@@ -173,7 +175,24 @@ async function addCounterProduct(p) {
   await shown(p, '#btn-proceed-payment:enabled', 'counter cart');
 }
 
+// Adds the first product n times, one cart line each, waiting for every line so the cart ends in a known state.
+// Below 992 px each addition toggles the cart sheet; it ends open.
+async function fillCounterCart(p, n) {
+  await p.locator('#products-grid .product-card').first().waitFor({ state: 'visible', timeout: 10000 });
+  for (let i = 1; i <= n; i++) {
+    await tap(p.locator('#products-grid .product-card'));
+    await p.waitForFunction(count => document.querySelectorAll('#cart-items .cart-item').length === count, i, { timeout: 10000 });
+  }
+  await p.evaluate(() => {
+    if (window.innerWidth < 992 && !document.querySelector('.pos-cart').classList.contains('active')) toggleMobileCart();
+  });
+  await shown(p, '#btn-proceed-payment:enabled', 'counter cart');
+}
+
+let pageFilter = null;
+
 async function captureShot(context, outFile, width, height, url, action, { fullPage = true, clearStorage = false } = {}) {
+  if (pageFilter && !pageFilter.some(prefix => path.basename(outFile).startsWith(prefix))) return;
   const page = await context.newPage();
   await page.setViewportSize({ width, height });
   await page.clock.setFixedTime(FIXED_TIME);
@@ -206,6 +225,7 @@ async function captureShot(context, outFile, width, height, url, action, { fullP
 
 async function main() {
   const opts = parseArgs(process.argv);
+  pageFilter = opts.pages;
   const env = parseEnv(normalizePath(opts.fixture));
   const base = env.BASE;
   const tenant = env.TENANT;
@@ -358,6 +378,31 @@ async function main() {
           await p.waitForFunction(() => document.querySelector('#kitchenAudioText')?.textContent === 'Chime On');
           await p.evaluate(() => localStorage.setItem('fastbite-kitchen-chime-enabled', 'false'));
         }, { fullPage: false, clearStorage: true });
+        // A long order (15 lines, more than the cart shows at once): "Pay now" must stay on screen
+        // without scrolling. Viewport shots, and a PAY line in the log with the button's position.
+        for (const [w, h] of staffCoreSizes) {
+          const name = `counter-long-cart-${w}x${h}`;
+          await captureShot(managerCtx, path.join(themeDir, `${name}.png`), w, h, `${base}/${tenant}/counter`, async (p) => {
+            await fillCounterCart(p, 15);
+            const pay = await p.evaluate(() => {
+              const r = document.getElementById('btn-proceed-payment').getBoundingClientRect();
+              const atPoint = document.elementFromPoint(Math.floor(r.left + r.width / 2), Math.floor(r.top + r.height / 2));
+              return {
+                top: Math.round(r.top), bottom: Math.round(r.bottom), viewport: window.innerHeight,
+                onTop: Boolean(atPoint && atPoint.closest('#btn-proceed-payment')),
+                pageScrolls: document.documentElement.scrollHeight > window.innerHeight,
+              };
+            });
+            const visible = pay.top >= 0 && pay.bottom <= pay.viewport && pay.onTop;
+            console.log(`PAY ${theme}/${name}: top=${pay.top} bottom=${pay.bottom} viewport=${pay.viewport} onTop=${pay.onTop} pageScrolls=${pay.pageScrolls} visible=${visible ? 'yes' : 'NO'}`);
+          }, { fullPage: false });
+        }
+        // "Clear" on an order with items asks first.
+        await captureShot(managerCtx, path.join(themeDir, `counter-clear-confirm-1280x800.png`), 1280, 800, `${base}/${tenant}/counter`, async (p) => {
+          await addCounterProduct(p);
+          await tap(p.locator('#btn-clear-cart'));
+          await shown(p, 'dialog[open]', 'clear order confirmation');
+        }, { fullPage: false });
       }
 
       // 4. Kitchen / Dashboard
@@ -397,6 +442,8 @@ async function main() {
         await captureShot(managerCtx, path.join(themeDir, `tickets-${w}x${h}.png`), w, h, `${base}/${tenant}/counter/tickets`);
         await captureShot(managerCtx, path.join(themeDir, `dayReport-${w}x${h}.png`), w, h, `${base}/${tenant}/counter/day-report`, freezeServerTimestamps);
         await captureShot(managerCtx, path.join(themeDir, `tableQrCodes-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice/tables/qr-codes`);
+        // The back office keeps Bootstrap until its own item; it is here for the shared staff navigation.
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice`);
       }
     }
   } finally {

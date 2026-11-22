@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" th:lang="${#locale.language}" lang="es" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
@@ -25,12 +25,6 @@
             <div id="toastContainer" class="counter-toasts"></div>
             <!-- Categories Sidebar -->
             <div class="pos-sidebar">
-                <div class="counter-sidebar-brand">
-                    <a th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}">
-                        <h4 class="counter-sidebar-brand-title"><svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-utensils"></use></svg><span
-                            th:text="#{logo.title}">FastBite</span></h4>
-                    </a>
-                </div>
                 <div class="cart-items counter-categories" id="categories-sidebar">
                     <!-- Rendered JS -->
                     <div class="category-item active" data-group-id="all">
@@ -38,12 +32,6 @@
                     </div>
                 </div>
                 <div class="counter-sidebar-account">
-                    <div class="counter-account-details">
-                        <div class="counter-account-name">
-                            <small class="counter-account-label" th:text="#{label.logged.in.as}">Logged in as</small>
-                            <div class="counter-emphasis" sec:authentication="name">User</div>
-                        </div>
-                    </div>
                     <button type="button" class="counter-button counter-button-light counter-navbar-toggle" id="btn-toggle-navbar">
                         <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-bars"></use></svg> <span>Toggle Menu</span>
                     </button>
@@ -78,9 +66,6 @@
                         <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-coins"></use></svg> <span th:text="#{label.pickup.orders}">To collect</span>
                         <span class="counter-badge counter-count is-hidden" id="pickup-count">0</span>
                     </button>
-                    <a th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}" class="counter-button counter-button-primary">
-                        <svg class="icon counter-leading-icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{button.dashboard}">Dashboard</span>
-                    </a>
                 </div>
             </header>
 
@@ -111,15 +96,15 @@
             <div class="cart-total-section">
                 <div class="counter-cart-subtotal">
                     <span th:text="#{label.subtotal}">Subtotal</span>
-                    <span id="cart-subtotal">€0,00</span>
+                    <span id="cart-subtotal" th:text="${#prices.format(0)}">0,00 €</span>
                 </div>
                 <div class="counter-cart-discount">
                     <span th:text="#{label.discount}">Discount</span>
-                    <span id="cart-discount">-€0,00</span>
+                    <span id="cart-discount" th:text="${#prices.format(0)}">0,00 €</span>
                 </div>
                 <div class="cart-total-row">
                     <span th:text="#{label.total}">TOTAL</span>
-                    <span id="cart-total">€0,00</span>
+                    <span id="cart-total" th:text="${#prices.format(0)}">0,00 €</span>
                 </div>
                 <input type="text" class="counter-input counter-customer-name is-hidden" id="takeaway-customer-name" maxlength="80"
                     th:placeholder="#{placeholder.customer.name}">
@@ -182,7 +167,7 @@
                             <h6 class="counter-payment-section-title" th:text="#{label.order.summary}">Order Summary</h6>
                             <div class="counter-payment-total">
                                 <span th:text="#{label.total.to.pay}">Total to Pay</span>: <span
-                                    id="payment-total">€0,00</span>
+                                    id="payment-total" th:text="${#prices.format(0)}">0,00 €</span>
                             </div>
 
                             <h6 class="counter-payment-section-title" th:text="#{label.payment.option}">Payment Option</h6>
@@ -209,7 +194,7 @@
                                     step="0.01">
                                 <div class="counter-payment-change">
                                     <span th:text="#{label.payment.change}">Change</span>: <span
-                                        id="payment-change">€0,00</span>
+                                        id="payment-change" th:text="${#prices.format(0)}">0,00 €</span>
                                 </div>
                             </div>
                         </div>
@@ -221,7 +206,7 @@
                                     th:data-value="${denom.value}"
                                     th:classappend="${#strings.toLowerCase(denom.type)}">
                                     <img th:if="${denom.image}" th:src="${denom.image}" class="money-img" alt="money">
-                                    <span th:if="${denom.image == null}" th:text="${#numbers.formatCurrency(denom.value)}">€5.00</span>
+                                    <span th:if="${denom.image == null}" th:text="${#prices.format(denom.value)}">5,00 €</span>
                                 </button>
                             </div>
                         </div>
@@ -331,6 +316,26 @@
         </div>
     </dialog>
 
+    <!-- Clear Order Confirmation: Escape and Cancel keep the order -->
+    <dialog class="dialog dialog-centered counter-dialog" id="clearOrderModal" aria-labelledby="clear-order-title" aria-describedby="clear-order-message">
+        <div class="counter-dialog-frame">
+            <div class="counter-dialog-content">
+                <div class="counter-dialog-header counter-dialog-header-confirm">
+                    <h5 id="clear-order-title" class="counter-dialog-title" th:text="#{counter.clear.title}">Clear the order?</h5>
+                </div>
+                <div class="counter-dialog-body">
+                    <p id="clear-order-message" class="counter-dialog-message" th:text="#{message.confirm.clear.order}">Are you sure you want to clear the current order?</p>
+                </div>
+                <div class="counter-dialog-footer">
+                    <button type="button" class="counter-button counter-button-secondary-filled counter-dialog-choice" data-dialog-close autofocus
+                        th:text="#{button.cancel}">Cancel</button>
+                    <button type="button" class="counter-button counter-button-danger-filled counter-dialog-choice" id="btn-confirm-clear-order"
+                        th:text="#{button.clear.order}">Clear Order</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
     <!-- Mobile Cart Toggle -->
     <button class="mobile-cart-toggle" id="mobile-cart-toggle">
         <svg class="icon" aria-hidden="true"><use href="#i-cart"></use></svg>
@@ -345,7 +350,6 @@
         th:data-message-order-update-error="#{message.order.update.error}"
         th:data-message-order-create-error="#{message.order.create.error}"
         th:data-message-order-submit-error="#{message.order.submit.error}"
-        th:data-message-confirm-clear-order="#{message.confirm.clear.order}"
         th:data-label-total-to-pay="#{label.total.to.pay}" th:data-button-add-to-order="#{button.add.to.order}"
         th:data-label-all-products="#{label.all.products}" th:data-status-available="#{table.status.available}"
         th:data-status-occupied="#{table.status.occupied}" th:data-status-billing="#{table.status.billing}"
@@ -356,7 +360,7 @@
         th:data-label-unpaid="#{label.order.status.unpaid}" th:data-label-canceled="#{label.order.status.canceled}"
         th:data-message-confirm-cancel-order="#{message.confirm.cancel.order}" th:data-button-pay="#{button.pay.now}"
         th:data-button-cancel="#{button.cancel}" th:data-button-back="#{button.back}" th:data-label-assign-table="#{label.assign.table}"
-        th:data-button-clear-order="#{button.clear.order}" th:data-button-cancel-order="#{button.cancel.order}"
+        th:data-button-cancel-order="#{button.cancel.order}"
         th:data-label-table-name="#{label.table.name}" th:data-label-loading="#{label.loading}"
         th:data-message-no-pickup-orders="#{message.no.pickup.orders}">
     </div>

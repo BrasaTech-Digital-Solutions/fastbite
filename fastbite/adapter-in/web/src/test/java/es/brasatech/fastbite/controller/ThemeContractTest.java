@@ -20,7 +20,9 @@ import es.brasatech.fastbite.config.RegisteredTenants;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.ThemeCatalog;
 import es.brasatech.fastbite.config.WebConfig;
+import es.brasatech.fastbite.domain.allergen.Allergen;
 import es.brasatech.fastbite.domain.payment.PaymentConfig;
+import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import es.brasatech.fastbite.dto.menu.MenuData;
 import es.brasatech.fastbite.dto.office.MenuDataService;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -43,6 +46,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -60,7 +64,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -172,6 +178,38 @@ class ThemeContractTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/css"))
                 .andExpect(content().string(containsString("--color-primary: #000000;")));
+    }
+
+    @Test
+    void theCounterAndTheFragmentsItLoadsCarryNoStyleAndShowAmountsInThePageLanguage() throws Exception {
+        when(productService.findAll()).thenReturn(List.of(new ProductDto("latte", "Latte", new BigDecimal("1.80"), "", null,
+                Set.of(), true, null, Set.of(Allergen.MILK))));
+        when(orderPricingService.price(any(), any())).thenAnswer(call -> call.getArgument(0));
+        when(discountService.calculateDiscount(any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
+        Locale spanish = Locale.forLanguageTag("es");
+        String page = render(as("MANAGER", get("/kebab/counter")).locale(spanish));
+        String products = render(as("MANAGER", get("/counter/fragments/products")).locale(spanish)
+                .header("Referer", "http://localhost/kebab/counter"));
+        String cart = render(as("MANAGER", post("/counter/fragments/order-cart")).locale(spanish).with(csrf())
+                .header("Referer", "http://localhost/kebab/counter").contentType(MediaType.APPLICATION_JSON)
+                .content("[{\"id\":\"l1\",\"productId\":\"latte\",\"itemId\":\"latte\",\"name\":\"Latte\",\"price\":1.80,\"quantity\":2,\"customizations\":[]}]"));
+        for (Map.Entry<String, String> rendered : Map.of("counter", page, "products", products, "cart", cart).entrySet()) {
+            String html = rendered.getValue();
+            assertThat(RestaurantTemplateContractTest.INLINE_STYLE.matcher(html).find()).as("inline style in %s", rendered.getKey()).isFalse();
+            assertThat(RestaurantTemplateContractTest.COLOUR.matcher(html).find()).as("colour in %s", rendered.getKey()).isFalse();
+            assertThat(RestaurantTemplateContractTest.BOOTSTRAP_OR_FONT_AWESOME.matcher(html).find())
+                    .as("Bootstrap or Font Awesome in %s", rendered.getKey()).isFalse();
+        }
+        // The page's language reaches the scripts, which format with Intl.NumberFormat like the server
+        assertThat(page).contains("lang=\"es\"", "id=\"clearOrderModal\"", ">0,00\u00a0€<");
+        // A price with its currency, and the allergen named next to its icon (this context has no message bundle)
+        assertThat(products).contains(">1,80\u00a0€<", "role=\"list\"")
+                .containsPattern("<span aria-hidden=\"true\">\\x{1F95B}</span> <span>[^<]*allergen\\.milk");
+        assertThat(cart).contains(">3,60\u00a0€<");
+    }
+
+    private String render(MockHttpServletRequestBuilder request) throws Exception {
+        return mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private static MockHttpServletRequestBuilder as(String role, MockHttpServletRequestBuilder request) {

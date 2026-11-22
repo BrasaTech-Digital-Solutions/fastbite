@@ -19,7 +19,7 @@
                     <li class="nav-item">
                         <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}" 
                            th:classappend="${activeTab == 'menu' ? 'active glass-bg' : ''}">
-                            <i class="fas fa-utensils me-1"></i> <span th:text="#{menu.title}">Menu</span>
+                            <i class="fas fa-utensils me-1"></i> <span th:text="#{staff.nav.menu}">Menu</span>
                         </a>
                     </li>
                     
@@ -27,7 +27,7 @@
                     <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')">
                         <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}" 
                            th:classappend="${activeTab == 'dashboard' ? 'active glass-bg' : ''}">
-                            <i class="fas fa-tachometer-alt me-1"></i> <span th:text="#{label.dashboard}">Dashboard</span>
+                            <i class="fas fa-tachometer-alt me-1"></i> <span th:text="#{staff.nav.kitchen}">Kitchen</span>
                         </a>
                     </li>
                     
@@ -35,7 +35,7 @@
                     <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')">
                         <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/counter' : '/counter'}" 
                            th:classappend="${activeTab == 'counter' ? 'active glass-bg' : ''}">
-                            <i class="fas fa-cash-register me-1"></i> <span th:text="#{page.title.counter}">Counter</span>
+                            <i class="fas fa-cash-register me-1"></i> <span th:text="#{staff.nav.counter}">Counter</span>
                         </a>
                     </li>
 
@@ -43,7 +43,7 @@
                     <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')">
                         <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}"
                            th:classappend="${activeTab == 'tickets' ? 'active glass-bg' : ''}">
-                            <i class="fas fa-receipt me-1"></i> <span th:text="#{tickets.title}">Tickets</span>
+                            <i class="fas fa-receipt me-1"></i> <span th:text="#{staff.nav.tickets}">Tickets</span>
                         </a>
                     </li>
                     
@@ -51,7 +51,7 @@
                     <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'MANAGER')">
                         <a class="nav-link px-3 rounded-pill" th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}" 	
                            th:classappend="${activeTab == 'backoffice' ? 'active glass-bg' : ''}">
-                            <i class="fas fa-user-shield me-1"></i> <span th:text="#{backoffice.title}">BackOffice</span>
+                            <i class="fas fa-user-shield me-1"></i> <span th:text="#{staff.nav.backoffice}">Management</span>
                         </a>
                     </li>
                 </ul>
@@ -127,18 +127,18 @@
     <div class="topbar-inner">
         <a class="topbar-brand" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}">
             <span class="topbar-logo"><svg class="icon" aria-hidden="true"><use href="#i-logo"></use></svg></span>
-            <span class="topbar-name" th:text="#{logo.title}">FastBite</span>
+            <span class="topbar-name" th:text="${restaurantName} ?: #{logo.title}">FastBite</span>
         </a>
         <button type="button" class="topbar-toggle" aria-expanded="false" aria-controls="navbarContent" data-topbar-toggle th:aria-label="#{guest.nav.toggle}">
             <svg class="icon" aria-hidden="true"><use href="#i-bars"></use></svg>
         </button>
         <div class="topbar-content" id="navbarContent">
             <ul th:if="${param.preview == null}" class="topbar-links" sec:authorize="isAuthenticated()">
-                <li><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}"><svg class="icon" aria-hidden="true"><use href="#i-utensils"></use></svg> <span th:text="#{menu.title}">Menu</span></a></li>
-                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}"><svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{label.dashboard}">Dashboard</span></a></li>
-                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link is-active" aria-current="page" th:href="${tenantId != null ? '/' + tenantId + '/counter' : '/counter'}"><svg class="icon" aria-hidden="true"><use href="#i-register"></use></svg> <span th:text="#{page.title.counter}">Counter</span></a></li>
-                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}"><svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{tickets.title}">Tickets</span></a></li>
-                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}"><svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{backoffice.title}">BackOffice</span></a></li>
+                <li><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/menu' : '/menu'}"><svg class="icon" aria-hidden="true"><use href="#i-utensils"></use></svg> <span th:text="#{staff.nav.menu}">Menu</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/dashboard' : '/dashboard'}"><svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg> <span th:text="#{staff.nav.kitchen}">Kitchen</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'COOK', 'WAITER')"><a class="topbar-link is-active" aria-current="page" th:href="${tenantId != null ? '/' + tenantId + '/counter' : '/counter'}"><svg class="icon" aria-hidden="true"><use href="#i-register"></use></svg> <span th:text="#{staff.nav.counter}">Counter</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'CASHIER', 'WAITER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/counter/tickets' : '/counter/tickets'}"><svg class="icon" aria-hidden="true"><use href="#i-receipt"></use></svg> <span th:text="#{staff.nav.tickets}">Tickets</span></a></li>
+                <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"><a class="topbar-link" th:href="${tenantId != null ? '/' + tenantId + '/backoffice' : '/backoffice'}"><svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg> <span th:text="#{staff.nav.backoffice}">Management</span></a></li>
             </ul>
             <div class="topbar-actions">
                 <button class="topbar-cart" id="kitchenAudioToggleBtn" type="button" title="Toggle Kitchen Audio Chime" th:data-tap-to-enable="#{kitchen.audio.tapToEnable}" onclick="toggleKitchenAudio()">

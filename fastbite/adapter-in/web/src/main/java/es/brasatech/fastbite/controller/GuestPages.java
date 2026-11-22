@@ -15,7 +15,11 @@ final class GuestPages {
 
     /** The name the restaurant gives guests, else its location id; null when there is neither. */
     static String restaurantName(ObjectProvider<FiscalProfileService> profiles) {
-        FiscalProfileService service = profiles.getIfAvailable();
+        return restaurantName(profiles.getIfAvailable());
+    }
+
+    /** The same name for a page that always has the fiscal profiles, such as the counter's top bar. */
+    static String restaurantName(FiscalProfileService service) {
         FiscalProfile profile = service != null ? service.get() : null;
         String name = profile != null ? profile.displayName() : null;
         return name != null && !name.isBlank() ? name : TenantContext.getCurrentTenant();

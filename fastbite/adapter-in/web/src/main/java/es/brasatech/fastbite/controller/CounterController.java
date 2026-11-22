@@ -56,6 +56,8 @@ public class CounterController {
     @GetMapping({"/{tenantId}/counter", "/counter"})
     public String counter(Model model, org.springframework.security.core.Authentication user) {
         model.addAttribute("handlesTill", DayReportController.handlesTill(user));
+        // The top bar names the restaurant, as on the guest pages
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfileService));
         model.addAttribute("today", fiscalTicketService.today());
         model.addAttribute("tables", tableService.findAll());
         model.addAttribute("settings", settingsService.get());

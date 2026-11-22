@@ -95,17 +95,14 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 /* Narrow desktops: "Chime / Off" on two lines, as before, so the signed-in name keeps more room. */
 @media (min-width: 992px) and (max-width: 1199.98px) {
   .counter-page #kitchenAudioText { width: min-content; text-align: center; }
+  /* A long restaurant name ends in "…" here, so the signed-in name keeps room too. */
+  .counter-page .topbar-brand { max-width: 13rem; min-width: 0; }
+  .counter-page .topbar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 .counter-toasts { position: fixed; right: 0; bottom: 0; z-index: 2000; display: grid; gap: 0.75rem; max-width: 100%; padding: 1rem; }
 .order-card.is-inactive { filter: grayscale(0.5); }
-.counter-sidebar-brand, .counter-sidebar-account { padding: 1rem; }
-.counter-sidebar-brand { background: var(--color-sidebar-brand); text-align: center; }
-.counter-sidebar-brand a { color: var(--color-on-primary); text-decoration: underline; text-decoration-color: var(--color-highlight); }
-.counter-sidebar-brand-title { margin: 0; color: var(--color-on-primary); font-size: 1.5rem; }
+.counter-sidebar-account { margin-top: auto; padding: 1rem; }
 .counter-categories { flex: 1; }
-.counter-sidebar-account { margin-top: auto; }
-.counter-account-details { margin-bottom: 1rem; }
-.counter-account-label { color: var(--color-on-primary); opacity: 0.5; }
 .counter-navbar-toggle { width: 100%; }
 .counter-toolbar, .counter-toolbar-actions, .counter-cart-header-actions, .counter-action-row, .counter-payment-options, .counter-receipt-options, .counter-receipt-types, .counter-order-dialog-actions { display: flex; align-items: center; gap: 0.5rem; }
 .counter-toolbar { flex-wrap: wrap; justify-content: space-between; border-radius: 0.375rem; background: var(--color-surface); box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); }
@@ -121,8 +118,9 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-cart-title { margin: 0; color: var(--color-on-primary); font-size: 1.25rem; }
 .counter-cart-subtotal, .counter-cart-discount { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
 .counter-cart-discount { color: var(--color-danger); }
-.counter-action-row > .counter-cart-action { flex: 1; }
-.counter-action-row > .counter-cart-action { min-width: 0; padding-block: 14px; }
+/* The cart's buttons never break their words: when two don't fit side by side, each takes its own row. */
+.counter-action-row { flex-wrap: wrap; }
+.counter-action-row > .counter-cart-action { flex: 1 1 auto; padding-block: 14px; white-space: nowrap; }
 .counter-customer-name { margin-bottom: 0.5rem; }
 .counter-close { border: 0; background: transparent; color: inherit; font-size: 1.25rem; }
 .counter-close:empty::before { content: '×'; }
@@ -145,6 +143,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-button-success { border-color: var(--color-payment-success); color: var(--color-payment-success); }
 .counter-button-warning { border-color: var(--color-control-warning); color: var(--color-control-warning); }
 .counter-button-danger, .counter-button-delete { border-color: var(--color-danger); color: var(--color-danger); }
+.counter-button-danger-filled { border-color: var(--color-danger); background: var(--color-danger); color: var(--color-on-primary); }
 .counter-button-info { border-color: var(--color-control-info); color: var(--color-control-info); }
 .counter-button-neutral:hover:not(:disabled), #btn-takeaway.active { background: var(--color-text-muted); color: var(--color-on-primary); }
 .counter-button-light:hover:not(:disabled) { background: var(--color-on-primary); color: var(--color-text); }
@@ -254,13 +253,28 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 @media (min-width: 992px) {
   .counter-page:has(.fb-sandbox-banner) dialog.dialog:not(.dialog-centered) .counter-dialog-header { padding-top: 0.25rem; }
 }
-@media (min-width: 992px) { .counter-cart-close { display: none; } }
+@media (min-width: 992px) {
+  .counter-cart-close { display: none; }
+  /* The counter fills the screen below the sandbox or VERI*FACTU banner, whatever its height, so the cart's
+     totals and "Pay now" are always on screen: only the products and the cart lines scroll. */
+  body.counter-page { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+  .counter-page > .pos-wrapper { flex: 1 1 auto; min-height: 0; height: auto; }
+}
 @media (max-width: 991.98px) {
   .counter-page .mobile-cart-toggle { display: flex; }
-  .counter-sidebar-brand, .counter-sidebar-account { display: none; }
+  .counter-sidebar-account { display: none; }
   .counter-payment-options > button { white-space: normal; }
   .counter-page:has(.fb-sandbox-banner) dialog.dialog:not(.dialog-centered) { max-height: calc(100dvh - 5.5rem); margin-top: 3.75rem; }
 }
 @media (min-width: 576px) {
   .counter-invoice-fields, .counter-cash-movements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* "Clear" is a full touch target, and asks first (#clearOrderModal). */
+.counter-page #btn-clear-cart { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; min-width: 44px; min-height: 44px; padding: 0.5rem 0.875rem; font-size: 0.875rem; letter-spacing: 0.03em; }
+.counter-page #btn-clear-cart .icon { width: 1.125em; height: 1.125em; }
+.counter-dialog-message { margin: 0; }
+.counter-dialog-footer > .counter-dialog-choice { min-height: 44px; padding-inline: 1.25rem; font-weight: 700; }
+/* Allergens under a product name, named as on the guest menu ("Lácteos"), not a bare icon */
+.counter-product-details .allergen-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 6px; letter-spacing: 0; line-height: 1.2; }
+.counter-product-details .allergen-chip { padding: 2px 8px; font-size: 11px; }
+.counter-dialog-header-confirm .counter-dialog-title { color: inherit; }

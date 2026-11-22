@@ -20,7 +20,6 @@
   --color-on-action-muted: #2D231E;
   --gradient-dialog-header: var(--gradient-brand);
   --color-on-dialog-header: #fff;
-  --color-sidebar-brand: #271510;
 }
 
 /* Kitchen: order card headers by status */

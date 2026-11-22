@@ -36,7 +36,6 @@ layout and components, written against the same tokens, with no theme id and no 
 | `--color-text-muted` | Secondary text: category filters, allergen notes, ticket figure labels, cash check labels | `#6c757d` |
 | `--color-border` | Neutral borders: cart, search field, table buttons, order cards, quantity buttons, summary box | `#dee2e6` |
 | `--color-sidebar` | Counter category sidebar (top of its gradient), cart header, back-office field labels | `#2c3e50` |
-| `--color-sidebar-brand` | Brand block at the top of the counter's category sidebar | `#212529` |
 | `--gradient-brand` | Top bar, active category, the counter's main and add buttons | `linear-gradient(135deg, var(--color-primary), var(--color-accent))` |
 | `--color-highlight` | Guest pages: prices on menu cards, the cart count, summary icons, links (Bootstrap's blue until now) | `#0d6efd` |
 | `--color-action` | Guest pages: the dialog's main button, outlined cart buttons, the item count, the cancelled page's button | `#0d6efd` |

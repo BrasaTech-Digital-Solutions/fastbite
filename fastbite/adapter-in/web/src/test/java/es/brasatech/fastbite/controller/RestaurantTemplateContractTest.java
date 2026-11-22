@@ -5,8 +5,11 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 
@@ -21,9 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RestaurantTemplateContractTest {
 
     /** Inline style attributes, plain or Thymeleaf. */
-    private static final Pattern INLINE_STYLE = Pattern.compile("(?<![\\w-])(?:th:)?style\\s*=");
+    static final Pattern INLINE_STYLE = Pattern.compile("(?<![\\w-])(?:th:)?style\\s*=");
     /** Colour literals: six- or eight-digit hex, short hex in a CSS value, or an rgb()/hsl() function. */
-    private static final Pattern COLOUR = Pattern.compile(
+    static final Pattern COLOUR = Pattern.compile(
             "(?<![&\\w])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6})\\b"
                     + "|(?:[:(,]\\s*|\\b(?:solid|dashed|dotted)\\s+)#[0-9a-fA-F]{3,4}\\b"
                     + "|\\b(?:rgba?|hsla?)\\(");
@@ -50,8 +53,25 @@ class RestaurantTemplateContractTest {
             "guest-ticket.js", "live-updates.js"};
     /** The latter two are shared with Bootstrap pages, but neither path sets inline styles or names a theme. */
     private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
-    private static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
+    static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
+    /**
+     * Staff pages still on Bootstrap and the legacy navigation ({@code navbar :: navbar}), outside the native checks
+     * until their own item: the kitchen, tickets, day report and table QR codes in item 4, the back office after it.
+     */
+    static final List<String> STAFF_PAGES_WAITING = List.of(
+            "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html", "backOffice.html");
+    /** Every fragment the counter renders, on its page or through its fragment endpoints. All are native. */
+    private static final Set<String> COUNTER_FRAGMENTS = Set.of(
+            "guest :: icons", "environment :: banner", "navbar :: counter", "counter :: tables",
+            "invoice-fields :: counterFields", "cashCheck :: counterModal", "cashCheck :: denominations");
+    private static final Pattern SCRIPT_LINK = Pattern.compile("@\\{/js/([\\w.-]+\\.js)}");
+    private static final Pattern FRAGMENT_REFERENCE = Pattern.compile("~\\{fastfood/fragments/([\\w-]+) :: ([\\w-]+)");
+    /**
+     * Loaded by the counter but shared with the Bootstrap pages and the owner workspace: its fallback dialog (still
+     * used to cancel a table order) builds inline styles. It joins COUNTER_SCRIPTS when that dialog moves.
+     */
+    static final List<String> COUNTER_SCRIPTS_WAITING = List.of("confirm-dialog.js");
     private static final Pattern SCRIPT_STYLE = Pattern.compile("\\.style\\.|\\.cssText|setProperty\\(");
     private static final Pattern SCRIPT_THEME = Pattern.compile(
             "(?i)data-theme|(?<![\\w-])(?:fastfood|cafe|modern|test-contrast)(?![\\w-])");
@@ -86,10 +106,45 @@ class RestaurantTemplateContractTest {
         for (String template : new String[]{"counter.html", "fragments/counter.html"}) {
             assertNativeCounter(template, readTemplate(template));
         }
-        // The legacy parts remain for dashboard, dayReport, tickets, tableQrCodes and backOffice until item 4.
+        // The legacy parts of these shared files remain for STAFF_PAGES_WAITING.
         assertNativeCounter("counter navbar", fragment("fragments/navbar.html", "<header th:fragment=\"counter\"", "</header>"));
         assertNativeCounter("counter cash check", fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"));
+        assertNativeCounter("cash check notes and coins", fragment("fragments/cashCheck.html", "<details th:fragment=\"denominations\"", "</details>"));
         assertNativeCounter("counter invoice fields", fragment("fragments/invoice-fields.html", "<div th:fragment=\"counterFields(prefix)\"", "</body>"));
+    }
+
+    @Test
+    void theCounterRendersOnlyItsNativeFragments() throws IOException {
+        Set<String> used = new TreeSet<>();
+        for (String html : List.of(readTemplate("counter.html"), readTemplate("fragments/counter.html"),
+                fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"))) {
+            FRAGMENT_REFERENCE.matcher(html).results().forEach(ref -> used.add(ref.group(1) + " :: " + ref.group(2)));
+        }
+        assertThat(used).as("fragments the counter renders").isSubsetOf(COUNTER_FRAGMENTS).contains("navbar :: counter");
+        assertThat(readTemplate("counter.html")).as("the counter loads no Bootstrap page script")
+                .doesNotContain("/webjars/").doesNotContain("navbar :: navbar");
+        // Every script it loads is checked, as a counter or guest script, or is listed as waiting
+        Set<String> checked = new TreeSet<>(List.of(COUNTER_SCRIPTS));
+        checked.addAll(List.of(GUEST_SCRIPTS));
+        checked.addAll(COUNTER_SCRIPTS_WAITING);
+        assertThat(SCRIPT_LINK.matcher(readTemplate("counter.html")).results().map(link -> link.group(1)).toList())
+                .as("scripts the counter loads").isNotEmpty().allMatch(checked::contains);
+    }
+
+    @Test
+    void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
+        assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html");
+        for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",
+                "backOffice.html")) {
+            String html = readTemplate(page);
+            boolean legacy = html.contains("navbar :: navbar") || BOOTSTRAP_OR_FONT_AWESOME.matcher(html).find();
+            if (legacy) assertThat(STAFF_PAGES_WAITING).as("%s still uses Bootstrap or the legacy navigation", page).contains(page);
+        }
+        // The two navigations name the staff pages alike
+        String navbar = readTemplate("fragments/navbar.html");
+        for (String key : List.of("staff.nav.menu", "staff.nav.kitchen", "staff.nav.counter", "staff.nav.tickets", "staff.nav.backoffice")) {
+            assertThat(navbar.split(Pattern.quote("#{" + key + "}"), -1)).as(key).hasSize(3);
+        }
     }
 
     private static void assertNativeCounter(String label, String html) {

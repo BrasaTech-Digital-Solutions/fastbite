@@ -22,14 +22,15 @@
     <th:block th:fragment="products(products)">
         <div th:each="p : ${products}" th:if="${p.active}" class="counter-product-cell">
             <div class="product-card" th:data-id="${p.id}" onclick="handleProductClick(this.dataset.id)">
-                <div class="price-tag" th:text="${#numbers.formatDecimal(p.price, 1, 2)}">0.00</div>
+                <div class="price-tag" th:text="${#prices.format(p.price)}">0,00 €</div>
                 <img th:src="${p.image ?: '/images/placeholder.png'}" class="product-img" th:alt="${p.name}">
                 <div class="counter-product-details">
                     <h6 class="counter-product-name" th:text="${p.name}">Product Name</h6>
-                    <span class="counter-allergens" th:if="${p.allergensDeclared() && !#sets.isEmpty(p.allergens())}"
-                        th:title="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}"
-                        th:aria-label="${#strings.listJoin(p.allergens().![#messages.msg(messageKey())], ', ')}" role="img"
-                        th:text="${#strings.listJoin(p.allergens().![icon()], '')}">🌾🥛</span>
+                    <span class="allergen-chips counter-allergens" th:if="${p.allergensDeclared() && !#sets.isEmpty(p.allergens())}"
+                        role="list" th:aria-label="#{counter.allergens.label}">
+                        <span th:each="allergen : ${p.allergens()}" class="allergen-chip" role="listitem"><span aria-hidden="true"
+                            th:text="${allergen.icon()}">🥛</span> <span th:text="#{${allergen.messageKey()}}">Milk</span></span>
+                    </span>
                     <span class="counter-allergens undeclared" th:unless="${p.allergensDeclared()}"
                         th:text="#{backoffice.products.allergens.missing}">Allergens not declared</span>
                 </div>
@@ -91,7 +92,7 @@
                     10:00</div>
                 <div class="counter-order-meta">
                     <span th:text="${#lists.size(order.items)} + ' ' + #{label.items}">5 Items</span> -
-                    <span th:text="${#numbers.formatDecimal(order.total, 1, 2)}">10.00</span>
+                    <span th:text="${#prices.format(order.total)}">10,00 €</span>
                 </div>
             </div>
             <button th:if="${!#strings.isEmpty(order.onlineTicket)}" class="counter-button counter-button-success"
@@ -118,7 +119,7 @@
         <div th:each="item, iter : ${items}" class="cart-item">
             <div class="counter-cart-item-heading">
                 <span class="counter-emphasis" th:text="${item.name}">Item Name</span>
-                <span th:text="${#numbers.formatDecimal(item.price * item.quantity, 1, 2)}">10.00</span>
+                <span th:text="${#prices.format(item.price * item.quantity)}">10,00 €</span>
             </div>
             <div th:if="${not #lists.isEmpty(item.customizations)}" class="counter-cart-customizations"
                 th:text="${#strings.arrayJoin(item.customizations.![name], ', ')}">
@@ -173,7 +174,7 @@
                                 th:text="#{label.order.status.unpaid}">Unpaid</span>
                         </span>
                     </div>
-                    <span class="counter-order-amount" th:text="${#numbers.formatDecimal(order.total, 1, 2)}">20.00</span>
+                    <span class="counter-order-amount" th:text="${#prices.format(order.total)}">20,00 €</span>
                 </div>
                 <div th:if="${!#strings.isEmpty(order.onlineTicket)}" class="counter-online-ticket">
                     <span class="counter-ticket-label" th:text="#{ticket.payment.online}">Paid online</span> ·
@@ -191,21 +192,21 @@
                                     Extra Cheese
                                 </div>
                             </div>
-                            <span th:text="${#numbers.formatDecimal(item.totalPrice, 1, 2)}">10.00</span>
+                            <span th:text="${#prices.format(item.totalPrice)}">10,00 €</span>
                         </div>
                     </div>
                     <div class="counter-order-totals">
                         <div class="counter-order-subtotal">
                             <span th:text="#{label.subtotal}">Subtotal</span>
-                            <span th:text="${#numbers.formatDecimal(order.subtotal, 1, 2)}">10.00</span>
+                            <span th:text="${#prices.format(order.subtotal)}">10,00 €</span>
                         </div>
                         <div th:if="${order.discount > 0}" class="counter-order-discount">
                             <span th:text="#{label.discount}">Discount</span>
-                            <span th:text="'-' + ${#numbers.formatDecimal(order.discount, 1, 2)}">-2.00</span>
+                            <span th:text="'-' + ${#prices.format(order.discount)}">-2,00 €</span>
                         </div>
                         <div class="counter-order-total">
                             <span th:text="#{label.total}">Total</span>
-                            <span th:text="${#numbers.formatDecimal(order.total, 1, 2)}">10.00</span>
+                            <span th:text="${#prices.format(order.total)}">10,00 €</span>
                         </div>
                     </div>
                     <div class="counter-order-actions">
@@ -260,7 +261,7 @@
                     th:for="${cust.id + '-opt-' + optIter.index}">
                     <span th:text="${opt.name}">Option Name</span>
                     <span class="counter-secondary-text"
-                        th:text="${opt.price > 0 ? '+' + #numbers.formatDecimal(opt.price, 1, 2) : ''}">+1.00</span>
+                        th:text="${opt.price > 0 ? '+' + #prices.format(opt.price) : ''}">+1,00 €</span>
                 </label>
             </div>
             <div th:if="${cust.type == 'quantity'}" th:each="opt : ${cust.options}" class="ingredient-control">
@@ -272,7 +273,7 @@
                             th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</span>
                     </div>
                     <div class="ingredient-price" th:if="${opt.price > 0}"
-                        th:text="${'(+' + #numbers.formatDecimal(opt.price, 1, 2) + ')'}">+1.00</div>
+                        th:text="${'(+' + #prices.format(opt.price) + ')'}">(+1,00 €)</div>
                 </div>
                 <div class="ingredient-quantity-control">
                     <button type="button" class="ingredient-btn"

@@ -198,15 +198,18 @@ function setupEventListeners() {
     document.getElementById('btn-save-order').addEventListener('click', () => saveOrder());
     document.getElementById('btn-assign-table').addEventListener('click', () => submitOrder(false));
     document.getElementById('btn-billing').addEventListener('click', () => setTableStatus(selectedTable.id, 'BILLING'));
-    document.getElementById('btn-clear-cart').addEventListener('click', async () => {
-        if (await fbConfirm({
-            message: t('messageConfirmClearOrder'),
-            confirmText: t('buttonClearOrder'),
-            cancelText: t('buttonCancel'),
-            danger: true
-        })) {
+    // Clearing asks first, in a native dialog, only when there are lines to lose. Escape and Cancel keep them.
+    const clearDialog = document.getElementById('clearOrderModal');
+    document.getElementById('btn-clear-cart').addEventListener('click', event => {
+        if (cart.length === 0) {
             resetPOS();
+        } else {
+            window.FastBiteDialogs.open(clearDialog, event.currentTarget);
         }
+    });
+    document.getElementById('btn-confirm-clear-order').addEventListener('click', () => {
+        window.FastBiteDialogs.close(clearDialog);
+        resetPOS();
     });
 
     // Payment Logic
@@ -975,8 +978,10 @@ function calculateTotal() {
     return cart.reduce((sum, item) => sum + (calculateItemPrice(item) * item.quantity), 0);
 }
 
+// Amounts in the page's language, as the server writes them: "1,80 €" in Spanish
+const priceFormat = new Intl.NumberFormat(document.documentElement.lang || 'es', { style: 'currency', currency: 'EUR' });
 function formatPrice(val) {
-    return parseFloat(val).toFixed(2);
+    return priceFormat.format(parseFloat(val) || 0);
 }
 
 function changeCounterQuantityToggle(optionId, change) {
