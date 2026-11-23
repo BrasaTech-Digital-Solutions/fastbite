@@ -155,6 +155,21 @@ class VerifactuBannerAndAdminWebTest {
     class ProductionTests extends BaseWebTest {
 
         @Test
+        void allHoldReasonsRenderTheirOwnerBanner() throws Exception {
+            var messages = java.util.ResourceBundle.getBundle("i18n.messages", Locale.ENGLISH);
+            for (var reason : HoldReason.values()) {
+                when(gate.holdReason(TENANT)).thenReturn(Optional.of(reason));
+                String html = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                                .locale(Locale.ENGLISH).with(user(ownerPrincipal(OWNER))))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+                String expected = messages.getString(EnvironmentAdvice.holdReasonMessageKey(reason));
+                assertThat(org.unbescape.html.HtmlEscape.unescapeHtml(html))
+                        .contains("This location is on hold and cannot issue tickets", expected, "#opening-step-verifactu");
+                System.out.println("HOLD_BANNER " + reason + " | " + expected + " | #opening-step-verifactu");
+            }
+        }
+
+        @Test
         void ownerWorkspaceRendersHoldBannerAndNeedsRefundOrders() throws Exception {
             Order refundOrder = new Order(
                     List.of(), 42, "ord-1", LocalDateTime.of(2026, 11, 21, 10, 15), LocalDateTime.of(2026, 11, 21, 10, 16),
