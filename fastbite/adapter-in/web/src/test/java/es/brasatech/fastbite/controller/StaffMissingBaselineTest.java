@@ -35,6 +35,9 @@ class StaffMissingBaselineTest {
         for (String tenant : new String[]{"absentrestaurant", "invalid-tenant", "otherrestaurant"}) {
             String url = "/owner/locations/" + tenant + "/users";
             mvc.perform(get(url).principal(auth)).andExpect(status().isNotFound());
+            mvc.perform(post(url).param("username", "user").param("fullName", "User")
+                    .param("password", "longpassword1").param("role", "CASHIER").principal(auth))
+                    .andExpect(status().isNotFound());
             mvc.perform(post(url + "/delete").param("userId", "unknown").principal(auth)).andExpect(status().isNotFound());
         }
     }
