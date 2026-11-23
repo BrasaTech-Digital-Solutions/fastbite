@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.TestConfig;
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
@@ -57,6 +58,7 @@ class TicketEndpointTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private FiscalTicketService tickets;
+    @MockitoBean private FiscalProfileService fiscalProfiles;
     @MockitoBean private es.brasatech.fastbite.application.verifactu.VerifactuService verifactu;
     @MockitoBean private TenantLocationService tenantLocationService;
 

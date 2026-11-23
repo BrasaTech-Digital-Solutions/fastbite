@@ -4,27 +4,6 @@
 .counter-loading { padding: 1rem; color: var(--color-text-muted); text-align: center; }
 .counter-spinner { display: inline-block; width: 1em; height: 1em; margin-right: 0.5rem; border: 0.15em solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -0.125em; animation: icon-spin 0.75s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .counter-spinner { animation: none; } }
-dialog.dialog:modal { overscroll-behavior: contain; }
-dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
-.counter-field {
-  display: block;
-  width: 100%;
-  padding: 0.375rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: min(var(--radius), 6px);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.counter-field-label { display: block; margin-bottom: 0.5rem; }
-.counter-help { color: var(--color-text-muted); font-size: 0.875em; }
-.counter-error { color: var(--color-danger); }
-.counter-invoice-fields, .counter-cash-movements { display: grid; gap: 1rem; }
-.counter-invoice-line { grid-column: 1 / -1; }
-.counter-cash-result-row { display: flex; justify-content: space-between; gap: 1rem; }
-.counter-cash-report { display: inline-block; margin-right: auto; padding: 0.375rem 0.75rem; border: 1px solid var(--color-text-muted); border-radius: min(var(--radius), 6px); color: var(--color-text-muted); text-decoration: none; }
-.counter-cash-report:hover { background: var(--color-text-muted); color: var(--color-on-primary); }
-.counter-leading-icon { margin-right: 0.5rem; }
 .counter-product-cell { min-width: 0; }
 .counter-product-details { padding: 12px; text-align: center; }
 .counter-product-name { margin: 0; overflow: hidden; color: var(--color-text-strong); font-size: 0.95rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -98,9 +77,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-close { border: 0; background: transparent; color: inherit; font-size: 1.25rem; }
 .counter-close:empty::before { content: '×'; }
 .counter-close-on-dark { color: var(--color-on-primary); }
-.counter-button { display: inline-block; padding: 0.375rem 0.75rem; border: 1px solid transparent; border-radius: min(var(--radius), 6px); background: transparent; color: var(--color-text); line-height: 1.5; text-align: center; text-decoration: none; cursor: pointer; }
 .counter-button.btn-pos-primary { padding: 14px; border: 0; border-radius: var(--radius); background: var(--gradient-brand); color: var(--color-on-primary); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
-.counter-button:disabled { opacity: 0.65; cursor: default; }
 .counter-clear-button, .counter-navbar-toggle, .counter-order-actions .counter-button, .counter-online-ticket .counter-button,
 .counter-active-order .counter-button, .counter-quantity .counter-button {
   padding: 0.25rem 0.5rem;
@@ -110,7 +87,6 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .qr-trust-toggle { padding: 0 0.5rem; font-size: 0.75rem; }
 .qr-trust-toggle[data-target-trusted="false"] .icon { color: var(--color-success); }
 .qr-trust-toggle[data-target-trusted="true"] .icon { color: var(--color-text-muted); }
-.counter-button-neutral { border-color: var(--color-text-muted); color: var(--color-text-muted); }
 .counter-button-light { border-color: var(--color-on-primary); color: var(--color-on-primary); }
 .counter-button-primary { border-color: var(--color-action); color: var(--color-action); }
 .counter-button-success { border-color: var(--color-payment-success); color: var(--color-payment-success); }
@@ -118,7 +94,7 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-button-danger, .counter-button-delete { border-color: var(--color-danger); color: var(--color-danger); }
 .counter-button-danger-filled { border-color: var(--color-danger); background: var(--color-danger); color: var(--color-on-primary); }
 .counter-button-info { border-color: var(--color-control-info); color: var(--color-control-info); }
-.counter-button-neutral:hover:not(:disabled), #btn-takeaway.active { background: var(--color-text-muted); color: var(--color-on-primary); }
+#btn-takeaway.active { background: var(--color-text-muted); color: var(--color-on-primary); }
 .counter-button-light:hover:not(:disabled) { background: var(--color-on-primary); color: var(--color-text); }
 .counter-button-primary:hover:not(:disabled) { background: var(--color-action); color: var(--color-on-primary); }
 .counter-button-success:hover:not(:disabled) { background: var(--color-success); color: var(--color-on-primary); }
@@ -131,9 +107,8 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
 .counter-button.money-btn { padding-block: 0.5rem; }
 .payment-method-btn .icon { width: 1.5em; height: 1.5em; margin-block: -0.25em; }
 .counter-complete-order { padding: 0.5rem 3rem; font-size: 1rem; font-weight: 700; }
-.counter-payment-input, .counter-cash-counted { padding: 0.5rem 1rem; font-size: 1.25rem; border-radius: min(var(--radius), 8px); }
+.counter-payment-input { padding: 0.5rem 1rem; font-size: 1.25rem; border-radius: min(var(--radius), 8px); }
 .counter-button-primary-filled { background: var(--color-action); color: var(--color-on-primary); }
-.counter-button-secondary-filled { background: var(--color-action-muted); color: var(--color-on-action-muted); }
 .counter-button-success-filled { background: var(--color-success); color: var(--color-on-primary); }
 .counter-button-warning-filled { background: var(--color-warning); color: var(--color-text); }
 .counter-button-info-filled { background: var(--color-info); color: var(--color-on-primary); }
@@ -238,9 +213,6 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
   .counter-sidebar-account { display: none; }
   .counter-payment-options > button { white-space: normal; }
   .counter-page:has(.fb-sandbox-banner) dialog.dialog:not(.dialog-centered) { max-height: calc(100dvh - 5.5rem); margin-top: 3.75rem; }
-}
-@media (min-width: 576px) {
-  .counter-invoice-fields, .counter-cash-movements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* "Clear" is a full touch target, and asks first (#clearOrderModal). */
 .counter-page #btn-clear-cart { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; min-width: 44px; min-height: 44px; padding: 0.5rem 0.875rem; font-size: 0.875rem; letter-spacing: 0.03em; }

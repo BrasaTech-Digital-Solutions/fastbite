@@ -13,17 +13,29 @@ import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.payment.PaymentService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.table.TableService;
+import es.brasatech.fastbite.application.table.TableSignatureUtil;
 import es.brasatech.fastbite.application.tenant.AppearancePort;
 import es.brasatech.fastbite.application.tenant.OwnerWorkspaceService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuService;
+import es.brasatech.fastbite.config.PublicOrigin;
 import es.brasatech.fastbite.config.RegisteredTenants;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.ThemeCatalog;
 import es.brasatech.fastbite.config.WebConfig;
 import es.brasatech.fastbite.domain.allergen.Allergen;
+import es.brasatech.fastbite.domain.fiscal.DayReport;
+import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
+import es.brasatech.fastbite.domain.fiscal.FiscalTicket;
+import es.brasatech.fastbite.domain.fiscal.PaymentMethod;
+import es.brasatech.fastbite.domain.fiscal.TicketKind;
+import es.brasatech.fastbite.domain.fiscal.TicketLine;
+import es.brasatech.fastbite.domain.fiscal.VatBreakdown;
 import es.brasatech.fastbite.domain.payment.PaymentConfig;
 import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
+import es.brasatech.fastbite.domain.table.Table;
+import es.brasatech.fastbite.domain.table.TableStatus;
 import es.brasatech.fastbite.dto.menu.MenuData;
 import es.brasatech.fastbite.dto.office.MenuDataService;
 import es.brasatech.fastbite.security.SecurityConfig;
@@ -49,6 +61,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -75,9 +90,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * sets only those tokens, under its own scope; and a theme that exists only in test resources styles the guest menu,
  * the counter and the kitchen with no template, JS or Java change.
  */
-@WebMvcTest(controllers = {MenuController.class, CounterController.class, OrderController.class, AppearanceController.class},
+@WebMvcTest(controllers = {MenuController.class, CounterController.class, OrderController.class,
+        TicketController.class, DayReportController.class, TableQrController.class, AppearanceController.class},
         properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, MenuController.class, CounterController.class, OrderController.class,
+        TicketController.class, DayReportController.class, TableQrController.class,
         AppearanceController.class, AppearanceAdvice.class, ThemeCatalog.class,
         SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
 class ThemeContractTest {
@@ -94,6 +111,8 @@ class ThemeContractTest {
     @MockitoBean private TenantLocationService tenantLocationService;
     @MockitoBean private MenuDataService menuDataService;
     @MockitoBean private TableService tableService;
+    @MockitoBean private TableSignatureUtil tableSignatureUtil;
+    @MockitoBean private PublicOrigin publicOrigin;
     @MockitoBean private DiscountService discountService;
     @MockitoBean private OrderPricingService orderPricingService;
     @MockitoBean private OrderService orderService;
@@ -107,6 +126,7 @@ class ThemeContractTest {
     @MockitoBean private CustomizationService customizationService;
     @MockitoBean private FiscalTicketService fiscalTicketService;
     @MockitoBean private FiscalProfileService fiscalProfileService;
+    @MockitoBean private VerifactuService verifactuService;
 
     @BeforeEach
     void setUp() {
@@ -120,12 +140,20 @@ class ThemeContractTest {
         when(menuDataService.buildMenuData(any(Locale.class)))
                 .thenReturn(new MenuData(new HashMap<>(), List.of(), "", dictionary, List.of(), ""));
         when(paymentService.getActiveConfig()).thenReturn(new PaymentConfig("cash", List.of("CASH"), List.of(), true));
-        when(fiscalTicketService.today()).thenReturn(LocalDate.of(2026, 11, 20));
+        LocalDate day = LocalDate.of(2026, 11, 20);
+        when(fiscalTicketService.today()).thenReturn(day);
+        when(fiscalTicketService.now()).thenReturn(LocalTime.of(12, 0));
+        when(fiscalTicketService.issuedOn(any())).thenReturn(List.of());
+        when(fiscalTicketService.dayReport(any())).thenReturn(DayReport.of(day, List.of(), List.of()));
+        when(fiscalProfileService.get()).thenReturn(FiscalProfile.EMPTY);
+        when(publicOrigin.resolve(any())).thenReturn("https://example.test");
+        when(publicOrigin.isLocal(any())).thenReturn(false);
     }
 
     @Test
     void theBaseStylesheetsNameNoTheme() throws IOException {
-        for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css", "static/css/kitchen.css")) {
+        for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css",
+                "static/css/kitchen.css", "static/css/tickets.css", "static/css/table-qr.css")) {
             String base = read(path);
             assertThat(base).as(path).doesNotContain("data-theme");
             for (ThemeCatalog.Theme theme : themes.all()) {
@@ -137,6 +165,8 @@ class ThemeContractTest {
         assertThat(declaredTokens(withoutComments(read("static/css/restaurant.css")))).isEmpty();
         assertThat(declaredTokens(withoutComments(read("static/css/counter.css")))).isEmpty();
         assertThat(declaredTokens(withoutComments(read("static/css/kitchen.css")))).isEmpty();
+        assertThat(declaredTokens(withoutComments(read("static/css/tickets.css")))).isEmpty();
+        assertThat(declaredTokens(withoutComments(read("static/css/table-qr.css")))).isEmpty();
     }
 
     @Test
@@ -170,7 +200,8 @@ class ThemeContractTest {
     void aThemeOnlyInTestResourcesStylesTheMenuCounterAndKitchen() throws Exception {
         String stylesheet = themes.resolve(TEST_THEME).stylesheet();
         for (MockHttpServletRequestBuilder page : List.of(get("/kebab/menu"),
-                as("MANAGER", get("/kebab/counter")), as("COOK", get("/kebab/dashboard")))) {
+                as("MANAGER", get("/kebab/counter")), as("COOK", get("/kebab/dashboard")),
+                as("MANAGER", get("/kebab/counter/tickets")))) {
             String html = mockMvc.perform(page).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
             assertThat(html).contains("data-theme=\"" + TEST_THEME + "\"", "href=\"" + stylesheet + "\"");
             // The theme reaches the page through those two places only: nothing in the markup is theme-specific
@@ -243,6 +274,73 @@ class ThemeContractTest {
         assertThat(cookHtml)
                 .contains("id=\"cookDashboard\"", "id=\"queueDashboard\"")
                 .doesNotContain("id=\"cashierDashboard\"", "id=\"waiterDashboard\"", "id=\"managerTabs\"");
+    }
+
+    @Test
+    void ticketsTableQrAndDayReportRenderNativeSpanishMarkupWithRealRecords() throws Exception {
+        LocalDate day = LocalDate.of(2026, 11, 20);
+        OffsetDateTime issuedAt = day.atTime(12, 30).atOffset(ZoneOffset.UTC);
+        FiscalTicket.Issuer issuer = new FiscalTicket.Issuer("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000");
+        VatBreakdown vat = new VatBreakdown(List.of(new VatBreakdown.Line(
+                new BigDecimal("10.00"), new BigDecimal("10.00"), new BigDecimal("1.00"), new BigDecimal("11.00"))),
+                new BigDecimal("10.00"), new BigDecimal("1.00"), new BigDecimal("11.00"));
+        List<TicketLine> lines = List.of(new TicketLine("Kebab", 1, new BigDecimal("11.00"), new BigDecimal("11.00"),
+                new BigDecimal("10.00"), List.of()));
+        FiscalTicket cashTicket = new FiscalTicket("t-cash", TicketKind.SIMPLIFIED, "KH-T26", 1, "KH-T26-000001",
+                false, issuedAt, "carla", issuer, null, lines, BigDecimal.ZERO, new BigDecimal("11.00"), vat,
+                BigDecimal.ZERO, PaymentMethod.CASH, new BigDecimal("20.00"), new BigDecimal("9.00"), null,
+                List.of("o-1"), "12", "Mesa 1", null);
+        FiscalTicket onlineTicket = new FiscalTicket("t-online", TicketKind.SIMPLIFIED, "KH-T26", 2, "KH-T26-000002",
+                false, issuedAt.plusMinutes(5), "online", issuer, null, lines, BigDecimal.ZERO, new BigDecimal("11.00"), vat,
+                BigDecimal.ZERO, PaymentMethod.ONLINE, null, null, null,
+                List.of("o-2"), "13", null, "pi_123");
+        List<FiscalTicket> issued = List.of(cashTicket, onlineTicket);
+        when(fiscalTicketService.issuedOn(day)).thenReturn(issued);
+        when(fiscalTicketService.dayReport(day)).thenReturn(DayReport.of(day, issued, List.of()));
+        when(fiscalTicketService.corrections(anyString())).thenReturn(List.of());
+        when(fiscalTicketService.cancellation(anyString())).thenReturn(Optional.empty());
+        when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000", null, "KH", new BigDecimal("10.00")));
+        when(tableService.findAll()).thenReturn(List.of(new Table("t-1", "Mesa 1", 4, TableStatus.AVAILABLE, true, List.of())));
+        when(tableSignatureUtil.generateSignature("kebab", "t-1")).thenReturn("sig-1");
+
+        Locale spanish = Locale.forLanguageTag("es");
+        String managerTickets = render(as("MANAGER", get("/kebab/counter/tickets")).locale(spanish));
+        assertThat(RestaurantTemplateContractTest.INLINE_STYLE.matcher(managerTickets).find()).as("inline style in tickets").isFalse();
+        assertThat(RestaurantTemplateContractTest.COLOUR.matcher(managerTickets).find()).as("colour in tickets").isFalse();
+        assertThat(RestaurantTemplateContractTest.BOOTSTRAP_OR_FONT_AWESOME.matcher(managerTickets).find())
+                .as("Bootstrap or Font Awesome in tickets").isFalse();
+        assertThat(managerTickets)
+                .contains("lang=\"es\"", "/css/tickets.css", "Kebab House", "<dialog", "id=\"invoiceModal\"", "id=\"refundModal\"",
+                        "id=\"cancelModal\"", "id=\"cashCheckModal\"", "id=\"inv-taxId\"", "id=\"toastContainer\"",
+                        "role=\"status\"", "KH-T26-000001", "KH-T26-000002",
+                        "data-ticket=\"t-cash\" data-number=\"KH-T26-000001\" data-action=\"cancel\"")
+                .doesNotContain("data-ticket=\"t-online\" data-number=\"KH-T26-000002\" data-action=\"cancel\"");
+
+        String waiterTickets = render(as("WAITER", get("/kebab/counter/tickets")).locale(spanish));
+        assertThat(waiterTickets)
+                .contains("data-action=\"print\"", "data-action=\"invoice\"")
+                .doesNotContain("data-action=\"refund\"", "data-action=\"cancel\"", "id=\"cashCheckModal\"", "/counter/day-report");
+
+        String cashierTickets = render(as("CASHIER", get("/kebab/counter/tickets")).locale(spanish));
+        assertThat(cashierTickets)
+                .contains("data-action=\"print\"", "data-action=\"invoice\"", "id=\"cashCheckModal\"", "/counter/day-report")
+                .doesNotContain("data-action=\"refund\"", "data-action=\"cancel\"");
+
+        String qrHtml = render(as("MANAGER", get("/kebab/backoffice/tables/qr-codes")).locale(spanish));
+        assertThat(RestaurantTemplateContractTest.INLINE_STYLE.matcher(qrHtml).find()).as("inline style in tableQrCodes").isFalse();
+        assertThat(RestaurantTemplateContractTest.COLOUR.matcher(qrHtml).find()).as("colour in tableQrCodes").isFalse();
+        assertThat(RestaurantTemplateContractTest.BOOTSTRAP_OR_FONT_AWESOME.matcher(qrHtml).find())
+                .as("Bootstrap or Font Awesome in tableQrCodes").isFalse();
+        assertThat(qrHtml)
+                .contains("lang=\"es\"", "/css/table-qr.css", "Mesa 1", "sig-1")
+                .doesNotContain("Table QR codes", "Put each code", "There are no active tables");
+
+        String reportHtml = render(as("MANAGER", get("/kebab/counter/day-report")).locale(spanish));
+        assertThat(reportHtml)
+                .contains("lang=\"es\"", "/css/ticket.css", "KH-T26-000001")
+                .doesNotContain("/webjars/", "bootstrap", "fa-");
     }
 
     @Test

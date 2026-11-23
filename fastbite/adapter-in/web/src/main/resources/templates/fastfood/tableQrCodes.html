@@ -1,60 +1,48 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
 
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Table QR codes - FastBite</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .qr-card { break-inside: avoid; page-break-inside: avoid; }
-        .qr-code svg { width: 100%; max-width: 220px; height: auto; }
-        .qr-url { font-size: 0.65rem; word-break: break-all; }
-        @media print {
-            .no-print { display: none !important; }
-            .qr-card { border: 1px solid #000 !important; }
-        }
-    </style>
+    <title th:text="#{tableqr.title} + ' · FastBite'">Table QR codes · FastBite</title>
+    <link rel="stylesheet" th:href="@{/css/table-qr.css}">
 </head>
 
-<body class="bg-light">
+<body class="table-qr-page">
+<svg th:replace="~{fastfood/fragments/guest :: icons}"></svg>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-    <div class="container py-4">
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3 no-print">
-            <h3 class="m-0"><i class="fas fa-qrcode me-2"></i>Table QR codes</h3>
-            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-1"></i> Print</button>
+    <main class="qr-container">
+        <div class="qr-header no-print">
+            <h1 class="qr-heading">
+                <svg class="icon" aria-hidden="true"><use href="#i-qrcode"></use></svg>
+                <span th:text="#{tableqr.heading}">Table QR codes</span>
+            </h1>
+            <button type="button" class="qr-print-btn" id="printQrCodesBtn">
+                <svg class="icon" aria-hidden="true"><use href="#i-print"></use></svg>
+                <span th:text="#{tableqr.print}">Print</span>
+            </button>
         </div>
-        <p class="text-muted no-print">
+        <p class="qr-instructions no-print" th:text="#{tableqr.instructions}">
             Put each code on its table. Guests who scan it order to that table; anyone else can only order takeaway.
         </p>
-        <div class="alert alert-warning no-print" th:if="${localAddress}">
-            <i class="fas fa-triangle-exclamation me-2"></i>
-            These codes point at a local test address. Print them from the restaurant's public address instead.
+        <div class="qr-notice qr-notice-warning no-print" th:if="${localAddress}" role="note">
+            <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
+            <span th:text="#{tableqr.local.warning}">These codes point at a local test address. Print them from the restaurant's public address instead.</span>
         </div>
-        <div class="alert alert-info no-print" th:if="${#lists.isEmpty(codes)}">There are no active tables.</div>
+        <div class="qr-notice qr-notice-info no-print" th:if="${#lists.isEmpty(codes)}" th:text="#{tableqr.empty}">There are no active tables.</div>
 
-        <div class="row g-3">
-            <div class="col-6 col-md-4 col-lg-3" th:each="code : ${codes}">
-                <div class="card qr-card h-100 text-center p-3">
-                    <h5 class="fw-bold mb-1" th:text="${code.tableName}">Table 1</h5>
-                    <div class="small text-muted mb-2" th:text="#{qr.scan.to.order}">Scan to order</div>
-                    <div class="qr-code mx-auto" th:data-url="${code.url}"></div>
-                    <div class="qr-url text-muted mt-2" th:text="${code.url}">https://...</div>
-                </div>
-            </div>
+        <div class="qr-grid">
+            <article class="qr-card" th:each="code : ${codes}">
+                <h2 class="qr-card-title" th:text="${code.tableName}">Table 1</h2>
+                <div class="qr-card-caption" th:text="#{qr.scan.to.order}">Scan to order</div>
+                <div class="qr-code" th:data-url="${code.url}"></div>
+                <div class="qr-url" th:text="${code.url}">https://...</div>
+            </article>
         </div>
-    </div>
+    </main>
 
-    <script th:src="@{/js/qrcode.min.js}"></script>
-    <script>
-        document.querySelectorAll('.qr-code').forEach(box => {
-            const qr = qrcode(0, 'M'); // smallest size that fits, medium error correction
-            qr.addData(box.dataset.url);
-            qr.make();
-            box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-        });
-    </script>
+    <script th:src="@{/js/qrcode.min.js}" defer></script>
+    <script th:src="@{/js/table-qr.js}" defer></script>
 </body>
 
 </html>

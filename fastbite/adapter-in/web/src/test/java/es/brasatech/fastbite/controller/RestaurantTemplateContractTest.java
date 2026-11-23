@@ -35,9 +35,7 @@ class RestaurantTemplateContractTest {
                     + "|\\b(?:rgba?|hsla?)\\(");
 
     /** Template → {inline styles, colour literals} still allowed. Every other guarded template allows none. */
-    private static final Map<String, int[]> ALLOWED = Map.of(
-            "tickets.html", new int[]{2, 0},
-            "tableQrCodes.html", new int[]{0, 1});
+    private static final Map<String, int[]> ALLOWED = Map.of();
 
     private static final String[] GUARDED = {
             "menu.html", "fragments/menu.html", "allergens.html", "paymentSelection.html", "confirmation.html",
@@ -56,14 +54,14 @@ class RestaurantTemplateContractTest {
     /** The latter two are shared with Bootstrap pages, but neither path sets inline styles or names a theme. */
     private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
     private static final String[] KITCHEN_SCRIPTS = {"dashboard.js", "kitchen-audio.js", "live-updates.js", "guest-ui.js"};
+    private static final String[] TICKETS_SCRIPTS = {"guest-ui.js", "tickets.js", "cash-check.js"};
     static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
     /**
      * Staff pages still on Bootstrap and the legacy navigation ({@code navbar :: navbar}), outside the native checks
-     * until their own item: tickets, day report and table QR codes in item 4b, the back office after it.
+     * until their own item: the back office in item 4c.
      */
-    static final List<String> STAFF_PAGES_WAITING = List.of(
-            "tickets.html", "dayReport.html", "tableQrCodes.html", "backOffice.html");
+    static final List<String> STAFF_PAGES_WAITING = List.of("backOffice.html");
     /** Every fragment the counter renders, on its page or through its fragment endpoints. All are native. */
     private static final Set<String> COUNTER_FRAGMENTS = Set.of(
             "guest :: icons", "environment :: banner", "navbar :: staff", "counter :: tables",
@@ -71,6 +69,10 @@ class RestaurantTemplateContractTest {
     /** Every fragment the kitchen renders. All are native. */
     private static final Set<String> KITCHEN_FRAGMENTS = Set.of(
             "guest :: icons", "environment :: banner", "navbar :: staff");
+    /** Every fragment the tickets page renders. All are native. */
+    private static final Set<String> TICKETS_FRAGMENTS = Set.of(
+            "guest :: icons", "environment :: banner", "navbar :: staff",
+            "invoice-fields :: counterFields", "cashCheck :: counterModal", "cashCheck :: denominations");
     private static final Pattern SCRIPT_LINK = Pattern.compile("@\\{/js/([\\w.-]+\\.js)}");
     private static final Pattern FRAGMENT_REFERENCE = Pattern.compile("~\\{fastfood/fragments/([\\w-]+) :: ([\\w-]+)");
     /**
@@ -203,12 +205,77 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void ticketsUsesTheRestaurantContract() throws IOException {
+        String html = readTemplate("tickets.html");
+        assertNativeCounter("tickets.html", html);
+        assertThat(html).as("tickets has no inline event handlers and loads tickets.css only")
+                .doesNotContain("onclick=", "onchange=", "/css/counter.css", "/css/kitchen.css")
+                .contains("/css/tickets.css", "invoice-fields :: counterFields", "cashCheck :: counterModal");
+        Set<String> used = new TreeSet<>();
+        FRAGMENT_REFERENCE.matcher(html).results().forEach(ref -> used.add(ref.group(1) + " :: " + ref.group(2)));
+        assertThat(used).as("fragments the tickets page renders").isSubsetOf(TICKETS_FRAGMENTS).contains("navbar :: staff");
+        Set<String> checked = new TreeSet<>(List.of(TICKETS_SCRIPTS));
+        assertThat(SCRIPT_LINK.matcher(html).results().map(link -> link.group(1)).toList())
+                .as("scripts the tickets page loads").isNotEmpty().allMatch(checked::contains);
+    }
+
+    @Test
+    void ticketsAndTableQrScriptsChangeOnlyStateAndNeverNameATheme() throws IOException {
+        for (String script : List.of("tickets.js", "table-qr.js")) {
+            String js = new ClassPathResource("static/js/" + script).getContentAsString(StandardCharsets.UTF_8);
+            assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by %s", script).isZero();
+            assertThat(count(COLOUR, js)).as("colours in %s", script).isZero();
+            assertThat(SCRIPT_THEME.matcher(js).results().map(MatchResult::group).toList())
+                    .as("theme-specific logic in %s", script).isEmpty();
+            assertThat(js).as("Bootstrap modal usage in %s", script).doesNotContain("bootstrap.Modal");
+        }
+    }
+
+    @Test
+    void tableQrCodesAndDayReportUseNoBootstrapOrFontAwesome() throws IOException {
+        String qr = readTemplate("tableQrCodes.html");
+        assertNativeCounter("tableQrCodes.html", qr);
+        assertThat(qr).as("tableQrCodes uses table-qr.css, icon sprite, locale lang, no inline onclick")
+                .doesNotContain("onclick=", "<style>")
+                .contains("/css/table-qr.css", "guest :: icons", "th:lang=\"${#locale.language}\"", "/js/table-qr.js");
+
+        String report = readTemplate("dayReport.html");
+        assertThat(count(INLINE_STYLE, report)).as("inline styles in dayReport.html").isZero();
+        assertThat(count(COLOUR, report)).as("colours in dayReport.html").isZero();
+        assertThat(report).as("dayReport stays Bootstrap-free on ticket.css")
+                .doesNotContain("/webjars/", "bootstrap", "fa-", "data-bs-", "navbar :: navbar")
+                .contains("/css/ticket.css", "th:lang=\"${#locale.language}\"");
+    }
+
+    @Test
+    void tableQrTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "tableqr.title",
+                "tableqr.heading",
+                "tableqr.print",
+                "tableqr.instructions",
+                "tableqr.local.warning",
+                "tableqr.empty");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
     void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
-        assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html");
+        assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html");
         for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",
                 "backOffice.html")) {
             String html = readTemplate(page);
-            boolean legacy = html.contains("navbar :: navbar") || BOOTSTRAP_OR_FONT_AWESOME.matcher(html).find();
+            // dayReport.html uses ticket.css's thermal-receipt `.row` layout, not Bootstrap's grid
+            String checkHtml = "dayReport.html".equals(page) ? html.replaceAll("class=\"row(?: big)?\"", "") : html;
+            boolean legacy = checkHtml.contains("navbar :: navbar") || BOOTSTRAP_OR_FONT_AWESOME.matcher(checkHtml).find();
             if (legacy) assertThat(STAFF_PAGES_WAITING).as("%s still uses Bootstrap or the legacy navigation", page).contains(page);
         }
         // The two navigations name the staff pages alike

@@ -457,8 +457,34 @@ async function main() {
           }
         });
       };
-      for (const [w, h] of staffOtherSizes) {
+      for (const [w, h] of staffCoreSizes) {
         await captureShot(managerCtx, path.join(themeDir, `tickets-${w}x${h}.png`), w, h, `${base}/${tenant}/counter/tickets`);
+      }
+      if (!opts.sample) {
+        await captureShot(managerCtx, path.join(themeDir, `tickets-invoice-1280x800.png`), 1280, 800, `${base}/${tenant}/counter/tickets`, async (p) => {
+          await shown(p, '[data-action="invoice"]', 'ticket invoice button');
+          await tap(p.locator('[data-action="invoice"]'));
+          await shown(p, '#invoiceModal:is(.show, [open])', 'ticket invoice dialog');
+        }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `tickets-refund-1280x800.png`), 1280, 800, `${base}/${tenant}/counter/tickets`, async (p) => {
+          await shown(p, '[data-action="refund"]', 'ticket refund button');
+          await tap(p.locator('[data-action="refund"]'));
+          await shown(p, '#refundModal:is(.show, [open])', 'ticket refund dialog');
+        }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `tickets-cancel-1280x800.png`), 1280, 800, `${base}/${tenant}/counter/tickets`, async (p) => {
+          await shown(p, '[data-action="cancel"]', 'ticket cancel button');
+          await tap(p.locator('[data-action="cancel"]'));
+          await shown(p, '#cancelModal:is(.show, [open])', 'ticket cancel dialog');
+        }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `tickets-cashcheck-1280x800.png`), 1280, 800, `${base}/${tenant}/counter/tickets`, async (p) => {
+          const trigger = '[data-dialog-open="cashCheckModal"], [data-bs-target="#cashCheckModal"]';
+          await shown(p, trigger, 'cash check button');
+          await tap(p.locator(trigger));
+          await shown(p, '#cashCheckModal:is(.show, [open])', 'cash check dialog');
+          await freezeServerTimestamps(p);
+        }, { fullPage: false });
+      }
+      for (const [w, h] of staffOtherSizes) {
         await captureShot(managerCtx, path.join(themeDir, `dayReport-${w}x${h}.png`), w, h, `${base}/${tenant}/counter/day-report`, freezeServerTimestamps);
         await captureShot(managerCtx, path.join(themeDir, `tableQrCodes-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice/tables/qr-codes`);
         // The back office keeps Bootstrap until its own item; it is here for the shared staff navigation.

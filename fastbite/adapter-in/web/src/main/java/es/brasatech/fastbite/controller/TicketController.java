@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.config.RequiresVerifactuAuthorization;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
@@ -40,6 +41,7 @@ public class TicketController {
     private static final Set<String> REFUNDERS = Set.of("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_OWNER");
 
     private final FiscalTicketService tickets;
+    private final FiscalProfileService fiscalProfiles;
     private final es.brasatech.fastbite.application.verifactu.VerifactuService verifactu;
     private final org.springframework.context.MessageSource messageSource;
 
@@ -155,6 +157,7 @@ public class TicketController {
         model.addAttribute("mayRefund", mayRefund(user));
         model.addAttribute("handlesTill", DayReportController.handlesTill(user));
         model.addAttribute("tenantPrefix", tenantId != null ? "/" + tenantId : "");
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfiles));
         return "fastfood/tickets";
     }
 

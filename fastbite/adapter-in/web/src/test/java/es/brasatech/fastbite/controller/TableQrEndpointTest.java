@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = TableQrController.class)
+@WebMvcTest(controllers = TableQrController.class, properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, TableQrController.class, SecurityConfig.class,
         TenantRoutingResolver.class, WebConfig.class, es.brasatech.fastbite.config.PublicOrigin.class})
 class TableQrEndpointTest {

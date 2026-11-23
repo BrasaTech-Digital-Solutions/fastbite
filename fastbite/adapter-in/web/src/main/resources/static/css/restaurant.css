@@ -1949,3 +1949,34 @@ hr {
 .staff-page:has(dialog:modal)::before { content: ''; position: fixed; inset: 0; z-index: 1999; background: rgba(0, 0, 0, 0.5); pointer-events: none; }
 .staff-page dialog:modal::backdrop { background: transparent; }
 .staff-page:has(.fb-sandbox-banner) dialog.dialog:not(.dialog-centered) { max-height: calc(100dvh - 4rem); margin-top: 2.5rem; }
+
+/* Shared cash-check and invoice-fields rules (moved from counter.css for counter and tickets) */
+dialog.dialog:modal { overscroll-behavior: contain; }
+dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
+.counter-field {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.counter-field-label { display: block; margin-bottom: 0.5rem; }
+.counter-help { color: var(--color-text-muted); font-size: 0.875em; }
+.counter-error { color: var(--color-danger); }
+.counter-invoice-fields, .counter-cash-movements { display: grid; gap: 1rem; }
+.counter-invoice-line { grid-column: 1 / -1; }
+.counter-cash-result-row { display: flex; justify-content: space-between; gap: 1rem; }
+.counter-cash-report { display: inline-block; margin-right: auto; padding: 0.375rem 0.75rem; border: 1px solid var(--color-text-muted); border-radius: min(var(--radius), 6px); color: var(--color-text-muted); text-decoration: none; }
+.counter-cash-report:hover { background: var(--color-text-muted); color: var(--color-on-primary); }
+.counter-leading-icon { margin-right: 0.5rem; }
+.counter-button { display: inline-block; padding: 0.375rem 0.75rem; border: 1px solid transparent; border-radius: min(var(--radius), 6px); background: transparent; color: var(--color-text); line-height: 1.5; text-align: center; text-decoration: none; cursor: pointer; }
+.counter-button:disabled { opacity: 0.65; cursor: default; }
+.counter-button-neutral { border-color: var(--color-text-muted); color: var(--color-text-muted); }
+.counter-button-neutral:hover:not(:disabled) { background: var(--color-text-muted); color: var(--color-on-primary); }
+.counter-cash-counted { padding: 0.5rem 1rem; font-size: 1.25rem; border-radius: min(var(--radius), 8px); }
+.counter-button-secondary-filled { background: var(--color-action-muted); color: var(--color-on-action-muted); }
+@media (min-width: 576px) {
+  .counter-invoice-fields, .counter-cash-movements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

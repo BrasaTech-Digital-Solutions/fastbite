@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import es.brasatech.fastbite.TestConfig;
+import es.brasatech.fastbite.application.fiscal.FiscalProfileService;
 import es.brasatech.fastbite.application.fiscal.FiscalTicketService;
 import es.brasatech.fastbite.application.fiscal.GuestActionRateLimit;
 import es.brasatech.fastbite.application.fiscal.GuestInvoiceRateLimit;
@@ -61,6 +62,7 @@ class GuestTicketEndpointTest {
     @Autowired MockMvc mvc;
     @Autowired GuestTicketSignature signatures;
     @MockitoBean FiscalTicketService tickets;
+    @MockitoBean FiscalProfileService fiscalProfiles;
     @MockitoBean GuestInvoiceRateLimit invoiceLimit;
     @MockitoBean GuestActionRateLimit actionLimit;
     @MockitoBean GuestTicketMailPort mail;

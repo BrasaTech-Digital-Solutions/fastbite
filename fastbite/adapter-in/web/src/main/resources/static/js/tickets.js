@@ -8,7 +8,32 @@ if (!page) return;
 const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
 const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
 const prefix = page.dataset.prefix || '';
+const inFlight = new Set();
 let current = null;
+
+function openDialog(id, opener, focusId) {
+  const dialog = document.getElementById(id);
+  if (!dialog) return;
+  if (window.FastBiteDialogs) {
+    window.FastBiteDialogs.open(dialog, opener);
+  } else if (!dialog.open) {
+    dialog.showModal();
+  }
+  if (focusId) {
+    const field = document.getElementById(focusId);
+    if (field && typeof field.focus === 'function') field.focus();
+  }
+}
+
+function closeDialog(id) {
+  const dialog = document.getElementById(id);
+  if (!dialog) return;
+  if (window.FastBiteDialogs) {
+    window.FastBiteDialogs.close(dialog);
+  } else if (dialog.open) {
+    dialog.close();
+  }
+}
 
 function printTicket(ticketId) {
   const frame = document.getElementById('print-frame');
@@ -42,6 +67,11 @@ function failed(errorBox, error) {
   errorBox.hidden = false;
 }
 
+const dayInput = document.getElementById('ticket-day');
+if (dayInput && dayInput.form) {
+  dayInput.addEventListener('change', () => dayInput.form.submit());
+}
+
 page.addEventListener('click', event => {
   const button = event.target.closest('[data-action]');
   if (!button) return;
@@ -53,72 +83,73 @@ page.addEventListener('click', event => {
     intro.textContent = intro.dataset.template.replace('{0}', current.number);
     document.getElementById('invoiceForm').reset();
     document.getElementById('invoiceError').hidden = true;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('invoiceModal')).show();
+    openDialog('invoiceModal', button, 'inv-taxId');
   } else if (button.dataset.action === 'refund') {
     const title = document.getElementById('refundTitle');
     title.textContent = title.dataset.template.replace('{0}', current.number);
     document.getElementById('refundForm').reset();
     document.getElementById('refundError').hidden = true;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('refundModal')).show();
+    openDialog('refundModal', button, 'refundReason');
   } else if (button.dataset.action === 'cancel') {
     const title = document.getElementById('cancelTitle');
     title.textContent = title.dataset.template.replace('{0}', current.number);
     document.getElementById('cancelForm').reset();
     document.getElementById('cancelError').hidden = true;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelModal')).show();
+    openDialog('cancelModal', button, 'cancelReason');
   }
 });
 
-document.getElementById('cancelForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const submit = event.submitter;
-  submit.disabled = true;
+async function submitGuarded(actionKey, form, errorBox, handler) {
+  if (!current || inFlight.has(actionKey)) return;
+  inFlight.add(actionKey);
+  const submit = form.querySelector('[type="submit"]');
+  if (submit) submit.disabled = true;
+  let succeeded = false;
   try {
+    await handler();
+    succeeded = true;
+  } catch (error) {
+    failed(errorBox, error);
+  } finally {
+    if (!succeeded) {
+      inFlight.delete(actionKey);
+      if (submit) submit.disabled = false;
+    }
+  }
+}
+
+document.getElementById('cancelForm').addEventListener('submit', event => {
+  event.preventDefault();
+  submitGuarded('cancel', event.currentTarget, document.getElementById('cancelError'), async () => {
     const cancelled = await post(`/counter/api/tickets/${encodeURIComponent(current.id)}/cancel`,
         { reason: document.getElementById('cancelReason').value.trim() });
-    bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
+    closeDialog('cancelModal');
     // Nothing to print: the orders are unpaid again and can be charged at the counter
     const noticeTemplate = cancelled.ordersMissing && page.dataset.doneCancelNoOrders
         ? page.dataset.doneCancelNoOrders
         : page.dataset.doneCancel;
     sessionStorage.setItem('fastbite.ticketNotice', noticeTemplate.replace('{0}', cancelled.fullNumber || current.number));
     location.reload();
-  } catch (error) {
-    failed(document.getElementById('cancelError'), error);
-  } finally {
-    submit.disabled = false;
-  }
+  });
 });
 
-document.getElementById('invoiceForm').addEventListener('submit', async event => {
+document.getElementById('invoiceForm').addEventListener('submit', event => {
   event.preventDefault();
-  const submit = event.submitter;
-  submit.disabled = true;
-  try {
+  submitGuarded('invoice', event.currentTarget, document.getElementById('invoiceError'), async () => {
     const ticket = await post(`/counter/api/tickets/${encodeURIComponent(current.id)}/invoice`, invoiceDetails('inv'));
-    bootstrap.Modal.getInstance(document.getElementById('invoiceModal')).hide();
+    closeDialog('invoiceModal');
     done(page.dataset.doneInvoice, ticket);
-  } catch (error) {
-    failed(document.getElementById('invoiceError'), error);
-  } finally {
-    submit.disabled = false;
-  }
+  });
 });
 
-document.getElementById('refundForm').addEventListener('submit', async event => {
+document.getElementById('refundForm').addEventListener('submit', event => {
   event.preventDefault();
-  const submit = event.submitter;
-  submit.disabled = true;
-  try {
+  submitGuarded('refund', event.currentTarget, document.getElementById('refundError'), async () => {
     const ticket = await post(`/counter/api/tickets/${encodeURIComponent(current.id)}/refund`,
         { reason: document.getElementById('refundReason').value.trim() });
-    bootstrap.Modal.getInstance(document.getElementById('refundModal')).hide();
+    closeDialog('refundModal');
     done(page.dataset.doneRefund, ticket);
-  } catch (error) {
-    failed(document.getElementById('refundError'), error);
-  } finally {
-    submit.disabled = false;
-  }
+  });
 });
 
 // The notice of the last action survives the reload
@@ -126,10 +157,11 @@ const notice = sessionStorage.getItem('fastbite.ticketNotice');
 if (notice) {
   sessionStorage.removeItem('fastbite.ticketNotice');
   const toast = document.createElement('div');
-  toast.className = 'toast show align-items-center text-bg-success border-0';
-  toast.setAttribute('role', 'status');
-  toast.innerHTML = '<div class="d-flex"><div class="toast-body"></div></div>';
-  toast.querySelector('.toast-body').textContent = notice;
+  toast.className = 'toast tickets-toast-success';
+  const body = document.createElement('div');
+  body.className = 'toast-body';
+  body.textContent = notice;
+  toast.appendChild(body);
   document.getElementById('toastContainer').appendChild(toast);
   setTimeout(() => toast.remove(), 5000);
 }
