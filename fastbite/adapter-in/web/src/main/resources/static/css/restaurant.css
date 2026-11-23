@@ -2025,3 +2025,74 @@ dialog.dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
   color: var(--color-on-primary);
 }
 .fb-native-dialog [hidden] { display: none; }
+
+/* Item 5b: Error pages (fragments/errorPage.html, Bootstrap-free) */
+.error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.error-icon {
+  color: var(--color-text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.error-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+  line-height: 1.25;
+  color: var(--color-text-strong);
+}
+
+.error-text {
+  margin: 0 0 1.25rem;
+  color: var(--color-text-muted);
+  max-width: 34rem;
+}
+
+.error-timestamp {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.error-actions .button-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.error-actions .button-outline:hover {
+  background: var(--color-surface-alt);
+}
+
+.error-help {
+  width: 100%;
+  margin: 1.75rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.error-help a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
