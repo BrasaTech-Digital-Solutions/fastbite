@@ -39,7 +39,12 @@
     <span class="fb-verifactu-banner__text" th:text="${#messages.msg(verifactuBanner.messageKey())}">This location cannot issue tickets yet.</span>
     <span class="fb-verifactu-banner__reason" th:if="${verifactuBanner.reasonKey() != null}"
           th:text="${'— ' + #messages.msg(verifactuBanner.reasonKey())}">Reason</span>
-    <a class="fb-verifactu-banner__link" th:if="${verifactuBanner.actionUrl() != null}"
+    <span class="fb-verifactu-banner__reason" th:if="${verifactuBanner.reasonKey() == 'verifactu.hold.reason.collaboration_inactive'}"
+          th:text="#{verifactu.banner.owner.collaboration_wait}">There is nothing you need to do. We will let you know when ticket issuing starts.</span>
+    <a class="fb-verifactu-banner__link" th:if="${verifactuBanner.reasonKey() == 'verifactu.hold.reason.fiscal_incomplete'}"
+       th:href="@{/owner/console(view='location-settings',section='legal',location=${verifactuBanner.tenantId()})}"
+       th:text="#{verifactu.banner.owner.complete_business}">Complete business details</a>
+    <a class="fb-verifactu-banner__link" th:if="${verifactuBanner.actionUrl() != null && verifactuBanner.reasonKey() != 'verifactu.hold.reason.fiscal_incomplete' && verifactuBanner.reasonKey() != 'verifactu.hold.reason.collaboration_inactive'}"
        th:href="${verifactuBanner.actionUrl()}" th:text="${#messages.msg(verifactuBanner.actionLabelKey())}">Go to VERI*FACTU step</a>
 </div>
 </th:block>
