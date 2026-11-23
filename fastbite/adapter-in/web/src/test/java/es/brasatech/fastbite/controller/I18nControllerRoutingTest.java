@@ -81,10 +81,14 @@ class I18nControllerRoutingTest {
 
     @Test
     void opensTheEditorUnderTheTenantPrefix() throws Exception {
-        mockMvc.perform(get("/kebab/backoffice/translations/products/p1").session(kebabAdmin()))
+        String html = mockMvc.perform(get("/kebab/backoffice/translations/products/p1").session(kebabAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("value=\"Kebab ES\"")))
-                .andExpect(content().string(containsString("action=\"/kebab/backoffice/translations/products/p1\"")));
+                .andExpect(content().string(containsString("action=\"/kebab/backoffice/translations/products/p1\"")))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html).doesNotContain("/webjars/bootstrap", "/webjars/font-awesome", "fas fa-", "data-bs-", "style=");
+        assertThat(html).contains("href=\"/kebab/backoffice\"");
+        assertThat(html).contains("topbar-staff");
     }
 
     @Test

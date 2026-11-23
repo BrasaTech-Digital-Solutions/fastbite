@@ -1,63 +1,79 @@
 <!DOCTYPE html>
-<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" lang="en" xmlns:th="http://www.thymeleaf.org">
+<html th:attr="data-theme=${locationTheme != null ? locationTheme.id : 'fastfood'}" lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org">
 
 <head><link rel="icon" type="image/svg+xml" th:href="@{/images/favicon.svg}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Translations - FastBite BackOffice</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
+    <link rel="stylesheet" th:href="@{/css/backoffice.css}">
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"></head>
 
-<body>
+<body class="bo-page staff-page">
+<svg th:replace="~{fastfood/fragments/guest :: icons}"></svg>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-    <div class="container-fluid py-4">
+<header th:replace="~{fastfood/fragments/navbar :: staff(activeTab='backoffice')}"></header>
+
+    <main class="bo-translations-page">
         <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="bo-translations-header">
             <div>
-                <h2><i class="fas fa-language me-2"></i>Manage Translations</h2>
-                <p class="text-muted mb-0">
+                <h1 class="bo-translations-title">
+                    <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+                    <span>Manage Translations</span>
+                </h1>
+                <p class="bo-translations-subtitle">
                     <span th:text="${typeLabel}">Product</span>: <span th:text="${title}"></span>
                 </p>
             </div>
             <div>
-                <a th:href="${backOfficeUrl}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left me-1"></i> Back to BackOffice
+                <a th:href="${backOfficeUrl}" class="bo-btn bo-btn-secondary">
+                    <svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>
+                    <span>Back to BackOffice</span>
                 </a>
             </div>
         </div>
 
         <!-- Flash Messages -->
-        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle me-2"></i><span th:text="${message}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div th:if="${message}" class="notice notice-success bo-translations-notice" role="status">
+            <svg class="icon" aria-hidden="true"><use href="#i-check-circle"></use></svg>
+            <span th:text="${message}"></span>
+            <button type="button" class="notice-close" data-notice-close aria-label="Close">
+                <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+            </button>
         </div>
-        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i><span th:text="${error}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div th:if="${error}" class="notice notice-danger bo-translations-notice" role="alert">
+            <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
+            <span th:text="${error}"></span>
+            <button type="button" class="notice-close" data-notice-close aria-label="Close">
+                <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+            </button>
         </div>
 
         <!-- Available Languages Info -->
-        <div class="alert alert-info mb-4">
-            <h6><i class="fas fa-info-circle me-2"></i>Available Languages:</h6>
-            <p class="mb-0">
+        <section class="bo-translations-info">
+            <h2 class="bo-translations-info-title">
+                <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
+                <span>Available Languages:</span>
+            </h2>
+            <p class="bo-translations-locales">
                 <span th:each="locale, iterStat : ${availableLocales}">
                     <span th:text="${locale}"></span>
-                    <span th:if="${locale == defaultLanguage}" class="badge bg-success ms-1">Default</span>
+                    <span th:if="${locale == defaultLanguage}" class="bo-translations-default-badge">Default</span>
                     <span th:if="${!iterStat.last}">, </span>
                 </span>
             </p>
-            <small class="text-muted">
+            <small class="bo-translations-hint">
                 To add more languages or change the default language, update <code>i18n.default-language</code> in
                 <code>application.yml</code>
             </small>
-        </div>
+        </section>
 
         <!-- Translation Grid: one row per text, one column per language -->
-        <div class="translation-grid">
+        <div class="translation-grid bo-translations-card">
             <form th:action="${formAction}" method="post">
-                <table class="table table-bordered">
+                <table class="bo-translations-table">
                     <thead>
                         <tr>
                             <th class="field-label">Field</th>
@@ -75,7 +91,7 @@
                                         Option <span th:text="${iterStat.index}"></span>:
                                         <span th:text="${text.value().get(defaultLanguage, defaultLanguage)}"></span>
                                         <br>
-                                        <small class="text-muted" th:text="'ID: ' + ${text.key().substring(7)}"></small>
+                                        <small class="bo-translations-hint" th:text="'ID: ' + ${text.key().substring(7)}"></small>
                                     </span>
                                     <span th:case="*">Name</span>
                                 </th:block>
@@ -83,41 +99,42 @@
                             <td th:each="locale : ${availableLocales}">
                                 <textarea th:if="${text.kind() == 'description'}" th:name="${text.key()} + '_' + ${locale}"
                                     th:text="${text.value().getAll().get(locale)}"
-                                    class="form-control translation-input" rows="2"
+                                    class="bo-input translation-input" rows="2"
                                     th:placeholder="'Enter description in ' + ${locale}"></textarea>
                                 <input th:unless="${text.kind() == 'description'}" type="text"
                                     th:name="${text.key()} + '_' + ${locale}"
                                     th:value="${text.value().getAll().get(locale)}"
-                                    class="form-control translation-input"
+                                    class="bo-input translation-input"
                                     th:placeholder="'Enter ' + (${text.kind() == 'option'} ? 'option name' : 'name') + ' in ' + ${locale}">
                             </td>
                         </tr>
                     </tbody>
                 </table>
-                <div class="text-end mt-3">
-                    <button type="submit" class="btn btn-success btn-lg">
-                        <i class="fas fa-save me-2"></i>Save Translations
+                <div class="bo-translations-actions">
+                    <button type="submit" class="bo-btn bo-btn-success bo-btn-lg">
+                        <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                        <span>Save Translations</span>
                     </button>
                 </div>
             </form>
         </div>
 
         <!-- Instructions -->
-        <div class="alert alert-info mt-4">
-            <h6><i class="fas fa-info-circle me-2"></i>Translation Guidelines:</h6>
-            <ul class="mb-0">
+        <section class="bo-translations-info">
+            <h2 class="bo-translations-info-title">
+                <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
+                <span>Translation Guidelines:</span>
+            </h2>
+            <ul class="bo-translations-guidelines">
                 <li><strong>Default Language</strong> (highlighted in green) should always be filled</li>
                 <li>If a translation is missing, the system will automatically use the default language</li>
                 <li>You can add more languages using the "Add New Language" section above</li>
                 <li>Empty fields will fall back to the default language when displayed to users</li>
             </ul>
-        </div>
-    </div>
+        </section>
+    </main>
 
-    <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script>
-
-    </script>
+    <script th:src="@{/js/guest-ui.js}" defer></script>
 </body>
 
 </html>
