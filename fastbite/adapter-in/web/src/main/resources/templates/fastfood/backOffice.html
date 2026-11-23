@@ -243,25 +243,28 @@
                     </section>
 
                     <!-- Products Section -->
-                    <div id="products-section" class="section-content" hidden>
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-burger"></i> <span th:text="#{backoffice.products.title}">Products
-                                    Management</span></h3>
-                            <div class="d-flex gap-2 flex-wrap">
-                                <a class="btn btn-outline-secondary" th:href="@{/{tenant}/allergens(tenant=${activeTenant})}"
+                    <section id="products-section" class="section-content" hidden>
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-logo"></use></svg>
+                                <span th:text="#{backoffice.products.title}">Products Management</span>
+                            </h1>
+                            <div class="bo-header-actions">
+                                <a class="bo-btn bo-btn-outline" th:href="@{/{tenant}/allergens(tenant=${activeTenant})}"
                                     target="_blank" rel="noopener">
-                                    <i class="fas fa-print"></i> <span th:text="#{backoffice.products.allergens.chart}">Print allergen chart</span>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-print"></use></svg>
+                                    <span th:text="#{backoffice.products.allergens.chart}">Print allergen chart</span>
                                 </a>
-                                <button class="btn btn-primary" onclick="showProductForm()">
-                                    <i class="fas fa-plus"></i> <span th:text="#{backoffice.products.new}">New
-                                        Product</span>
+                                <button type="button" class="bo-btn bo-btn-primary" id="btn-new-product" onclick="showProductForm()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                    <span th:text="#{backoffice.products.new}">New Product</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="alert alert-warning d-flex align-items-center gap-2" id="allergens-missing-banner"
+                        <div class="bo-notice bo-notice-warning" id="allergens-missing-banner"
                             role="status" hidden th:data-template="#{backoffice.products.allergens.missing.banner('{0}')}">
-                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                            <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
                             <span id="allergens-missing-text"></span>
                         </div>
 
@@ -271,134 +274,129 @@
                         </div>
 
                         <!-- Product Form (Hidden by default) -->
-                        <div id="product-form" class="card product-card mb-4" style="display: none;">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0" id="product-form-title" th:text="#{backoffice.products.create.title}">
-                                    Create New Product</h5>
+                        <div id="product-form" class="bo-card" hidden>
+                            <div class="bo-card-header">
+                                <h3 id="product-form-title" th:text="#{backoffice.products.create.title}">
+                                    Create New Product</h3>
                             </div>
-                            <div class="card-body">
+                            <div class="bo-card-body">
                                 <form id="productFormElement">
                                     <input type="hidden" id="product-id">
 
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="product-name" class="form-label"
+                                    <div class="bo-form-grid-3">
+                                        <div class="bo-field">
+                                            <label for="product-name" class="bo-label"
                                                 th:text="#{backoffice.products.label.name}">Product Name *</label>
-                                            <input type="text" class="form-control" id="product-name" required>
+                                            <input type="text" class="bo-input" id="product-name" required>
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="product-price" class="form-label"
+                                        <div class="bo-field">
+                                            <label for="product-price" class="bo-label"
                                                 th:text="#{backoffice.products.label.price}">Price *</label>
-                                            <input type="number" step="0.01" class="form-control" id="product-price"
+                                            <input type="number" step="0.01" class="bo-input" id="product-price"
                                                 required>
                                         </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="product-vat" class="form-label"
+                                        <div class="bo-field">
+                                            <label for="product-vat" class="bo-label"
                                                 th:text="#{backoffice.products.label.vat}">VAT rate</label>
-                                            <select class="form-select" id="product-vat" aria-describedby="product-vat-hint">
+                                            <select class="bo-select" id="product-vat" aria-describedby="product-vat-hint">
                                                 <option value=""
                                                     th:text="#{backoffice.products.vat.default(${defaultVatRate.intValue()})}">Location default (10%)</option>
                                                 <option th:each="rate : ${vatRates}" th:value="${rate}"
                                                     th:text="${rate.intValue() + '%'}">21%</option>
                                             </select>
                                         </div>
-                                        <div class="col-12 form-text mt-0 mb-3" id="product-vat-hint"
-                                            th:text="#{backoffice.products.vat.hint}">Menu prices include VAT.</div>
                                     </div>
+                                    <p class="bo-hint bo-field" id="product-vat-hint"
+                                        th:text="#{backoffice.products.vat.hint}">Menu prices include VAT.</p>
 
-                                    <div class="mb-3">
-                                        <label for="product-description" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="product-description" class="bo-label"
                                             th:text="#{backoffice.products.label.description}">Description *</label>
-                                        <textarea class="form-control" id="product-description" rows="3"
+                                        <textarea class="bo-textarea" id="product-description" rows="3"
                                             required></textarea>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="product-image" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="product-image" class="bo-label"
                                             th:text="#{backoffice.products.label.image}">Product Image</label>
-                                        <div class="input-group mb-2">
-                                            <input type="text" class="form-control" id="product-image"
-                                                placeholder="Image URL" readonly>
-                                            <button type="button" class="btn btn-outline-primary"
-                                                onclick="openImageSelector()">
-                                                <i class="fas fa-images"></i> <span
-                                                    th:text="#{backoffice.products.button.select.image}">Select/Upload
-                                                    Image</span>
+                                        <div class="bo-input-group">
+                                            <input type="text" class="bo-input" id="product-image"
+                                                th:placeholder="#{backoffice.products.placeholder.image}" readonly>
+                                            <button type="button" class="bo-btn bo-btn-outline-primary"
+                                                id="btn-select-product-image" onclick="openImageSelector()">
+                                                <svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg>
+                                                <span th:text="#{backoffice.products.button.select.image}">Select/Upload Image</span>
                                             </button>
                                         </div>
-                                        <div id="product-image-preview" style="display: none;">
-                                            <img id="product-image-preview-img" src="" alt="Product preview"
-                                                style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #ddd;">
+                                        <div id="product-image-preview" class="bo-image-preview" hidden>
+                                            <img id="product-image-preview-img" src="" th:alt="#{label.preview}">
                                         </div>
                                     </div>
 
-                                    <fieldset class="mb-3" id="product-allergens">
-                                        <legend class="form-label fs-6 mb-1" th:text="#{backoffice.products.allergens}">Allergens</legend>
-                                        <div class="form-text mt-0 mb-2" th:text="#{backoffice.products.allergens.hint}">Mark every allergen the dish contains.</div>
-                                        <div class="allergen-picker">
-                                            <th:block th:each="allergen : ${allergenList}">
-                                                <input type="checkbox" class="btn-check" autocomplete="off" name="product-allergen"
+                                    <fieldset class="bo-field bo-fieldset" id="product-allergens">
+                                        <legend class="bo-label" th:text="#{backoffice.products.allergens}">Allergens</legend>
+                                        <p class="bo-hint" th:text="#{backoffice.products.allergens.hint}">Mark every allergen the dish contains.</p>
+                                        <div class="bo-allergen-picker">
+                                            <span th:each="allergen : ${allergenList}" class="bo-allergen-chip">
+                                                <input type="checkbox" autocomplete="off" name="product-allergen"
                                                     th:id="'product-allergen-' + ${allergen.name()}" th:value="${allergen.name()}">
-                                                <label class="btn btn-sm btn-outline-secondary" th:for="'product-allergen-' + ${allergen.name()}">
+                                                <label th:for="'product-allergen-' + ${allergen.name()}">
                                                     <span aria-hidden="true" th:text="${allergen.icon()}">🌾</span>
                                                     <span th:text="#{${allergen.messageKey()}}">Gluten</span>
                                                 </label>
-                                            </th:block>
+                                            </span>
                                         </div>
-                                        <div class="form-check mt-2">
-                                            <input class="form-check-input" type="checkbox" id="product-allergens-none">
-                                            <label class="form-check-label" for="product-allergens-none"
+                                        <div class="bo-check-row bo-check-inline">
+                                            <input type="checkbox" id="product-allergens-none">
+                                            <label for="product-allergens-none"
                                                 th:text="#{backoffice.products.allergens.none}">This dish contains none of the 14 allergens</label>
                                         </div>
-                                        <div class="small mt-1 text-warning-emphasis" id="product-allergens-state"
-                                            th:text="#{backoffice.products.allergens.undeclared.hint}">Not declared yet.</div>
+                                        <p class="bo-warning-text" id="product-allergens-state"
+                                            th:text="#{backoffice.products.allergens.undeclared.hint}">Not declared yet.</p>
                                     </fieldset>
 
-                                    <div class="mb-3">
-                                        <label class="form-label"
-                                            th:text="#{backoffice.products.label.assigned.customizations}">Assigned
-                                            Customizations</label>
-                                        <div id="product-customizations-list" class="border rounded p-2"
-                                            style="min-height: 100px; max-height: 200px; overflow-y: auto;">
-                                            <small class="text-muted"
-                                                th:text="#{backoffice.products.placeholder.no.customizations}">No
-                                                customizations assigned yet</small>
+                                    <div class="bo-field">
+                                        <label class="bo-label"
+                                            th:text="#{backoffice.products.label.assigned.customizations}">Assigned Customizations</label>
+                                        <div id="product-customizations-list" class="bo-products-box">
+                                            <small class="bo-quick-meta"
+                                                th:text="#{backoffice.products.placeholder.no.customizations}">No customizations assigned yet</small>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                                            onclick="openCustomizationSelector()">
-                                            <i class="fas fa-plus"></i> <span
-                                                th:text="#{backoffice.products.button.add.customizations}">Add
-                                                Customizations</span>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary mt-2"
-                                            onclick="showCustomizationFormPopup()">
-                                            <i class="fas fa-plus-circle"></i> <span
-                                                th:text="#{backoffice.products.button.create.customization}">Create New
-                                                Customization</span>
-                                        </button>
+                                        <div class="bo-inline-actions">
+                                            <button type="button" class="bo-btn bo-btn-outline"
+                                                onclick="openCustomizationSelector()">
+                                                <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                                <span th:text="#{backoffice.products.button.add.customizations}">Add Customizations</span>
+                                            </button>
+                                            <button type="button" class="bo-btn bo-btn-outline-primary"
+                                                onclick="showCustomizationFormPopup()">
+                                                <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                                <span th:text="#{backoffice.products.button.create.customization}">Create New Customization</span>
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input" id="product-active" checked>
-                                        <label class="form-check-label" for="product-active"
-                                            th:text="#{backoffice.products.label.active}">
+                                    <div class="bo-field bo-check-row bo-check-inline">
+                                        <input type="checkbox" id="product-active" checked>
+                                        <label for="product-active" th:text="#{backoffice.products.label.active}">
                                             Active (visible to customers)
                                         </label>
                                     </div>
 
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-save"></i> <span
-                                                th:text="#{backoffice.products.button.save}">Save Product</span>
+                                    <div class="bo-form-actions">
+                                        <button type="submit" class="bo-btn bo-btn-success">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                                            <span th:text="#{backoffice.products.button.save}">Save Product</span>
                                         </button>
-                                        <button type="button" class="btn btn-secondary" onclick="cancelForm()">
-                                            <i class="fas fa-times"></i> <span th:text="#{button.cancel}">Cancel</span>
+                                        <button type="button" class="bo-btn bo-btn-secondary" onclick="cancelForm()">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                                            <span th:text="#{button.cancel}">Cancel</span>
                                         </button>
                                     </div>
                                 </form>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Tables Section -->
                     <div id="tables-section" class="section-content" hidden>
@@ -720,116 +718,93 @@
         </div>
     </dialog>
 
-    <!-- Image Selector Modal -->
-    <div class="modal fade" id="imageSelectorModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" th:text="#{backoffice.modal.image.title}">Select or Upload Product Image
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Tabs for System Images and User Images -->
-                    <ul class="nav nav-tabs mb-3" id="imageTabsNav" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="system-images-tab" data-bs-toggle="tab"
-                                data-bs-target="#system-images" type="button" role="tab">
-                                <i class="fas fa-folder"></i> <span
-                                    th:text="#{backoffice.modal.image.tab.system}">System Images</span>
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="user-images-tab" data-bs-toggle="tab"
-                                data-bs-target="#user-images" type="button" role="tab">
-                                <i class="fas fa-cloud-upload-alt"></i> <span
-                                    th:text="#{backoffice.modal.image.tab.user}">Your Uploads</span>
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="upload-new-tab" data-bs-toggle="tab"
-                                data-bs-target="#upload-new" type="button" role="tab">
-                                <i class="fas fa-plus-circle"></i> <span
-                                    th:text="#{backoffice.modal.image.tab.upload}">Upload New</span>
-                            </button>
-                        </li>
-                    </ul>
+    <!-- Image Selector Dialog -->
+    <dialog class="dialog dialog-centered dialog-xl" id="imageSelectorModal" aria-labelledby="imageSelectorModalTitle">
+        <div class="dialog-header">
+            <h2 class="dialog-title" id="imageSelectorModalTitle" th:text="#{backoffice.modal.image.title}">Select or Upload Product Image</h2>
+            <button type="button" class="dialog-close" data-dialog-close th:aria-label="#{button.close}">&times;</button>
+        </div>
+        <div class="dialog-body">
+            <!-- Native Accessible Tabs for System Images, User Images, and Upload New -->
+            <div class="bo-tabs" id="imageTabsNav" role="tablist" th:aria-label="#{backoffice.modal.image.tabs.label}">
+                <button class="bo-tab" id="system-images-tab" type="button" role="tab"
+                    aria-selected="true" aria-controls="system-images" tabindex="0">
+                    <svg class="icon" aria-hidden="true"><use href="#i-folder"></use></svg>
+                    <span th:text="#{backoffice.modal.image.tab.system}">System Images</span>
+                </button>
+                <button class="bo-tab" id="user-images-tab" type="button" role="tab"
+                    aria-selected="false" aria-controls="user-images" tabindex="-1">
+                    <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+                    <span th:text="#{backoffice.modal.image.tab.user}">Your Uploads</span>
+                </button>
+                <button class="bo-tab" id="upload-new-tab" type="button" role="tab"
+                    aria-selected="false" aria-controls="upload-new" tabindex="-1">
+                    <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                    <span th:text="#{backoffice.modal.image.tab.upload}">Upload New</span>
+                </button>
+            </div>
+            <span id="imageTabAnnouncer" class="bo-sr-only" role="status" aria-live="polite"></span>
 
-                    <!-- Tab Content -->
-                    <div class="tab-content" id="imageTabContent">
-                        <!-- System Images Tab -->
-                        <div class="tab-pane fade show active" id="system-images" role="tabpanel">
-                            <div id="system-images-container" class="row g-3">
-                                <!-- System images will be loaded here -->
-                                <div class="col-12 text-center text-muted py-5">
-                                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                                    <p th:text="#{backoffice.modal.image.loading.system}">Loading system images...</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- User Images Tab -->
-                        <div class="tab-pane fade" id="user-images" role="tabpanel">
-                            <div id="user-images-container" class="row g-3">
-                                <!-- User images will be loaded here -->
-                                <div class="col-12 text-center text-muted py-5">
-                                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                                    <p th:text="#{backoffice.modal.image.loading.user}">Loading your uploads...</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Upload New Tab -->
-                        <div class="tab-pane fade" id="upload-new" role="tabpanel">
-                            <div class="card">
-                                <div class="card-body">
-                                    <form id="imageUploadForm">
-                                        <div class="mb-3">
-                                            <label for="imageFile" class="form-label"
-                                                th:text="#{backoffice.modal.image.label.file}">Select Image File
-                                                *</label>
-                                            <input type="file" class="form-control" id="imageFile"
-                                                accept="image/jpeg,image/png,image/webp" required>
-                                            <small class="text-muted"
-                                                th:text="#{backoffice.modal.image.help.file}">Allowed formats: JPG,
-                                                JPEG, PNG, WEBP</small>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="imageFolder" class="form-label"
-                                                th:text="#{backoffice.modal.image.label.folder}">Folder/Category
-                                                (Optional)</label>
-                                            <input type="text" class="form-control" id="imageFolder"
-                                                placeholder="e.g., burgers, drinks, desserts">
-                                            <small class="text-muted"
-                                                th:text="#{backoffice.modal.image.help.folder}">Leave empty to save in
-                                                root folder</small>
-                                        </div>
-                                        <div class="mb-3" id="imagePreviewContainer" style="display: none;">
-                                            <label class="form-label" th:text="#{label.preview}">Preview</label>
-                                            <div>
-                                                <img id="imagePreview" src="" alt="Preview"
-                                                    style="max-width: 300px; max-height: 200px; border-radius: 8px;">
-                                            </div>
-                                        </div>
-                                        <p id="imageOptimisedSize" class="small text-muted" aria-live="polite"></p>
-                                        <p id="imageUploadError" class="text-danger" role="alert"></p>
-                                        <button id="imageUploadSubmit" type="submit" class="btn btn-primary">
-                                            <i class="fas fa-upload"></i> <span
-                                                th:text="#{backoffice.modal.image.button.upload}">Upload Image</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+            <!-- Tab Content -->
+            <div class="bo-tab-content" id="imageTabContent">
+                <!-- System Images Tab -->
+                <div class="bo-tab-panel" id="system-images" role="tabpanel" aria-labelledby="system-images-tab">
+                    <div id="system-images-container" class="bo-gallery-root">
+                        <div class="bo-empty">
+                            <svg class="icon icon-2x bo-spinner" aria-hidden="true"><use href="#i-spinner"></use></svg>
+                            <p th:text="#{backoffice.modal.image.loading.system}">Loading system images...</p>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                        th:text="#{button.cancel}">Cancel</button>
+
+                <!-- User Images Tab -->
+                <div class="bo-tab-panel" id="user-images" role="tabpanel" aria-labelledby="user-images-tab" hidden>
+                    <div id="user-images-container" class="bo-gallery-root">
+                        <div class="bo-empty">
+                            <svg class="icon icon-2x bo-spinner" aria-hidden="true"><use href="#i-spinner"></use></svg>
+                            <p th:text="#{backoffice.modal.image.loading.user}">Loading your uploads...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload New Tab -->
+                <div class="bo-tab-panel" id="upload-new" role="tabpanel" aria-labelledby="upload-new-tab" hidden>
+                    <div class="bo-upload-card">
+                        <form id="imageUploadForm">
+                            <div class="bo-field">
+                                <label for="imageFile" class="bo-label"
+                                    th:text="#{backoffice.modal.image.label.file}">Select Image File *</label>
+                                <input type="file" class="bo-input" id="imageFile"
+                                    accept="image/jpeg,image/png,image/webp" required>
+                                <p class="bo-hint" th:text="#{backoffice.modal.image.help.file}">Allowed formats: JPG, JPEG, PNG, WEBP</p>
+                            </div>
+                            <div class="bo-field">
+                                <label for="imageFolder" class="bo-label"
+                                    th:text="#{backoffice.modal.image.label.folder}">Folder/Category (Optional)</label>
+                                <input type="text" class="bo-input" id="imageFolder"
+                                    th:placeholder="#{backoffice.modal.image.placeholder.folder}">
+                                <p class="bo-hint" th:text="#{backoffice.modal.image.help.folder}">Leave empty to save in root folder</p>
+                            </div>
+                            <div class="bo-field bo-upload-preview" id="imagePreviewContainer" hidden>
+                                <span class="bo-label" th:text="#{label.preview}">Preview</span>
+                                <img id="imagePreview" src="" th:alt="#{label.preview}">
+                            </div>
+                            <p id="imageOptimisedSize" class="bo-hint" aria-live="polite"></p>
+                            <p id="imageUploadError" class="bo-error-text" role="alert"></p>
+                            <button id="imageUploadSubmit" type="submit" class="bo-btn bo-btn-primary">
+                                <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+                                <span th:text="#{backoffice.modal.image.button.upload}">Upload Image</span>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+        <div class="dialog-footer">
+            <button type="button" class="bo-btn bo-btn-secondary" data-dialog-close
+                th:text="#{button.cancel}">Cancel</button>
+        </div>
+    </dialog>
 
     <!-- Toast Container -->
     <div class="toast-container bo-toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -861,6 +836,8 @@
         th:data-customizations-delete-success="#{backoffice.customizations.delete.success}"
         th:data-customizations-delete-error="#{backoffice.customizations.delete.error}"
         th:data-customizations-validation-error="#{backoffice.customizations.validation.error}"
+        th:data-products-create-title="#{backoffice.products.create.title}"
+        th:data-products-edit-title="#{backoffice.products.edit.title}"
         th:data-products-empty="#{backoffice.products.empty}" th:data-products-active="#{label.active}"
         th:data-products-inactive="#{label.inactive}"
         th:data-products-customizations-count="#{backoffice.products.customizations.count}"
@@ -869,6 +846,15 @@
         th:data-products-save-error="#{backoffice.products.save.error}"
         th:data-products-delete-success="#{backoffice.products.delete.success}"
         th:data-products-delete-error="#{backoffice.products.delete.error}"
+        th:data-products-stock86-success="#{backoffice.products.stock86.success}"
+        th:data-products-stock86-error="#{backoffice.products.stock86.error}"
+        th:data-image-empty-system="#{backoffice.modal.image.empty.system}"
+        th:data-image-empty-user="#{backoffice.modal.image.empty.user}"
+        th:data-image-error-system="#{backoffice.modal.image.error.system}"
+        th:data-image-error-user="#{backoffice.modal.image.error.user}"
+        th:data-image-selected="#{backoffice.modal.image.selected}"
+        th:data-image-upload-success="#{backoffice.modal.image.upload.success}"
+        th:data-image-upload-error="#{backoffice.modal.image.upload.error}"
         th:data-discounts-delete-confirm="#{backoffice.discounts.delete.confirm}"
         th:data-discounts-save-success="#{backoffice.discounts.save.success}"
         th:data-discounts-delete-success="#{backoffice.discounts.delete.success}"

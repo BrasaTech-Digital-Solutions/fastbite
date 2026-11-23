@@ -372,6 +372,24 @@ class ThemeContractTest {
     }
 
     @Test
+    void backOfficeSliceTwoRendersNativeProductsAndImagePickerDialogInSpanish() throws Exception {
+        when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000", null, "KH", new BigDecimal("10.00")));
+        Locale spanish = Locale.forLanguageTag("es");
+        String html = render(as("MANAGER", get("/kebab/backoffice")).locale(spanish));
+        assertThat(html)
+                .contains("<section id=\"products-section\"", "id=\"product-form\" class=\"bo-card\" hidden",
+                        "id=\"btn-new-product\"", "id=\"btn-select-product-image\"",
+                        "class=\"bo-allergen-chip\"",
+                        "<dialog class=\"dialog dialog-centered dialog-xl\" id=\"imageSelectorModal\"",
+                        "role=\"tablist\"", "aria-selected=\"true\"",
+                        "aria-controls=\"system-images\"", "aria-controls=\"user-images\"",
+                        "aria-controls=\"upload-new\"")
+                .doesNotContain("class=\"modal fade\" id=\"imageSelectorModal\"",
+                        "data-bs-toggle=\"tab\"", "placeholder=\"Image URL\"");
+    }
+
+    @Test
     void cafeAndModernDoNotSetColorOnReassignDialogHeader() throws IOException {
         for (String themeId : List.of("cafe", "modern")) {
             String css = withoutComments(themes.asset(themeId, "theme.css").getContentAsString(StandardCharsets.UTF_8));

@@ -685,3 +685,316 @@
   background: var(--color-control-warning);
   color: var(--color-on-control-warning);
 }
+
+/* Slice 4c-2: Products section, allergen picker, 86 toggle & native image picker */
+.bo-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bo-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bo-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface-alt);
+  color: var(--color-text-strong);
+  font-size: 0.9375rem;
+}
+
+.bo-notice-warning {
+  border-color: var(--color-control-warning);
+  background: var(--color-control-warning);
+  color: var(--color-on-control-warning);
+}
+
+.bo-form-grid-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .bo-form-grid-3 {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.bo-hint {
+  margin: 0.25rem 0 0;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.bo-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.bo-input-group .bo-input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.bo-image-preview {
+  margin-top: 0.75rem;
+}
+
+.bo-image-preview img {
+  display: block;
+  max-width: 200px;
+  max-height: 150px;
+  border: 2px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  object-fit: cover;
+}
+
+.bo-fieldset {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+}
+
+.bo-allergen-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0.5rem 0;
+}
+
+.bo-allergen-picker .bo-allergen-chip label {
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.875rem;
+}
+
+.bo-check-inline {
+  border-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.bo-warning-text {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-strong);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.bo-error-text {
+  margin: 0.375rem 0;
+  color: var(--color-danger);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.bo-product-head {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.bo-product-thumb {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  border-radius: min(var(--radius), 8px);
+  object-fit: cover;
+}
+
+.bo-product-meta {
+  min-width: 0;
+}
+
+.bo-badge-primary {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.bo-btn-86 {
+  min-width: 64px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.bo-btn-86-active {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface);
+  color: var(--color-text-strong);
+}
+
+.bo-btn-86-active:hover {
+  background: var(--color-surface-alt);
+}
+
+.bo-btn-86-off {
+  border-color: var(--color-control-warning);
+  background: var(--color-control-warning);
+  color: var(--color-on-control-warning);
+}
+
+.bo-btn-86-off:hover {
+  filter: brightness(0.95);
+}
+
+/* Image picker dialog (XL width, native tabs & gallery grid) */
+.bo-page .dialog-xl {
+  width: min(100% - 2rem, 1080px);
+  max-width: 1080px;
+}
+
+.bo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bo-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 6px);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bo-tab:hover {
+  background: var(--color-surface-tint);
+}
+
+.bo-tab[aria-selected="true"] {
+  border-color: var(--color-action);
+  background: var(--color-action);
+  color: var(--color-on-primary);
+}
+
+.bo-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.bo-gallery-folder {
+  margin-bottom: 1.25rem;
+}
+
+.bo-gallery-folder-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  color: var(--color-text-strong);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.bo-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.bo-image-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bo-image-card:hover,
+.bo-image-card:focus-visible {
+  border-color: var(--color-action);
+  box-shadow: var(--shadow-sm);
+}
+
+.bo-image-card-img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.bo-image-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.5rem 0.625rem;
+  min-width: 0;
+}
+
+.bo-image-card-name {
+  overflow: hidden;
+  color: var(--color-text-strong);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bo-image-card-size {
+  color: var(--color-text);
+  font-size: 0.75rem;
+}
+
+.bo-upload-card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface-alt);
+}
+
+.bo-upload-preview img {
+  display: block;
+  max-width: 300px;
+  max-height: 200px;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  object-fit: contain;
+}
+
+.bo-spinner {
+  animation: bo-spin 1s linear infinite;
+}
+
+@keyframes bo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

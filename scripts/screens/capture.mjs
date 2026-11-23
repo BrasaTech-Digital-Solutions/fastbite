@@ -519,6 +519,33 @@ async function main() {
           await shown(p, '#productSelectorModal:is(.show, [open])', 'product selector dialog');
           await shown(p, '#product-selector-list > *', 'product selector list');
         }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-products-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-products'));
+          await shown(p, '#products-list > *', 'products list');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-product-form-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-products'));
+          await shown(p, '#products-list > *', 'products list');
+          const newProdBtn = '#btn-new-product, #products-section button[onclick="showProductForm()"]';
+          await shown(p, newProdBtn, 'new product button');
+          await tap(p.locator(newProdBtn));
+          await shown(p, '#product-form', 'product form');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-image-picker-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-products'));
+          await shown(p, '#products-list > *', 'products list');
+          const newProdBtn = '#btn-new-product, #products-section button[onclick="showProductForm()"]';
+          await tap(p.locator(newProdBtn));
+          await shown(p, '#product-form', 'product form');
+          const selectImgBtn = '#btn-select-product-image, #product-form button[onclick^="openImageSelector"]';
+          await tap(p.locator(selectImgBtn));
+          await shown(p, '#imageSelectorModal:is(.show, [open])', 'image selector dialog');
+          await tap(p.locator('#user-images-tab'));
+          await shown(p, '#user-images-container .image-card, #user-images-container .bo-image-card', 'user images gallery');
+        }, { fullPage: false });
       }
     }
   } finally {

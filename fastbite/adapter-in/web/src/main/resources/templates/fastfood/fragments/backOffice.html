@@ -95,60 +95,62 @@
 
 <!-- Products List -->
 <div th:fragment="products-list" th:remove="tag">
-    <div th:if="${#lists.isEmpty(products)}" class="text-center text-muted py-5">
-        <i class="fas fa-inbox fa-3x mb-3"></i>
+    <div th:if="${#lists.isEmpty(products)}" class="bo-empty">
+        <svg class="icon icon-3x" aria-hidden="true"><use href="#i-inbox"></use></svg>
         <p th:text="#{backoffice.products.empty}">No products found</p>
     </div>
-    <div th:each="product : ${products}" class="cart-item mb-3">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="flex-grow-1">
-                <div class="d-flex align-items-center mb-2">
-                    <img th:if="${product['image']}" th:src="${product['image']}" th:alt="${product['name']}"
-                        style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 15px;">
-                    <div>
-                        <h5 class="mb-1" th:text="${product['name']}">Product Name</h5>
-                        <p class="text-muted mb-0" th:text="${product['description']}">Description</p>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <span class="badge bg-success"
-                        th:text="${#numbers.formatDecimal(product['price'], 1, 2)} + ' €'">0.00 €</span>
-                    <span th:if="${product['vatRate'] != null}" class="badge bg-light text-dark border"
-                        th:text="#{label.vat.rate(${#numbers.formatInteger(product['vatRate'], 1)})}">VAT 21%</span>
-                    <span th:if="${product['allergens'] == null}" class="badge bg-warning text-dark"
-                        th:text="#{backoffice.products.allergens.missing}">Allergens not declared</span>
-                    <span th:if="${product['allergens'] != null && #lists.isEmpty(product['allergens'])}"
-                        class="badge bg-light text-success border" th:text="#{menu.allergens.none}">No allergens</span>
-                    <span th:if="${product['allergens'] != null && !#lists.isEmpty(product['allergens'])}"
-                        class="badge bg-light text-dark border" th:title="${product['allergenNames']}"
-                        th:text="${product['allergenIcons']}">🌾🥛</span>
-                    <span th:class="|badge ${product['active'] ? 'bg-primary' : 'bg-secondary'}|"
-                        th:text="${product['active'] ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
-                    <span class="badge bg-info">
-                        <span
-                            th:text="${product['customizations'] != null ? #lists.size(product['customizations']) : 0}">0</span>
-                        <span th:text="#{backoffice.products.customizations.count}">customizations</span>
-                    </span>
+    <div th:each="product : ${products}" class="bo-item-card">
+        <div class="bo-item-body">
+            <div class="bo-product-head">
+                <img th:if="${product['image']}" class="bo-product-thumb" th:src="${product['image']}" th:alt="${product['name']}">
+                <div class="bo-product-meta">
+                    <h2 class="bo-item-title" th:text="${product['name']}">Product Name</h2>
+                    <p class="bo-item-desc" th:text="${product['description']}">Description</p>
                 </div>
             </div>
-            <div class="btn-group">
-                <button th:class="|btn btn-sm ${product['active'] ? 'btn-outline-warning' : 'btn-warning'}|" th:data-id="${product['id']}"
-                    onclick="toggleProductStock86(this.dataset.id)" title="Toggle 86 / Out of Stock">
-                    <i class="fas fa-ban me-1"></i> 86
-                </button>
-                <button class="btn btn-sm btn-outline-primary" th:data-id="${product['id']}"
-                    onclick="editProduct(this.dataset.id)">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" th:data-id="${product['id']}"
-                    onclick="manageProductTranslations(this.dataset.id)">
-                    <i class="fas fa-language"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" th:data-id="${product['id']}"
-                    onclick="deleteProduct(this.dataset.id)">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <div class="bo-badges">
+                <span class="bo-badge bo-badge-success"
+                    th:text="${#numbers.formatDecimal(product['price'], 1, 2)} + ' €'">0.00 €</span>
+                <span th:if="${product['vatRate'] != null}" class="bo-badge"
+                    th:text="#{label.vat.rate(${#numbers.formatInteger(product['vatRate'], 1)})}">VAT 21%</span>
+                <span th:if="${product['allergens'] == null}" class="bo-badge bo-badge-warning"
+                    th:text="#{backoffice.products.allergens.missing}">Allergens not declared</span>
+                <span th:if="${product['allergens'] != null && #lists.isEmpty(product['allergens'])}"
+                    class="bo-badge" th:text="#{menu.allergens.none}">No allergens</span>
+                <span th:if="${product['allergens'] != null && !#lists.isEmpty(product['allergens'])}"
+                    class="bo-badge" th:title="${product['allergenNames']}"
+                    th:text="${product['allergenIcons']}">🌾🥛</span>
+                <span th:class="|bo-badge ${product['active'] ? 'bo-badge-primary' : ''}|"
+                    th:text="${product['active'] ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
+                <span class="bo-badge">
+                    <span th:text="${product['customizations'] != null ? #lists.size(product['customizations']) : 0}">0</span>
+                    <span th:text="#{backoffice.products.customizations.count}">customizations</span>
+                </span>
             </div>
+        </div>
+        <div class="bo-item-actions">
+            <button type="button" th:class="|bo-btn bo-btn-86 ${product['active'] ? 'bo-btn-86-active' : 'bo-btn-86-off'}|"
+                th:data-id="${product['id']}" th:aria-pressed="${!product['active']}"
+                th:title="#{backoffice.products.action.stock86}" th:aria-label="#{backoffice.products.action.stock86}"
+                onclick="toggleProductStock86(this.dataset.id, this)">
+                <svg class="icon" aria-hidden="true"><use href="#i-ban"></use></svg>
+                <span>86</span>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-primary" th:data-id="${product['id']}"
+                th:aria-label="#{backoffice.action.edit}" th:title="#{backoffice.action.edit}"
+                onclick="editProduct(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${product['id']}"
+                th:aria-label="#{backoffice.action.translations}" th:title="#{backoffice.action.translations}"
+                onclick="manageProductTranslations(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-danger" th:data-id="${product['id']}"
+                th:aria-label="#{backoffice.action.delete}" th:title="#{backoffice.action.delete}"
+                onclick="deleteProduct(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
         </div>
     </div>
 </div>
@@ -201,32 +203,26 @@
 
 <!-- Image Gallery -->
 <div th:fragment="image-gallery" th:remove="tag">
-    <div th:if="${#lists.isEmpty(folders)}" class="col-12 text-center text-muted py-5">
-        <p
-            th:text="${type == 'system' ? #messages.msg('backoffice.modal.image.loading.system') : #messages.msg('backoffice.modal.image.loading.user')}">
+    <div th:if="${#lists.isEmpty(folders)}" class="bo-empty">
+        <p th:text="${type == 'system' ? #messages.msg('backoffice.modal.image.empty.system') : #messages.msg('backoffice.modal.image.empty.user')}">
             No images available</p>
     </div>
-    <th:block th:each="folder : ${folders}">
-        <div class="col-12">
-            <h6 class="text-muted mb-3">
-                <i class="fas fa-folder me-2"></i><span th:text="${folder.name()}">folder</span>
-            </h6>
+    <div class="bo-gallery-folder" th:each="folder : ${folders}">
+        <h3 class="bo-gallery-folder-title">
+            <svg class="icon" aria-hidden="true"><use href="#i-folder"></use></svg>
+            <span th:text="${folder.name()}">folder</span>
+        </h3>
+        <div class="bo-gallery-grid">
+            <button type="button" class="bo-image-card" th:each="image : ${folder.images()}"
+                th:data-url="${image['url']}" onclick="selectImage(this.dataset.url)">
+                <img th:src="${image['url']}" class="bo-image-card-img" th:alt="${image['name']}">
+                <span class="bo-image-card-body">
+                    <span class="bo-image-card-name" th:title="${image['name']}" th:text="${image['name']}">image.name</span>
+                    <span class="bo-image-card-size" th:text="${image['formattedSize']}">0 KB</span>
+                </span>
+            </button>
         </div>
-        <div th:each="image : ${folder.images()}" class="col-6 col-md-4 col-lg-3">
-            <div class="card h-100 image-card" style="cursor: pointer;" th:data-url="${image['url']}"
-                onclick="selectImage(this.dataset.url)">
-                <img th:src="${image['url']}" class="card-img-top" th:alt="${image['name']}"
-                    style="height: 150px; object-fit: cover;"
-                    onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
-                <div class="card-body p-2">
-                    <p class="card-text small text-truncate mb-0" th:title="${image['name']}"
-                        th:text="${image['name']}">
-                        image.name</p>
-                    <small class="text-muted" th:text="${image['formattedSize']}">0 KB</small>
-                </div>
-            </div>
-        </div>
-    </th:block>
+    </div>
 </div>
 
 <!-- Quick View -->

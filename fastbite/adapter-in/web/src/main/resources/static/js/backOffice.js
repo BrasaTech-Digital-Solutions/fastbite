@@ -317,9 +317,9 @@ function cancelForm() {
     const custForm = document.getElementById('customization-form');
     if (custForm) custForm.hidden = true;
     const productForm = document.getElementById('product-form');
-    if (productForm) productForm.style.display = 'none';
+    if (productForm) productForm.hidden = true;
     const preview = document.getElementById('product-image-preview');
-    if (preview) preview.style.display = 'none';
+    if (preview) preview.hidden = true;
     const tableList = document.getElementById('tables-list');
     const tableFormContainer = document.getElementById('table-form-container');
     if (tableList) tableList.style.display = 'block';
@@ -695,7 +695,7 @@ function showProductForm(productId = null) {
 
     if (productId) {
         const product = products.find(p => p.id === productId);
-        title.textContent = 'Edit Product';
+        title.textContent = i18n.productsEditTitle || 'Edit Product';
         document.getElementById('product-id').value = product.id;
         document.getElementById('product-name').value = product.name;
         document.getElementById('product-price').value = product.price;
@@ -708,24 +708,24 @@ function showProductForm(productId = null) {
         const previewImg = document.getElementById('product-image-preview-img');
         if (product.image) {
             if (previewImg) previewImg.src = product.image;
-            if (preview) preview.style.display = 'block';
+            if (preview) preview.hidden = false;
         } else {
-            if (preview) preview.style.display = 'none';
+            if (preview) preview.hidden = true;
         }
         selectedCustomizationsForProduct = product.customizations ? [...product.customizations] : [];
         updateProductCustomizationsList();
     } else {
-        title.textContent = 'Create New Product';
+        title.textContent = i18n.productsCreateTitle || 'Create New Product';
         document.getElementById('productFormElement').reset();
         document.getElementById('product-vat').value = '';
         setProductAllergens(null);
         const preview = document.getElementById('product-image-preview');
-        if (preview) preview.style.display = 'none';
+        if (preview) preview.hidden = true;
         selectedCustomizationsForProduct = [];
         updateProductCustomizationsList();
     }
 
-    form.style.display = 'block';
+    form.hidden = false;
     form.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -972,20 +972,72 @@ function showToast(message, type = 'success') {
 
 let imageSelectionCallback = null;
 
+function activateImageTab(tab, announce = true) {
+    const tablist = document.getElementById('imageTabsNav');
+    if (!tablist || !tab) return;
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    tabs.forEach(t => {
+        const selected = t === tab;
+        t.setAttribute('aria-selected', selected ? 'true' : 'false');
+        t.tabIndex = selected ? 0 : -1;
+        const panelId = t.getAttribute('aria-controls');
+        const panel = panelId ? document.getElementById(panelId) : null;
+        if (panel) panel.hidden = !selected;
+    });
+    if (announce) {
+        const announcer = document.getElementById('imageTabAnnouncer');
+        if (announcer) {
+            announcer.textContent = tab.textContent.trim();
+        }
+    }
+}
+
+function initImageTabs() {
+    const tablist = document.getElementById('imageTabsNav');
+    if (!tablist || tablist.dataset.tabsBound) return;
+    tablist.dataset.tabsBound = 'true';
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            activateImageTab(tab, true);
+        });
+    });
+    tablist.addEventListener('keydown', (event) => {
+        const current = document.activeElement;
+        const index = tabs.indexOf(current);
+        if (index < 0) return;
+        let nextIndex = null;
+        if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+        else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = tabs.length - 1;
+        if (nextIndex !== null) {
+            event.preventDefault();
+            const target = tabs[nextIndex];
+            activateImageTab(target, true);
+            target.focus();
+        }
+    });
+}
+
 /**
- * Open the image selector modal
+ * Open the image selector dialog
  * @param {Function} callback Optional callback to handle selection
  */
 function openImageSelector(callback = null) {
+    const opener = document.activeElement;
     imageSelectionCallback = callback;
-    const modal = new bootstrap.Modal(document.getElementById('imageSelectorModal'));
-    const modalElement = document.getElementById('imageSelectorModal');
-    if (!modalElement.dataset.uploadCleanup) {
-        modalElement.addEventListener('hidden.bs.modal', resetImageUpload);
-        modalElement.dataset.uploadCleanup = 'true';
+    const dialog = document.getElementById('imageSelectorModal');
+    if (!dialog.dataset.uploadCleanup) {
+        dialog.addEventListener('close', resetImageUpload);
+        dialog.dataset.uploadCleanup = 'true';
     }
 
-    // Load images when modal opens
+    initImageTabs();
+    const firstTab = document.getElementById('system-images-tab');
+    activateImageTab(firstTab, false);
+
+    // Load images when dialog opens
     loadSystemImages();
     loadUserImages();
 
@@ -1001,7 +1053,8 @@ function openImageSelector(callback = null) {
         fileInput.onchange = previewUploadImage;
     }
 
-    modal.show();
+    window.FastBiteDialogs.open(dialog, opener);
+    if (firstTab) firstTab.focus();
 }
 
 /**
@@ -1013,7 +1066,13 @@ async function loadSystemImages() {
     try {
         const response = await fetch('/api/backoffice/images/system');
         if (!response.ok) {
-            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><p>No system images found</p></div>';
+            container.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'bo-empty';
+            const p = document.createElement('p');
+            p.textContent = i18n.imageEmptySystem || 'No system images found';
+            empty.appendChild(p);
+            container.appendChild(empty);
             return;
         }
 
@@ -1021,7 +1080,13 @@ async function loadSystemImages() {
         renderImageGallery(imagesByFolder, container, 'system');
     } catch (error) {
         console.error('Error loading system images:', error);
-        container.innerHTML = '<div class="col-12 text-center text-danger py-5"><p>Error loading system images</p></div>';
+        container.innerHTML = '';
+        const err = document.createElement('div');
+        err.className = 'bo-empty bo-error-text';
+        const p = document.createElement('p');
+        p.textContent = i18n.imageErrorSystem || 'Error loading system images';
+        err.appendChild(p);
+        container.appendChild(err);
     }
 }
 
@@ -1034,20 +1099,38 @@ async function loadUserImages() {
     try {
         const response = await fetch('/api/backoffice/images/user');
         if (!response.ok) {
-            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><p>No uploaded images yet</p></div>';
+            container.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'bo-empty';
+            const p = document.createElement('p');
+            p.textContent = i18n.imageEmptyUser || 'No uploaded images yet';
+            empty.appendChild(p);
+            container.appendChild(empty);
             return;
         }
 
         const imagesByFolder = await response.json();
         if (Object.keys(imagesByFolder).length === 0) {
-            container.innerHTML = '<div class="col-12 text-center text-muted py-5"><p>No uploaded images yet. Upload your first image!</p></div>';
+            container.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'bo-empty';
+            const p = document.createElement('p');
+            p.textContent = i18n.imageEmptyUser || 'No uploaded images yet. Upload your first image!';
+            empty.appendChild(p);
+            container.appendChild(empty);
             return;
         }
 
         renderImageGallery(imagesByFolder, container, 'user');
     } catch (error) {
         console.error('Error loading user images:', error);
-        container.innerHTML = '<div class="col-12 text-center text-danger py-5"><p>Error loading user images</p></div>';
+        container.innerHTML = '';
+        const err = document.createElement('div');
+        err.className = 'bo-empty bo-error-text';
+        const p = document.createElement('p');
+        p.textContent = i18n.imageErrorUser || 'Error loading your uploads';
+        err.appendChild(p);
+        container.appendChild(err);
     }
 }
 
@@ -1080,14 +1163,13 @@ function selectImage(imageUrl) {
         const preview = document.getElementById('product-image-preview');
         const previewImg = document.getElementById('product-image-preview-img');
         if (previewImg) previewImg.src = imageUrl;
-        if (preview) preview.style.display = 'block';
+        if (preview) preview.hidden = false;
     }
 
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('imageSelectorModal'));
-    if (modal) modal.hide();
+    // Close dialog
+    window.FastBiteDialogs.close(document.getElementById('imageSelectorModal'));
 
-    showToast('Image selected successfully!', 'success');
+    showToast(i18n.imageSelected || 'Image selected successfully!', 'success');
 }
 
 // Each selection owns a generation; a slower previous decode must never overwrite the latest.
@@ -1101,7 +1183,7 @@ function clearImagePreview() {
     imagePreviewUrl = null;
     const preview = document.getElementById('imagePreview');
     preview.removeAttribute('src');
-    document.getElementById('imagePreviewContainer').style.display = 'none';
+    document.getElementById('imagePreviewContainer').hidden = true;
     document.getElementById('imageOptimisedSize').textContent = '';
 }
 
@@ -1159,7 +1241,7 @@ async function previewUploadImage(event) {
         optimisedImage = { blob, filename: base + (blob.type === 'image/webp' ? '.webp' : '.jpg') };
         imagePreviewUrl = URL.createObjectURL(blob);
         document.getElementById('imagePreview').src = imagePreviewUrl;
-        document.getElementById('imagePreviewContainer').style.display = 'block';
+        document.getElementById('imagePreviewContainer').hidden = false;
         const locale = document.documentElement.lang || undefined;
         const formatSize = size => {
             const mb = size >= 1024 * 1024;
@@ -1194,18 +1276,18 @@ async function handleImageUpload(event) {
             method: 'POST', headers: { 'X-CSRF-TOKEN': getCsrfToken() }, body: formData
         });
         if (!response.ok) {
-            const error = await response.json();
-            showToast(error.error || error.message || 'Upload failed', 'error');
+            const error = await response.json().catch(() => ({}));
+            showToast(error.error || error.message || i18n.imageUploadError || 'Upload failed', 'error');
             return;
         }
         const imageInfo = await response.json();
         selectImage(imageInfo.url);
         resetImageUpload();
         loadUserImages();
-        showToast('Image uploaded successfully!', 'success');
+        showToast(i18n.imageUploadSuccess || 'Image uploaded successfully!', 'success');
     } catch (error) {
         console.error('Error uploading image:', error);
-        showToast('Error uploading image', 'error');
+        showToast(i18n.imageUploadError || 'Error uploading image', 'error');
     } finally {
         imageUploadInFlight = false;
         input.disabled = false;
@@ -1874,7 +1956,12 @@ async function saveRestaurantSettings(event) {
     }
 }
 
-async function toggleProductStock86(productId) {
+const stock86InFlight = new Set();
+
+async function toggleProductStock86(productId, buttonEl = null) {
+    if (stock86InFlight.has(productId)) return;
+    stock86InFlight.add(productId);
+    if (buttonEl) buttonEl.disabled = true;
     try {
         const response = await fetch(`/api/backoffice/products/${productId}/toggle-86`, {
             method: 'POST',
@@ -1884,13 +1971,16 @@ async function toggleProductStock86(productId) {
         });
         if (response.ok) {
             await loadData();
-            showToast('Product stock 86 availability toggled!');
+            showToast(i18n.productsStock86Success || 'Product stock 86 availability toggled!');
         } else {
-            showToast('Failed to toggle product stock', 'error');
+            showToast(i18n.productsStock86Error || 'Failed to toggle product stock', 'error');
         }
     } catch (err) {
         console.error('Error toggling product stock:', err);
-        showToast('Error toggling product stock', 'error');
+        showToast(i18n.productsStock86Error || 'Error toggling product stock', 'error');
+    } finally {
+        stock86InFlight.delete(productId);
+        if (buttonEl && buttonEl.isConnected) buttonEl.disabled = false;
     }
 }
 

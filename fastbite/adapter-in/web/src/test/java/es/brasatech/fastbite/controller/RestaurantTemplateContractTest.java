@@ -309,6 +309,58 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void backOfficeSliceTwoProductsAndImagePickerUseNativeMarkup() throws IOException {
+        String productsSection = fragment("backOffice.html", "<section id=\"products-section\"", "</section>");
+        assertNativeCounter("backOffice.html#products-section", productsSection);
+        assertThat(productsSection)
+                .contains("id=\"product-form\" class=\"bo-card\" hidden", "id=\"btn-new-product\"",
+                        "id=\"btn-select-product-image\"", "id=\"allergens-missing-banner\"",
+                        "class=\"bo-allergen-chip\"");
+
+        String imageDialog = fragment("backOffice.html", "<dialog class=\"dialog dialog-centered dialog-xl\" id=\"imageSelectorModal\"", "</dialog>");
+        assertNativeCounter("backOffice.html#imageSelectorModal", imageDialog);
+        assertThat(imageDialog)
+                .contains("role=\"tablist\"", "role=\"tab\"", "aria-selected=\"true\"",
+                        "aria-controls=\"system-images\"", "aria-controls=\"user-images\"",
+                        "aria-controls=\"upload-new\"", "role=\"tabpanel\"");
+
+        String productsList = fragment("fragments/backOffice.html", "<!-- Products List -->", "<!-- Customization Option Card -->");
+        assertNativeCounter("fragments/backOffice.html::products-list", productsList);
+        assertThat(productsList).contains("bo-item-card", "bo-icon-btn", "aria-pressed=");
+
+        String imageGallery = fragment("fragments/backOffice.html", "<!-- Image Gallery -->", "<!-- Quick View -->");
+        assertNativeCounter("fragments/backOffice.html::image-gallery", imageGallery);
+        assertThat(imageGallery).contains("<button type=\"button\" class=\"bo-image-card\"");
+    }
+
+    @Test
+    void backOfficeSliceTwoTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "backoffice.products.action.stock86",
+                "backoffice.products.stock86.success",
+                "backoffice.products.stock86.error",
+                "backoffice.products.placeholder.image",
+                "backoffice.modal.image.empty.system",
+                "backoffice.modal.image.empty.user",
+                "backoffice.modal.image.error.system",
+                "backoffice.modal.image.error.user",
+                "backoffice.modal.image.selected",
+                "backoffice.modal.image.upload.success",
+                "backoffice.modal.image.upload.error",
+                "backoffice.modal.image.placeholder.folder",
+                "backoffice.modal.image.tabs.label");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
     void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
         assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html");
         for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",
