@@ -5,24 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <title>Enter the sandbox - FastBite</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/platform.css}">
 </head>
-<body class="bg-light">
+<body class="account-page">
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
-<main class="container py-5" style="max-width: 520px">
-    <div class="card shadow-sm p-4">
-        <h1 class="h3 mb-3">Enter the sandbox</h1>
-        <p th:if="${refusal == 'INVALID'}" class="alert alert-warning" role="alert">
+<header class="site-header account-header">
+    <div><a class="brand" href="/"><span class="brand-mark">f.</span>fastbite</a></div>
+</header>
+<main class="sandbox-entry-main">
+    <section class="form-card account-card sandbox-entry-card">
+        <h1 class="sandbox-entry-title">Enter the sandbox</h1>
+        <p th:if="${refusal == 'INVALID'}" class="account-alert sandbox-entry-warning" role="alert">
             This link has expired or was already used. Open the sandbox again from FastBite.
         </p>
-        <p th:if="${refusal == 'OTHER_VERSION'}" class="alert alert-info" role="status">
+        <p th:if="${refusal == 'OTHER_VERSION'}" class="account-alert sandbox-entry-info" role="status">
             The sandbox is being updated to a new version. Try again in a minute.
         </p>
-        <p th:if="${refusal == 'NOT_READY'}" class="alert alert-info" role="status">
+        <p th:if="${refusal == 'NOT_READY'}" class="account-alert sandbox-entry-info" role="status">
             Your practice space is still being prepared. Try again in a minute.
         </p>
-        <a th:href="${enterUrl}" class="btn btn-primary">Open the sandbox again</a>
-    </div>
+        <a th:href="${enterUrl}" class="button">Open the sandbox again</a>
+    </section>
 </main>
 </body>
 </html>

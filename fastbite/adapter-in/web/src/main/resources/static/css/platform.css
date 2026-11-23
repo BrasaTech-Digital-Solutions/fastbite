@@ -902,3 +902,10 @@ h1{
 .account-card .button{width:100%;min-height:52px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;text-align:center}.account-link{border:0;background:none;padding:0;cursor:pointer;font:inherit;font-weight:700}.account-help{font-size:13px;line-height:1.5;color:#58655e}.account-alert{padding:14px;border-radius:8px;margin:0 0 18px;line-height:1.5}.account-error{background:#fbe9e4;border:1px solid #efc3b6;color:#8a2e18}.account-success{background:#eaf1e7;border:1px solid #d3e3cf;color:#31543a}.account-empty{text-align:center}.account-empty h2{font-family:Manrope,sans-serif;font-size:22px;line-height:1.25;letter-spacing:-.02em;margin:14px 0 8px}.account-empty p{color:#58655e}.account-icon{display:inline-flex;width:44px;height:44px;border-radius:50%;align-items:center;justify-content:center;background:#fbe9e4;color:#b23c20;font-weight:700}.account-team{padding:0;list-style:none}.account-team a{display:flex;align-items:center;min-height:44px;overflow-wrap:anywhere}
 .account-footer{border-top:1px solid #dedfd5;padding:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;color:#58655e;font-size:13px}.account-footer nav{display:flex;gap:20px}.account-footer a{display:inline-flex;align-items:center;min-height:44px;color:#1c3029}
 @media(min-width:900px){.account-header,.account-footer{padding-left:max(32px,calc((100vw - 1180px)/2));padding-right:max(32px,calc((100vw - 1180px)/2))}.account-main{grid-template-columns:minmax(0,1fr) 440px;align-items:start;gap:70px;padding:90px 16px}.account-card{padding:32px}}
+
+/* Item 5b: Sandbox entry page (sandboxEntry.html, Bootstrap-free) */
+.sandbox-entry-main{width:100%;max-width:520px;margin:0 auto;padding:48px 16px;box-sizing:border-box;flex:1}
+.sandbox-entry-card{padding:28px}
+.sandbox-entry-title{font-family:Manrope,sans-serif;font-size:28px;line-height:1.2;letter-spacing:-.02em;margin:0 0 16px}
+.sandbox-entry-warning{background:#fdf3dc;border:1px solid #e7c97a;color:#6c4b00}
+.sandbox-entry-info{background:#e7f2f8;border:1px solid #b5d5e6;color:#144963}

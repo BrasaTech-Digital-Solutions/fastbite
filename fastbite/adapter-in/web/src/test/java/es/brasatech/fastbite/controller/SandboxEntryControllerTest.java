@@ -192,10 +192,14 @@ class SandboxEntryControllerTest {
         void anExpiredOrUsedLinkSaysHowToGetANewOne() throws Exception {
             when(signIn.accept("used")).thenReturn(new SandboxSignInService.Outcome(null, null, SandboxSignInService.Refusal.INVALID));
 
-            mockMvc.perform(get("/link/enter").param("token", "used"))
+            String html = mockMvc.perform(get("/link/enter").param("token", "used"))
                     .andExpect(status().isBadRequest())
                     .andExpect(view().name("fastfood/sandboxEntry"))
-                    .andExpect(model().attribute("enterUrl", "https://fastbite.example/owner/sandbox"));
+                    .andExpect(model().attribute("enterUrl", "https://fastbite.example/owner/sandbox"))
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(html).contains("This link has expired or was already used.");
+            assertThat(html).contains("https://fastbite.example/owner/sandbox");
+            assertThat(html).doesNotContain("/webjars/bootstrap", "/webjars/font-awesome", "style=");
         }
 
         @Test
