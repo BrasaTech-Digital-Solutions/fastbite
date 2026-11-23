@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,7 +53,9 @@ public class TableServiceJpaImpl implements TableService {
             entity.setSeats(table.seats());
             entity.setStatus(table.status());
             entity.setActive(table.active());
-            entity.setOrderIds(new java.util.ArrayList<>(table.orderIds()));
+            if (table.orderIds() != null) {
+                entity.setOrderIds(new ArrayList<>(table.orderIds()));
+            }
             entity.setQrTrusted(table.qrTrusted());
             entity.setQrTrustedBy(table.qrTrustedBy());
             entity.setQrTrustedAt(table.qrTrustedAt());

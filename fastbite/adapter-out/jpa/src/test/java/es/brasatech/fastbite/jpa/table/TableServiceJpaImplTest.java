@@ -2,6 +2,7 @@ package es.brasatech.fastbite.jpa.table;
 
 import es.brasatech.fastbite.application.table.TableSignatureUtil;
 import es.brasatech.fastbite.domain.table.Table;
+import es.brasatech.fastbite.domain.table.TableStatus;
 import es.brasatech.fastbite.jpa.order.OrderJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,9 +10,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -124,6 +126,74 @@ class TableServiceJpaImplTest {
         assertThat(entity.getQrTrusted()).isNull();
         assertThat(entity.getQrTrustedBy()).isNull();
         assertThat(entity.getQrTrustedAt()).isNull();
+        verify(repository).save(entity);
+    }
+
+    @Test
+    void update_whenOrderIdsIsNull_keepsExistingOpenOrdersAttached() {
+        TableEntity entity = new TableEntity();
+        entity.setId("tbl-1");
+        entity.setName("Table 1");
+        entity.setSeats(4);
+        entity.setStatus(TableStatus.OCCUPIED);
+        entity.setActive(true);
+        entity.setOrderIds(new ArrayList<>(List.of("ord-1", "ord-2")));
+
+        when(repository.findById("tbl-1")).thenReturn(Optional.of(entity));
+        when(repository.save(any(TableEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Table> result = service.update("tbl-1",
+                new Table("tbl-1", "Table 1 Renamed", 6, TableStatus.OCCUPIED, true, null));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().name()).isEqualTo("Table 1 Renamed");
+        assertThat(result.get().seats()).isEqualTo(6);
+        assertThat(result.get().orderIds()).containsExactly("ord-1", "ord-2");
+        assertThat(entity.getOrderIds()).containsExactly("ord-1", "ord-2");
+        verify(repository).save(entity);
+    }
+
+    @Test
+    void update_whenOrderIdsIsNullOnEmptyTable_succeedsWithEmptyOrders() {
+        TableEntity entity = new TableEntity();
+        entity.setId("tbl-2");
+        entity.setName("Table 2");
+        entity.setSeats(4);
+        entity.setStatus(TableStatus.AVAILABLE);
+        entity.setActive(true);
+
+        when(repository.findById("tbl-2")).thenReturn(Optional.of(entity));
+        when(repository.save(any(TableEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Table> result = service.update("tbl-2",
+                new Table("tbl-2", "Table 2", 2, TableStatus.AVAILABLE, false, null));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().seats()).isEqualTo(2);
+        assertThat(result.get().active()).isFalse();
+        assertThat(result.get().orderIds()).isEmpty();
+        verify(repository).save(entity);
+    }
+
+    @Test
+    void update_whenOrderIdsProvided_replacesOrderIds() {
+        TableEntity entity = new TableEntity();
+        entity.setId("tbl-3");
+        entity.setName("Table 3");
+        entity.setSeats(4);
+        entity.setStatus(TableStatus.OCCUPIED);
+        entity.setActive(true);
+        entity.setOrderIds(new ArrayList<>(List.of("ord-1")));
+
+        when(repository.findById("tbl-3")).thenReturn(Optional.of(entity));
+        when(repository.save(any(TableEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Table> result = service.update("tbl-3",
+                new Table("tbl-3", "Table 3", 4, TableStatus.OCCUPIED, true, List.of("ord-2", "ord-3")));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().orderIds()).containsExactly("ord-2", "ord-3");
+        assertThat(entity.getOrderIds()).containsExactly("ord-2", "ord-3");
         verify(repository).save(entity);
     }
 }
