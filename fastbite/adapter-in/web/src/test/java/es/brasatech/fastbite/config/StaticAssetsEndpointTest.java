@@ -49,16 +49,16 @@ class StaticAssetsEndpointTest {
                 .andExpect(header().doesNotExist("Cache-Control"));
     }
 
-    @Test void unversionedFilesHaveShortStableEtagsAndOnlyReleaseWebjarsAreLongLived() throws Exception {
+    @Test void unversionedFilesHaveShortStableEtagsAndRemovedWebjarsReturnNotFound() throws Exception {
         var plain = mvc.perform(get("/css/fonts.css")).andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "max-age=600, public"))
                 .andExpect(header().doesNotExist("Last-Modified")).andReturn().getResponse();
         String tag = plain.getHeader("ETag");
         assertThat(tag).isNotBlank();
         mvc.perform(get("/css/fonts.css").header("If-None-Match", tag)).andExpect(status().isNotModified());
-        mvc.perform(get("/webjars/bootstrap/5.3.0/css/bootstrap.min.css")).andExpect(status().isOk())
-                .andExpect(header().string("Cache-Control", containsString("immutable")));
-        mvc.perform(get("/webjars/bootstrap/5.3.1/css/bootstrap.min.css")).andExpect(status().isNotFound())
+        mvc.perform(get("/webjars/bootstrap/5.3.0/css/bootstrap.min.css")).andExpect(status().isNotFound())
+                .andExpect(header().doesNotExist("Cache-Control"));
+        mvc.perform(get("/webjars/font-awesome/6.4.0/css/all.min.css")).andExpect(status().isNotFound())
                 .andExpect(header().doesNotExist("Cache-Control"));
     }
 }

@@ -687,6 +687,12 @@ class RestaurantTemplateContractTest {
             assertThat(webjarOrFa.matcher(html).find())
                     .as("%s must not load Bootstrap or Font Awesome", res.getDescription()).isFalse();
         }
+        Resource[] bootstrapWebjars = new PathMatchingResourcePatternResolver()
+                .getResources("classpath*:META-INF/resources/webjars/bootstrap/**");
+        Resource[] fontAwesomeWebjars = new PathMatchingResourcePatternResolver()
+                .getResources("classpath*:META-INF/resources/webjars/font-awesome/**");
+        assertThat(bootstrapWebjars).as("Bootstrap webjar must not be on the classpath").isEmpty();
+        assertThat(fontAwesomeWebjars).as("Font Awesome webjar must not be on the classpath").isEmpty();
     }
 
     @Test
