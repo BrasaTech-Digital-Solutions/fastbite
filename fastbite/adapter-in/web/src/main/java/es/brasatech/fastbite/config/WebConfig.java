@@ -6,6 +6,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.http.CacheControl;
@@ -32,6 +33,11 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Value("${image.upload.directory}")
     private String uploadDirectory;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new ErrorTimestampInterceptor());
+    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

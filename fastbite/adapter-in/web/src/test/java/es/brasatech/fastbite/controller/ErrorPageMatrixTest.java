@@ -23,6 +23,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -65,10 +67,12 @@ class ErrorPageMatrixTest {
                       @RequestParam(required = false) String tenantId,
                       @RequestParam(required = false) Boolean unknown,
                       @RequestParam(required = false) String timestamp,
+                      @RequestParam(required = false) Long timestampEpochMillis,
                       Model model) {
             if (tenantId != null) model.addAttribute("tenantId", tenantId);
             if (Boolean.TRUE.equals(unknown)) model.addAttribute("unknownRestaurant", "ghost");
-            if (timestamp != null) model.addAttribute("timestamp", timestamp);
+            if (timestampEpochMillis != null) model.addAttribute("timestamp", new Date(timestampEpochMillis));
+            else if (timestamp != null) model.addAttribute("timestamp", timestamp);
             return "error/" + view;
         }
     }
@@ -152,15 +156,38 @@ class ErrorPageMatrixTest {
 
         @Test
         void renders500InAllLocalesAndAuthStates() throws Exception {
+            long winterMillis = Instant.parse("2026-11-23T15:39:37Z").toEpochMilli();
+            long summerMillis = Instant.parse("2026-07-15T14:05:09Z").toEpochMilli();
+            Map<String, String> expectedWinter = Map.of(
+                    "es", "23/11/2026 16:39:37",
+                    "en", "23 Nov 2026, 16:39:37",
+                    "pt", "23/11/2026 16:39:37");
+            Map<String, String> expectedSummer = Map.of(
+                    "es", "15/07/2026 16:05:09",
+                    "en", "15 Jul 2026, 16:05:09",
+                    "pt", "15/07/2026 16:05:09");
             for (String lang : List.of("es", "en", "pt")) {
                 Locale locale = Locale.forLanguageTag(lang);
                 for (boolean loggedIn : List.of(false, true)) {
-                    String html = renderError("5xx", "kebab", false, "2026-11-23 15:00:00", locale, loggedIn);
+                    var req = get("/legal/test-error")
+                            .param("view", "5xx")
+                            .param("tenantId", "kebab")
+                            .param("timestampEpochMillis", String.valueOf(winterMillis))
+                            .locale(locale);
+                    if (loggedIn) req.with(user(staffUser()));
+                    String html = mockMvc.perform(req).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
                     assertCleanMarkup(html, lang);
                     assertThat(html).contains(TITLE_500.get(lang));
-                    assertThat(html).contains("2026-11-23 15:00:00");
+                    assertThat(html).contains(expectedWinter.get(lang));
+                    assertThat(html).doesNotContain("Mon Nov 23");
                     assertThat(html).contains("href=\"/kebab/menu\"");
                 }
+                String summerHtml = mockMvc.perform(get("/legal/test-error")
+                                .param("view", "5xx")
+                                .param("timestampEpochMillis", String.valueOf(summerMillis))
+                                .locale(locale))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+                assertThat(summerHtml).contains(expectedSummer.get(lang));
             }
         }
     }

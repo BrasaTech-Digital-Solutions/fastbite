@@ -33,12 +33,15 @@ public class TenantRoutingResolver {
     public static final String TENANT_URL_PREFIX = "tenantUrlPrefix";
 
     private static final Pattern TENANT_ID = Pattern.compile("^[a-zA-Z0-9]+$");
+    private static final Pattern TENANT_SEGMENT = Pattern.compile("^[a-zA-Z0-9][a-zA-Z0-9_-]*$");
 
     /** Top-level paths that belong to the platform, never to a tenant. */
     private static final Set<String> RESERVED = Set.of(
             "signup", "login", "logout", "owner", "menu", "dashboard", "counter", "backoffice",
             "api", "css", "js", "images", "webjars", "stripe", "error", "actuator", "appspecific", "allergens", "verifactu",
-            "internal", "link", "legal", "privacy", "ticket");
+            "internal", "link", "legal", "privacy", "ticket",
+            "user-images", "verify-email", "set-password", "forgot-password", "reset-password",
+            "order-confirmation", "select-payment");
 
     private static final int CUSTOM_DOMAIN_CACHE_SIZE = 1024;
 
@@ -171,7 +174,11 @@ public class TenantRoutingResolver {
 
     /** True if the path segment is a tenant prefix rather than a platform path. */
     public static boolean isTenantSegment(String segment) {
-        return segment != null && TENANT_ID.matcher(segment).matches() && !RESERVED.contains(segment);
+        return segment != null && TENANT_SEGMENT.matcher(segment).matches() && !RESERVED.contains(segment);
+    }
+
+    static boolean isReserved(String segment) {
+        return segment != null && RESERVED.contains(segment);
     }
 
     public static String firstSegment(String path) {

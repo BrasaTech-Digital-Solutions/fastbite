@@ -161,5 +161,21 @@ class TenantRoutingResolverTest {
         assertThat(resolver.resolve(request("/.env"))).isNull();
         assertThat(resolver.resolve(request("/favicon.ico"))).isNull();
         assertThat(resolver.resolve(request("/user-images/pizza/a.png"))).isNull();
+        assertThat(resolver.resolve(request("/verify-email"))).isNull();
+        assertThat(resolver.resolve(request("/set-password"))).isNull();
+        assertThat(resolver.resolve(request("/forgot-password"))).isNull();
+        assertThat(resolver.resolve(request("/reset-password"))).isNull();
+        assertThat(resolver.resolve(request("/order-confirmation"))).isNull();
+        assertThat(resolver.resolve(request("/select-payment"))).isNull();
+    }
+
+    @Test
+    void recognizesHyphenatedAndUnderscoredPathSegmentsAsTenantPrefixes() {
+        assertThat(resolver.resolve(request("/unknown-slug/menu")))
+                .isEqualTo(new TenantRoutingResolver.ResolvedTenant("unknown-slug", false));
+        assertThat(resolver.resolve(request("/unknown-slug/")))
+                .isEqualTo(new TenantRoutingResolver.ResolvedTenant("unknown-slug", false));
+        assertThat(resolver.resolve(request("/unknown_slug/counter")))
+                .isEqualTo(new TenantRoutingResolver.ResolvedTenant("unknown_slug", false));
     }
 }

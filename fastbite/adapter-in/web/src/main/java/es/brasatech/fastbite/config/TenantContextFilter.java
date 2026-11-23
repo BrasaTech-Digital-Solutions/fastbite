@@ -27,6 +27,11 @@ public class TenantContextFilter extends OncePerRequestFilter {
             "/select-payment", "/api/create-order", "/api/order-status", "/api/order-status/live",
             "/order-confirmation", "/api/stripe/create-checkout-session");
 
+    // Second-segment routes that only exist under a restaurant prefix (guards non-slug prefixes like /foo.bar/menu).
+    private static final Set<String> TENANT_SUBPATHS = Set.of(
+            "menu", "allergens", "counter", "dashboard", "backoffice", "login", "logout",
+            "ticket", "privacy", "select-payment", "order-confirmation", "api");
+
     private final TenantRoutingResolver tenantResolver;
 
     public TenantContextFilter(TenantRoutingResolver tenantResolver) {
@@ -47,9 +52,17 @@ public class TenantContextFilter extends OncePerRequestFilter {
             tenant = null;
         }
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        if (tenant == null && RESTAURANT_GUEST_PATHS.contains(path)) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
+        if (tenant == null) {
+            String first = TenantRoutingResolver.firstSegment(path);
+            if (!first.isEmpty() && !TenantRoutingResolver.isReserved(first) && TENANT_SUBPATHS.contains(secondSegment(path))) {
+                request.setAttribute(UNKNOWN_RESTAURANT, Boolean.TRUE);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            if (RESTAURANT_GUEST_PATHS.contains(path)) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
         }
         if (tenant != null) {
             TenantContext.setCurrentTenant(tenant.id());
@@ -61,5 +74,17 @@ public class TenantContextFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private static String secondSegment(String path) {
+        if (path == null || !path.startsWith("/")) {
+            return "";
+        }
+        int firstEnd = path.indexOf('/', 1);
+        if (firstEnd < 0 || firstEnd + 1 >= path.length()) {
+            return "";
+        }
+        int secondEnd = path.indexOf('/', firstEnd + 1);
+        return secondEnd < 0 ? path.substring(firstEnd + 1) : path.substring(firstEnd + 1, secondEnd);
     }
 }
