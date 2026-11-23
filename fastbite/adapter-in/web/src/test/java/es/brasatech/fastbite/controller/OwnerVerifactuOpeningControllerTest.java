@@ -149,7 +149,16 @@ class OwnerVerifactuOpeningControllerTest {
                 .contains("mailto:info@brasatech.es")
                 .contains("href=\"/owner/console?view=locations#add-location\"")
                 .contains("href=\"/owner/console?view=data&amp;section=backup&amp;location=bistro\"")
-                .contains("taxId-hint taxId-status taxId-transition");
+                .contains("aria-describedby=\"taxId-status taxId-transition\"")
+                .doesNotContain("id=\"taxId-hint\"");
+        when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(false);
+        String unlockedHtml = mockMvc.perform(get("/owner/console?view=tickets&location=" + TENANT)
+                        .locale(Locale.ENGLISH).with(user(ownerPrincipal())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(unlockedHtml)
+                .contains("id=\"taxId-hint\"")
+                .contains("aria-describedby=\"taxId-hint taxId-status\"")
+                .doesNotContain("id=\"taxId-transition\"");
         String locations = mockMvc.perform(get("/owner/console?view=locations").with(user(ownerPrincipal())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(locations).contains("id=\"add-location\"");
