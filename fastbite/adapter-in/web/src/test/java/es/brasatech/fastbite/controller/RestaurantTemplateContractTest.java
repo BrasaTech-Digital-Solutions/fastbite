@@ -2,6 +2,8 @@ package es.brasatech.fastbite.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -41,6 +43,7 @@ class RestaurantTemplateContractTest {
             "menu.html", "fragments/menu.html", "allergens.html", "paymentSelection.html", "confirmation.html",
             "orderCancelled.html", "counter.html", "fragments/counter.html", "dashboard.html", "tickets.html",
             "dayReport.html", "tableQrCodes.html", "backOffice.html", "fragments/backOffice.html",
+            "translations.html", "fragments/errorPage.html", "sandboxEntry.html",
             "fragments/navbar.html", "fragments/cashCheck.html", "fragments/invoice-fields.html", "fragments/guest.html"};
 
     /** The guest pages are off Bootstrap and Font Awesome: their own stylesheet and the inline icon sprite. */
@@ -664,6 +667,26 @@ class RestaurantTemplateContractTest {
         assertThat(cashCheckJs).as("cash-check.js has no Bootstrap branch").doesNotContain("show.bs.modal", ".modal");
         String kitchenAudioJs = new ClassPathResource("static/js/kitchen-audio.js").getContentAsString(StandardCharsets.UTF_8);
         assertThat(kitchenAudioJs).as("kitchen-audio.js has no Font Awesome branch").doesNotContain("fas fa-", "btn-warning");
+    }
+
+    @Test
+    void allTemplatesAreOffBootstrapAndFontAwesome() throws IOException {
+        assertThat(new ClassPathResource("templates/fastfood/sample.html").exists())
+                .as("unused sample.html must be deleted").isFalse();
+        for (String page : List.of("translations.html", "fragments/errorPage.html", "sandboxEntry.html")) {
+            String html = readTemplate(page);
+            assertThat(BOOTSTRAP_OR_FONT_AWESOME.matcher(html).find())
+                    .as("%s must not reference Bootstrap or Font Awesome", page).isFalse();
+        }
+        Pattern webjarOrFa = Pattern.compile("/webjars/(?:bootstrap|font-awesome)|bootstrap\\.bundle|\\bfa[srb]? fa-");
+        Resource[] allTemplates = new PathMatchingResourcePatternResolver()
+                .getResources("classpath*:templates/**/*.html");
+        assertThat(allTemplates).isNotEmpty();
+        for (Resource res : allTemplates) {
+            String html = res.getContentAsString(StandardCharsets.UTF_8);
+            assertThat(webjarOrFa.matcher(html).find())
+                    .as("%s must not load Bootstrap or Font Awesome", res.getDescription()).isFalse();
+        }
     }
 
     @Test
