@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import es.brasatech.fastbite.application.office.GroupService;
 import es.brasatech.fastbite.domain.group.Group;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
@@ -42,7 +43,7 @@ public class GroupController {
         return groupService.findById(id)
                 .map(group -> BackOfficeDto.of(group.id(), group))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -67,7 +68,7 @@ public class GroupController {
         return groupService.update(id, group)
                 .map(updated -> BackOfficeDto.of(updated.id(), updated))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -79,6 +80,6 @@ public class GroupController {
         if (groupService.delete(id)) {
             return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        throw new ResourceNotFoundException();
     }
 }

@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import es.brasatech.fastbite.application.office.ProductService;
 import es.brasatech.fastbite.domain.product.ProductDto;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
@@ -42,7 +43,7 @@ public class ProductController {
         return productService.findById(id)
                 .map(product -> BackOfficeDto.of(product.id(), product))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -67,7 +68,7 @@ public class ProductController {
         return productService.update(id, productDto)
                 .map(product -> BackOfficeDto.of(product.id(), product))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -79,7 +80,7 @@ public class ProductController {
         if (productService.delete(id)) {
             return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        throw new ResourceNotFoundException();
     }
 
     /**
@@ -93,6 +94,6 @@ public class ProductController {
                 .flatMap(product -> productService.setActive(id, !product.active()))
                 .map(product -> BackOfficeDto.of(product.id(), product))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 }

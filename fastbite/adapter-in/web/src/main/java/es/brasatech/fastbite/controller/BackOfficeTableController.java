@@ -3,6 +3,7 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.table.TableService;
 import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -37,13 +38,15 @@ public class BackOfficeTableController {
     @PutMapping("/{id}")
     @ResponseBody
     public BackOfficeDto<Table> updateTable(@PathVariable String id, @RequestBody Table table) {
-        Table updated = tableService.update(id, table).orElseThrow(() -> new RuntimeException("Table not found"));
+        Table updated = tableService.update(id, table).orElseThrow(ResourceNotFoundException::new);
         return BackOfficeDto.of(updated.id(), updated);
     }
 
     @DeleteMapping("/{id}")
     @ResponseBody
     public void deleteTable(@PathVariable String id) {
-        tableService.delete(id);
+        if (!tableService.delete(id)) {
+            throw new ResourceNotFoundException();
+        }
     }
 }

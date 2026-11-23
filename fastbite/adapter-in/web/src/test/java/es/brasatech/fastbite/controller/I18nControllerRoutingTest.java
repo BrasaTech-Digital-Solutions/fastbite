@@ -118,6 +118,18 @@ class I18nControllerRoutingTest {
     }
 
     @Test
+    void unavailableItemIdsAreNotFoundForReadAndWrite() throws Exception {
+        // The service scopes these lookups to the current tenant; real schema isolation is covered separately.
+        for (String id : List.of("95db2bb6-0415-4c0b-8e0a-ed6d8c9fbba9", "not-a-uuid",
+                "861f9a4f-16f2-4d98-8513-15e89e03d231")) {
+            mockMvc.perform(get("/kebab/backoffice/translations/products/" + id).session(kebabAdmin()))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(post("/kebab/backoffice/translations/products/" + id).session(kebabAdmin()).with(csrf()))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
     void unknownTypesAndItemsAreNotFound() throws Exception {
         mockMvc.perform(get("/kebab/backoffice/translations/pizzas/p1").session(kebabAdmin()))
                 .andExpect(status().isNotFound());

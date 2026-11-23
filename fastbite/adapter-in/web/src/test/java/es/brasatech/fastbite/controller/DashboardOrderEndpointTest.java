@@ -45,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ContextConfiguration(classes = {
         TestConfig.class,
         OrderController.class,
+        ResourceNotFoundAdvice.class,
         SecurityConfig.class,
         es.brasatech.fastbite.config.TenantRoutingResolver.class,
         es.brasatech.fastbite.config.WebConfig.class
@@ -112,5 +113,23 @@ class DashboardOrderEndpointTest {
                 .andExpect(jsonPath("$[1].tableName").doesNotExist());
 
         verify(tableService).findTablesByOrderIds(List.of("order-table", "order-takeaway"));
+    }
+    @Test
+    void missingKitchenOrdersReturnNotFound() throws Exception {
+        org.mockito.Mockito.doCallRealMethod().when(orderService).moveToNextStatus(org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.doCallRealMethod().when(orderService).moveToPreviousStatus(org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.doCallRealMethod().when(orderService).cancelOrder(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.doCallRealMethod().when(orderService).setOrderStatus(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
+        var authorities = AuthorityUtils.createAuthorityList("ROLE_MANAGER");
+        var user = new TenantUser("manager", "pass", true, authorities, "kebab");
+        var auth = UsernamePasswordAuthenticationToken.authenticated(user, null, authorities);
+        for (String id : List.of("9e5dcc63-5ea9-4d46-ae35-916827a19f03", "not!valid", "other-tenant-id")) {
+            for (String action : List.of("next", "previous", "cancel", "status")) {
+                var req = post("/kebab/api/order/" + id + "/" + action).with(csrf()).with(authentication(auth));
+                if (action.equals("cancel")) req.contentType("application/json").content("{\"value\":\"reason\"}");
+                if (action.equals("status")) req.contentType("application/json").content("{\"value\":\"ACCEPTED\"}");
+                mockMvc.perform(req).andExpect(status().isNotFound());
+            }
+        }
     }
 }

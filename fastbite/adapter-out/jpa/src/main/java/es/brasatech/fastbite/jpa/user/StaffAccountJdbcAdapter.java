@@ -1,6 +1,7 @@
 package es.brasatech.fastbite.jpa.user;
 
 import es.brasatech.fastbite.application.office.StaffAccountPort;
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -71,7 +72,13 @@ public class StaffAccountJdbcAdapter implements StaffAccountPort {
         var mapper = (org.springframework.jdbc.core.RowMapper<Staff>) (r, n) -> new Staff(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5), r.getObject(6) != null);
         return id == null ? jdbc.query(sql, mapper) : jdbc.query(sql, mapper, id);
     }
-    private Staff require(String tenant, String id, boolean owner) { return query(tenant, id, owner, true).stream().findFirst().orElseThrow(() -> new SecurityException("Staff account access denied")); }
+    private Staff require(String tenant, String id, boolean owner) {
+        var target = query(tenant, id, owner, true).stream().findFirst();
+        if (target.isPresent()) return target.get();
+        Integer exists = jdbc.queryForObject("SELECT COUNT(*) FROM " + schema(tenant) + ".users WHERE id = ? AND active = TRUE", Integer.class, id);
+        if (exists != null && exists > 0) throw new SecurityException("Staff account access denied");
+        throw new ResourceNotFoundException();
+    }
     private void lock() { jdbc.queryForObject("SELECT id FROM public.signup_reservation_lock WHERE id = 1 FOR UPDATE", Integer.class); }
     private void enqueue(String purpose, Staff target, String tenant, String email, String language, Instant now) {
         jdbc.update("INSERT INTO public.account_email_outbox (id, purpose, subject_type, subject_id, tenant_id, language, recipient_email, state, attempts, available_at, created_at) VALUES (?, ?, 'STAFF', ?, ?, ?, ?, 'PENDING', 0, ?, ?)", UUID.randomUUID().toString(), purpose, target.id(), tenant, language, email, now.toEpochMilli(), now.toEpochMilli());
