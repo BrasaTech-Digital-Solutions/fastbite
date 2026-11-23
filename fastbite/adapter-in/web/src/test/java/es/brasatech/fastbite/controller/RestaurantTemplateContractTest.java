@@ -268,6 +268,47 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void backOfficeSliceOneUsesNativeTopbarAndSelectorDialogs() throws IOException {
+        String html = readTemplate("backOffice.html");
+        assertThat(html)
+                .contains("navbar :: staff", "guest :: icons", "/css/backoffice.css", "/js/guest-ui.js",
+                        "class=\"bo-layout\"", "id=\"toastContainer\"")
+                .doesNotContain("navbar :: navbar", "list-group-item",
+                        "class=\"modal fade\" id=\"productSelectorModal\"",
+                        "class=\"modal fade\" id=\"customizationSelectorModal\"",
+                        "class=\"modal fade\" id=\"quickCustomizationModal\"");
+        for (String id : List.of("productSelectorModal", "customizationSelectorModal", "quickCustomizationModal")) {
+            assertThat(html).as("native dialog for %s", id).containsPattern("<dialog[^>]*id=\"" + id + "\"");
+        }
+    }
+
+    @Test
+    void backOfficeSliceOneTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "backoffice.tables.list.title",
+                "backoffice.payment.list.title",
+                "backoffice.privacy.list.title",
+                "backoffice.maintenance.list.title",
+                "backoffice.quick.view.groups",
+                "backoffice.quick.view.customizations",
+                "backoffice.quick.view.products",
+                "backoffice.quick.view.empty",
+                "backoffice.action.edit",
+                "backoffice.action.translations",
+                "backoffice.action.delete",
+                "backoffice.action.remove");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
     void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
         assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html");
         for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",

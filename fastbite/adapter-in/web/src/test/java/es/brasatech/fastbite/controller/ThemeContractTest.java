@@ -11,11 +11,14 @@ import es.brasatech.fastbite.application.order.OrderNumberService;
 import es.brasatech.fastbite.application.order.OrderPricingService;
 import es.brasatech.fastbite.application.order.OrderService;
 import es.brasatech.fastbite.application.payment.PaymentService;
+import es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService;
 import es.brasatech.fastbite.application.settings.RestaurantSettingsService;
 import es.brasatech.fastbite.application.table.TableService;
 import es.brasatech.fastbite.application.table.TableSignatureUtil;
 import es.brasatech.fastbite.application.tenant.AppearancePort;
+import es.brasatech.fastbite.application.tenant.FreePlanLock;
 import es.brasatech.fastbite.application.tenant.OwnerWorkspaceService;
+import es.brasatech.fastbite.application.tenant.PlanEntitlementService;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuService;
 import es.brasatech.fastbite.config.PublicOrigin;
@@ -91,10 +94,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * the counter and the kitchen with no template, JS or Java change.
  */
 @WebMvcTest(controllers = {MenuController.class, CounterController.class, OrderController.class,
-        TicketController.class, DayReportController.class, TableQrController.class, AppearanceController.class},
+        TicketController.class, DayReportController.class, TableQrController.class, BackOfficeController.class,
+        AppearanceController.class},
         properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, MenuController.class, CounterController.class, OrderController.class,
-        TicketController.class, DayReportController.class, TableQrController.class,
+        TicketController.class, DayReportController.class, TableQrController.class, BackOfficeController.class,
         AppearanceController.class, AppearanceAdvice.class, ThemeCatalog.class,
         SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
 class ThemeContractTest {
@@ -127,6 +131,9 @@ class ThemeContractTest {
     @MockitoBean private FiscalTicketService fiscalTicketService;
     @MockitoBean private FiscalProfileService fiscalProfileService;
     @MockitoBean private VerifactuService verifactuService;
+    @MockitoBean private PlanEntitlementService planEntitlementService;
+    @MockitoBean private FreePlanLock freePlanLock;
+    @MockitoBean private GuestPrivacyNoticeService privacyNotices;
 
     @BeforeEach
     void setUp() {
@@ -134,6 +141,10 @@ class ThemeContractTest {
         when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
         when(appearance.effectiveTheme(any())).thenReturn(TEST_THEME);
         when(settingsService.get()).thenReturn(RestaurantSettings.DEFAULTS);
+        when(planEntitlementService.getEnabledFeatures(anyString())).thenReturn(Set.of());
+        when(freePlanLock.locked(anyString())).thenReturn(false);
+        when(privacyNotices.findActive()).thenReturn(Optional.empty());
+        when(privacyNotices.history()).thenReturn(List.of());
         Map<String, String> dictionary = new HashMap<>();
         for (String key : List.of("cartEmpty", "confirmAndSubmitBtn", "orderConfirmation", "orderItems", "orderTotal",
                 "subtotal", "tax", "total")) dictionary.put(key, key);
@@ -146,6 +157,7 @@ class ThemeContractTest {
         when(fiscalTicketService.issuedOn(any())).thenReturn(List.of());
         when(fiscalTicketService.dayReport(any())).thenReturn(DayReport.of(day, List.of(), List.of()));
         when(fiscalProfileService.get()).thenReturn(FiscalProfile.EMPTY);
+        when(fiscalProfileService.defaultVatRate()).thenReturn(BigDecimal.TEN);
         when(publicOrigin.resolve(any())).thenReturn("https://example.test");
         when(publicOrigin.isLocal(any())).thenReturn(false);
     }
@@ -153,7 +165,7 @@ class ThemeContractTest {
     @Test
     void theBaseStylesheetsNameNoTheme() throws IOException {
         for (String path : List.of("static/css/style.css", "static/css/restaurant.css", "static/css/counter.css",
-                "static/css/kitchen.css", "static/css/tickets.css", "static/css/table-qr.css")) {
+                "static/css/kitchen.css", "static/css/tickets.css", "static/css/table-qr.css", "static/css/backoffice.css")) {
             String base = read(path);
             assertThat(base).as(path).doesNotContain("data-theme");
             for (ThemeCatalog.Theme theme : themes.all()) {
@@ -167,6 +179,7 @@ class ThemeContractTest {
         assertThat(declaredTokens(withoutComments(read("static/css/kitchen.css")))).isEmpty();
         assertThat(declaredTokens(withoutComments(read("static/css/tickets.css")))).isEmpty();
         assertThat(declaredTokens(withoutComments(read("static/css/table-qr.css")))).isEmpty();
+        assertThat(declaredTokens(withoutComments(read("static/css/backoffice.css")))).isEmpty();
     }
 
     @Test
@@ -201,7 +214,7 @@ class ThemeContractTest {
         String stylesheet = themes.resolve(TEST_THEME).stylesheet();
         for (MockHttpServletRequestBuilder page : List.of(get("/kebab/menu"),
                 as("MANAGER", get("/kebab/counter")), as("COOK", get("/kebab/dashboard")),
-                as("MANAGER", get("/kebab/counter/tickets")))) {
+                as("MANAGER", get("/kebab/counter/tickets")), as("MANAGER", get("/kebab/backoffice")))) {
             String html = mockMvc.perform(page).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
             assertThat(html).contains("data-theme=\"" + TEST_THEME + "\"", "href=\"" + stylesheet + "\"");
             // The theme reaches the page through those two places only: nothing in the markup is theme-specific
@@ -341,6 +354,21 @@ class ThemeContractTest {
         assertThat(reportHtml)
                 .contains("lang=\"es\"", "/css/ticket.css", "KH-T26-000001")
                 .doesNotContain("/webjars/", "bootstrap", "fa-");
+    }
+
+    @Test
+    void backOfficeSliceOneRendersNativeShellNavGroupsCustomizationsAndDialogs() throws Exception {
+        when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000", null, "KH", new BigDecimal("10.00")));
+        Locale spanish = Locale.forLanguageTag("es");
+        String html = render(as("MANAGER", get("/kebab/backoffice")).locale(spanish));
+        assertThat(html)
+                .contains("lang=\"es\"", "/css/backoffice.css", "Kebab House", "topbar-staff",
+                        "class=\"bo-layout\"", "id=\"nav-groups\"", "id=\"nav-customizations\"",
+                        "aria-current=\"page\"", "Mesas", "Pagos", "Aviso de privacidad",
+                        "<dialog", "id=\"productSelectorModal\"", "id=\"customizationSelectorModal\"",
+                        "id=\"quickCustomizationModal\"", "id=\"toastContainer\"", "role=\"status\"")
+                .doesNotContain("navbar-expand-lg", "list-group-item");
     }
 
     @Test

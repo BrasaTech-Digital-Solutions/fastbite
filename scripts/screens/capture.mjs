@@ -487,8 +487,38 @@ async function main() {
       for (const [w, h] of staffOtherSizes) {
         await captureShot(managerCtx, path.join(themeDir, `dayReport-${w}x${h}.png`), w, h, `${base}/${tenant}/counter/day-report`, freezeServerTimestamps);
         await captureShot(managerCtx, path.join(themeDir, `tableQrCodes-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice/tables/qr-codes`);
-        // The back office keeps Bootstrap until its own item; it is here for the shared staff navigation.
-        await captureShot(managerCtx, path.join(themeDir, `backOffice-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice`);
+      }
+
+      // 6. Back Office
+      const waitBackOfficeLoaded = async (p) => {
+        await shown(p, '#groups-list > *', 'back office groups list');
+      };
+      for (const [w, h] of staffCoreSizes) {
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-${w}x${h}.png`), w, h, `${base}/${tenant}/backoffice`, waitBackOfficeLoaded);
+      }
+      if (!opts.sample) {
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-groups-form-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          const newGroupBtn = '#btn-new-group, #groups-section button[onclick="showGroupForm()"]';
+          await shown(p, newGroupBtn, 'new group button');
+          await tap(p.locator(newGroupBtn));
+          await shown(p, '#group-form', 'group form');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-customizations-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-customizations'));
+          await shown(p, '#customizations-list > *', 'customizations list');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-product-selector-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          const newGroupBtn = '#btn-new-group, #groups-section button[onclick="showGroupForm()"]';
+          await tap(p.locator(newGroupBtn));
+          await shown(p, '#group-form', 'group form');
+          const addProductsBtn = '#btn-group-add-products, #group-form button[onclick^="openProductSelector"]';
+          await tap(p.locator(addProductsBtn));
+          await shown(p, '#productSelectorModal:is(.show, [open])', 'product selector dialog');
+          await shown(p, '#product-selector-list > *', 'product selector list');
+        }, { fullPage: false });
       }
     }
   } finally {

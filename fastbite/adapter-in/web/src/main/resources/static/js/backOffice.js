@@ -66,8 +66,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('customizationFormElement').addEventListener('submit', handleCustomizationSubmit);
     document.getElementById('customization-type')?.addEventListener('change', updateCustomizationTypeVisibility);
     document.getElementById('quick-customization-type')?.addEventListener('change', updateQuickCustomizationTypeVisibility);
-    document.getElementById('productFormElement').addEventListener('submit', handleProductSubmit);
-    document.getElementById('tableFormElement').addEventListener('submit', handleTableSubmit);
+    document.getElementById('productFormElement')?.addEventListener('submit', handleProductSubmit);
+    document.getElementById('tableFormElement')?.addEventListener('submit', handleTableSubmit);
 
     // Payment config doesn't use standard submit if it's dynamic, 
     // but in my fragment I used a form with id paymentConfigForm
@@ -215,35 +215,37 @@ function showSection(section) {
     currentSection = section;
 
     // Hide all sections
-    document.querySelectorAll('.section-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.section-content').forEach(el => { el.hidden = true; });
 
     // Show selected section
-    document.getElementById(`${section}-section`).style.display = 'block';
+    const targetSection = document.getElementById(`${section}-section`);
+    if (targetSection) targetSection.hidden = false;
 
     // Update navigation
-    document.querySelectorAll('.list-group-item').forEach(el => el.classList.remove('active'));
-    document.getElementById(`nav-${section}`).classList.add('active');
+    document.querySelectorAll('.bo-nav-btn').forEach(el => {
+        el.classList.remove('is-active');
+        el.removeAttribute('aria-current');
+    });
+    const activeNav = document.getElementById(`nav-${section}`);
+    if (activeNav) {
+        activeNav.classList.add('is-active');
+        activeNav.setAttribute('aria-current', 'page');
+    }
 
     // Update quick view
-    document.querySelectorAll('.quick-view-section').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.quick-view-section').forEach(el => { el.hidden = true; });
     const quickView = document.getElementById(`${section}-quick-view`);
-    if (quickView) quickView.style.display = 'block';
+    if (quickView) quickView.hidden = false;
 }
 
 // Toggle side view
 function toggleSideView() {
     const sideView = document.getElementById('side-view');
-    const mainView = sideView.previousElementSibling;
+    const layout = document.getElementById('bo-layout');
+    if (!sideView) return;
 
-    if (sideView.style.display === 'none') {
-        sideView.style.display = 'block';
-        mainView.classList.remove('col-md-10');
-        mainView.classList.add('col-md-7');
-    } else {
-        sideView.style.display = 'none';
-        mainView.classList.remove('col-md-7');
-        mainView.classList.add('col-md-10');
-    }
+    sideView.hidden = !sideView.hidden;
+    if (layout) layout.classList.toggle('bo-side-hidden', sideView.hidden);
 }
 
 // Create new (based on current section)
@@ -310,9 +312,12 @@ document.addEventListener('change', event => {
 
 // Cancel form
 function cancelForm() {
-    document.getElementById('group-form').style.display = 'none';
-    document.getElementById('customization-form').style.display = 'none';
-    document.getElementById('product-form').style.display = 'none';
+    const groupForm = document.getElementById('group-form');
+    if (groupForm) groupForm.hidden = true;
+    const custForm = document.getElementById('customization-form');
+    if (custForm) custForm.hidden = true;
+    const productForm = document.getElementById('product-form');
+    if (productForm) productForm.style.display = 'none';
     const preview = document.getElementById('product-image-preview');
     if (preview) preview.style.display = 'none';
     const tableList = document.getElementById('tables-list');
@@ -340,7 +345,7 @@ function showGroupForm(groupId = null) {
 
     if (groupId) {
         const group = groups.find(g => g.id === groupId);
-        title.textContent = 'Edit Group';
+        title.textContent = i18n.groupsEditTitle || 'Edit Group';
         document.getElementById('group-id').value = group.id;
         document.getElementById('group-name').value = group.name;
         document.getElementById('group-description').value = group.description || '';
@@ -348,13 +353,13 @@ function showGroupForm(groupId = null) {
         selectedProductsForGroup = [...group.products];
         updateGroupProductsList();
     } else {
-        title.textContent = 'Create New Group';
+        title.textContent = i18n.groupsCreateTitle || 'Create New Group';
         document.getElementById('groupFormElement').reset();
         selectedProductsForGroup = [];
         updateGroupProductsList();
     }
 
-    form.style.display = 'block';
+    form.hidden = false;
     form.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -393,15 +398,13 @@ async function handleGroupSubmit(e) {
         if (response.ok) {
             await loadData();
             cancelForm();
-            await loadData();
-            cancelForm();
             showToast(i18n.groupsSaveSuccess);
         } else {
             showToast(i18n.groupsSaveError, 'error');
         }
     } catch (error) {
         console.error('Error saving group:', error);
-        showToast('Error saving group', 'error');
+        showToast(i18n.groupsSaveError || 'Error saving group', 'error');
     }
 }
 
@@ -426,13 +429,13 @@ async function deleteGroup(id) {
 
             if (response.ok) {
                 await loadData();
-                showToast('Group deleted successfully!');
+                showToast(i18n.groupsDeleteSuccess || 'Group deleted successfully!');
             } else {
-                showToast('Error deleting group', 'error');
+                showToast(i18n.groupsDeleteError || 'Error deleting group', 'error');
             }
         } catch (error) {
             console.error('Error deleting group:', error);
-            showToast('Error deleting group', 'error');
+            showToast(i18n.groupsDeleteError || 'Error deleting group', 'error');
         }
     }
 }
@@ -449,13 +452,16 @@ function removeProductFromGroup(productId) {
 }
 
 async function openProductSelector(context) {
-    // Populate product selector modal
+    const opener = document.activeElement;
+    // Populate product selector dialog
     const container = document.getElementById('product-selector-list');
     container.innerHTML = await fetchFragment('/api/backoffice/fragments/selector-list', { items: products, selectedIds: selectedProductsForGroup });
 
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('productSelectorModal'));
-    modal.show();
+    // Show dialog
+    const dialog = document.getElementById('productSelectorModal');
+    window.FastBiteDialogs.open(dialog, opener);
+    const firstFocus = dialog.querySelector('input[type="checkbox"], button');
+    if (firstFocus) firstFocus.focus();
 }
 
 function confirmProductSelection() {
@@ -464,9 +470,8 @@ function confirmProductSelection() {
     selectedProductsForGroup = Array.from(checkboxes).map(cb => cb.value);
     updateGroupProductsList();
 
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('productSelectorModal'));
-    modal.hide();
+    // Close dialog
+    window.FastBiteDialogs.close(document.getElementById('productSelectorModal'));
 }
 
 // === CUSTOMIZATIONS MANAGEMENT ===
@@ -481,11 +486,11 @@ function updateCustomizationTypeVisibility() {
     const isQuantity = type === 'quantity';
     const container = document.getElementById('customization-options-container');
     if (!container) return;
-    const cards = container.querySelectorAll('.card');
+    const cards = container.querySelectorAll('.bo-option-card, .card');
     cards.forEach(card => {
         const switchCol = card.querySelector('.opt-selected-default-col');
         if (switchCol) {
-            switchCol.style.display = isQuantity ? 'none' : '';
+            switchCol.hidden = isQuantity;
         }
         const defInput = card.querySelector('.opt-defaultValue');
         if (defInput) {
@@ -521,7 +526,7 @@ function showCustomizationForm(customId = null) {
         renderCustomizationOptions([]);
     }
 
-    form.style.display = 'block';
+    form.hidden = false;
     form.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -529,7 +534,7 @@ async function renderCustomizationOptions(options = []) {
     const container = document.getElementById('customization-options-container');
 
     if (options.length === 0) {
-        container.innerHTML = `<p class="text-muted">${i18n.customizationsOptionsEmptyHint}</p>`;
+        container.innerHTML = `<p class="bo-quick-meta">${i18n.customizationsOptionsEmptyHint}</p>`;
         return;
     }
 
@@ -543,11 +548,11 @@ async function renderCustomizationOptions(options = []) {
 
 async function addCustomizationOption() {
     const container = document.getElementById('customization-options-container');
-    const count = container.querySelectorAll('.card').length;
+    const count = container.querySelectorAll('.bo-option-card, .card').length;
 
     // Remove placeholder text if this is the first option
     if (count === 0) {
-        const placeholder = container.querySelector('p.text-muted');
+        const placeholder = container.querySelector('p');
         if (placeholder) {
             placeholder.remove();
         }
@@ -559,13 +564,13 @@ async function addCustomizationOption() {
 }
 
 function removeCustomizationOption(target) {
-    const card = target?.closest('.card');
+    const card = target?.closest('.bo-option-card, .card');
     if (card) {
         card.remove();
     }
     const container = document.getElementById('customization-options-container');
-    if (container && container.querySelectorAll('.card').length === 0) {
-        container.innerHTML = `<p class="text-muted">${i18n.customizationsOptionsEmptyHint}</p>`;
+    if (container && container.querySelectorAll('.bo-option-card, .card').length === 0) {
+        container.innerHTML = `<p class="bo-quick-meta">${i18n.customizationsOptionsEmptyHint}</p>`;
     }
 }
 
@@ -577,7 +582,7 @@ async function handleCustomizationSubmit(e) {
 
     // Collect options
     const optionsContainer = document.getElementById('customization-options-container');
-    const optionElements = optionsContainer.querySelectorAll('.card');
+    const optionElements = optionsContainer.querySelectorAll('.bo-option-card, .card');
     const options = Array.from(optionElements).map((el) => {
         const name = el.querySelector('.opt-name')?.value || '';
         const price = el.querySelector('.opt-price')?.value || '0';
@@ -817,13 +822,16 @@ function removeCustomizationFromProduct(customizationId) {
 }
 
 async function openCustomizationSelector() {
-    // Populate customization selector modal
+    const opener = document.activeElement;
+    // Populate customization selector dialog
     const container = document.getElementById('customization-selector-list');
     container.innerHTML = await fetchFragment('/api/backoffice/fragments/selector-list', { items: customizations, selectedIds: selectedCustomizationsForProduct });
 
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('customizationSelectorModal'));
-    modal.show();
+    // Show dialog
+    const dialog = document.getElementById('customizationSelectorModal');
+    window.FastBiteDialogs.open(dialog, opener);
+    const firstFocus = dialog.querySelector('input[type="checkbox"], button');
+    if (firstFocus) firstFocus.focus();
 }
 
 function confirmCustomizationSelection() {
@@ -832,23 +840,24 @@ function confirmCustomizationSelection() {
     selectedCustomizationsForProduct = Array.from(checkboxes).map(cb => cb.value);
     updateProductCustomizationsList();
 
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('customizationSelectorModal'));
-    modal.hide();
+    // Close dialog
+    window.FastBiteDialogs.close(document.getElementById('customizationSelectorModal'));
 }
 
 function updateQuickCustomizationTypeVisibility() {
     const type = document.getElementById('quick-customization-type')?.value;
     const wrapper = document.getElementById('quick-customization-included-wrapper');
     if (wrapper) {
-        wrapper.style.display = type === 'quantity' ? 'block' : 'none';
+        wrapper.hidden = type !== 'quantity';
     }
 }
 
 function showCustomizationFormPopup() {
+    const opener = document.activeElement;
     updateQuickCustomizationTypeVisibility();
-    const modal = new bootstrap.Modal(document.getElementById('quickCustomizationModal'));
-    modal.show();
+    const dialog = document.getElementById('quickCustomizationModal');
+    window.FastBiteDialogs.open(dialog, opener);
+    document.getElementById('quick-customization-name')?.focus();
 }
 
 async function saveQuickCustomization() {
@@ -901,9 +910,8 @@ async function saveQuickCustomization() {
                 updateProductCustomizationsList();
             }
 
-            // Close modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('quickCustomizationModal'));
-            if (modal) modal.hide();
+            // Close dialog
+            window.FastBiteDialogs.close(document.getElementById('quickCustomizationModal'));
 
             // Clear form
             document.getElementById('quick-customization-name').value = '';
@@ -943,28 +951,21 @@ async function renderQuickViews() {
 // === UTILITY FUNCTIONS ===
 
 function showToast(message, type = 'success') {
-    const toastElement = document.getElementById('notification-toast');
-    const toastBody = document.getElementById('toast-message');
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
 
-    // Set the message
-    toastBody.textContent = message;
+    const toast = document.createElement('div');
+    const variant = type === 'error' ? 'bo-toast-error' : (type === 'warning' ? 'bo-toast-warning' : 'bo-toast-success');
+    toast.className = `toast ${variant}`;
+    toast.setAttribute('role', 'status');
 
-    // Set the color based on type
-    toastElement.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white');
-    if (type === 'success') {
-        toastElement.classList.add('bg-success', 'text-white');
-    } else if (type === 'error') {
-        toastElement.classList.add('bg-danger', 'text-white');
-    } else if (type === 'warning') {
-        toastElement.classList.add('bg-warning', 'text-dark');
-    }
+    const body = document.createElement('div');
+    body.className = 'toast-body';
+    body.textContent = message;
+    toast.appendChild(body);
 
-    // Show the toast
-    const toast = new bootstrap.Toast(toastElement, {
-        autohide: true,
-        delay: 2000  // Auto-dismiss after 2 seconds
-    });
-    toast.show();
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // === IMAGE MANAGEMENT ===

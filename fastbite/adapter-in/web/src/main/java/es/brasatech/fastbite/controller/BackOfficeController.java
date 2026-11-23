@@ -48,6 +48,7 @@ public class BackOfficeController {
         model.addAttribute("allergenList", List.of(es.brasatech.fastbite.domain.allergen.Allergen.values()));
         model.addAttribute("activePrivacyNotice", privacyNotices.findActive().orElse(null));
         model.addAttribute("privacyNoticeHistory", privacyNotices.history());
+        model.addAttribute(GuestPages.RESTAURANT_NAME, GuestPages.restaurantName(fiscalProfileService));
         return "fastfood/backOffice";
     }
 

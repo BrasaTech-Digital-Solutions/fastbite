@@ -10,88 +10,100 @@
     <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/restaurant.css}">
+    <link rel="stylesheet" th:href="@{/css/backoffice.css}">
 <link th:if="${locationTheme != null}" rel="stylesheet" th:href="${locationTheme.stylesheet()}"><link rel="stylesheet" th:href="@{/css/guest-privacy.css}"></head>
 
-<body>
+<body class="bo-page">
+<div th:replace="~{fastfood/fragments/guest :: icons}"></div>
 <div th:replace="~{fastfood/fragments/environment :: banner}"></div>
     <!-- Navigation -->
-    <div th:replace="~{fastfood/fragments/navbar :: navbar(activeTab='backoffice')}"></div>
-    <p><a th:href="@{/{tenant}/backoffice/team(tenant=${activeTenant})}" th:text="#{staff.account.team}">Team accounts</a></p>
+    <header th:replace="~{fastfood/fragments/navbar :: staff(activeTab='backoffice')}"></header>
+    <div class="bo-subbar">
+        <a class="bo-team-link" th:href="@{/{tenant}/backoffice/team(tenant=${activeTenant})}" th:text="#{staff.account.team}">Team accounts</a>
+    </div>
 
     <!-- Main Layout -->
-    <div class="container-fluid" style="height: calc(100vh - 70px);">
-        <div class="row h-100">
+    <div class="bo-layout" id="bo-layout">
 
             <!-- Left Sidebar - Navigation -->
-            <div class="col-md-2 bg-light border-end p-0" style="overflow-y: auto;">
-                <div class="p-3">
-                    <h6 class="text-muted mb-3" th:text="#{backoffice.menu.management}">MENU MANAGEMENT</h6>
+            <aside class="bo-sidebar">
+                <h2 class="bo-sidebar-heading" th:text="#{backoffice.menu.management}">MENU MANAGEMENT</h2>
 
-                    <!-- Navigation Menu -->
-                    <div class="list-group">
-                        <a href="#" class="list-group-item list-group-item-action active" id="nav-groups"
-                            onclick="showSection('groups')">
-                            <i class="fas fa-layer-group me-2"></i> <span
-                                th:text="#{backoffice.groups.list.title}">Groups</span>
-                            <span class="badge bg-primary float-end" id="groups-count">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-customizations"
-                            onclick="showSection('customizations')">
-                            <i class="fas fa-sliders-h me-2"></i> <span
-                                th:text="#{backoffice.customizations.list.title}">Customizations</span>
-                            <span class="badge bg-primary float-end" id="customizations-count">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-products"
-                            onclick="showSection('products')">
-                            <i class="fas fa-burger me-2"></i> <span
-                                th:text="#{backoffice.products.list.title}">Products</span>
-                            <span class="badge bg-primary float-end" id="products-count">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-tables"
-                            onclick="showSection('tables')">
-                            <i class="fas fa-table me-2"></i> <span>Tables</span>
-                            <span class="badge bg-primary float-end" id="tables-count">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-payment"
-                            onclick="showSection('payment')">
-                            <i class="fas fa-credit-card me-2"></i> <span>Payment</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-discounts"
-                            onclick="showSection('discounts')">
-                            <i class="fas fa-percentage me-2"></i> <span th:text="#{backoffice.discounts.list.title}">Discounts</span>
-                            <span class="badge bg-primary float-end" id="discounts-count">0</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-privacy"
-                            onclick="showSection('privacy')">
-                            <i class="fas fa-user-shield me-2"></i> <span>Privacy Notice</span>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action" id="nav-maintenance"
-                            onclick="showSection('maintenance')" sec:authorize="hasRole('ADMIN')">
-                            <i class="fas fa-tools me-2"></i> <span>Maintenance</span>
-                        </a>
-                    </div>
-
-                    <h6 class="text-muted mb-3 mt-4" th:text="#{backoffice.quick.actions}">QUICK ACTIONS</h6>
-                    <button class="btn btn-primary w-100 mb-2" onclick="createNew()">
-                        <i class="fas fa-plus"></i> <span th:text="#{backoffice.create.new}">Create New</span>
+                <!-- Navigation Menu -->
+                <nav class="bo-nav" th:aria-label="#{backoffice.menu.management}">
+                    <button type="button" class="bo-nav-btn is-active" id="nav-groups" aria-current="page"
+                        onclick="showSection('groups')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-layers"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.groups.list.title}">Groups</span>
+                        <span class="bo-nav-count" id="groups-count">0</span>
                     </button>
-                    <button class="btn btn-outline-secondary w-100 mb-2" onclick="toggleSideView()">
-                        <i class="fas fa-columns"></i> <span th:text="#{backoffice.toggle.side.view}">Toggle Side
-                            View</span>
+                    <button type="button" class="bo-nav-btn" id="nav-customizations"
+                        onclick="showSection('customizations')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.customizations.list.title}">Customizations</span>
+                        <span class="bo-nav-count" id="customizations-count">0</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-products"
+                        onclick="showSection('products')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-logo"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.products.list.title}">Products</span>
+                        <span class="bo-nav-count" id="products-count">0</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-tables"
+                        onclick="showSection('tables')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.tables.list.title}">Tables</span>
+                        <span class="bo-nav-count" id="tables-count">0</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-payment"
+                        onclick="showSection('payment')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-credit-card"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.payment.list.title}">Payment</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-discounts"
+                        onclick="showSection('discounts')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-percent"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.discounts.list.title}">Discounts</span>
+                        <span class="bo-nav-count" id="discounts-count">0</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-privacy"
+                        onclick="showSection('privacy')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-shield-user"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.privacy.list.title}">Privacy Notice</span>
+                    </button>
+                    <button type="button" class="bo-nav-btn" id="nav-maintenance"
+                        onclick="showSection('maintenance')" sec:authorize="hasRole('ADMIN')">
+                        <svg class="icon" aria-hidden="true"><use href="#i-wrench"></use></svg>
+                        <span class="bo-nav-label" th:text="#{backoffice.maintenance.list.title}">Maintenance</span>
+                    </button>
+                </nav>
+
+                <h2 class="bo-sidebar-heading bo-sidebar-heading-actions" th:text="#{backoffice.quick.actions}">QUICK ACTIONS</h2>
+                <div class="bo-sidebar-actions">
+                    <button type="button" class="bo-btn bo-btn-primary bo-btn-block bo-sidebar-action" id="btn-create-new" onclick="createNew()">
+                        <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                        <span th:text="#{backoffice.create.new}">Create New</span>
+                    </button>
+                    <button type="button" class="bo-btn bo-btn-outline bo-btn-block bo-sidebar-action" id="btn-toggle-side-view" onclick="toggleSideView()">
+                        <svg class="icon" aria-hidden="true"><use href="#i-columns"></use></svg>
+                        <span th:text="#{backoffice.toggle.side.view}">Toggle Side View</span>
                     </button>
                 </div>
-            </div>
+            </aside>
 
             <!-- Center - Main View -->
-            <div class="col-md-7 p-0" style="overflow-y: auto;">
-                <div class="p-4">
+            <main class="bo-main">
                     <!-- Groups Section -->
-                    <div id="groups-section" class="section-content">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-layer-group"></i> <span th:text="#{backoffice.groups.title}">Groups
-                                    Management</span></h3>
-                            <button class="btn btn-primary" onclick="showGroupForm()">
-                                <i class="fas fa-plus"></i> <span th:text="#{backoffice.groups.new}">New Group</span>
+                    <section id="groups-section" class="section-content">
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-layers"></use></svg>
+                                <span th:text="#{backoffice.groups.title}">Groups Management</span>
+                            </h1>
+                            <button type="button" class="bo-btn bo-btn-primary" id="btn-new-group" onclick="showGroupForm()">
+                                <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                <span th:text="#{backoffice.groups.new}">New Group</span>
                             </button>
                         </div>
 
@@ -101,73 +113,72 @@
                         </div>
 
                         <!-- Group Form (Hidden by default) -->
-                        <div id="group-form" class="card product-card mb-4" style="display: none;">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0" id="group-form-title" th:text="#{backoffice.groups.create.title}">
-                                    Create New Group</h5>
+                        <div id="group-form" class="bo-card" hidden>
+                            <div class="bo-card-header">
+                                <h3 id="group-form-title" th:text="#{backoffice.groups.create.title}">Create New Group</h3>
                             </div>
-                            <div class="card-body">
+                            <div class="bo-card-body">
                                 <form id="groupFormElement">
                                     <input type="hidden" id="group-id">
 
-                                    <div class="mb-3">
-                                        <label for="group-name" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="group-name" class="bo-label"
                                             th:text="#{backoffice.groups.label.name}">Group Name *</label>
-                                        <input type="text" class="form-control" id="group-name" required>
+                                        <input type="text" class="bo-input" id="group-name" required>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="group-description" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="group-description" class="bo-label"
                                             th:text="#{label.description}">Description</label>
-                                        <textarea class="form-control" id="group-description" rows="3"></textarea>
+                                        <textarea class="bo-textarea" id="group-description" rows="3"></textarea>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="group-icon" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="group-icon" class="bo-label"
                                             th:text="#{backoffice.groups.label.icon}">Icon (Font Awesome class)</label>
-                                        <input type="text" class="form-control" id="group-icon"
+                                        <input type="text" class="bo-input" id="group-icon"
                                             placeholder="fas fa-burger">
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label class="form-label"
-                                            th:text="#{backoffice.groups.label.assigned.products}">Assigned
-                                            Products</label>
-                                        <div id="group-products-list" class="border rounded p-2"
-                                            style="min-height: 100px; max-height: 200px; overflow-y: auto;">
-                                            <small class="text-muted"
-                                                th:text="#{backoffice.groups.placeholder.no.products}">No products
-                                                assigned yet</small>
+                                    <div class="bo-field">
+                                        <label class="bo-label"
+                                            th:text="#{backoffice.groups.label.assigned.products}">Assigned Products</label>
+                                        <div id="group-products-list" class="bo-products-box">
+                                            <small class="muted"
+                                                th:text="#{backoffice.groups.placeholder.no.products}">No products assigned yet</small>
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                                        <button type="button" class="bo-btn bo-btn-outline" id="btn-group-add-products"
                                             onclick="openProductSelector('group')">
-                                            <i class="fas fa-plus"></i> <span
-                                                th:text="#{backoffice.groups.button.add.products}">Add Products</span>
+                                            <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                            <span th:text="#{backoffice.groups.button.add.products}">Add Products</span>
                                         </button>
                                     </div>
 
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-save"></i> <span
-                                                th:text="#{backoffice.groups.button.save}">Save Group</span>
+                                    <div class="bo-form-actions">
+                                        <button type="submit" class="bo-btn bo-btn-success">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                                            <span th:text="#{backoffice.groups.button.save}">Save Group</span>
                                         </button>
-                                        <button type="button" class="btn btn-secondary" onclick="cancelForm()">
-                                            <i class="fas fa-times"></i> <span th:text="#{button.cancel}">Cancel</span>
+                                        <button type="button" class="bo-btn bo-btn-secondary" onclick="cancelForm()">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                                            <span th:text="#{button.cancel}">Cancel</span>
                                         </button>
                                     </div>
                                 </form>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Customizations Section -->
-                    <div id="customizations-section" class="section-content" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-sliders-h"></i> <span
-                                    th:text="#{backoffice.customizations.title}">Customizations Management</span></h3>
-                            <button class="btn btn-primary" onclick="showCustomizationForm()">
-                                <i class="fas fa-plus"></i> <span th:text="#{backoffice.customizations.new}">New
-                                    Customization</span>
+                    <section id="customizations-section" class="section-content" hidden>
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg>
+                                <span th:text="#{backoffice.customizations.title}">Customizations Management</span>
+                            </h1>
+                            <button type="button" class="bo-btn bo-btn-primary" id="btn-new-customization" onclick="showCustomizationForm()">
+                                <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                <span th:text="#{backoffice.customizations.new}">New Customization</span>
                             </button>
                         </div>
 
@@ -177,70 +188,62 @@
                         </div>
 
                         <!-- Customization Form (Hidden by default) -->
-                        <div id="customization-form" class="card product-card mb-4" style="display: none;">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0" id="customization-form-title"
-                                    th:text="#{backoffice.customizations.create.title}">Create New Customization</h5>
+                        <div id="customization-form" class="bo-card" hidden>
+                            <div class="bo-card-header">
+                                <h3 id="customization-form-title"
+                                    th:text="#{backoffice.customizations.create.title}">Create New Customization</h3>
                             </div>
-                            <div class="card-body">
+                            <div class="bo-card-body">
                                 <form id="customizationFormElement">
                                     <input type="hidden" id="customization-id">
 
-                                    <div class="mb-3">
-                                        <label for="customization-name" class="form-label"
-                                            th:text="#{backoffice.customizations.label.name}">Customization Name
-                                            *</label>
-                                        <input type="text" class="form-control" id="customization-name" required>
+                                    <div class="bo-field">
+                                        <label for="customization-name" class="bo-label"
+                                            th:text="#{backoffice.customizations.label.name}">Customization Name *</label>
+                                        <input type="text" class="bo-input" id="customization-name" required>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label for="customization-type" class="form-label"
+                                    <div class="bo-field">
+                                        <label for="customization-type" class="bo-label"
                                             th:text="#{backoffice.customizations.label.type}">Type *</label>
-                                        <select class="form-select" id="customization-type" required>
-                                            <option value="" th:text="#{backoffice.customizations.type.select}">Select
-                                                type...</option>
-                                            <option value="radio" th:text="#{backoffice.customizations.type.radio}">
-                                                Radio (Single choice)</option>
-                                            <option value="checkbox"
-                                                th:text="#{backoffice.customizations.type.checkbox}">Checkbox (Multiple
-                                                choice)</option>
-                                            <option value="quantity"
-                                                th:text="#{backoffice.customizations.type.quantity}">Quantity (Counter)
-                                            </option>
+                                        <select class="bo-select" id="customization-type" required>
+                                            <option value="" th:text="#{backoffice.customizations.type.select}">Select type...</option>
+                                            <option value="radio" th:text="#{backoffice.customizations.type.radio}">Radio (Single choice)</option>
+                                            <option value="checkbox" th:text="#{backoffice.customizations.type.checkbox}">Checkbox (Multiple choice)</option>
+                                            <option value="quantity" th:text="#{backoffice.customizations.type.quantity}">Quantity (Counter)</option>
                                         </select>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label class="form-label"
+                                    <div class="bo-field">
+                                        <label class="bo-label"
                                             th:text="#{backoffice.customizations.label.options}">Options *</label>
                                         <div id="customization-options-container">
                                             <!-- Options will be added here -->
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                        <button type="button" class="bo-btn bo-btn-outline-primary" id="btn-add-customization-option"
                                             onclick="addCustomizationOption()">
-                                            <i class="fas fa-plus"></i> <span
-                                                th:text="#{backoffice.customizations.button.add.option}">Add
-                                                Option</span>
+                                            <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                            <span th:text="#{backoffice.customizations.button.add.option}">Add Option</span>
                                         </button>
                                     </div>
 
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" class="btn btn-success">
-                                            <i class="fas fa-save"></i> <span
-                                                th:text="#{backoffice.customizations.button.save}">Save
-                                                Customization</span>
+                                    <div class="bo-form-actions">
+                                        <button type="submit" class="bo-btn bo-btn-success">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                                            <span th:text="#{backoffice.customizations.button.save}">Save Customization</span>
                                         </button>
-                                        <button type="button" class="btn btn-secondary" onclick="cancelForm()">
-                                            <i class="fas fa-times"></i> <span th:text="#{button.cancel}">Cancel</span>
+                                        <button type="button" class="bo-btn bo-btn-secondary" onclick="cancelForm()">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                                            <span th:text="#{button.cancel}">Cancel</span>
                                         </button>
                                     </div>
                                 </form>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Products Section -->
-                    <div id="products-section" class="section-content" style="display: none;">
+                    <div id="products-section" class="section-content" hidden>
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h3><i class="fas fa-burger"></i> <span th:text="#{backoffice.products.title}">Products
                                     Management</span></h3>
@@ -398,7 +401,7 @@
                     </div>
 
                     <!-- Tables Section -->
-                    <div id="tables-section" class="section-content" style="display: none;">
+                    <div id="tables-section" class="section-content" hidden>
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h3><i class="fas fa-table"></i> <span>Tables Management</span></h3>
                             <div class="d-flex gap-2">
@@ -422,14 +425,14 @@
                     </div>
 
                     <!-- Payment Section -->
-                    <div id="payment-section" class="section-content" style="display: none;">
+                    <div id="payment-section" class="section-content" hidden>
                         <div id="payment-config-container">
                             <!-- Payment Config will be loaded here -->
                         </div>
                     </div>
 
                     <!-- Discounts Section -->
-                    <div id="discounts-section" class="section-content" style="display: none;">
+                    <div id="discounts-section" class="section-content" hidden>
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h3><i class="fas fa-percentage"></i> <span th:text="#{backoffice.discounts.title}">Discounts Management</span></h3>
                             <button class="btn btn-primary" onclick="showDiscountForm()">
@@ -445,7 +448,7 @@
                     </div>
 
                     <!-- Privacy Notice Section (Owner, Admin, and Manager) -->
-                    <div id="privacy-section" class="section-content" style="display: none;">
+                    <div id="privacy-section" class="section-content" hidden>
                         <div class="alert alert-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
                         <div class="alert alert-danger" role="alert" th:if="${error != null}" th:text="${error}"></div>
                         <div th:replace="~{fastfood/fragments/guest-privacy-notice :: panel(
@@ -457,7 +460,7 @@
                     </div>
 
                     <!-- Maintenance Section -->
-                    <div id="maintenance-section" class="section-content" style="display: none;" sec:authorize="hasRole('ADMIN')">
+                    <div id="maintenance-section" class="section-content" hidden sec:authorize="hasRole('ADMIN')">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h3><i class="fas fa-tools"></i> <span>System Maintenance</span></h3>
                         </div>
@@ -606,145 +609,116 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+            </main>
 
             <!-- Right Sidebar - Side View (Can be toggled) -->
-            <div class="col-md-3 bg-light border-start p-0" id="side-view" style="overflow-y: auto;">
-                <div class="p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="text-muted mb-0" th:text="#{backoffice.quick.view}">QUICK VIEW</h6>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleSideView()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
+            <aside class="bo-side-view" id="side-view">
+                <div class="bo-side-header">
+                    <h2 class="bo-sidebar-heading" th:text="#{backoffice.quick.view}">QUICK VIEW</h2>
+                    <button type="button" class="bo-icon-btn bo-icon-btn-neutral" onclick="toggleSideView()"
+                        th:aria-label="#{button.close}">
+                        <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                    </button>
+                </div>
 
-                    <!-- Groups Quick View -->
-                    <div id="groups-quick-view" class="quick-view-section">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
+                <!-- Groups Quick View -->
+                <div id="groups-quick-view" class="quick-view-section">
+                    <!-- Will be populated by JavaScript -->
+                </div>
 
-                    <!-- Customizations Quick View -->
-                    <div id="customizations-quick-view" class="quick-view-section" style="display: none;">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
+                <!-- Customizations Quick View -->
+                <div id="customizations-quick-view" class="quick-view-section" hidden>
+                    <!-- Will be populated by JavaScript -->
+                </div>
 
-                    <!-- Products Quick View -->
-                    <div id="products-quick-view" class="quick-view-section" style="display: none;">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
+                <!-- Products Quick View -->
+                <div id="products-quick-view" class="quick-view-section" hidden>
+                    <!-- Will be populated by JavaScript -->
+                </div>
 
-                    <!-- Discounts Quick View -->
-                    <div id="discounts-quick-view" class="quick-view-section" style="display: none;">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
+                <!-- Discounts Quick View -->
+                <div id="discounts-quick-view" class="quick-view-section" hidden>
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </aside>
+    </div>
+
+    <!-- Product Selector Dialog -->
+    <dialog class="dialog dialog-centered dialog-lg" id="productSelectorModal" aria-labelledby="productSelectorModalTitle">
+        <div class="dialog-header">
+            <h2 class="dialog-title" id="productSelectorModalTitle" th:text="#{backoffice.modal.select.products.title}">Select Products</h2>
+            <button type="button" class="dialog-close" data-dialog-close th:aria-label="#{button.close}">&times;</button>
+        </div>
+        <div class="dialog-body">
+            <div id="product-selector-list">
+                <!-- Products checkboxes will be populated here -->
+            </div>
+        </div>
+        <div class="dialog-footer">
+            <button type="button" class="bo-btn bo-btn-secondary" data-dialog-close th:text="#{button.cancel}">Cancel</button>
+            <button type="button" class="bo-btn bo-btn-primary" onclick="confirmProductSelection()" th:text="#{button.add}">Add Selected</button>
+        </div>
+    </dialog>
+
+    <!-- Customization Selector Dialog -->
+    <dialog class="dialog dialog-centered dialog-lg" id="customizationSelectorModal" aria-labelledby="customizationSelectorModalTitle">
+        <div class="dialog-header">
+            <h2 class="dialog-title" id="customizationSelectorModalTitle" th:text="#{backoffice.modal.select.customizations.title}">Select Customizations</h2>
+            <button type="button" class="dialog-close" data-dialog-close th:aria-label="#{button.close}">&times;</button>
+        </div>
+        <div class="dialog-body">
+            <div id="customization-selector-list">
+                <!-- Customizations checkboxes will be populated here -->
+            </div>
+        </div>
+        <div class="dialog-footer">
+            <button type="button" class="bo-btn bo-btn-secondary" data-dialog-close th:text="#{button.cancel}">Cancel</button>
+            <button type="button" class="bo-btn bo-btn-primary" onclick="confirmCustomizationSelection()" th:text="#{button.add}">Add Selected</button>
+        </div>
+    </dialog>
+
+    <!-- Quick Customization Creation Dialog -->
+    <dialog class="dialog dialog-centered" id="quickCustomizationModal" aria-labelledby="quickCustomizationModalTitle">
+        <div class="dialog-header">
+            <h2 class="dialog-title" id="quickCustomizationModalTitle" th:text="#{backoffice.modal.quick.customization.title}">Quick Create Customization</h2>
+            <button type="button" class="dialog-close" data-dialog-close th:aria-label="#{button.close}">&times;</button>
+        </div>
+        <div class="dialog-body">
+            <p class="bo-dialog-desc" th:text="#{backoffice.modal.quick.customization.desc}">Create a new customization quickly without leaving this form.</p>
+            <div class="bo-field">
+                <label class="bo-label" for="quick-customization-name" th:text="#{backoffice.customizations.label.name}">Customization Name *</label>
+                <input type="text" class="bo-input" id="quick-customization-name">
+            </div>
+            <div class="bo-field">
+                <label class="bo-label" for="quick-customization-type" th:text="#{backoffice.customizations.label.type}">Type *</label>
+                <select class="bo-select" id="quick-customization-type">
+                    <option value="radio" th:text="#{backoffice.customizations.type.radio}">Radio (Single choice)</option>
+                    <option value="checkbox" th:text="#{backoffice.customizations.type.checkbox}">Checkbox (Multiple choice)</option>
+                    <option value="quantity" th:text="#{backoffice.customizations.type.quantity}">Quantity (Add/Remove)</option>
+                </select>
+            </div>
+            <div class="bo-quick-row bo-field">
+                <div>
+                    <label class="bo-label" for="quick-customization-opt-name" th:text="#{backoffice.customizations.option.label.name}">Option Name *</label>
+                    <input type="text" class="bo-input" id="quick-customization-opt-name" placeholder="Option name">
+                </div>
+                <div>
+                    <label class="bo-label" for="quick-customization-opt-price" th:text="#{backoffice.customizations.option.label.price}">Price *</label>
+                    <input type="number" step="0.01" class="bo-input" id="quick-customization-opt-price" value="0.00">
+                </div>
+            </div>
+            <div class="bo-field" id="quick-customization-included-wrapper" hidden>
+                <div class="bo-check-row">
+                    <input type="checkbox" id="quick-customization-opt-default" checked>
+                    <label for="quick-customization-opt-default" th:text="#{backoffice.customizations.quick.option.included}">Comes with the product</label>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Product Selector Modal -->
-    <div class="modal fade" id="productSelectorModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" th:text="#{backoffice.modal.select.products.title}">Select Products</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="product-selector-list">
-                        <!-- Products checkboxes will be populated here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                        th:text="#{button.cancel}">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="confirmProductSelection()"
-                        th:text="#{button.add}">Add Selected</button>
-                </div>
-            </div>
+        <div class="dialog-footer">
+            <button type="button" class="bo-btn bo-btn-secondary" data-dialog-close th:text="#{button.cancel}">Cancel</button>
+            <button type="button" class="bo-btn bo-btn-primary" onclick="saveQuickCustomization()" th:text="#{backoffice.modal.quick.customization.button}">Create &amp; Continue</button>
         </div>
-    </div>
-
-    <!-- Customization Selector Modal -->
-    <div class="modal fade" id="customizationSelectorModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" th:text="#{backoffice.modal.select.customizations.title}">Select
-                        Customizations</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="customization-selector-list">
-                        <!-- Customizations checkboxes will be populated here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                        th:text="#{button.cancel}">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="confirmCustomizationSelection()"
-                        th:text="#{button.add}">Add Selected</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Customization Creation Modal -->
-    <div class="modal fade" id="quickCustomizationModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" th:text="#{backoffice.modal.quick.customization.title}">Quick Create
-                        Customization</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted" th:text="#{backoffice.modal.quick.customization.desc}">Create a new
-                        customization quickly without leaving this form.</p>
-                    <div class="mb-3">
-                        <label class="form-label" th:text="#{backoffice.customizations.label.name}">Customization Name
-                            *</label>
-                        <input type="text" class="form-control" id="quick-customization-name">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" th:text="#{backoffice.customizations.label.type}">Type *</label>
-                        <select class="form-select" id="quick-customization-type">
-                            <option value="radio" th:text="#{backoffice.customizations.type.radio}">Radio (Single
-                                choice)</option>
-                            <option value="checkbox" th:text="#{backoffice.customizations.type.checkbox}">Checkbox
-                                (Multiple choice)</option>
-                            <option value="quantity" th:text="#{backoffice.customizations.type.quantity}">Quantity
-                                (Add/Remove)</option>
-                        </select>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-7">
-                            <label class="form-label" th:text="#{backoffice.customizations.option.label.name}">Option Name *</label>
-                            <input type="text" class="form-control" id="quick-customization-opt-name" placeholder="Option name">
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label" th:text="#{backoffice.customizations.option.label.price}">Price *</label>
-                            <input type="number" step="0.01" class="form-control" id="quick-customization-opt-price" value="0.00">
-                        </div>
-                    </div>
-                    <div class="mb-3" id="quick-customization-included-wrapper" style="display: none;">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="quick-customization-opt-default" checked>
-                            <label class="form-check-label" for="quick-customization-opt-default"
-                                th:text="#{backoffice.customizations.quick.option.included}">Comes with the product</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                        th:text="#{button.cancel}">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveQuickCustomization()"
-                        th:text="#{backoffice.modal.quick.customization.button}">Create & Continue</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    </dialog>
 
     <!-- Image Selector Modal -->
     <div class="modal fade" id="imageSelectorModal" tabindex="-1">
@@ -858,23 +832,11 @@
     </div>
 
     <!-- Toast Container -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
-        <div id="notification-toast" class="toast align-items-center border-0" role="alert" aria-live="assertive"
-            aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body" id="toast-message">
-                    Message here
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                    aria-label="Close"></button>
-            </div>
-        </div>
-    </div>
+    <div class="toast-container bo-toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
-    </div>
-    </div>
-
-    <div id="i18n-backoffice" style="display:none;" th:data-groups-empty="#{backoffice.groups.empty}"
+    <div id="i18n-backoffice" hidden th:data-groups-empty="#{backoffice.groups.empty}"
+        th:data-groups-create-title="#{backoffice.groups.create.title}"
+        th:data-groups-edit-title="#{backoffice.groups.edit.title}"
         th:data-groups-no-desc="#{backoffice.groups.no.description}"
         th:data-groups-delete-confirm="#{backoffice.groups.delete.confirm}"
         th:data-groups-save-success="#{backoffice.groups.save.success}"
@@ -925,6 +887,7 @@
         th:data-image-unsupported="#{backoffice.image.unsupported}"></div>
 
     <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="../../static/js/guest-ui.js" th:src="@{/js/guest-ui.js}" defer></script>
     <script src="../../static/js/confirm-dialog.js" th:src="@{/js/confirm-dialog.js}" defer></script>
     <script src="../../static/js/backOffice.js" th:src="@{/js/backOffice.js}" defer></script>
     <script th:if="${param.section != null && param.section[0] == 'privacy'}">

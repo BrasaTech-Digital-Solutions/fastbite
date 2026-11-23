@@ -3,89 +3,92 @@
 
 <!-- Groups List -->
 <div th:fragment="groups-list" th:remove="tag">
-    <div th:if="${#lists.isEmpty(groups)}" class="text-center text-muted py-5">
-        <i class="fas fa-inbox fa-3x mb-3"></i>
+    <div th:if="${#lists.isEmpty(groups)}" class="bo-empty">
+        <svg class="icon icon-3x" aria-hidden="true"><use href="#i-inbox"></use></svg>
         <p th:text="#{backoffice.groups.empty}">No groups found</p>
     </div>
-    <div th:each="group : ${groups}" class="cart-item mb-3">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="flex-grow-1">
-                <h5 class="mb-1">
-                    <i th:class="${group['icon'] ?: 'fas fa-layer-group'}"></i>
-                    <span th:text="${group['name']}">Group Name</span>
-                </h5>
-                <p class="text-muted mb-2"
-                    th:text="${group['description'] ?: #messages.msg('backoffice.groups.no.description')}">Description
-                </p>
-                <div class="mb-2">
-                    <span class="badge bg-secondary">
-                        <span th:text="${#lists.size(group['products'])}">0</span>
-                        <span th:text="#{backoffice.groups.products.count}">products</span>
-                    </span>
-                </div>
+    <div th:each="group : ${groups}" class="bo-item-card">
+        <div class="bo-item-body">
+            <h2 class="bo-item-title">
+                <i th:if="${group['icon'] != null && !#strings.isEmpty(group['icon'])}" th:class="${group['icon']}" aria-hidden="true"></i>
+                <svg th:unless="${group['icon'] != null && !#strings.isEmpty(group['icon'])}" class="icon" aria-hidden="true"><use href="#i-layers"></use></svg>
+                <span th:text="${group['name']}">Group Name</span>
+            </h2>
+            <p class="bo-item-desc"
+                th:text="${group['description'] ?: #messages.msg('backoffice.groups.no.description')}">Description
+            </p>
+            <div class="bo-badges">
+                <span class="bo-badge">
+                    <span th:text="${#lists.size(group['products'])}">0</span>
+                    <span th:text="#{backoffice.groups.products.count}">products</span>
+                </span>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline-primary" th:data-id="${group['id']}"
-                    onclick="editGroup(this.dataset.id)">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" th:data-id="${group['id']}"
-                    onclick="manageGroupTranslations(this.dataset.id)">
-                    <i class="fas fa-language"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" th:data-id="${group['id']}"
-                    onclick="deleteGroup(this.dataset.id)">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+        </div>
+        <div class="bo-item-actions">
+            <button type="button" class="bo-icon-btn bo-icon-btn-primary" th:data-id="${group['id']}"
+                th:aria-label="#{backoffice.action.edit}" th:title="#{backoffice.action.edit}"
+                onclick="editGroup(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${group['id']}"
+                th:aria-label="#{backoffice.action.translations}" th:title="#{backoffice.action.translations}"
+                onclick="manageGroupTranslations(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-danger" th:data-id="${group['id']}"
+                th:aria-label="#{backoffice.action.delete}" th:title="#{backoffice.action.delete}"
+                onclick="deleteGroup(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Customizations List -->
 <div th:fragment="customizations-list" th:remove="tag">
-    <div th:if="${#lists.isEmpty(customizations)}" class="text-center text-muted py-5">
-        <i class="fas fa-inbox fa-3x mb-3"></i>
+    <div th:if="${#lists.isEmpty(customizations)}" class="bo-empty">
+        <svg class="icon icon-3x" aria-hidden="true"><use href="#i-inbox"></use></svg>
         <p th:text="#{backoffice.customizations.empty}">No customizations found</p>
     </div>
-    <div th:each="custom : ${customizations}" class="cart-item mb-3">
-        <div class="d-flex justify-content-between align-items-start">
-            <div class="flex-grow-1">
-                <h5 class="mb-1" th:text="${custom['name']}">Customization Name</h5>
-                <div class="mb-2">
-                    <span class="badge bg-info" th:text="${custom['type']}">Type</span>
-                    <span class="badge bg-secondary">
-                        <span th:text="${#lists.size(custom['options'])}">0</span>
-                        <span th:text="#{backoffice.customizations.options.count}">options</span>
-                    </span>
-                    <span class="badge bg-success"
-                        th:text="${#messages.msg('backoffice.customizations.usage.count', custom['usageCount'])}">Used 0
-                        times</span>
-                </div>
-                <div class="small text-muted">
-                    <th:block th:each="opt, iter : ${custom['options']}">
-                        <span th:text="${opt['name']}">Option</span>
-                        (<span th:text="${#numbers.formatDecimal(opt['price'], 1, 2)} + ' €'">price</span>)
-                        <span th:if="${opt['isSelectedByDefault']}" class="badge bg-warning text-dark ms-1"
-                            th:text="#{backoffice.customizations.option.default}">Default</span>
-                        <span th:if="${!iter.last}">, </span>
-                    </th:block>
-                </div>
+    <div th:each="custom : ${customizations}" class="bo-item-card">
+        <div class="bo-item-body">
+            <h2 class="bo-item-title" th:text="${custom['name']}">Customization Name</h2>
+            <div class="bo-badges">
+                <span class="bo-badge" th:text="${custom['type']}">Type</span>
+                <span class="bo-badge">
+                    <span th:text="${#lists.size(custom['options'])}">0</span>
+                    <span th:text="#{backoffice.customizations.options.count}">options</span>
+                </span>
+                <span class="bo-badge bo-badge-success"
+                    th:text="${#messages.msg('backoffice.customizations.usage.count', custom['usageCount'])}">Used 0
+                    times</span>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline-primary" th:data-id="${custom['id']}"
-                    onclick="editCustomization(this.dataset.id)">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" th:data-id="${custom['id']}"
-                    onclick="manageCustomizationTranslations(this.dataset.id)">
-                    <i class="fas fa-language"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" th:data-id="${custom['id']}"
-                    onclick="deleteCustomization(this.dataset.id)">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <div class="bo-item-options">
+                <th:block th:each="opt, iter : ${custom['options']}">
+                    <span th:text="${opt['name']}">Option</span>
+                    (<span th:text="${#numbers.formatDecimal(opt['price'], 1, 2)} + ' €'">price</span>)
+                    <span th:if="${opt['isSelectedByDefault']}" class="bo-badge bo-badge-warning"
+                        th:text="#{backoffice.customizations.option.default}">Default</span>
+                    <span th:if="${!iter.last}">, </span>
+                </th:block>
             </div>
+        </div>
+        <div class="bo-item-actions">
+            <button type="button" class="bo-icon-btn bo-icon-btn-primary" th:data-id="${custom['id']}"
+                th:aria-label="#{backoffice.action.edit}" th:title="#{backoffice.action.edit}"
+                onclick="editCustomization(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${custom['id']}"
+                th:aria-label="#{backoffice.action.translations}" th:title="#{backoffice.action.translations}"
+                onclick="manageCustomizationTranslations(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-danger" th:data-id="${custom['id']}"
+                th:aria-label="#{backoffice.action.delete}" th:title="#{backoffice.action.delete}"
+                onclick="deleteCustomization(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
         </div>
     </div>
 </div>
@@ -151,48 +154,48 @@
 </div>
 
 <!-- Customization Option Card -->
-<div th:fragment="customization-option" class="card mb-3 p-3" style="background-color: #f8f9fa;">
-    <div class="row g-2 mb-2">
-        <div class="col-md-4">
-            <label class="form-label small" th:text="#{backoffice.customizations.option.label.name}">Option name</label>
-            <input type="text" class="form-control form-control-sm opt-name" placeholder="Option name"
+<div th:fragment="customization-option" class="bo-option-card">
+    <div class="bo-option-grid">
+        <div>
+            <label class="bo-label" th:for="|opt-name-${index}|" th:text="#{backoffice.customizations.option.label.name}">Option name</label>
+            <input type="text" class="bo-input opt-name" placeholder="Option name"
                 th:value="${opt != null ? opt['name'] : ''}" th:id="|opt-name-${index}|" required>
         </div>
-        <div class="col-md-3">
-            <label class="form-label small" th:text="#{backoffice.customizations.option.label.price}">Price</label>
-            <input type="number" step="0.01" class="form-control form-control-sm opt-price" placeholder="0.00"
+        <div>
+            <label class="bo-label" th:for="|opt-price-${index}|" th:text="#{backoffice.customizations.option.label.price}">Price</label>
+            <input type="number" step="0.01" class="bo-input opt-price" placeholder="0.00"
                 th:value="${opt != null ? opt['price'] : '0.00'}" th:id="|opt-price-${index}|" required>
         </div>
-        <div class="col-md-2">
-            <label class="form-label small" th:text="#{backoffice.customizations.option.label.default.value}">Default
-                Value</label>
-            <input type="number" class="form-control form-control-sm opt-defaultValue" placeholder="1"
+        <div>
+            <label class="bo-label" th:for="|opt-defaultValue-${index}|" th:text="#{backoffice.customizations.option.label.default.value}">Default Value</label>
+            <input type="number" class="bo-input opt-defaultValue" placeholder="1"
                 th:value="${opt != null ? opt['defaultValue'] ?: 0 : 1}" th:id="|opt-defaultValue-${index}|" min="0">
         </div>
-        <div class="col-md-2 opt-selected-default-col">
-            <label class="form-label small"
+        <div class="opt-selected-default-col">
+            <label class="bo-label" th:for="|opt-isSelectedByDefault-${index}|"
                 th:text="#{backoffice.customizations.option.label.selected.default}">Selected Default</label>
-            <div class="form-check form-switch mt-1">
-                <input class="form-check-input opt-isSelectedByDefault" type="checkbox" th:id="|opt-isSelectedByDefault-${index}|"
+            <div class="bo-check-row">
+                <input class="opt-isSelectedByDefault" type="checkbox" th:id="|opt-isSelectedByDefault-${index}|"
                     th:checked="${opt != null ? opt['isSelectedByDefault'] : false}">
             </div>
         </div>
-        <div class="col-md-1 d-flex align-items-end">
-            <button class="btn btn-sm btn-outline-danger w-100" type="button"
+        <div>
+            <button class="bo-icon-btn bo-icon-btn-danger" type="button"
+                th:aria-label="#{backoffice.action.remove}" th:title="#{backoffice.action.remove}"
                 onclick="removeCustomizationOption(this)">
-                <i class="fas fa-trash"></i>
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
             </button>
         </div>
     </div>
-    <div class="option-allergen-picker">
-        <span class="form-label small mb-0 me-1" th:text="#{backoffice.customizations.option.allergens}">Adds allergens</span>
-        <th:block th:each="allergen : ${allergenList}">
-            <input type="checkbox" class="btn-check" autocomplete="off" data-option-allergen
+    <div class="bo-option-allergens">
+        <span class="bo-label" th:text="#{backoffice.customizations.option.allergens}">Adds allergens</span>
+        <span th:each="allergen : ${allergenList}" class="bo-allergen-chip">
+            <input type="checkbox" autocomplete="off" data-option-allergen
                 th:id="|opt-allergen-${index}-${allergen.name()}|" th:value="${allergen.name()}"
                 th:checked="${opt != null && opt['allergens'] != null && #lists.contains(opt['allergens'], allergen.name())}">
-            <label class="btn btn-sm btn-outline-secondary" th:for="|opt-allergen-${index}-${allergen.name()}|"
+            <label th:for="|opt-allergen-${index}-${allergen.name()}|"
                 th:title="#{${allergen.messageKey()}}" th:aria-label="#{${allergen.messageKey()}}" th:text="${allergen.icon()}">🥛</label>
-        </th:block>
+        </span>
     </div>
 </div>
 
@@ -228,56 +231,60 @@
 
 <!-- Quick View -->
 <div th:fragment="quick-view" th:remove="tag">
-    <h6 class="mb-3"
-        th:text="${type == 'groups' ? 'Groups Summary' : (type == 'customizations' ? 'Customizations Summary' : 'Products Summary')}">
-        Summary</h6>
-    <p th:if="${#lists.isEmpty(data)}" class="text-muted">No items yet</p>
-    <div th:each="item : ${data}" class="mb-2 p-2 border rounded">
-        <strong th:text="${item['name']}">Item Name</strong><br>
-        <small th:if="${type == 'groups'}" class="text-muted">
-            <span th:text="${#lists.size(item['products'])}">0</span> products
-        </small>
-        <small th:if="${type == 'customizations'}" class="text-muted">
+    <h3 class="bo-quick-heading"
+        th:text="${type == 'groups' ? #messages.msg('backoffice.quick.view.groups') : (type == 'customizations' ? #messages.msg('backoffice.quick.view.customizations') : #messages.msg('backoffice.quick.view.products'))}">
+        Summary</h3>
+    <p th:if="${#lists.isEmpty(data)}" class="bo-quick-meta" th:text="#{backoffice.quick.view.empty}">No items yet</p>
+    <div th:each="item : ${data}" class="bo-quick-item">
+        <strong th:text="${item['name']}">Item Name</strong>
+        <span th:if="${type == 'groups'}" class="bo-quick-meta">
+            <span th:text="${#lists.size(item['products'])}">0</span> <span th:text="#{backoffice.groups.products.count}">products</span>
+        </span>
+        <span th:if="${type == 'customizations'}" class="bo-quick-meta">
             <span th:text="${item['type']}">type</span> - <span th:text="${#lists.size(item['options'])}">0</span>
-            options
-        </small>
-        <small th:if="${type == 'products'}" class="text-muted">
+            <span th:text="#{backoffice.customizations.options.count}">options</span>
+        </span>
+        <span th:if="${type == 'products'}" class="bo-quick-meta">
             <span th:text="${#numbers.formatDecimal(item['price'], 1, 2)} + ' €'">0.00 €</span>
-        </small>
+        </span>
     </div>
 </div>
 
 <!-- Badges List (for Groups) -->
 <div th:fragment="group-products-badges" th:remove="tag">
-    <div th:if="${#lists.isEmpty(selectedProducts)}" class="text-muted small"
+    <div th:if="${#lists.isEmpty(selectedProducts)}" class="bo-quick-meta"
         th:text="#{backoffice.groups.placeholder.no.products}">No products assigned yet</div>
-    <span th:each="product : ${selectedProducts}" class="badge bg-primary me-1 mb-1">
+    <span th:each="product : ${selectedProducts}" class="bo-chip">
         <span th:text="${product['name']}">Product Name</span>
-        <i class="fas fa-times ms-1" style="cursor: pointer;" th:data-id="${product['id']}"
-            onclick="removeProductFromGroup(this.dataset.id)"></i>
+        <button type="button" class="bo-chip-remove" th:data-id="${product['id']}"
+            th:aria-label="#{backoffice.action.remove}" onclick="removeProductFromGroup(this.dataset.id)">
+            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
     </span>
 </div>
 
 <!-- Badges List (for Products) -->
 <div th:fragment="product-customizations-badges" th:remove="tag">
-    <div th:if="${#lists.isEmpty(selectedCustomizations)}" class="text-muted small"
+    <div th:if="${#lists.isEmpty(selectedCustomizations)}" class="bo-quick-meta"
         th:text="#{backoffice.products.placeholder.no.customizations}">No customizations assigned yet</div>
-    <span th:each="custom : ${selectedCustomizations}" class="badge bg-primary me-1 mb-1">
+    <span th:each="custom : ${selectedCustomizations}" class="bo-chip">
         <span th:text="${custom['name']}">Customization Name</span>
-        <i class="fas fa-times ms-1" style="cursor: pointer;" th:data-id="${custom['id']}"
-            onclick="removeCustomizationFromProduct(this.dataset.id)"></i>
+        <button type="button" class="bo-chip-remove" th:data-id="${custom['id']}"
+            th:aria-label="#{backoffice.action.remove}" onclick="removeCustomizationFromProduct(this.dataset.id)">
+            <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
     </span>
 </div>
 
 <!-- Selector List -->
 <div th:fragment="selector-list" th:remove="tag">
-    <div th:each="item : ${items}" class="form-check mb-2">
-        <input class="form-check-input" type="checkbox" th:value="${item['id']}" th:id="|item-${item['id']}|"
+    <div th:each="item : ${items}" class="bo-check-row">
+        <input type="checkbox" th:value="${item['id']}" th:id="|item-${item['id']}|"
             th:checked="${#lists.contains(selectedIds, item['id'])}">
-        <label class="form-check-label" th:for="|item-${item['id']}|">
+        <label th:for="|item-${item['id']}|">
             <span th:text="${item['name']}">Item Name</span>
             <span th:if="${#maps.containsKey(item, 'price') && item['price'] != null}"
-                th:text="| - $${#numbers.formatDecimal(item['price'], 1, 2)}|"> - $0.00</span>
+                th:text="| - ${#numbers.formatDecimal(item['price'], 1, 2)} €|"> - 0.00 €</span>
             <span th:if="${#maps.containsKey(item, 'type') && item['type'] != null}" th:text="| (${item['type']})|">
                 (type)</span>
         </label>
