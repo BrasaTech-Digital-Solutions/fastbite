@@ -7,8 +7,6 @@
     <meta name="_csrf" th:content="${_csrf.token}" />
     <meta name="_csrf_header" th:content="${_csrf.headerName}" />
     <title th:text="#{backoffice.title}">BackOffice - FastBite</title>
-    <link href="/webjars/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/webjars/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/restaurant.css}">
     <link rel="stylesheet" th:href="@{/css/backoffice.css}">
@@ -137,7 +135,7 @@
                                         <label for="group-icon" class="bo-label"
                                             th:text="#{backoffice.groups.label.icon}">Icon (Font Awesome class)</label>
                                         <input type="text" class="bo-input" id="group-icon"
-                                            placeholder="fas fa-burger">
+                                            th:placeholder="#{backoffice.groups.placeholder.icon}">
                                     </div>
 
                                     <div class="bo-field">
@@ -455,57 +453,64 @@
                     </section>
 
                     <!-- Privacy Notice Section (Owner, Admin, and Manager) -->
-                    <div id="privacy-section" class="section-content" hidden>
-                        <div class="alert alert-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
-                        <div class="alert alert-danger" role="alert" th:if="${error != null}" th:text="${error}"></div>
+                    <section id="privacy-section" class="section-content" hidden>
+                        <div class="bo-notice bo-notice-success" role="status" th:if="${notice != null}" th:text="${notice}"></div>
+                        <div class="bo-notice bo-notice-danger" role="alert" th:if="${error != null}" th:text="${error}"></div>
                         <div th:replace="~{fastfood/fragments/guest-privacy-notice :: panel(
                             uploadAction=@{/{tenant}/backoffice/privacy-notice(tenant=${activeTenant})},
                             revertAction=@{/{tenant}/backoffice/privacy-notice/generated(tenant=${activeTenant})},
                             publicUrl=@{/{tenant}/privacy(tenant=${activeTenant})},
                             activeNotice=${activePrivacyNotice},
                             noticeHistory=${privacyNoticeHistory})}"></div>
-                    </div>
+                    </section>
 
                     <!-- Maintenance Section -->
-                    <div id="maintenance-section" class="section-content" hidden sec:authorize="hasRole('ADMIN')">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-tools"></i> <span>System Maintenance</span></h3>
+                    <section id="maintenance-section" class="section-content" hidden sec:authorize="hasRole('ADMIN')">
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-wrench"></use></svg>
+                                <span th:text="#{backoffice.maintenance.title}">System Maintenance</span>
+                            </h1>
                         </div>
 
                         <!-- Ordering options -->
-                        <div class="card mb-4 border-primary">
-                            <div class="card-header bg-primary text-white font-weight-bold">
-                                <i class="fas fa-concierge-bell me-2"></i> Ordering options
+                        <div class="bo-card bo-card-primary">
+                            <div class="bo-card-header">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-concierge-bell"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.ordering.title}">Ordering options</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field" th:text="#{backoffice.maintenance.ordering.desc}">
                                     Choose how customers can order from this restaurant. A sale paid on the spot at the counter always works.
                                 </p>
-                                <form id="serviceTypesForm" onsubmit="saveRestaurantSettings(event)" class="row g-3 align-items-center">
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="dineInInput" th:checked="${settings.dineIn}">
-                                            <label class="form-check-label font-weight-bold" for="dineInInput">Table service</label>
-                                        </div>
-                                        <small class="text-muted">Orders for a table, taken at the counter or placed by guests from the table.</small>
+                                <form id="serviceTypesForm" onsubmit="saveRestaurantSettings(event)" class="bo-switch-grid">
+                                    <div class="bo-switch-col">
+                                        <label class="bo-switch" for="dineInInput">
+                                            <input type="checkbox" role="switch" id="dineInInput" th:checked="${settings.dineIn}">
+                                            <span class="bo-switch-label" th:text="#{backoffice.maintenance.ordering.dinein}">Table service</span>
+                                        </label>
+                                        <p class="bo-hint" th:text="#{backoffice.maintenance.ordering.dinein.hint}">Orders for a table, taken at the counter or placed by guests from the table.</p>
                                     </div>
-                                    <div class="col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="takeawayInput" th:checked="${freePlanLocked || settings.takeaway}" th:disabled="${freePlanLocked}">
-                                            <label class="form-check-label font-weight-bold" for="takeawayInput">Takeaway</label>
-                                        </div>
-                                        <small class="text-muted" th:text="${freePlanLocked ? 'Locked on the Free Plan: online payments stay on in every channel FastBite offers.' : 'Orders to collect. At the counter they can be paid at pickup.'}">Orders to collect. At the counter they can be paid at pickup.</small>
+                                    <div class="bo-switch-col">
+                                        <label class="bo-switch" for="takeawayInput">
+                                            <input type="checkbox" role="switch" id="takeawayInput" th:checked="${freePlanLocked || settings.takeaway}" th:disabled="${freePlanLocked}">
+                                            <span class="bo-switch-label" th:text="#{backoffice.maintenance.ordering.takeaway}">Takeaway</span>
+                                        </label>
+                                        <p class="bo-hint" th:text="${freePlanLocked ? #messages.msg('backoffice.maintenance.ordering.takeaway.locked') : #messages.msg('backoffice.maintenance.ordering.takeaway.hint')}">Orders to collect. At the counter they can be paid at pickup.</p>
                                     </div>
-                                    <div class="col-md-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="tableQrTrustedInput" th:checked="${settings.tableQrTrusted}">
-                                            <label class="form-check-label font-weight-bold" for="tableQrTrustedInput" th:text="#{settings.tableQrTrusted}">Trusted table QR orders</label>
-                                        </div>
-                                        <small class="text-muted" th:text="#{settings.tableQrTrusted.hint}">Orders from table QR codes go straight to the kitchen / need the cashier's approval.</small>
+                                    <div class="bo-switch-col">
+                                        <label class="bo-switch" for="tableQrTrustedInput">
+                                            <input type="checkbox" role="switch" id="tableQrTrustedInput" th:checked="${settings.tableQrTrusted}">
+                                            <span class="bo-switch-label" th:text="#{settings.tableQrTrusted}">Trusted table QR orders</span>
+                                        </label>
+                                        <p class="bo-hint" th:text="#{settings.tableQrTrusted.hint}">Orders from table QR codes go straight to the kitchen / need the cashier's approval.</p>
                                     </div>
-                                    <div class="col-md-2 align-self-end">
-                                        <button type="submit" class="btn btn-primary w-100 font-weight-bold">
-                                            <i class="fas fa-save me-1"></i> Save
+                                    <div class="bo-switch-submit">
+                                        <button type="submit" class="bo-btn bo-btn-primary">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                                            <span th:text="#{button.save}">Save</span>
                                         </button>
                                     </div>
                                 </form>
@@ -513,109 +518,134 @@
                         </div>
 
                         <!-- KDS Ticket Urgency Timer Configuration Card -->
-                        <div class="card mb-4 border-warning">
-                            <div class="card-header bg-warning text-dark font-weight-bold">
-                                <i class="fas fa-stopwatch me-2"></i> KDS Ticket Urgency Timer Settings (F-18)
+                        <div class="bo-card bo-card-warning">
+                            <div class="bo-card-header bo-card-header-warning">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-clock"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.kds.title}">KDS Ticket Urgency Timer Settings (F-18)</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
-                                    Configure yellow warning and red overdue thresholds for Kitchen Display System (KDS) order timers. 
-                                    <strong>Set minutes to 0 to deactivate color progression (renders standard blue badges).</strong>
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field">
+                                    <span th:text="#{backoffice.maintenance.kds.desc}">Configure yellow warning and red overdue thresholds for Kitchen Display System (KDS) order timers.</span>
+                                    <strong th:text="#{backoffice.maintenance.kds.desc.zero}">Set minutes to 0 to deactivate color progression (renders standard blue badges).</strong>
                                 </p>
-                                <form id="kdsTimerForm" onsubmit="saveRestaurantSettings(event)" class="row g-3 align-items-center">
-                                    <div class="col-md-5">
-                                        <label for="yellowTimerInput" class="form-label font-weight-bold">Yellow Warning Threshold (minutes)</label>
-                                        <input type="number" min="0" max="120" class="form-control" id="yellowTimerInput" th:value="${settings.kdsYellowMinutes}" required>
-                                        <small class="text-muted">Set to 0 to disable timer color coding (Blue).</small>
+                                <form id="kdsTimerForm" onsubmit="saveRestaurantSettings(event)" class="bo-form-grid-kds">
+                                    <div class="bo-field">
+                                        <label for="yellowTimerInput" class="bo-label" th:text="#{backoffice.maintenance.kds.yellow}">Yellow Warning Threshold (minutes)</label>
+                                        <input type="number" min="0" max="120" class="bo-input" id="yellowTimerInput" th:value="${settings.kdsYellowMinutes}" required>
+                                        <p class="bo-hint" th:text="#{backoffice.maintenance.kds.yellow.hint}">Set to 0 to disable timer color coding (Blue).</p>
                                     </div>
-                                    <div class="col-md-5">
-                                        <label for="redTimerInput" class="form-label font-weight-bold">Red Overdue Threshold (minutes)</label>
-                                        <input type="number" min="0" max="120" class="form-control" id="redTimerInput" th:value="${settings.kdsRedMinutes}" required>
-                                        <small class="text-muted">Overdue SLA alert boundary.</small>
+                                    <div class="bo-field">
+                                        <label for="redTimerInput" class="bo-label" th:text="#{backoffice.maintenance.kds.red}">Red Overdue Threshold (minutes)</label>
+                                        <input type="number" min="0" max="120" class="bo-input" id="redTimerInput" th:value="${settings.kdsRedMinutes}" required>
+                                        <p class="bo-hint" th:text="#{backoffice.maintenance.kds.red.hint}">Overdue SLA alert boundary.</p>
                                     </div>
-                                    <div class="col-md-2 align-self-end">
-                                        <button type="submit" class="btn btn-warning w-100 font-weight-bold">
-                                            <i class="fas fa-save me-1"></i> Save
+                                    <div class="bo-field bo-kds-submit">
+                                        <button type="submit" class="bo-btn bo-btn-warning bo-btn-block">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                                            <span th:text="#{button.save}">Save</span>
                                         </button>
                                     </div>
                                 </form>
                             </div>
                         </div>
-                        
-                        <div class="card mb-4 border-danger">
-                            <div class="card-header bg-danger text-white font-weight-bold">
-                                <i class="fas fa-exclamation-triangle me-2"></i> Danger Zone / Database Reset
+
+                        <!-- Danger Zone / Database Reset -->
+                        <div class="bo-card bo-card-danger">
+                            <div class="bo-card-header bo-card-header-danger">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.danger.title}">Danger Zone / Database Reset</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field" th:text="#{backoffice.maintenance.danger.desc}">
                                     Resetting the database will permanently delete all menu items, customizations, categories, dining tables, order history, and custom images uploaded for this restaurant.
                                 </p>
-                                <button class="btn btn-danger" onclick="triggerCleanData()">
-                                    <i class="fas fa-trash-alt me-2"></i> Reset Database (Clean Data)
+                                <button type="button" class="bo-btn bo-btn-danger" onclick="triggerCleanData()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.danger.button}">Reset Database (Clean Data)</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="card mb-4 border-info">
-                            <div class="card-header bg-info text-white font-weight-bold">
-                                <i class="fas fa-magic me-2"></i> Load Demo Template Data
+                        <!-- Load Demo Template Data -->
+                        <div class="bo-card bo-card-info">
+                            <div class="bo-card-header bo-card-header-info">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-layers"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.demo.title}">Load Demo Template Data</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field" th:text="#{backoffice.maintenance.demo.desc}">
                                     Quickly load a sample restaurant template catalog, customization parameters, categories, discounts, and custom images to demonstrate storefront functionality.
                                 </p>
-                                <div class="row align-items-end g-3 mb-2">
-                                    <div class="col-md-6 col-lg-5">
-                                        <label for="demoTemplateSelect" class="form-label font-weight-bold">Select Demo Template:</label>
-                                        <select class="form-select" id="demoTemplateSelect">
-                                            <option value="kebab">Loading available templates...</option>
+                                <div class="bo-demo-grid">
+                                    <div class="bo-field">
+                                        <label for="demoTemplateSelect" class="bo-label" th:text="#{backoffice.maintenance.demo.select}">Select Demo Template:</label>
+                                        <select class="bo-select" id="demoTemplateSelect">
+                                            <option value="kebab" th:text="#{backoffice.maintenance.demo.loading}">Loading available templates...</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6 col-lg-7">
-                                        <button class="btn btn-info text-white" onclick="triggerRestoreDemo()" id="restoreDemoBtn">
-                                            <i class="fas fa-play me-2"></i> Load Selected Demo Data
+                                    <div class="bo-field bo-demo-action">
+                                        <button type="button" class="bo-btn bo-btn-info" onclick="triggerRestoreDemo()" id="restoreDemoBtn">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-chevrons-right"></use></svg>
+                                            <span th:text="#{backoffice.maintenance.demo.button}">Load Selected Demo Data</span>
                                         </button>
                                     </div>
                                 </div>
-                                <div id="demoTemplateDescription" class="small text-muted fst-italic"></div>
+                                <div id="demoTemplateDescription" class="bo-hint bo-demo-desc"></div>
                             </div>
                         </div>
 
-                        <div class="card mb-4">
-                            <div class="card-header bg-primary text-white">
-                                <i class="fas fa-download me-2"></i> Export Data Backup
+                        <!-- Export Data Backup -->
+                        <div class="bo-card">
+                            <div class="bo-card-header">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.export.title}">Export Data Backup</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field" th:text="#{backoffice.maintenance.export.desc}">
                                     Download a complete backup of this restaurant's database catalog, configurations, translations, and uploaded image files as a ZIP archive.
                                 </p>
-                                <button class="btn btn-primary" onclick="triggerDownloadBackup()">
-                                    <i class="fas fa-file-download me-2"></i> Download Backup File
+                                <button type="button" class="bo-btn bo-btn-primary" onclick="triggerDownloadBackup()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.export.button}">Download Backup File</span>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="card mb-4">
-                            <div class="card-header bg-success text-white">
-                                <i class="fas fa-upload me-2"></i> Restore Data Backup
+                        <!-- Restore Data Backup -->
+                        <div class="bo-card">
+                            <div class="bo-card-header bo-card-header-success">
+                                <h3>
+                                    <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+                                    <span th:text="#{backoffice.maintenance.restore.title}">Restore Data Backup</span>
+                                </h3>
                             </div>
-                            <div class="card-body">
-                                <p class="text-muted mb-3">
-                                    Upload a previously exported FastBite ZIP backup to restore all configurations, categories, products, customized parameters, and image files. 
-                                    <strong>Caution:</strong> This will overwrite all current configurations.
+                            <div class="bo-card-body">
+                                <p class="bo-hint bo-field">
+                                    <span th:text="#{backoffice.maintenance.restore.desc}">Upload a previously exported FastBite ZIP backup to restore all configurations, categories, products, customized parameters, and image files.</span>
+                                    <strong th:text="#{backoffice.maintenance.restore.caution}">Caution:</strong>
+                                    <span th:text="#{backoffice.maintenance.restore.caution.detail}">This will overwrite all current configurations.</span>
                                 </p>
                                 <form id="restoreBackupForm" onsubmit="triggerRestoreBackup(event)">
-                                    <div class="mb-3">
-                                        <label for="backupFile" class="form-label">Select Backup ZIP File</label>
-                                        <input class="form-control" type="file" id="backupFile" accept=".zip" required>
+                                    <div class="bo-field">
+                                        <label for="backupFile" class="bo-label" th:text="#{backoffice.maintenance.restore.label}">Select Backup ZIP File</label>
+                                        <input class="bo-input bo-file-input" type="file" id="backupFile" accept=".zip" required>
                                     </div>
-                                    <button type="submit" class="btn btn-success" id="restoreSubmitBtn">
-                                        <i class="fas fa-file-upload me-2"></i> Restore Backup
+                                    <button type="submit" class="bo-btn bo-btn-success" id="restoreSubmitBtn">
+                                        <svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>
+                                        <span th:text="#{backoffice.maintenance.restore.button}">Restore Backup</span>
                                     </button>
                                 </form>
                             </div>
                         </div>
-                    </div>
+                    </section>
             </main>
 
             <!-- Right Sidebar - Side View (Can be toggled) -->
@@ -879,6 +909,17 @@
         th:data-customcodes-delete-confirm="#{backoffice.customcodes.delete.confirm}"
         th:data-maintenance-reset-confirm="#{backoffice.maintenance.reset.confirm}"
         th:data-maintenance-template-load-confirm="#{backoffice.maintenance.template.load.confirm}"
+        th:data-maintenance-restore-restoring="#{backoffice.maintenance.restore.restoring}"
+        th:data-maintenance-demo-restoring="#{backoffice.maintenance.demo.restoring}"
+        th:data-maintenance-restore-select-first="#{backoffice.maintenance.restore.select.first}"
+        th:data-maintenance-settings-save-success="#{backoffice.maintenance.settings.save.success}"
+        th:data-maintenance-settings-save-error="#{backoffice.maintenance.settings.save.error}"
+        th:data-maintenance-reset-success="#{backoffice.maintenance.reset.success}"
+        th:data-maintenance-reset-error="#{backoffice.maintenance.reset.error}"
+        th:data-maintenance-restore-success="#{backoffice.maintenance.restore.success}"
+        th:data-maintenance-restore-error="#{backoffice.maintenance.restore.error}"
+        th:data-maintenance-demo-success="#{backoffice.maintenance.demo.success}"
+        th:data-maintenance-demo-error="#{backoffice.maintenance.demo.error}"
         th:data-payment-saved-success="#{backoffice.payment.saved.success}"
         th:data-payment-title="#{backoffice.payment.title}"
         th:data-payment-mode-required="#{backoffice.payment.mode.required}"
@@ -897,7 +938,6 @@
         th:data-image-optimised="#{backoffice.image.optimised}"
         th:data-image-unsupported="#{backoffice.image.unsupported}"></div>
 
-    <script src="/webjars/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="../../static/js/guest-ui.js" th:src="@{/js/guest-ui.js}" defer></script>
     <script src="../../static/js/confirm-dialog.js" th:src="@{/js/confirm-dialog.js}" defer></script>
     <script src="../../static/js/backOffice.js" th:src="@{/js/backOffice.js}" defer></script>

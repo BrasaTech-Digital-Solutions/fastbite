@@ -40,8 +40,8 @@ class RestaurantTemplateContractTest {
     private static final String[] GUARDED = {
             "menu.html", "fragments/menu.html", "allergens.html", "paymentSelection.html", "confirmation.html",
             "orderCancelled.html", "counter.html", "fragments/counter.html", "dashboard.html", "tickets.html",
-            "dayReport.html", "tableQrCodes.html", "fragments/navbar.html", "fragments/cashCheck.html",
-            "fragments/invoice-fields.html", "fragments/guest.html"};
+            "dayReport.html", "tableQrCodes.html", "backOffice.html", "fragments/backOffice.html",
+            "fragments/navbar.html", "fragments/cashCheck.html", "fragments/invoice-fields.html", "fragments/guest.html"};
 
     /** The guest pages are off Bootstrap and Font Awesome: their own stylesheet and the inline icon sprite. */
     private static final String[] GUEST_PAGES = {
@@ -55,13 +55,17 @@ class RestaurantTemplateContractTest {
     private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
     private static final String[] KITCHEN_SCRIPTS = {"dashboard.js", "kitchen-audio.js", "live-updates.js", "guest-ui.js"};
     private static final String[] TICKETS_SCRIPTS = {"guest-ui.js", "tickets.js", "cash-check.js"};
+    private static final String[] BACKOFFICE_SCRIPTS = {"guest-ui.js", "backOffice.js"};
     static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
     /**
-     * Staff pages still on Bootstrap and the legacy navigation ({@code navbar :: navbar}), outside the native checks
-     * until their own item: the back office in item 4c.
+     * Staff pages still on Bootstrap and the legacy navigation ({@code navbar :: navbar}), outside the native checks.
+     * Reaches empty once backOffice.html completes item 4c-4.
      */
-    static final List<String> STAFF_PAGES_WAITING = List.of("backOffice.html");
+    static final List<String> STAFF_PAGES_WAITING = List.of();
+    /** Every fragment the back office renders. All are native. */
+    private static final Set<String> BACKOFFICE_FRAGMENTS = Set.of(
+            "guest :: icons", "environment :: banner", "navbar :: staff", "guest-privacy-notice :: panel");
     /** Every fragment the counter renders, on its page or through its fragment endpoints. All are native. */
     private static final Set<String> COUNTER_FRAGMENTS = Set.of(
             "guest :: icons", "environment :: banner", "navbar :: staff", "counter :: tables",
@@ -445,8 +449,95 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void backOfficeUsesTheRestaurantContractWithoutBootstrapOrFontAwesome() throws IOException {
+        String html = readTemplate("backOffice.html");
+        String frag = readTemplate("fragments/backOffice.html");
+        assertNativeCounter("backOffice.html", html);
+        assertNativeCounter("fragments/backOffice.html", frag);
+        assertThat(html).as("backOffice loads backoffice.css and no webjars")
+                .contains("/css/backoffice.css")
+                .doesNotContain("/webjars/", "bootstrap", "font-awesome");
+        assertThat(html).as("maintenance stays ROLE_ADMIN only")
+                .contains("id=\"nav-maintenance\"")
+                .contains("id=\"maintenance-section\" class=\"section-content\" hidden sec:authorize=\"hasRole('ADMIN')\"");
+        Set<String> used = new TreeSet<>();
+        FRAGMENT_REFERENCE.matcher(html).results().forEach(ref -> used.add(ref.group(1) + " :: " + ref.group(2)));
+        assertThat(used).as("fragments backOffice renders").isSubsetOf(BACKOFFICE_FRAGMENTS).contains("navbar :: staff");
+        Set<String> checked = new TreeSet<>(List.of(BACKOFFICE_SCRIPTS));
+        checked.addAll(COUNTER_SCRIPTS_WAITING);
+        assertThat(SCRIPT_LINK.matcher(html).results().map(link -> link.group(1)).toList())
+                .as("scripts backOffice loads").isNotEmpty().allMatch(checked::contains);
+
+        String js = new ClassPathResource("static/js/backOffice.js").getContentAsString(StandardCharsets.UTF_8);
+        assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by backOffice.js").isZero();
+        assertThat(count(COLOUR, js)).as("colours in backOffice.js").isZero();
+        assertThat(SCRIPT_THEME.matcher(js).results().map(MatchResult::group).toList())
+                .as("theme-specific logic in backOffice.js").isEmpty();
+        assertThat(js).as("Bootstrap or Font Awesome in backOffice.js")
+                .doesNotContain("bootstrap.", "fas fa-", "far fa-", "fa-spinner", "fa-spin");
+    }
+
+    @Test
+    void backOfficeSliceFourTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "backoffice.groups.placeholder.icon",
+                "backoffice.maintenance.title",
+                "backoffice.maintenance.ordering.title",
+                "backoffice.maintenance.ordering.desc",
+                "backoffice.maintenance.ordering.dinein",
+                "backoffice.maintenance.ordering.dinein.hint",
+                "backoffice.maintenance.ordering.takeaway",
+                "backoffice.maintenance.ordering.takeaway.hint",
+                "backoffice.maintenance.ordering.takeaway.locked",
+                "backoffice.maintenance.kds.title",
+                "backoffice.maintenance.kds.desc",
+                "backoffice.maintenance.kds.desc.zero",
+                "backoffice.maintenance.kds.yellow",
+                "backoffice.maintenance.kds.yellow.hint",
+                "backoffice.maintenance.kds.red",
+                "backoffice.maintenance.kds.red.hint",
+                "backoffice.maintenance.danger.title",
+                "backoffice.maintenance.danger.desc",
+                "backoffice.maintenance.danger.button",
+                "backoffice.maintenance.demo.title",
+                "backoffice.maintenance.demo.desc",
+                "backoffice.maintenance.demo.select",
+                "backoffice.maintenance.demo.loading",
+                "backoffice.maintenance.demo.button",
+                "backoffice.maintenance.demo.restoring",
+                "backoffice.maintenance.export.title",
+                "backoffice.maintenance.export.desc",
+                "backoffice.maintenance.export.button",
+                "backoffice.maintenance.restore.title",
+                "backoffice.maintenance.restore.desc",
+                "backoffice.maintenance.restore.caution",
+                "backoffice.maintenance.restore.caution.detail",
+                "backoffice.maintenance.restore.label",
+                "backoffice.maintenance.restore.button",
+                "backoffice.maintenance.restore.restoring",
+                "backoffice.maintenance.restore.select.first",
+                "backoffice.maintenance.settings.save.success",
+                "backoffice.maintenance.settings.save.error",
+                "backoffice.maintenance.reset.success",
+                "backoffice.maintenance.reset.error",
+                "backoffice.maintenance.restore.success",
+                "backoffice.maintenance.restore.error",
+                "backoffice.maintenance.demo.success",
+                "backoffice.maintenance.demo.error");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
     void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
-        assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html");
+        assertThat(STAFF_PAGES_WAITING).isEmpty();
         for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",
                 "backOffice.html")) {
             String html = readTemplate(page);
