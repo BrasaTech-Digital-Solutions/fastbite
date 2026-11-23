@@ -22,73 +22,9 @@
   --color-on-dialog-header: #fff;
 }
 
-/* Kitchen: order card headers by status */
-[data-theme="cafe"] .card-header.bg-primary {
-  background-color: var(--color-primary) !important;
-}
-[data-theme="cafe"] .card-header.bg-warning {
-  background-color: #8C6239 !important; /* Soft brown alert */
-  color: white !important;
-}
-[data-theme="cafe"] .card-header.bg-info {
-  background-color: #5C4033 !important; /* Darker brown info */
-}
-[data-theme="cafe"] .card-header.bg-success {
-  background-color: var(--color-success) !important;
-}
-[data-theme="cafe"] .card-header.bg-danger {
-  background-color: #4E2725 !important; /* Deep mahogany/coffee dark warm tone */
-}
-
-/* Back office: active list item */
-[data-theme="cafe"] .list-group-item.active {
-  background-color: var(--color-primary) !important;
-  border-color: var(--color-primary) !important;
-}
-
-/* Dialogs: brand header */
-[data-theme="cafe"] .modal-header {
-  background: var(--gradient-brand);
-  color: white;
-}
-[data-theme="cafe"] .modal-header .btn-close {
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-/* Buttons and badges */
-[data-theme="cafe"] .btn-primary,
-[data-theme="cafe"] .btn-outline-primary {
-  background-color: var(--color-primary) !important;
-  border-color: var(--color-primary) !important;
-  color: white !important;
-}
-[data-theme="cafe"] .btn-primary:hover,
-[data-theme="cafe"] .btn-outline-primary:hover {
-  background-color: var(--color-primary-hover) !important;
-  border-color: var(--color-primary-hover) !important;
-}
-[data-theme="cafe"] .btn-outline-primary {
-  background-color: transparent !important;
-  color: var(--color-primary) !important;
-}
-[data-theme="cafe"] .btn-outline-primary:hover {
-  color: white !important;
-}
-[data-theme="cafe"] .badge.bg-primary {
-  background-color: #D2B48C !important;
-  color: #2D231E !important;
-}
-[data-theme="cafe"] .badge.bg-info {
-  background-color: #8C6239 !important; /* Muted brown */
-  color: white !important;
-}
-
 /* Counter */
 [data-theme="cafe"] .pos-sidebar {
   background: linear-gradient(180deg, #3E2723 0%, #271510 100%) !important;
-}
-[data-theme="cafe"] .pos-sidebar .bg-dark {
-  background-color: #271510 !important;
 }
 [data-theme="cafe"] .payment-method-btn.active {
   background-color: var(--color-primary) !important;
@@ -101,16 +37,10 @@
   border-color: rgba(255, 255, 255, 0.4) !important;
   color: white !important;
 }
-[data-theme="cafe"] .modal-footer .btn-success,
 [data-theme="cafe"] #btn-complete-order {
   background-color: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
   color: white !important;
-}
-[data-theme="cafe"] .modal-footer .btn-secondary {
-  background-color: #D2B48C !important;
-  border-color: #D2B48C !important;
-  color: #2D231E !important;
 }
 
 /* Counter components use the same theme treatment as their Bootstrap predecessors. */

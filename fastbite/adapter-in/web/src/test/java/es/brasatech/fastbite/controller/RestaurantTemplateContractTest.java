@@ -52,10 +52,10 @@ class RestaurantTemplateContractTest {
             "menu.js", "allergen-filter.js", "guest-ui.js", "payment-selection.js", "order-progress.js",
             "guest-ticket.js", "live-updates.js"};
     /** The latter two are shared with Bootstrap pages, but neither path sets inline styles or names a theme. */
-    private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js"};
+    private static final String[] COUNTER_SCRIPTS = {"counter.js", "cash-check.js", "kitchen-audio.js", "confirm-dialog.js"};
     private static final String[] KITCHEN_SCRIPTS = {"dashboard.js", "kitchen-audio.js", "live-updates.js", "guest-ui.js"};
     private static final String[] TICKETS_SCRIPTS = {"guest-ui.js", "tickets.js", "cash-check.js"};
-    private static final String[] BACKOFFICE_SCRIPTS = {"guest-ui.js", "backOffice.js"};
+    private static final String[] BACKOFFICE_SCRIPTS = {"guest-ui.js", "backOffice.js", "confirm-dialog.js"};
     static final Pattern BOOTSTRAP_OR_FONT_AWESOME = Pattern.compile(
             "/webjars/|bootstrap|\\bfa[srb]? fa-|data-bs-toggle|data-bs-target|class=\"[^\"]*(?<![\\w-])(?:row|col-[a-z0-9-]+|d-flex|d-none|text-(?:primary|success|danger|warning|info|muted|dark)|bg-(?:primary|light|white|success)|btn|modal|alert)(?![\\w-])");
     /**
@@ -79,11 +79,8 @@ class RestaurantTemplateContractTest {
             "invoice-fields :: counterFields", "cashCheck :: counterModal", "cashCheck :: denominations");
     private static final Pattern SCRIPT_LINK = Pattern.compile("@\\{/js/([\\w.-]+\\.js)}");
     private static final Pattern FRAGMENT_REFERENCE = Pattern.compile("~\\{fastfood/fragments/([\\w-]+) :: ([\\w-]+)");
-    /**
-     * Loaded by the counter but shared with the Bootstrap pages and the owner workspace: its fallback dialog (still
-     * used to cancel a table order) builds inline styles. It joins COUNTER_SCRIPTS when that dialog moves.
-     */
-    static final List<String> COUNTER_SCRIPTS_WAITING = List.of("confirm-dialog.js");
+    /** Empty once confirm-dialog.js moved to native dialog CSS classes in item 5a. */
+    static final List<String> COUNTER_SCRIPTS_WAITING = List.of();
     private static final Pattern SCRIPT_STYLE = Pattern.compile("\\.style\\.|\\.cssText|setProperty\\(");
     private static final Pattern SCRIPT_THEME = Pattern.compile(
             "(?i)data-theme|(?<![\\w-])(?:fastfood|cafe|modern|test-contrast)(?![\\w-])");
@@ -115,14 +112,13 @@ class RestaurantTemplateContractTest {
 
     @Test
     void counterAndItsNativeSharedFragmentsUseTheRestaurantContract() throws IOException {
-        for (String template : new String[]{"counter.html", "fragments/counter.html"}) {
+        for (String template : new String[]{"counter.html", "fragments/counter.html",
+                "fragments/navbar.html", "fragments/cashCheck.html", "fragments/invoice-fields.html"}) {
             assertNativeCounter(template, readTemplate(template));
         }
-        // The legacy parts of these shared files remain for STAFF_PAGES_WAITING.
-        assertNativeCounter("staff navbar", fragment("fragments/navbar.html", "<header th:fragment=\"staff(activeTab)\"", "</header>"));
-        assertNativeCounter("counter cash check", fragment("fragments/cashCheck.html", "<dialog th:fragment=\"counterModal(day)\"", "</dialog>"));
-        assertNativeCounter("cash check notes and coins", fragment("fragments/cashCheck.html", "<details th:fragment=\"denominations\"", "</details>"));
-        assertNativeCounter("counter invoice fields", fragment("fragments/invoice-fields.html", "<div th:fragment=\"counterFields(prefix)\"", "</body>"));
+        assertThat(readTemplate("fragments/navbar.html")).doesNotContain("th:fragment=\"navbar");
+        assertThat(readTemplate("fragments/cashCheck.html")).doesNotContain("th:fragment=\"modal");
+        assertThat(readTemplate("fragments/invoice-fields.html")).doesNotContain("th:fragment=\"fields");
     }
 
     @Test
@@ -546,10 +542,10 @@ class RestaurantTemplateContractTest {
             boolean legacy = checkHtml.contains("navbar :: navbar") || BOOTSTRAP_OR_FONT_AWESOME.matcher(checkHtml).find();
             if (legacy) assertThat(STAFF_PAGES_WAITING).as("%s still uses Bootstrap or the legacy navigation", page).contains(page);
         }
-        // The two navigations name the staff pages alike
+        // The native staff navigation names every staff page
         String navbar = readTemplate("fragments/navbar.html");
         for (String key : List.of("staff.nav.menu", "staff.nav.kitchen", "staff.nav.counter", "staff.nav.tickets", "staff.nav.backoffice")) {
-            assertThat(navbar.split(Pattern.quote("#{" + key + "}"), -1)).as(key).hasSize(3);
+            assertThat(navbar.split(Pattern.quote("#{" + key + "}"), -1)).as(key).hasSize(2);
         }
     }
 
@@ -653,13 +649,21 @@ class RestaurantTemplateContractTest {
 
     @Test
     void counterScriptsChangeOnlyStateAndNeverNameATheme() throws IOException {
+        assertThat(COUNTER_SCRIPTS_WAITING).isEmpty();
         for (String script : COUNTER_SCRIPTS) {
             String js = new ClassPathResource("static/js/" + script).getContentAsString(StandardCharsets.UTF_8);
             assertThat(count(SCRIPT_STYLE, js)).as("inline styles set by %s", script).isZero();
+            assertThat(count(INLINE_STYLE, js)).as("inline style attributes in %s", script).isZero();
             assertThat(count(COLOUR, js)).as("colours in %s", script).isZero();
             assertThat(SCRIPT_THEME.matcher(js).results().map(MatchResult::group).toList())
                     .as("theme-specific logic in %s", script).isEmpty();
         }
+        String confirmJs = new ClassPathResource("static/js/confirm-dialog.js").getContentAsString(StandardCharsets.UTF_8);
+        assertThat(confirmJs).as("confirm-dialog.js has no Bootstrap branch").doesNotContain("bootstrap", "modal-header", "data-bs-");
+        String cashCheckJs = new ClassPathResource("static/js/cash-check.js").getContentAsString(StandardCharsets.UTF_8);
+        assertThat(cashCheckJs).as("cash-check.js has no Bootstrap branch").doesNotContain("show.bs.modal", ".modal");
+        String kitchenAudioJs = new ClassPathResource("static/js/kitchen-audio.js").getContentAsString(StandardCharsets.UTF_8);
+        assertThat(kitchenAudioJs).as("kitchen-audio.js has no Font Awesome branch").doesNotContain("fas fa-", "btn-warning");
     }
 
     @Test

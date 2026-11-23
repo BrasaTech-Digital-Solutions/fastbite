@@ -57,18 +57,13 @@ class CounterFragmentsRenderTest {
     }
 
     @Test
-    void denominationsRenderForNativeAndLegacyCashCheck() {
-        String nativeHtml = engine.process("<div data-test-wrapper th:replace=\"~{templates/fastfood/fragments/cashCheck.html :: denominations(counterNative=true)}\"></div>",
-                new Context(Locale.ENGLISH));
-        String legacyHtml = engine.process("<div data-test-wrapper th:replace=\"~{templates/fastfood/fragments/cashCheck.html :: denominations}\"></div>",
+    void denominationsRenderWithoutBootstrapClasses() {
+        String html = engine.process("<div data-test-wrapper th:replace=\"~{templates/fastfood/fragments/cashCheck.html :: denominations}\"></div>",
                 new Context(Locale.ENGLISH));
 
-        assertThat(nativeHtml).contains("class=\"cash-check-denominations\"", "data-denomination=\"0.01\"",
+        assertThat(html).contains("class=\"cash-check-denominations\"", "data-denomination=\"0.01\"",
                 "data-denomination=\"100\"").doesNotContain("mb-3");
-        assertThat(legacyHtml).contains("class=\"cash-check-denominations mb-3\"", "data-denomination=\"0.01\"",
-                "data-denomination=\"100\"");
-        assertThat(nativeHtml.split("data-denomination=", -1)).hasSize(14);
-        assertThat(legacyHtml.split("data-denomination=", -1)).hasSize(14);
+        assertThat(html.split("data-denomination=", -1)).hasSize(14);
     }
 
     @Test

@@ -399,3 +399,6 @@
 .workspace-main p, .workspace-main h1, .workspace-main h2, .workspace-main h3, .billing-row { overflow-wrap: anywhere; }
 .today-tools-grid .tool-link { min-width: 0; gap: 12px; border: 1px solid #dedfd5; border-radius: 12px; padding: 14px; }
 .today-tools-grid .tool-preview { max-width: 42%; height: auto; }
+.fb-dialog-title { margin-top: 0; }
+.fb-dialog-message { white-space: pre-line; line-height: 1.5; }
+.fb-native-dialog [hidden] { display: none; }

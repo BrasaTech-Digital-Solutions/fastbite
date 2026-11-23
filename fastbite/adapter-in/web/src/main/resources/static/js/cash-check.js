@@ -90,14 +90,11 @@
             recalc();
         });
         const dialog = panel.closest('dialog');
-        const modal = panel.closest('.modal');
-        // Both versions refresh on every opening, including openings made through showModal().
+        // Refresh on every opening, including openings made through showModal().
         if (dialog) {
             new MutationObserver(() => { if (dialog.open) load(); })
                 .observe(dialog, {attributes: true, attributeFilter: ['open']});
             if (dialog.open) load();
-        } else if (modal) {
-            modal.addEventListener('show.bs.modal', load);
         } else {
             load();
         }
