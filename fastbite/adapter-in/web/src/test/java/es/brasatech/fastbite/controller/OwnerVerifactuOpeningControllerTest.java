@@ -135,6 +135,77 @@ class OwnerVerifactuOpeningControllerTest {
     }
 
     @Test
+    void changedNifBeforeFirstTicketExplainsMissingAuthorization() throws Exception {
+        when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(false);
+        when(workspace.saveFiscalProfile(eq(OWNER), eq(TENANT), any())).thenReturn(java.util.Map.of());
+        var result = mockMvc.perform(post("/owner/workspace/" + TENANT + "/legal")
+                        .with(user(ownerPrincipal())).with(csrf()).locale(Locale.ENGLISH)
+                        .param("legalName", "Bistro Ana SL").param("tradeName", "Bistro Ana")
+                        .param("taxId", "12345678Z").param("addressLine", "Calle Mayor 1")
+                        .param("postalCode", "28013").param("city", "Madrid").param("province", "Madrid")
+                        .param("phone", "600123456").param("email", "ana@bistro.es")
+                        .param("seriesPrefix", "BA").param("defaultVatRate", "10"))
+                .andExpect(status().is3xxRedirection()).andExpect(flash().attributeExists("error")).andReturn();
+        assertThat(result.getFlashMap().get("error")).asString().contains("authorisation for this NIF is not valid yet");
+        String html = mockMvc.perform(get("/owner/console?view=location-settings&section=legal&location=" + TENANT)
+                        .locale(Locale.ENGLISH).with(user(ownerPrincipal())).flashAttrs(result.getFlashMap()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("authorisation for this NIF is not valid yet");
+    }
+
+    @Test
+    void changedNifWithExistingAuthorizationDistinguishesCollaborationState() throws Exception {
+        when(workspace.saveFiscalProfile(eq(OWNER), eq(TENANT), any())).thenReturn(java.util.Map.of());
+        when(verifactuAuthorizations.hasValidAuthorization("12345678Z")).thenReturn(true);
+        var request = post("/owner/workspace/" + TENANT + "/legal").with(user(ownerPrincipal())).with(csrf())
+                .locale(Locale.ENGLISH).param("taxId", "12345678Z").param("legalName", "Bistro Ana SL")
+                .param("addressLine", "Calle Mayor 1").param("postalCode", "28013")
+                .param("city", "Madrid").param("province", "Madrid").param("seriesPrefix", "BA");
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(false);
+        var inactive = mockMvc.perform(request).andExpect(status().is3xxRedirection()).andReturn();
+        assertThat(inactive.getFlashMap().get("error")).asString().contains("until AEAT collaboration is activated");
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(true);
+        var active = mockMvc.perform(request).andExpect(status().is3xxRedirection()).andReturn();
+        assertThat(active.getFlashMap().containsKey("error")).isFalse();
+    }
+
+    @Test
+    void sameNifAfterTicketsCanSaveOtherDetailsWithoutNewAuthorizationWarning() throws Exception {
+        when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(true);
+        when(workspace.saveFiscalProfile(eq(OWNER), eq(TENANT), any())).thenReturn(java.util.Map.of());
+        var result = mockMvc.perform(post("/owner/workspace/" + TENANT + "/legal")
+                        .with(user(ownerPrincipal())).with(csrf()).locale(Locale.ENGLISH)
+                        .param("taxId", "B09767898").param("legalName", "Updated Bistro")
+                        .param("addressLine", "Calle Mayor 1").param("postalCode", "28013")
+                        .param("city", "Madrid").param("province", "Madrid").param("seriesPrefix", "BA"))
+                .andExpect(status().is3xxRedirection()).andExpect(flash().attributeExists("notice")).andReturn();
+        assertThat(result.getFlashMap().containsKey("error")).isFalse();
+        verify(workspace).saveFiscalProfile(eq(OWNER), eq(TENANT), org.mockito.ArgumentMatchers.argThat(p -> "Updated Bistro".equals(p.legalName())));
+        verify(verifactuAuthorizations, never()).hasValidAuthorization(anyString());
+    }
+
+    @Test
+    void lockedNifPostRendersTheReasonAfterRedirect() throws Exception {
+        when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(true);
+        when(workspace.saveFiscalProfile(eq(OWNER), eq(TENANT), any())).thenReturn(java.util.Map.of("taxId", "fiscal.error.taxId.locked"));
+        var result = mockMvc.perform(post("/owner/workspace/" + TENANT + "/legal")
+                        .with(user(ownerPrincipal())).with(csrf())
+                        .param("legalName", "Bistro Ana SL").param("tradeName", "Bistro Ana")
+                        .param("taxId", "12345678Z").param("addressLine", "Calle Mayor 1")
+                        .param("postalCode", "28013").param("city", "Madrid").param("province", "Madrid")
+                        .param("phone", "600123456").param("email", "ana@bistro.es")
+                        .param("seriesPrefix", "BA").param("defaultVatRate", "10"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?view=location-settings&section=legal&location=" + TENANT + "&fiscalError=1"))
+                .andExpect(flash().attributeExists("fiscalDraft", "fiscalErrors"))
+                .andReturn();
+        String html = mockMvc.perform(get("/owner/console?view=location-settings&section=legal&location=" + TENANT + "&fiscalError=1")
+                        .locale(Locale.ENGLISH).with(user(ownerPrincipal())).flashAttrs(result.getFlashMap()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("Tickets were issued with this NIF, so it can’t change.");
+    }
+
+    @Test
     void openingStepShowsFiscalDetailsPendingTrialAndRefreshesActiveRequestOnLoad() throws Exception {
         when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
         when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.empty());

@@ -4,6 +4,7 @@ import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
 import es.brasatech.fastbite.config.ProductionOnly;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
+import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.fiscal.SpanishProvinces;
 import es.brasatech.fastbite.domain.fiscal.VatRates;
 import es.brasatech.fastbite.domain.user.Role;
@@ -358,15 +359,30 @@ public class OwnerWorkspaceController {
         FiscalProfile profile = new FiscalProfile(form.get("legalName"), form.get("tradeName"), form.get("taxId"),
                 form.get("addressLine"), form.get("postalCode"), form.get("city"), form.get("province"),
                 form.get("phone"), form.get("email"), form.get("seriesPrefix"), rate);
+        FiscalProfile previous = workspace.fiscalProfile(owner.getName(), tenant);
         Map<String, String> wrong = workspace.saveFiscalProfile(owner.getName(), tenant, profile);
         if (!wrong.isEmpty()) {
             flash.addFlashAttribute("fiscalDraft", profile);
             flash.addFlashAttribute("fiscalErrors", new java.util.HashMap<>(wrong));
         } else {
-            flash.addFlashAttribute("notice", messages.getMessage(
+            Optional<String> newNif = SpanishTaxId.parse(profile.taxId()).map(SpanishTaxId::value);
+            Optional<String> oldNif = SpanishTaxId.parse(previous == null ? null : previous.taxId()).map(SpanishTaxId::value);
+            String warning = null;
+            if (!environment.sandbox() && newNif.isPresent() && !newNif.equals(oldNif)) {
+                if (verifactuAuthorizations == null || !verifactuAuthorizations.hasValidAuthorization(newNif.get())) {
+                    warning = messages.getMessage("owner.legal.nif.authorization_needed", null,
+                            "Business details saved. The VERI*FACTU authorisation for this NIF is not valid yet. Check or complete signing before issuing tickets.", locale);
+                } else if (!verifactuAuthorizations.isCollaborationActive()) {
+                    warning = messages.getMessage("owner.legal.nif.collaboration_inactive", null,
+                            "Business details saved. This NIF has a valid authorisation, but ticket issuing is on hold until AEAT collaboration is activated.", locale);
+                }
+            }
+            if (warning != null) flash.addFlashAttribute("error", warning);
+            else flash.addFlashAttribute("notice", messages.getMessage(
                     profile.complete() ? "owner.legal.saved" : "owner.legal.saved.incomplete", null, locale));
         }
-        return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant;
+        return "redirect:/owner/console?view=location-settings&section=legal&location=" + tenant
+                + (!wrong.isEmpty() ? "&fiscalError=1" : "");
     }
 
     /**
