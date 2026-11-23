@@ -390,6 +390,19 @@ class ThemeContractTest {
     }
 
     @Test
+    void backOfficeSliceThreeRendersNativeTablesPaymentAndDiscountsInSpanish() throws Exception {
+        when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000", null, "KH", new BigDecimal("10.00")));
+        Locale spanish = Locale.forLanguageTag("es");
+        String html = render(as("MANAGER", get("/kebab/backoffice")).locale(spanish));
+        assertThat(html)
+                .contains("<section id=\"tables-section\"", "id=\"btn-tables-qr\"", "id=\"btn-new-table\"",
+                        "<section id=\"payment-section\"", "<section id=\"discounts-section\"",
+                        "id=\"btn-new-discount\"", "Códigos QR", "Nueva Mesa")
+                .doesNotContain("Tables Management", "New Table", "Printable QR codes for all active tables");
+    }
+
+    @Test
     void cafeAndModernDoNotSetColorOnReassignDialogHeader() throws IOException {
         for (String themeId : List.of("cafe", "modern")) {
             String css = withoutComments(themes.asset(themeId, "theme.css").getContentAsString(StandardCharsets.UTF_8));

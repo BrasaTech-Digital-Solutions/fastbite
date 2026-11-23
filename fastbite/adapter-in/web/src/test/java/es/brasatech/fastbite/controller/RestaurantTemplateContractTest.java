@@ -361,6 +361,90 @@ class RestaurantTemplateContractTest {
     }
 
     @Test
+    void backOfficeSliceThreeTablesPaymentAndDiscountsUseNativeMarkup() throws IOException {
+        String tablesSection = fragment("backOffice.html", "<section id=\"tables-section\"", "</section>");
+        assertNativeCounter("backOffice.html#tables-section", tablesSection);
+        assertThat(tablesSection).contains("id=\"btn-tables-qr\"", "id=\"btn-new-table\"", "openTableQr()");
+
+        String paymentSection = fragment("backOffice.html", "<section id=\"payment-section\"", "</section>");
+        assertNativeCounter("backOffice.html#payment-section", paymentSection);
+        assertThat(paymentSection).contains("id=\"payment-config-container\"");
+
+        String discountsSection = fragment("backOffice.html", "<section id=\"discounts-section\"", "</section>");
+        assertNativeCounter("backOffice.html#discounts-section", discountsSection);
+        assertThat(discountsSection).contains("id=\"btn-new-discount\"");
+
+        String tablesList = fragment("fragments/backOffice.html", "<!-- Tables List -->", "<!-- Table Form Fragment -->");
+        assertNativeCounter("fragments/backOffice.html::tables-list", tablesList);
+        assertThat(tablesList).contains("bo-item-card", "bo-icon-btn", "table.status.", "#strings.toLowerCase(table.status)");
+
+        String tableForm = fragment("fragments/backOffice.html", "<!-- Table Form Fragment -->", "<!-- Payment Section Fragment -->");
+        assertNativeCounter("fragments/backOffice.html::table-form", tableForm);
+        assertThat(tableForm).contains("bo-card", "table.status.", "#strings.toLowerCase(status)");
+
+        String paymentFrag = fragment("fragments/backOffice.html", "<!-- Payment Section Fragment -->", "<!-- Discounts List -->");
+        assertNativeCounter("fragments/backOffice.html::payment-section", paymentFrag);
+        assertThat(paymentFrag).contains("bo-payment-grid", "bo-denom-grid", "openDenomImageSelector()", "id=\"paymentConfigForm\"");
+
+        String discountsList = fragment("fragments/backOffice.html", "<!-- Discounts List -->", "<!-- Discount Form -->");
+        assertNativeCounter("fragments/backOffice.html::discounts-list", discountsList);
+        assertThat(discountsList).contains("bo-item-card", "bo-icon-btn");
+
+        String discountForm = fragment("fragments/backOffice.html", "<!-- Discount Form -->", "</html>");
+        assertNativeCounter("fragments/backOffice.html::discount-form", discountForm);
+        assertThat(discountForm).contains("bo-card", "id=\"discountFormElement\"");
+    }
+
+    @Test
+    void backOfficeSliceThreeTextKeysExistInEveryMessageBundle() throws IOException {
+        List<String> keys = List.of(
+                "backoffice.tables.qr.codes",
+                "backoffice.tables.qr.all.title",
+                "backoffice.tables.qr.single",
+                "backoffice.tables.new",
+                "backoffice.tables.edit.title",
+                "backoffice.tables.save.success",
+                "backoffice.tables.save.error",
+                "backoffice.tables.delete.success",
+                "backoffice.tables.delete.error",
+                "backoffice.payment.action.set.default",
+                "backoffice.payment.label.id",
+                "backoffice.payment.placeholder.id",
+                "backoffice.payment.hint.id",
+                "backoffice.payment.denom.type.banknote",
+                "backoffice.payment.denom.type.coin",
+                "backoffice.payment.button.reset",
+                "backoffice.payment.mode.required",
+                "backoffice.payment.save.error",
+                "backoffice.payment.default.success",
+                "backoffice.payment.default.error",
+                "backoffice.payment.delete.success",
+                "backoffice.payment.delete.error",
+                "backoffice.payment.denom.required",
+                "backoffice.payment.reset.success",
+                "backoffice.discounts.scope.order",
+                "backoffice.discounts.scope.table",
+                "backoffice.discounts.type.percentage",
+                "backoffice.discounts.type.fixed_amount",
+                "backoffice.discounts.placeholder.code",
+                "backoffice.discounts.badge.accumulative",
+                "backoffice.discounts.badge.not.accumulative",
+                "backoffice.discounts.badge.counter.active",
+                "backoffice.discounts.badge.counter.inactive",
+                "backoffice.discounts.save.error",
+                "backoffice.discounts.delete.error");
+        for (String file : List.of("i18n/messages.properties", "i18n/messages_es.properties", "i18n/messages_pt.properties")) {
+            Properties props = new Properties();
+            try (var reader = new InputStreamReader(new ClassPathResource(file).getInputStream(), StandardCharsets.UTF_8)) {
+                props.load(reader);
+            }
+            for (String key : keys) {
+                assertThat(props.getProperty(key)).as("%s in %s", key, file).isNotBlank();
+            }
+        }
+    }
+
+    @Test
     void onlyTheStaffPagesWaitingForALaterItemKeepBootstrapOrTheLegacyNavigation() throws IOException {
         assertThat(STAFF_PAGES_WAITING).doesNotContain("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html");
         for (String page : List.of("counter.html", "dashboard.html", "tickets.html", "dayReport.html", "tableQrCodes.html",

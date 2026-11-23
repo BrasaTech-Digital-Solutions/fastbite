@@ -546,6 +546,39 @@ async function main() {
           await tap(p.locator('#user-images-tab'));
           await shown(p, '#user-images-container .image-card, #user-images-container .bo-image-card', 'user images gallery');
         }, { fullPage: false });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-tables-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-tables'));
+          await shown(p, '#tables-list > *', 'tables list');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-table-form-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-tables'));
+          await shown(p, '#tables-list > *', 'tables list');
+          const newTableBtn = '#btn-new-table, #tables-section button[onclick="showTableForm()"]';
+          await shown(p, newTableBtn, 'new table button');
+          await tap(p.locator(newTableBtn));
+          await shown(p, '#tableFormElement', 'table form');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-payment-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-payment'));
+          await shown(p, '#paymentConfigForm', 'payment config form');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-discounts-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-discounts'));
+          await shown(p, '#discounts-list > *', 'discounts list');
+        });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-discount-form-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-discounts'));
+          await shown(p, '#discounts-list > *', 'discounts list');
+          const newDiscBtn = '#btn-new-discount, #discounts-section button[onclick="showDiscountForm()"]';
+          await shown(p, newDiscBtn, 'new discount button');
+          await tap(p.locator(newDiscBtn));
+          await shown(p, '#discountFormElement', 'discount form');
+        });
       }
     }
   } finally {
