@@ -478,6 +478,25 @@
   color: var(--color-on-control-warning);
 }
 
+.bo-badge-danger,
+.bo-badge-status[data-table-status="occupied"] {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-primary);
+}
+
+.bo-badge-status[data-table-status="available"] {
+  border-color: var(--color-payment-success);
+  background: var(--color-payment-success);
+  color: var(--color-on-primary);
+}
+
+.bo-badge-status[data-table-status="billing"] {
+  border-color: var(--color-control-warning);
+  background: var(--color-control-warning);
+  color: var(--color-text-strong);
+}
+
 .bo-item-actions {
   display: flex;
   flex-wrap: wrap;

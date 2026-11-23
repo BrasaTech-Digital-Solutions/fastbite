@@ -304,7 +304,8 @@
                     <span th:text="#{label.seats} + ':'">Seats:</span>
                     <span th:text="${table.seats}">0</span>
                 </span>
-                <span class="bo-badge bo-badge-primary"
+                <span class="bo-badge bo-badge-status"
+                    th:data-table-status="${#strings.toLowerCase(table.status)}"
                     th:text="#{${'table.status.' + #strings.toLowerCase(table.status)}}">AVAILABLE</span>
                 <span th:class="|bo-badge ${table.active ? 'bo-badge-success' : ''}|"
                     th:text="${table.active ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>

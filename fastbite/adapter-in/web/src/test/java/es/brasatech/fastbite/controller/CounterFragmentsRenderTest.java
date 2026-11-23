@@ -106,7 +106,8 @@ class CounterFragmentsRenderTest {
         listCtx.setVariable("tables", oneTablePerStatus());
         String listHtml = engine.process("templates/fastfood/fragments/backOffice.html", Set.of("tables-list"), listCtx);
         String listText = listHtml.replaceAll("<[^>]+>", " ");
-        assertThat(listHtml).contains("bo-item-card", "bo-icon-btn", "openTableQr(this.dataset.id)")
+        assertThat(listHtml).contains("bo-item-card", "bo-icon-btn", "openTableQr(this.dataset.id)",
+                        "data-table-status=\"available\"", "data-table-status=\"occupied\"", "data-table-status=\"billing\"")
                 .doesNotContain("cart-item", "btn-group", "fa-");
         assertThat(listText).contains("DISPONIBLE", "OCUPADA", "FACTURACIÓN", "Activo")
                 .doesNotContain("AVAILABLE", "OCCUPIED", "BILLING", "Active");
