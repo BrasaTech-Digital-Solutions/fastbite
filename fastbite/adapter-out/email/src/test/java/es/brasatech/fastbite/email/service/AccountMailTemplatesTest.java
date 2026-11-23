@@ -13,6 +13,31 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class AccountMailTemplatesTest {
+    @Test void everyHoldReasonRendersTheAppropriateEmail() throws Exception {
+        String url = "https://fastbite.example/owner/console?view=today&location=cafe#opening-step-verifactu";
+        for (var reason : es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate.HoldReason.values()) {
+            var parts = render(sender -> new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                    new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"))
+                    .sendVerifactuOnHold("owner@example.test", "cafe", url, "en", reason.name()));
+            switch (reason) {
+                case FISCAL_INCOMPLETE -> {
+                    assertThat(parts.subject()).contains("Business details needed");
+                    assertThat(parts.text()).contains("business details are incomplete", url);
+                    assertThat(parts.html()).contains("Complete business details");
+                }
+                case COLLABORATION_INACTIVE -> {
+                    assertThat(parts.subject()).contains("Ticket issuing is on hold");
+                    assertThat(parts.text()).contains("nothing you need to do", "We will let you know").doesNotContain(url, "null");
+                    assertThat(parts.html()).doesNotContain("opening-step-verifactu", "word-break:break-all");
+                }
+                default -> {
+                    assertThat(parts.subject()).contains("is on hold (VERI*FACTU authorisation)");
+                    assertThat(parts.text()).contains("Reason:", "Open the VERI*FACTU step", url);
+                    assertThat(parts.html()).contains("Open VERI*FACTU step");
+                }
+            }
+        }
+    }
     private record Parts(String subject, String text, String html) { }
     private Parts render(Consumer<JavaMailSender> call) throws Exception {
         var sender = mock(JavaMailSender.class);
@@ -107,9 +132,29 @@ class AccountMailTemplatesTest {
                 adapter.sendVerifactuOnHold("owner@example.test", tenant, url, language, "COLLABORATION_INACTIVE");
             });
             assertThat(holdParts.subject()).contains(tenant);
-            assertThat(holdParts.text()).contains(url);
-            assertThat(holdParts.text().toLowerCase()).containsAnyOf("temporarily", "temporalmente", "temporariamente");
-            assertThat(holdParts.html()).contains(htmlUrl).contains("&lt;b&gt;lacasita&lt;/b&gt;").doesNotContain("<b>lacasita</b>");
+            assertThat(holdParts.text()).doesNotContain(url, "null");
+            assertThat(holdParts.text()).contains(switch (language) {
+                case "es" -> "No tienes que hacer nada. Te avisaremos";
+                case "pt" -> "Não precisa de fazer nada. Avisaremos";
+                default -> "There is nothing you need to do. We will let you know";
+            });
+            assertThat(holdParts.html()).doesNotContain(htmlUrl, "word-break:break-all").contains("&lt;b&gt;lacasita&lt;/b&gt;").doesNotContain("<b>lacasita</b>");
+
+            String legalUrl = "https://fastbite.example/owner/console?view=location-settings&section=legal&location=lacasita";
+            var fiscalParts = render(sender -> {
+                var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",
+                        new AccountMailRenderer("BRASATECH", "Test address", "https://example.test"));
+                adapter.sendVerifactuOnHold("owner@example.test", tenant, legalUrl, language, "FISCAL_INCOMPLETE");
+            });
+            assertThat(fiscalParts.text()).contains(legalUrl, "NIF");
+            assertThat(fiscalParts.html()).contains(switch (language) {
+                case "es" -> "Completar datos del negocio";
+                case "pt" -> "Completar dados do negócio";
+                default -> "Complete business details";
+            });
+            assertThat(fiscalParts.html()).contains(legalUrl.replace("&", "&amp;"), "&lt;b&gt;lacasita&lt;/b&gt;")
+                    .doesNotContain("<b>lacasita</b>");
+            assertThat(fiscalParts.subject()).doesNotContain("authorisation", "autorización", "autorização");
 
             var mismatchParts = render(sender -> {
                 var adapter = new OwnerSetupMailAdapter(sender, "noreply@example.test",

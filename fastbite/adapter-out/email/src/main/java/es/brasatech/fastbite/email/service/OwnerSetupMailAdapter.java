@@ -77,6 +77,29 @@ public class OwnerSetupMailAdapter implements OwnerSetupMailPort {
     }
     @Override public void sendVerifactuOnHold(String email, String tenantId, String link, String language, String holdReason) {
         String lang = language == null ? "en" : language;
+        String code = holdReason == null ? "" : holdReason.strip().toUpperCase(Locale.ROOT);
+        if ("FISCAL_INCOMPLETE".equals(code)) {
+            String subject = actionLabel(lang, "FastBite — Business details needed for " + tenantId,
+                    "FastBite — Faltan datos del negocio de " + tenantId, "FastBite — Faltam dados do negócio de " + tenantId);
+            String body = actionLabel(lang,
+                    "Your location \"" + tenantId + "\" cannot issue tickets yet because its business details are incomplete. Complete the legal name, NIF and address in your owner workspace.",
+                    "Tu local \"" + tenantId + "\" aún no puede emitir tickets porque faltan datos del negocio. Completa la razón social, el NIF y la dirección en tu panel de propietario.",
+                    "O seu local \"" + tenantId + "\" ainda não pode emitir recibos porque faltam dados do negócio. Complete a denominação social, o NIF e a morada no painel de proprietário.");
+            String action = actionLabel(lang, "Complete business details", "Completar datos del negocio", "Completar dados do negócio");
+            send("verifactu-on-hold", email, subject, body + "\n\n" + link, body, link, action, lang);
+            return;
+        }
+        if ("COLLABORATION_INACTIVE".equals(code)) {
+            String subject = actionLabel(lang, "FastBite — Ticket issuing is on hold for " + tenantId,
+                    "FastBite — La emisión de tickets está en pausa para " + tenantId,
+                    "FastBite — A emissão de recibos está suspensa para " + tenantId);
+            String body = actionLabel(lang,
+                    "Your location \"" + tenantId + "\" cannot issue tickets while AEAT collaboration is inactive. There is nothing you need to do. We will let you know when ticket issuing starts.",
+                    "Tu local \"" + tenantId + "\" no puede emitir tickets mientras la colaboración con la AEAT esté inactiva. No tienes que hacer nada. Te avisaremos cuando comience la emisión de tickets.",
+                    "O seu local \"" + tenantId + "\" não pode emitir recibos enquanto a colaboração com a AEAT estiver inativa. Não precisa de fazer nada. Avisaremos quando começar a emissão de recibos.");
+            send("verifactu-on-hold", email, subject, body, body, null, null, lang);
+            return;
+        }
         String reasonLine = verifactuHoldReasonText(holdReason, lang);
         String subject, body, action;
         switch (lang) {

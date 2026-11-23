@@ -60,6 +60,8 @@ class ResultsOutliveTheirTransactionIntegrationTest {
     private GroupService groups;
     @Autowired
     private OrderService orders;
+    @Autowired
+    private es.brasatech.fastbite.application.table.TableService tables;
 
     @AfterEach
     void tearDown() {
@@ -125,5 +127,22 @@ class ResultsOutliveTheirTransactionIntegrationTest {
         assertThat(orders.getAllOrder()).extracting(Order::id).containsExactlyInAnyOrder(atPickup, online);
         assertThat(orders.findTakeawayAwaitingPayment()).extracting(Order::id).containsExactly(atPickup);
         assertThat(orders.findById(online).orElseThrow().status()).isEqualTo(OrderStatus.ACCEPTED);
+    }
+    @Test
+    void ordersAndTablesOfAnotherLocationAreNotVisible() {
+        provisioner.provisionTenant("missinglookupa");
+        provisioner.provisionTenant("missinglookupb");
+        TenantContext.setCurrentTenant("missinglookupb");
+        String otherOrder = orders.createOrder(List.of(), 1, OrderPaymentStatus.UNPAID, OrderChannel.COUNTER,
+                "en", "cashier", "Marta", ServiceType.TAKEAWAY).id();
+        String otherTable = tables.create(new es.brasatech.fastbite.domain.table.Table("Other table", 4)).id();
+        assertThat(orders.findById(otherOrder)).isPresent();
+        assertThat(tables.findById(otherTable)).isPresent();
+
+        TenantContext.setCurrentTenant("missinglookupa");
+        assertThat(orders.findById(otherOrder)).isEmpty();
+        assertThat(tables.findById(otherTable)).isEmpty();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orders.moveToNextStatus(otherOrder))
+                .isInstanceOf(es.brasatech.fastbite.domain.exception.ResourceNotFoundException.class);
     }
 }

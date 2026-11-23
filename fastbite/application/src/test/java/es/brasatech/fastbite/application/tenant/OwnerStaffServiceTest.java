@@ -63,8 +63,7 @@ class OwnerStaffServiceTest {
     @Test
     void refusesTenantsTheCallerDoesNotOwn() {
         assertThatThrownBy(() -> service.createStaff("alice", "burger", "cook1", "Cook", "hash", Role.COOK))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("do not own");
+                .isInstanceOf(es.brasatech.fastbite.domain.exception.ResourceNotFoundException.class);
         verify(userService, never()).save(any());
     }
     @Test void newStaffUsernameCannotLookLikeAnEmail() {

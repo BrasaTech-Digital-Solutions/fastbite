@@ -155,6 +155,34 @@ class VerifactuBannerAndAdminWebTest {
     class ProductionTests extends BaseWebTest {
 
         @Test
+        void allHoldReasonsRenderTheirOwnerBanner() throws Exception {
+            for (Locale locale : List.of(Locale.ENGLISH, Locale.forLanguageTag("es"), Locale.forLanguageTag("pt"))) {
+                var messages = java.util.ResourceBundle.getBundle("i18n.messages", locale);
+                for (var reason : HoldReason.values()) {
+                    when(gate.holdReason(TENANT)).thenReturn(Optional.of(reason));
+                    String html = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                                    .locale(locale).with(user(ownerPrincipal(OWNER))))
+                            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+                    int start = html.indexOf("class=\"fb-verifactu-banner fb-verifactu-banner--owner\"");
+                    assertThat(start).isGreaterThanOrEqualTo(0);
+                    String banner = org.unbescape.html.HtmlEscape.unescapeHtml(html.substring(start, html.indexOf("</div>", start)));
+                    assertThat(banner).contains(messages.getString("verifactu.banner.owner"),
+                            messages.getString(EnvironmentAdvice.holdReasonMessageKey(reason)));
+                    switch (reason) {
+                        case FISCAL_INCOMPLETE -> assertThat(banner)
+                                .contains(messages.getString("verifactu.banner.owner.complete_business"),
+                                        "/owner/console?view=location-settings&section=legal&location=" + TENANT)
+                                .doesNotContain("#opening-step-verifactu");
+                        case COLLABORATION_INACTIVE -> assertThat(banner)
+                                .contains(messages.getString("verifactu.banner.owner.collaboration_wait"))
+                                .doesNotContain("<a ", "#opening-step-verifactu");
+                        default -> assertThat(banner).contains(messages.getString("verifactu.banner.owner.action"), "#opening-step-verifactu");
+                    }
+                }
+            }
+        }
+
+        @Test
         void ownerWorkspaceRendersHoldBannerAndNeedsRefundOrders() throws Exception {
             Order refundOrder = new Order(
                     List.of(), 42, "ord-1", LocalDateTime.of(2026, 11, 21, 10, 15), LocalDateTime.of(2026, 11, 21, 10, 16),

@@ -43,6 +43,21 @@ class StaffAccountIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT password FROM " + schema + ".users WHERE id = ?", String.class, cashier)).isEqualTo("reset");
         assertThat(recovery.enqueue("cashier" + suffix, tenant, now.plusSeconds(123))).isPresent();
     }
+    @Test void missingAndForeignStaffAreIndistinguishableFromMalformedIds() {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        String tenant = "st" + suffix, other = "ot" + suffix, actor = "owner" + suffix;
+        provisioner.provisionTenant(tenant);
+        provisioner.provisionTenant(other);
+        jdbc.update("INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan) VALUES (?, ?, ?, 'RESTAURANT')", UUID.randomUUID().toString(), actor, tenant);
+        String foreign = UUID.randomUUID().toString();
+        user("tenant_" + other, foreign, "foreign" + suffix, "CASHIER");
+        for (String id : java.util.List.of(UUID.randomUUID().toString(), "not-a-uuid", foreign)) {
+            assertThat(staff.find(actor, true, tenant, id)).isEmpty();
+            assertThatThrownBy(() -> staff.setPassword(actor, true, tenant, id, "hash")).isInstanceOf(es.brasatech.fastbite.domain.exception.ResourceNotFoundException.class);
+            assertThatThrownBy(() -> staff.setEmail(actor, true, tenant, id, "a@example.test", "en", Instant.now())).isInstanceOf(es.brasatech.fastbite.domain.exception.ResourceNotFoundException.class);
+            assertThatThrownBy(() -> staff.enqueueReset(actor, true, tenant, id, Instant.now())).isInstanceOf(es.brasatech.fastbite.domain.exception.ResourceNotFoundException.class);
+        }
+    }
     private void user(String schema, String id, String name, String role) {
         jdbc.update("INSERT INTO " + schema + ".users (id, username, password, full_name, active) VALUES (?, ?, 'hash', ?, TRUE)", id, name, name);
         jdbc.update("INSERT INTO " + schema + ".user_roles (user_id, role) VALUES (?, ?)", id, role);

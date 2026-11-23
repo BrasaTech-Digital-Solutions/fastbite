@@ -212,6 +212,9 @@
 .legal-progress.complete progress{accent-color:#416647}
 .taxid-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .taxid-row input{flex:1 1 220px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase}
+.taxid-transition{margin-top:8px;display:grid;gap:5px}
+.taxid-transition p{margin:0;line-height:1.45}
+.workspace .taxid-transition a.text-link{min-height:auto;padding:2px 0;line-height:1.45}
 .field-status{font-size:12px;font-weight:600;min-height:1em}
 .field-status.valid{color:#2f6b3d}
 .field-status.valid::before{content:"✓ "}

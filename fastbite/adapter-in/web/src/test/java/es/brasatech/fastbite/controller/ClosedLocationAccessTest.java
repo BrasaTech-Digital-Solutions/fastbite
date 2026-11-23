@@ -41,10 +41,13 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -53,7 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * consult and download its VERI*FACTU billing records and issued fiscal tickets from the
  * owner console.
  */
-@WebMvcTest(controllers = {OwnerWorkspaceController.class})
+@WebMvcTest(controllers = {OwnerWorkspaceController.class}, properties = "spring.messages.basename=i18n/messages")
 @ContextConfiguration(classes = {TestConfig.class, OwnerWorkspaceController.class,
         PlatformEnvironment.class, PlatformLink.class, PlatformAdmins.class, ThemeCatalog.class,
         SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
@@ -97,6 +100,46 @@ class ClosedLocationAccessTest {
                 CLOSED_AT);
         when(subscriptions.account("closedbistro", "ana")).thenReturn(closedBilling);
         when(subscriptions.isClosed("closedbistro")).thenReturn(true);
+    }
+
+    @Test
+    void missingMalformedAndForeignWorkspaceLocationsReturnNotFound() throws Exception {
+        TenantUser owner = new TenantUser("ana", "hash", true, List.of(new SimpleGrantedAuthority("ROLE_OWNER")), null);
+        for (String tenant : List.of("missingrestaurant", "malformed-tenant", "foreignrestaurant")) {
+            doThrow(new IllegalArgumentException("You do not own this location.")).when(workspace).requireOwner(eq("ana"), eq(tenant));
+            String root = "/owner/workspace/" + tenant;
+            for (String action : List.of("setup", "cash-float", "service", "legal", "promote/preview", "promote/confirm", "promote/undo", "privacy-notice/generated", "verifactu/authorize", "verifactu/refresh")) {
+                mockMvc.perform(post(root + "/" + action).with(user(owner)).with(csrf())
+                        .param("action", "start").contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"token\":\"valid\"}"))
+                        .andExpect(status().isNotFound());
+            }
+            for (String action : List.of("backup-preview", "privacy-notice")) {
+                mockMvc.perform(multipart(root + "/" + action).file("file", new byte[]{1}).with(user(owner)).with(csrf()))
+                        .andExpect(status().isNotFound());
+            }
+            for (String action : List.of("verifactu/records.json", "tickets.json", "tickets/00000000-0000-0000-0000-000000000000")) {
+                mockMvc.perform(get(root + "/" + action).with(user(owner))).andExpect(status().isNotFound());
+            }
+            mockMvc.perform(post(root + "/verifactu/records/00000000-0000-0000-0000-000000000000/amend")
+                    .with(user(owner)).with(csrf())).andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    void missingOwnerFiscalRecordsUseExistingPageAndRedirectResponses() throws Exception {
+        when(subscriptions.isClosed("closedbistro")).thenReturn(false);
+        when(tenantLocationService.isClosed("closedbistro")).thenReturn(false);
+        when(workspace.fiscalTicket(org.mockito.ArgumentMatchers.eq("ana"), org.mockito.ArgumentMatchers.eq("closedbistro"), anyString()))
+                .thenReturn(Optional.empty());
+        when(workspace.amendVerifactuRecord(org.mockito.ArgumentMatchers.eq("ana"), org.mockito.ArgumentMatchers.eq("closedbistro"), anyString()))
+                .thenThrow(new IllegalArgumentException("Billing record not found"));
+        TenantUser ownerPrincipal = new TenantUser("ana", "hash", true, List.of(new SimpleGrantedAuthority("ROLE_OWNER")), null);
+        for (String id : List.of("00000000-0000-0000-0000-000000000000", "not-a-uuid", "foreign-ticket")) {
+            mockMvc.perform(get("/owner/workspace/closedbistro/tickets/" + id).with(user(ownerPrincipal)))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(post("/owner/workspace/closedbistro/verifactu/records/" + id + "/amend")
+                    .with(user(ownerPrincipal)).with(csrf())).andExpect(status().is3xxRedirection());
+        }
     }
 
     @Test
