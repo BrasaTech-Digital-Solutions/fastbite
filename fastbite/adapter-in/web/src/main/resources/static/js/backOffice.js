@@ -322,11 +322,11 @@ function cancelForm() {
     if (preview) preview.hidden = true;
     const tableList = document.getElementById('tables-list');
     const tableFormContainer = document.getElementById('table-form-container');
-    if (tableList) tableList.style.display = 'block';
+    if (tableList) tableList.hidden = false;
     if (tableFormContainer) tableFormContainer.innerHTML = '';
     const discountList = document.getElementById('discounts-list');
     const discountFormContainer = document.getElementById('discount-form-container');
-    if (discountList) discountList.style.display = 'block';
+    if (discountList) discountList.hidden = false;
     if (discountFormContainer) discountFormContainer.innerHTML = '';
     editingId = null;
 }
@@ -1805,14 +1805,14 @@ async function triggerCleanData() {
 
             const result = await response.json();
             if (response.ok && result.status === 'success') {
-                showToast(result.message || 'Database successfully reset.');
+                showToast(result.message || i18n.maintenanceResetSuccess || 'Database successfully reset.');
                 await loadData();
             } else {
-                showToast(result.message || 'Error resetting data.', 'error');
+                showToast(result.message || i18n.maintenanceResetError || 'Error resetting data.', 'error');
             }
         } catch (error) {
             console.error('Error cleaning data:', error);
-            showToast('Error resetting data.', 'error');
+            showToast(i18n.maintenanceResetError || 'Error resetting data.', 'error');
         }
     }
 }
@@ -1821,7 +1821,7 @@ async function triggerRestoreBackup(event) {
     event.preventDefault();
     const fileInput = document.getElementById('backupFile');
     if (!fileInput.files || fileInput.files.length === 0) {
-        showToast('Please select a backup zip file first.', 'error');
+        showToast(i18n.maintenanceRestoreSelectFirst || 'Please select a backup zip file first.', 'error');
         return;
     }
 
@@ -1832,7 +1832,8 @@ async function triggerRestoreBackup(event) {
     const submitBtn = document.getElementById('restoreSubmitBtn');
     const originalBtnHtml = submitBtn.innerHTML;
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Restoring...';
+    submitBtn.innerHTML = '<svg class="icon bo-spinner" aria-hidden="true"><use href="#i-spinner"></use></svg> <span></span>';
+    submitBtn.querySelector('span').textContent = i18n.maintenanceRestoreRestoring || 'Restoring...';
 
     try {
         const tenantPrefix = getTenantPrefix();
@@ -1846,18 +1847,18 @@ async function triggerRestoreBackup(event) {
 
         const result = await response.json();
         if (response.ok && result.status === 'success') {
-            showToast(result.message || 'Backup successfully restored.');
+            showToast(result.message || i18n.maintenanceRestoreSuccess || 'Backup successfully restored.');
             fileInput.value = '';
             await loadData();
             if (result.notice) {
                 await fbNotice({ message: result.notice });
             }
         } else {
-            showToast(result.message || 'Error restoring backup.', 'error');
+            showToast(result.message || i18n.maintenanceRestoreError || 'Error restoring backup.', 'error');
         }
     } catch (error) {
         console.error('Error restoring backup:', error);
-        showToast('Error restoring backup.', 'error');
+        showToast(i18n.maintenanceRestoreError || 'Error restoring backup.', 'error');
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnHtml;
@@ -1906,7 +1907,8 @@ async function triggerRestoreDemo() {
         const submitBtn = document.getElementById('restoreDemoBtn');
         const originalBtnHtml = submitBtn.innerHTML;
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Loading Demo...';
+        submitBtn.innerHTML = '<svg class="icon bo-spinner" aria-hidden="true"><use href="#i-spinner"></use></svg> <span></span>';
+        submitBtn.querySelector('span').textContent = i18n.maintenanceDemoRestoring || 'Loading Demo...';
 
         try {
             const tenantPrefix = getTenantPrefix();
@@ -1919,17 +1921,17 @@ async function triggerRestoreDemo() {
 
             const result = await response.json();
             if (response.ok && result.status === 'success') {
-                showToast(result.message || 'Demo data loaded successfully.');
+                showToast(result.message || i18n.maintenanceDemoSuccess || 'Demo data loaded successfully.');
                 await loadData();
                 if (result.notice) {
                     await fbNotice({ message: result.notice });
                 }
             } else {
-                showToast(result.message || 'Error loading demo data.', 'error');
+                showToast(result.message || i18n.maintenanceDemoError || 'Error loading demo data.', 'error');
             }
         } catch (error) {
             console.error('Error loading demo data:', error);
-            showToast('Error loading demo data.', 'error');
+            showToast(i18n.maintenanceDemoError || 'Error loading demo data.', 'error');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnHtml;
@@ -1959,14 +1961,14 @@ async function saveRestaurantSettings(event) {
             body: JSON.stringify(settings)
         });
         if (response.ok) {
-            showToast('Settings saved successfully!');
+            showToast(i18n.maintenanceSettingsSaveSuccess || 'Settings saved successfully!');
         } else {
             const msg = await response.text();
-            showToast(msg || 'Failed to save settings', 'error');
+            showToast(msg || i18n.maintenanceSettingsSaveError || 'Error saving settings', 'error');
         }
     } catch (err) {
         console.error('Error saving settings:', err);
-        showToast('Error saving settings', 'error');
+        showToast(i18n.maintenanceSettingsSaveError || 'Error saving settings', 'error');
     }
 }
 

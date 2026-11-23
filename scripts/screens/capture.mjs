@@ -579,6 +579,20 @@ async function main() {
           await tap(p.locator(newDiscBtn));
           await shown(p, '#discountFormElement', 'discount form');
         });
+        await captureShot(managerCtx, path.join(themeDir, `backOffice-privacy-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-privacy'));
+          await shown(p, '#privacy-section .guest-privacy-panel', 'privacy notice panel');
+        });
+        await captureShot(ownerCtx, path.join(themeDir, `backOffice-maintenance-1280x800.png`), 1280, 800, `${base}/${tenant}/backoffice`, async (p) => {
+          await waitBackOfficeLoaded(p);
+          await tap(p.locator('#nav-maintenance'));
+          await shown(p, '#maintenance-section #serviceTypesForm', 'maintenance ordering options');
+          await p.waitForFunction(() => {
+            const sel = document.getElementById('demoTemplateSelect');
+            return sel && sel.options.length > 0 && !sel.options[0].textContent.includes('Loading');
+          }, { timeout: 10000 }).catch(() => {});
+        });
       }
     }
   } finally {

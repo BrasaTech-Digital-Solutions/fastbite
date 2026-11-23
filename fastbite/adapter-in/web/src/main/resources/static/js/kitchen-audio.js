@@ -109,39 +109,24 @@ class KitchenChime {
         const text = document.getElementById('kitchenAudioText');
         const btn = document.getElementById('kitchenAudioToggleBtn');
         if (!btn) return;
-        const nativeIcon = icon && icon.namespaceURI === 'http://www.w3.org/2000/svg';
 
-        // The counter has a native SVG icon; other staff screens still use Font Awesome.
-        const setIcon = (legacyClass, state) => {
+        const setIcon = (state) => {
             if (!icon) return;
-            if (nativeIcon) {
-                icon.dataset.state = state;
-                btn.dataset.state = state;
-                const symbol = icon.querySelector('use');
-                if (symbol) symbol.setAttribute('href', state === 'blocked' ? '#i-volume-off' : state === 'on' ? '#i-bell-filled' : '#i-bell-off');
-            } else {
-                icon.className = legacyClass;
-            }
+            icon.dataset.state = state;
+            btn.dataset.state = state;
+            const symbol = icon.querySelector('use');
+            if (symbol) symbol.setAttribute('href', state === 'blocked' ? '#i-volume-off' : state === 'on' ? '#i-bell-filled' : '#i-bell-off');
         };
 
         if (this.blocked) {
-            setIcon('fas fa-volume-mute me-1 text-warning', 'blocked');
+            setIcon('blocked');
             if (text) text.textContent = this.tapToEnableText;
-            if (!nativeIcon) {
-                btn.classList.remove('btn-warning-subtle');
-                btn.classList.add('btn-warning');
-            }
         } else if (this.enabled) {
-            setIcon('fas fa-bell me-1 text-warning', 'on');
+            setIcon('on');
             if (text) text.textContent = this.textOn;
-            if (!nativeIcon) {
-                btn.classList.remove('btn-warning');
-                btn.classList.add('btn-warning-subtle');
-            }
         } else {
-            setIcon('fas fa-bell-slash me-1', 'off');
+            setIcon('off');
             if (text) text.textContent = this.textOff;
-            if (!nativeIcon) btn.classList.remove('btn-warning', 'btn-warning-subtle');
         }
     }
 

@@ -399,7 +399,28 @@ class ThemeContractTest {
                 .contains("<section id=\"tables-section\"", "id=\"btn-tables-qr\"", "id=\"btn-new-table\"",
                         "<section id=\"payment-section\"", "<section id=\"discounts-section\"",
                         "id=\"btn-new-discount\"", "Códigos QR", "Nueva Mesa")
-                .doesNotContain("Tables Management", "New Table", "Printable QR codes for all active tables");
+                .doesNotContain("Tables Management", "New Table", "Printable QR codes for all active tables")
+                .doesNotContain("id=\"maintenance-section\"", "id=\"nav-maintenance\"");
+    }
+
+    @Test
+    void backOfficeSliceFourRendersNativePrivacyAndMaintenanceForAdminInSpanish() throws Exception {
+        when(fiscalProfileService.get()).thenReturn(new FiscalProfile("Kebab SL", "Kebab House", "B12345674",
+                "Calle Mayor 1", "28001", "Madrid", "Madrid", "600000000", null, "KH", new BigDecimal("10.00")));
+        Locale spanish = Locale.forLanguageTag("es");
+        String html = render(as("ADMIN", get("/kebab/backoffice")).locale(spanish));
+        String withoutComments = html.replaceAll("(?s)<!--.*?-->", "");
+        assertThat(html)
+                .contains("data-theme=\"" + TEST_THEME + "\"",
+                        "<section id=\"privacy-section\"", "<section id=\"maintenance-section\"",
+                        "id=\"nav-maintenance\"", "id=\"serviceTypesForm\"", "id=\"kdsTimerForm\"",
+                        "id=\"restoreBackupForm\"", "id=\"demoTemplateSelect\"",
+                        "Mantenimiento del sistema", "Opciones de pedido", "Exportar copia de seguridad",
+                        "Restaurar copia de seguridad")
+                .doesNotContain("/webjars/", "bootstrap", "font-awesome");
+        assertThat(withoutComments)
+                .doesNotContain("System Maintenance", "Ordering options", "Danger Zone / Database Reset",
+                        "Export Data Backup", "Restore Data Backup");
     }
 
     @Test
