@@ -236,6 +236,13 @@ class StandaloneWorkspaceLeakTest {
     })
     class StandaloneSandbox extends BasePage {
 
+        @Test
+        void lockedTaxIdDoesNotShowProductionTransitionGuidance() throws Exception {
+            when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(true);
+            String html = page("/owner/console?view=tickets&location=" + TENANT, Locale.ENGLISH);
+            assertThat(html).doesNotContain("taxId-transition", "Open a new location", "same taxpayer, contact support");
+        }
+
         @BeforeEach
         void setUpTour() {
             OwnerWorkspaceService.Summary summary = new OwnerWorkspaceService.Summary(
@@ -323,6 +330,13 @@ class StandaloneWorkspaceLeakTest {
             "fastbite.link.secret=0123456789abcdef0123456789abcdef"
     })
     class LinkedSandbox extends BasePage {
+
+        @Test
+        void lockedTaxIdDoesNotShowProductionTransitionGuidance() throws Exception {
+            when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(true);
+            String html = page("/owner/console?view=tickets&location=" + TENANT, Locale.ENGLISH);
+            assertThat(html).doesNotContain("taxId-transition", "Open a new location", "same taxpayer, contact support");
+        }
 
         @BeforeEach
         void setUpTour() {

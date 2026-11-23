@@ -81,9 +81,11 @@ public class AccountMailOutboxService {
                 case "VERIFACTU_ON_HOLD" -> {
                     VerifactuAuthorizationGate gate = verifactuGateProvider == null ? null : verifactuGateProvider.getIfAvailable();
                     String holdReason = gate == null ? null : gate.holdReason(item.subjectId()).map(Enum::name).orElse(null);
+                    String link = "FISCAL_INCOMPLETE".equals(holdReason)
+                            ? origin + "/owner/console?view=location-settings&section=legal&location=" + item.subjectId()
+                            : origin + "/owner/console?view=today&location=" + item.subjectId() + "#opening-step-verifactu";
                     mail.sendVerifactuOnHold(target.email(), item.subjectId(),
-                            origin + "/owner/console?view=today&location=" + item.subjectId() + "#opening-step-verifactu",
-                            target.language(), holdReason);
+                            link, target.language(), holdReason);
                 }
                 case "VERIFACTU_OPENED", "VERIFACTU_OPENED_TRIAL" -> mail.sendVerifactuOpenedWithTrial(target.email(), item.subjectId(),
                         origin + "/owner/console?view=today&location=" + item.subjectId(), target.language());

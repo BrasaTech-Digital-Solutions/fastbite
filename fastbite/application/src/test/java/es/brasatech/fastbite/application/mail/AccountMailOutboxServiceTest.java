@@ -128,4 +128,20 @@ class AccountMailOutboxServiceTest {
         verify(outbox).sent(eq(freeClaim), any());
         verify(outbox).sent(eq(reopenClaim), any());
     }
+
+    @Test @SuppressWarnings("unchecked") void holdReasonSelectsLegalLinkWithoutChangingDeliveryConditions() {
+        var hold = new AccountMailOutboxPort.Claim("hold", "lease", "lacasita", 1, "VERIFACTU_ON_HOLD");
+        when(outbox.claimForSubject(eq("lacasita"), any())).thenReturn(Optional.of(hold));
+        when(outbox.issue(eq(hold), anyString(), any())).thenReturn(Optional.of(new AccountMailOutboxPort.Recipient("owner@example.test", "ana", "en")));
+        var gate = mock(es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate.class);
+        var provider = mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(gate);
+        when(gate.holdReason("lacasita")).thenReturn(Optional.of(es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate.HoldReason.FISCAL_INCOMPLETE));
+        var service = new AccountMailOutboxService(outbox, mail, new PlatformEnvironment("production"), clock, "https://fastbite.example");
+        service.setVerifactuGateProvider(provider);
+        service.runForLocation("lacasita");
+        verify(mail).sendVerifactuOnHold("owner@example.test", "lacasita",
+                "https://fastbite.example/owner/console?view=location-settings&section=legal&location=lacasita", "en", "FISCAL_INCOMPLETE");
+        verify(outbox).sent(eq(hold), any());
+    }
 }

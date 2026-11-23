@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.controller;
 
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import es.brasatech.fastbite.application.office.CustomizationService;
 import es.brasatech.fastbite.domain.customization.CustomizationDto;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
@@ -42,7 +43,7 @@ public class CustomizationController {
         return customizationService.findById(id)
                 .map(customization -> BackOfficeDto.of(customization.id(), customization))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -65,10 +66,12 @@ public class CustomizationController {
     public ResponseEntity<BackOfficeDto<CustomizationDto>> updateCustomization(
             @PathVariable String id,
             @RequestBody CustomizationDto customizationDto) {
+        // Check the tenant-scoped ID before validating changes to prevent leaking another location's item.
+        customizationService.findById(id).orElseThrow(ResourceNotFoundException::new);
         return customizationService.update(id, customizationDto)
                 .map(customization -> BackOfficeDto.of(customization.id(), customization))
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(ResourceNotFoundException::new);
     }
 
     /**
@@ -80,6 +83,6 @@ public class CustomizationController {
         if (customizationService.delete(id)) {
             return ResponseEntity.ok().build();
         }
-        return ResponseEntity.notFound().build();
+        throw new ResourceNotFoundException();
     }
 }

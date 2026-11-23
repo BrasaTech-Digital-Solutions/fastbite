@@ -2,6 +2,7 @@ package es.brasatech.fastbite.application.tenant;
 
 import es.brasatech.fastbite.application.office.UserService;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import es.brasatech.fastbite.domain.user.Role;
 import es.brasatech.fastbite.domain.user.UserDto;
 
@@ -24,7 +25,7 @@ public class OwnerStaffService {
 
     public void checkOwnership(String ownerUsername, String tenantId) {
         if (ownerUsername == null || !tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
-            throw new IllegalArgumentException("You do not own this location.");
+            throw new ResourceNotFoundException();
         }
     }
 

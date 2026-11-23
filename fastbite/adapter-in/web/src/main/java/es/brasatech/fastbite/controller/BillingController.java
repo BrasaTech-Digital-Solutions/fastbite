@@ -56,6 +56,7 @@ public class BillingController {
     @es.brasatech.fastbite.config.ProductionOnly
     @PostMapping("/owner/billing/{tenant}/{action}")
     public String action(@PathVariable String tenant, @PathVariable String action, Principal owner, RedirectAttributes flash) {
+        requireBillingAccount(tenant, owner);
         try {
             return switch (action) {
                 case "checkout" -> "redirect:" + subscriptions.checkout(tenant, owner.getName());
@@ -92,6 +93,7 @@ public class BillingController {
     @es.brasatech.fastbite.config.ProductionOnly
     @PostMapping("/owner/billing/{tenant}/override-plan")
     public String overridePlan(@PathVariable String tenant, @RequestParam String plan, Principal owner, RedirectAttributes flash) {
+        requireBillingAccount(tenant, owner);
         try {
             subscriptions.updateTenantPlan(tenant, owner != null ? owner.getName() : null, plan);
             flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.plan.saved", tenant, plan));
@@ -99,6 +101,11 @@ public class BillingController {
             flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
         }
         return "redirect:/owner/billing/" + tenant;
+    }
+
+    private void requireBillingAccount(String tenant, Principal owner) {
+        try { subscriptions.account(tenant, owner == null ? null : owner.getName()); }
+        catch (IllegalArgumentException e) { throw new es.brasatech.fastbite.domain.exception.ResourceNotFoundException(); }
     }
 
     @GetMapping("/owner/platform/trials")

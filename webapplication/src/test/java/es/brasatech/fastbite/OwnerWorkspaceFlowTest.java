@@ -38,6 +38,30 @@ class OwnerWorkspaceFlowTest {
         body.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"backup.zip\"\r\nContent-Type: application/zip\r\n\r\n").getBytes(StandardCharsets.UTF_8));body.write(bytes);body.write(("\r\n--"+boundary+"--\r\n").getBytes(StandardCharsets.UTF_8));
         return c.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("X-CSRF-TOKEN",URLDecoder.decode(token,StandardCharsets.UTF_8)).header("Content-Type","multipart/form-data; boundary="+boundary).POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build(),HttpResponse.BodyHandlers.ofString());
     }
+    @Test void realTicketLocksNifAndPreservesAuthorizationWhileExplainingTheRejection() throws Exception {
+        String tenant = "lockednifcafe", username = "lockednifowner";
+        VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, tenant, username, "Test Owner", "local-test-password");
+        var owner = client();
+        post(owner, "/login", "username=" + username + "&password=local-test-password&_csrf=" + csrf(get(owner,"/login").body()));
+        String token = csrf(get(owner,"/owner/console?view=tickets&location=" + tenant).body());
+        String common = "legalName=Bistro+Ana+SL&tradeName=Bistro+Ana&addressLine=Calle+Mayor+1&postalCode=28013&city=Madrid&province=Madrid&seriesPrefix=BA&defaultVatRate=10&_csrf=" + token;
+        assertEquals(302, post(owner, "/owner/workspace/" + tenant + "/legal", "taxId=B09767898&" + common).statusCode());
+        jdbc.update("INSERT INTO public.verifactu_authorizations (id,nif,legal_name,status,valid_nif,idempotency_key,attempt,template_id,created_at,updated_at,version) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','B09767898','Bistro Ana SL','VALID','B09767898','lock-test',1,'test',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)");
+        jdbc.update("INSERT INTO tenant_lockednifcafe.fiscal_tickets (id,kind,series,ticket_number,full_number,training,issued_local,issued_offset,issuer_tax_id,lines,vat_lines,discount,total,vat_total,tip,payment_method) VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','SIMPLIFIED','BA-26',1,'BA-26-1',FALSE,CURRENT_TIMESTAMP,'+01:00','B09767898','[]','[]',0,0,0,0,'CASH')");
+        var rejected = post(owner, "/owner/workspace/" + tenant + "/legal", "taxId=12345678Z&" + common);
+        assertEquals(302, rejected.statusCode());
+        assertTrue(rejected.headers().firstValue("location").orElse("").contains("section=legal&location=" + tenant));
+        assertTrue(rejected.headers().firstValue("location").orElse("").contains("fiscalError=1"));
+        String html = get(owner, "/owner/console?view=location-settings&section=legal&location=" + tenant + "&fiscalError=1").body();
+        assertTrue(html.contains("Tickets were issued with this NIF, so it can’t change."));
+        assertEquals("B09767898", jdbc.queryForObject("SELECT tax_id FROM tenant_lockednifcafe.fiscal_profile", String.class));
+        assertEquals("BA", jdbc.queryForObject("SELECT series_prefix FROM tenant_lockednifcafe.fiscal_profile", String.class));
+        assertEquals("VALID", jdbc.queryForObject("SELECT status FROM public.verifactu_authorizations WHERE nif='B09767898'", String.class));
+        var unchanged = post(owner, "/owner/workspace/" + tenant + "/legal", "taxId=B09767898&" + common.replace("Bistro+Ana+SL", "Updated+Bistro"));
+        assertEquals(302, unchanged.statusCode());
+        assertEquals("Updated Bistro", jdbc.queryForObject("SELECT legal_name FROM tenant_lockednifcafe.fiscal_profile", String.class));
+        assertEquals("VALID", jdbc.queryForObject("SELECT status FROM public.verifactu_authorizations WHERE nif='B09767898'", String.class));
+    }
     @Test void workspacePersistsScopedProgressAndPreviewsBackupsWithoutChangingData()throws Exception {
         var owner=client();
         VerifiedSignupFixture.create(pendingSignup, signupService, accountOutbox, fixturePasswords, "workspacecafe", "workspaceowner", "Test Owner", "local-test-password");

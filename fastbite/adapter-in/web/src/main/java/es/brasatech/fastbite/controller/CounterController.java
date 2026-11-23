@@ -142,6 +142,7 @@ public class CounterController {
     @ResponseBody
     @GetMapping("/counter/api/tables/{tableId}/active-orders")
     public List<Order> getActiveOrders(@PathVariable String tableId) {
+        requireTable(tableId);
         return orderService.findActiveByTableId(tableId);
     }
 
@@ -154,6 +155,7 @@ public class CounterController {
     @ResponseBody
     @PostMapping("/counter/api/tables/{tableId}/status")
     public Map<String, Object> updateTableStatus(@PathVariable String tableId, @RequestParam TableStatus status) {
+        requireTable(tableId);
         orderService.setTableStatus(tableId, status);
         return Map.of("status", "success");
     }
@@ -197,7 +199,7 @@ public class CounterController {
             @RequestBody CounterOrderRequest request) {
 
         var existingOrder = orderService.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+                .orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
         requireUnpaid(existingOrder);
 
         List<CartItem> items = orderPricingService.price(request.items(), OrderChannel.COUNTER);
@@ -215,6 +217,7 @@ public class CounterController {
     public Map<String, Object> payOrder(@PathVariable String orderId,
             @RequestParam(defaultValue = "CASH") String method,
             @AuthenticationPrincipal UserDetails userDetails) {
+        requireOrder(orderId);
         var ticket = fiscalTicketService.settle(List.of(orderId),
                 es.brasatech.fastbite.application.fiscal.FiscalTicketService.Payment.of(
                         es.brasatech.fastbite.domain.fiscal.PaymentMethod.of(method), null),
@@ -229,7 +232,7 @@ public class CounterController {
     @PostMapping("/counter/api/orders/{orderId}/cancel")
     public Map<String, Object> cancelOrder(@PathVariable String orderId,
             @RequestParam(required = false) String reason) {
-        orderService.findById(orderId).ifPresent(this::requireUnpaid);
+        requireUnpaid(requireOrder(orderId));
         orderService.cancelOrder(orderId, reason != null ? reason : "Canceled at Counter");
         return Map.of("status", "success");
     }
@@ -245,12 +248,24 @@ public class CounterController {
     @ResponseBody
     @PostMapping("/counter/api/orders/{orderId}/reassign")
     public Map<String, Object> reassignOrder(@PathVariable String orderId, @RequestParam String tableId) {
+        requireOrder(orderId);
+        requireTable(tableId);
         tableService.findTableByOrderId(orderId).ifPresent(table -> {
             tableService.unassignOrder(table.id(), orderId);
         });
 
         tableService.assignOrder(tableId, orderId);
         return Map.of("status", "success");
+    }
+
+    private Order requireOrder(String id) {
+        return orderService.findById(id)
+                .orElseThrow(es.brasatech.fastbite.domain.exception.ResourceNotFoundException::new);
+    }
+
+    private void requireTable(String id) {
+        tableService.findById(id)
+                .orElseThrow(es.brasatech.fastbite.domain.exception.ResourceNotFoundException::new);
     }
 
     // ===== Fragment Endpoints =====
@@ -302,6 +317,7 @@ public class CounterController {
 
     @GetMapping("/counter/fragments/active-orders/{tableId}")
     public String getActiveOrdersFragment(Model model, @PathVariable String tableId) {
+        requireTable(tableId);
         var orders = orderService.findActiveByTableId(tableId);
         var enriched = orders.stream().map(o -> Map.of(
                 "id", o.id(),
@@ -360,6 +376,7 @@ public class CounterController {
     public String getTableSessionCartFragment(Model model, @PathVariable(required = false) String tableId,
             @RequestParam(required = false) List<Integer> expandedIndices,
             jakarta.servlet.http.HttpServletResponse response) {
+        if (tableId != null) requireTable(tableId);
         var orders = tableId != null ? orderService.findActiveByTableId(tableId) : orderService.findTakeawayForCollection();
 
         // Wrap orders to include expansion state and simplify data for fragment
@@ -438,7 +455,7 @@ public class CounterController {
             @RequestParam(required = false) List<String> selected) {
 
         var product = productService.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
 
         var customizations = product.customizations().stream()
                 .map(id -> customizationService.findById(id).orElse(null))
@@ -460,7 +477,7 @@ public class CounterController {
             Model model) {
 
         var orders = orderIds.stream()
-                .map(id -> orderService.findById(id).orElseThrow(() -> new RuntimeException("Order not found: " + id)))
+                .map(id -> orderService.findById(id).orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException()))
                 .toList();
 
         var rawSubtotal = orders.stream()

@@ -65,14 +65,14 @@ public interface OrderService {
     }
 
     default void moveToNextStatus(String id) {
-        var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found"));
+        var order = findById(id).orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
         var newOrder = order.next();
         update(id, newOrder);
         publishEvent(new OrderStatusChangedEvent(newOrder));
     }
 
     default void moveToPreviousStatus(String id) {
-        var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found"));
+        var order = findById(id).orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
         var newOrder = order.previous();
         update(id, newOrder);
         publishEvent(new OrderStatusChangedEvent(newOrder));
@@ -89,14 +89,14 @@ public interface OrderService {
     }
 
     default void cancelOrder(String id, String cancelReason) {
-        var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found"));
+        var order = findById(id).orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
         var cancelledOrder = order.cancel(cancelReason);
         update(id, cancelledOrder);
         publishEvent(new OrderStatusChangedEvent(cancelledOrder));
     }
 
     default void setOrderStatus(String id, OrderStatus orderStatus) {
-        var order = findById(id).orElseThrow(() -> new RuntimeException("Not Found"));
+        var order = findById(id).orElseThrow(() -> new es.brasatech.fastbite.domain.exception.ResourceNotFoundException());
         var newOrder = order.setStatus(orderStatus);
         update(id, newOrder);
         publishEvent(new OrderStatusChangedEvent(newOrder));

@@ -26,15 +26,22 @@
     <legend><span class="legal-step">1</span><span th:text="#{owner.legal.business}">Your business</span></legend>
     <label for="taxId" th:text="#{owner.legal.taxId}">Tax ID (NIF)</label>
     <div class="taxid-row">
-      <input id="taxId" name="taxId" th:value="${fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false" th:readonly="${fiscalLocked}"
-             inputmode="text" autocapitalize="characters" aria-describedby="taxId-hint taxId-status" required
+      <input id="taxId" name="taxId" th:value="${fiscalLocked && platform != null && !platform.sandbox() ? savedFiscalTaxId : fiscal.taxId}" maxlength="20" autocomplete="off" spellcheck="false" th:readonly="${fiscalLocked}"
+             inputmode="text" autocapitalize="characters" th:attr="aria-describedby=${fiscalLocked && platform != null && !platform.sandbox() ? 'taxId-status taxId-transition' : 'taxId-hint taxId-status'}" required
              th:classappend="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'taxId')}?'invalid'">
       <span id="taxId-status" class="field-status" role="status"
             th:classappend="${kind!=null}?'valid'"
             th:text="${kind==null}?'':(${kind.name()=='DNI'}?#{owner.legal.taxId.dni}:(${kind.name()=='NIE'}?#{owner.legal.taxId.nie}:(${kind.name()=='COMPANY'}?#{owner.legal.taxId.company}:#{owner.legal.taxId.other})))"></span>
     </div>
     <p class="field-error" th:if="${fiscalErrors!=null && #maps.containsKey(fiscalErrors, 'taxId')}" th:text="#{${fiscalErrors.get('taxId')}}"></p>
-    <p class="fine" id="taxId-hint" th:text="${fiscalLocked}?#{owner.legal.locked}:#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
+    <p class="fine" id="taxId-hint" th:unless="${fiscalLocked && platform != null && !platform.sandbox()}" th:text="${fiscalLocked}?#{owner.legal.locked}:#{owner.legal.taxId.hint}">Your DNI or NIE if you are self-employed.</p>
+    <div id="taxId-transition" class="fine taxid-transition" th:if="${fiscalLocked && platform != null && !platform.sandbox()}">
+      <p th:text="#{owner.legal.nif.locked.explain(${savedFiscalTaxId})}">This location issued tickets under this NIF and it cannot change.</p>
+      <p><a class="text-link" th:href="@{/owner/console(view='locations')} + '#add-location'" th:text="#{owner.legal.nif.new_location}">Open a new location</a></p>
+      <p th:text="#{owner.legal.nif.backup.hint}">Download this location’s backup and restore it in the new one to bring the menu across.</p>
+      <p><a class="text-link" th:href="@{/owner/console(view='data',section='backup',location=${selected.tenantId})}" th:text="#{owner.legal.nif.backup.link}">Open backup and restore</a></p>
+      <p><span th:text="#{owner.legal.nif.typo}">For a typo in the same taxpayer’s NIF, contact support.</span> <a href="mailto:info@brasatech.es">info@brasatech.es</a></p>
+    </div>
     <p class="fine" id="taxId-prior" th:if="${priorNifSeenAt!=null}" th:text="#{owner.legal.taxId.reused(${priorNifSeenAt})}"></p>
 
     <label for="legalName" id="legalName-label"

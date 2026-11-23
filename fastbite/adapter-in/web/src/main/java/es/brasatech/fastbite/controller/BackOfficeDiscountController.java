@@ -3,6 +3,7 @@ package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.discount.DiscountService;
 import es.brasatech.fastbite.domain.discount.DiscountRule;
 import es.brasatech.fastbite.dto.office.BackOfficeDto;
+import es.brasatech.fastbite.domain.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -37,13 +38,15 @@ public class BackOfficeDiscountController {
     @PutMapping("/{id}")
     @ResponseBody
     public BackOfficeDto<DiscountRule> updateDiscount(@PathVariable String id, @RequestBody DiscountRule rule) {
-        DiscountRule updated = discountService.update(id, rule).orElseThrow(() -> new RuntimeException("Discount not found"));
+        DiscountRule updated = discountService.update(id, rule).orElseThrow(ResourceNotFoundException::new);
         return BackOfficeDto.of(updated.id(), updated);
     }
 
     @DeleteMapping("/{id}")
     @ResponseBody
     public void deleteDiscount(@PathVariable String id) {
-        discountService.delete(id);
+        if (!discountService.delete(id)) {
+            throw new ResourceNotFoundException();
+        }
     }
 }

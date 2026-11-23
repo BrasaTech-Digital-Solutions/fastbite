@@ -63,7 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = CounterController.class)
 @ContextConfiguration(classes = {TestConfig.class, CounterController.class, OrderPricingService.class,
-        BadRequestAdvice.class, SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
+        BadRequestAdvice.class, ResourceNotFoundAdvice.class, SecurityConfig.class, TenantRoutingResolver.class, WebConfig.class})
 class CounterTakeawayEndpointTest {
 
     private static final String KEBAB_LINE = "{\"id\":\"l1\",\"itemId\":\"kebab\",\"quantity\":2,\"price\":0.01,\"customizations\":[]}";
@@ -218,6 +218,8 @@ class CounterTakeawayEndpointTest {
 
     @Test
     void payingAnOrderLeavesItsLinesAndPricesAloneAndIssuesItsTicket() throws Exception {
+        when(orderService.findById("o1")).thenReturn(Optional.of(new Order(List.of(), 9,
+                OrderPaymentStatus.UNPAID, OrderChannel.COUNTER, "en", "carla", "Marta", ServiceType.TAKEAWAY)));
         mockMvc.perform(asCashier(post("/counter/api/orders/o1/pay")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticketId").value("ticket-1"));
@@ -381,6 +383,8 @@ class CounterTakeawayEndpointTest {
         when(onlineTicket.paymentMethod()).thenReturn(es.brasatech.fastbite.domain.fiscal.PaymentMethod.ONLINE);
         when(fiscalTicketService.findForOrder(online.id())).thenReturn(Optional.of(onlineTicket));
         when(fiscalTicketService.findForOrder(cash.id())).thenReturn(Optional.of(TICKET));
+        when(tableService.findById("table-1")).thenReturn(Optional.of(new es.brasatech.fastbite.domain.table.Table(
+                "table-1", "Table", 4, es.brasatech.fastbite.domain.table.TableStatus.OCCUPIED, true, List.of())));
         when(orderService.findActiveByTableId("table-1")).thenReturn(List.of(online, cash));
         mockMvc.perform(asCashier(get("/counter/fragments/active-orders/table-1")))
                 .andExpect(status().isOk())
@@ -391,5 +395,27 @@ class CounterTakeawayEndpointTest {
         mockMvc.perform(asCashier(get("/counter/fragments/active-orders/table-1")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("printProforma("))));
+    }
+
+    @Test
+    void missingCounterResourcesAreNotFound() throws Exception {
+        // Both syntactically valid and arbitrary string IDs are tenant-scoped lookup keys.
+        for (String id : List.of("9e5dcc63-5ea9-4d46-ae35-916827a19f03", "not!valid", "other-tenant-id")) {
+            var requests = List.of(
+                    asCashier(put("/counter/api/orders/" + id)).content(order(null, false, null)),
+                    asCashier(post("/counter/api/orders/" + id + "/pay")),
+                    asCashier(post("/counter/api/orders/" + id + "/cancel")),
+                    asCashier(post("/counter/api/orders/" + id + "/reassign")).param("tableId", "missing-table"),
+                    asCashier(get("/counter/receipt")).param("ids", id),
+                    asCashier(get("/counter/api/tables/" + id + "/active-orders")),
+                    asCashier(post("/counter/api/tables/" + id + "/status")).param("status", "AVAILABLE"),
+                    asCashier(post("/counter/api/tables/" + id + "/qr-trusted")).param("trusted", "true"),
+                    asCashier(get("/counter/fragments/active-orders/" + id)),
+                    asCashier(get("/counter/fragments/table-session-cart/" + id)),
+                    asCashier(get("/counter/fragments/customization-options/" + id)));
+            for (var request : requests) {
+                mockMvc.perform(request).andExpect(status().isNotFound());
+            }
+        }
     }
 }
