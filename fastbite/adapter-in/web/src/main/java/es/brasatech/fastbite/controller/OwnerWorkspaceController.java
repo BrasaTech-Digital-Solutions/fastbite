@@ -334,6 +334,7 @@ public class OwnerWorkspaceController {
     }
     /** A draft the owner just tried to save wins over the saved profile, so nothing typed is lost. */
     private void addLegal(Model model, FiscalProfile saved, String tenant, String owner) {
+        model.addAttribute("savedFiscalTaxId", saved == null ? null : saved.taxId());
         FiscalProfile fiscal = model.containsAttribute("fiscalDraft") ? (FiscalProfile) model.getAttribute("fiscalDraft") : saved;
         model.addAttribute("fiscal", fiscal);
         model.addAttribute("provinces", SpanishProvinces.NAMES);

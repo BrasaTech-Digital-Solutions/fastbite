@@ -135,6 +135,33 @@ class OwnerVerifactuOpeningControllerTest {
     }
 
     @Test
+    void lockedNifShowsOwnerHowToMoveToAnotherCompany() throws Exception {
+        when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(true);
+        String html = mockMvc.perform(get("/owner/console?view=tickets&location=" + TENANT)
+                        .locale(Locale.ENGLISH).with(user(ownerPrincipal())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("This location issued tickets under NIF B09767898")
+                .contains("another company, open a new location")
+                .contains("Open a new location")
+                .contains("download this location’s backup and restore it in the new location")
+                .contains("Open backup and restore")
+                .contains("same taxpayer, contact support")
+                .contains("mailto:info@brasatech.es")
+                .contains("href=\"/owner/console?view=locations#add-location\"")
+                .contains("href=\"/owner/console?view=data&amp;section=backup&amp;location=bistro\"")
+                .contains("taxId-hint taxId-status taxId-transition");
+        String locations = mockMvc.perform(get("/owner/console?view=locations").with(user(ownerPrincipal())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(locations).contains("id=\"add-location\"");
+        String backup = mockMvc.perform(get("/owner/console?view=data&section=backup&location=" + TENANT).with(user(ownerPrincipal())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(backup).contains("backup");
+        var staff = new TenantUser("cashier", "secret", true, List.of(new SimpleGrantedAuthority("ROLE_CASHIER")), TENANT);
+        mockMvc.perform(get("/owner/console?view=tickets&location=" + TENANT).with(user(staff)))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
     void changedNifBeforeFirstTicketExplainsMissingAuthorization() throws Exception {
         when(workspace.fiscalLocked(OWNER, TENANT)).thenReturn(false);
         when(workspace.saveFiscalProfile(eq(OWNER), eq(TENANT), any())).thenReturn(java.util.Map.of());
@@ -203,6 +230,8 @@ class OwnerVerifactuOpeningControllerTest {
                         .locale(Locale.ENGLISH).with(user(ownerPrincipal())).flashAttrs(result.getFlashMap()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("Tickets were issued with this NIF, so it can’t change.");
+        assertThat(html).contains("This location issued tickets under NIF B09767898")
+                .contains("value=\"B09767898\"");
     }
 
     @Test
