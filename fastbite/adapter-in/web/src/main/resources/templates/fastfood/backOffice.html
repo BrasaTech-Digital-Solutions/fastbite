@@ -399,16 +399,21 @@
                     </section>
 
                     <!-- Tables Section -->
-                    <div id="tables-section" class="section-content" hidden>
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-table"></i> <span>Tables Management</span></h3>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-outline-dark" onclick="openTableQr()"
-                                    title="Printable QR codes for all active tables">
-                                    <i class="fas fa-qrcode"></i> <span>QR codes</span>
+                    <section id="tables-section" class="section-content" hidden>
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg>
+                                <span th:text="#{backoffice.tables.title}">Tables Management</span>
+                            </h1>
+                            <div class="bo-header-actions">
+                                <button type="button" class="bo-btn bo-btn-outline" id="btn-tables-qr" onclick="openTableQr()"
+                                    th:title="#{backoffice.tables.qr.all.title}">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-qrcode"></use></svg>
+                                    <span th:text="#{backoffice.tables.qr.codes}">QR codes</span>
                                 </button>
-                                <button class="btn btn-primary" onclick="showTableForm()">
-                                    <i class="fas fa-plus"></i> <span>New Table</span>
+                                <button type="button" class="bo-btn bo-btn-primary" id="btn-new-table" onclick="showTableForm()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                    <span th:text="#{backoffice.tables.new}">New Table</span>
                                 </button>
                             </div>
                         </div>
@@ -420,21 +425,25 @@
                         <div id="tables-list">
                             <!-- Tables will be populated by JavaScript -->
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Payment Section -->
-                    <div id="payment-section" class="section-content" hidden>
+                    <section id="payment-section" class="section-content" hidden>
                         <div id="payment-config-container">
                             <!-- Payment Config will be loaded here -->
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Discounts Section -->
-                    <div id="discounts-section" class="section-content" hidden>
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h3><i class="fas fa-percentage"></i> <span th:text="#{backoffice.discounts.title}">Discounts Management</span></h3>
-                            <button class="btn btn-primary" onclick="showDiscountForm()">
-                                <i class="fas fa-plus"></i> <span th:text="#{backoffice.discounts.new}">New Discount</span>
+                    <section id="discounts-section" class="section-content" hidden>
+                        <div class="bo-section-header">
+                            <h1 class="bo-section-title">
+                                <svg class="icon" aria-hidden="true"><use href="#i-percent"></use></svg>
+                                <span th:text="#{backoffice.discounts.title}">Discounts Management</span>
+                            </h1>
+                            <button type="button" class="bo-btn bo-btn-primary" id="btn-new-discount" onclick="showDiscountForm()">
+                                <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                <span th:text="#{backoffice.discounts.new}">New Discount</span>
                             </button>
                         </div>
                         <div id="discount-form-container">
@@ -443,7 +452,7 @@
                         <div id="discounts-list">
                             <!-- Discounts will be populated by JavaScript -->
                         </div>
-                    </div>
+                    </section>
 
                     <!-- Privacy Notice Section (Owner, Admin, and Manager) -->
                     <div id="privacy-section" class="section-content" hidden>
@@ -858,12 +867,28 @@
         th:data-discounts-delete-confirm="#{backoffice.discounts.delete.confirm}"
         th:data-discounts-save-success="#{backoffice.discounts.save.success}"
         th:data-discounts-delete-success="#{backoffice.discounts.delete.success}"
+        th:data-discounts-edit-title="#{backoffice.discounts.edit.title}"
+        th:data-discounts-save-error="#{backoffice.discounts.save.error}"
+        th:data-discounts-delete-error="#{backoffice.discounts.delete.error}"
         th:data-tables-delete-confirm="#{backoffice.tables.delete.confirm}"
+        th:data-tables-edit-title="#{backoffice.tables.edit.title}"
+        th:data-tables-save-success="#{backoffice.tables.save.success}"
+        th:data-tables-save-error="#{backoffice.tables.save.error}"
+        th:data-tables-delete-success="#{backoffice.tables.delete.success}"
+        th:data-tables-delete-error="#{backoffice.tables.delete.error}"
         th:data-customcodes-delete-confirm="#{backoffice.customcodes.delete.confirm}"
         th:data-maintenance-reset-confirm="#{backoffice.maintenance.reset.confirm}"
         th:data-maintenance-template-load-confirm="#{backoffice.maintenance.template.load.confirm}"
         th:data-payment-saved-success="#{backoffice.payment.saved.success}"
         th:data-payment-title="#{backoffice.payment.title}"
+        th:data-payment-mode-required="#{backoffice.payment.mode.required}"
+        th:data-payment-save-error="#{backoffice.payment.save.error}"
+        th:data-payment-default-success="#{backoffice.payment.default.success}"
+        th:data-payment-default-error="#{backoffice.payment.default.error}"
+        th:data-payment-delete-success="#{backoffice.payment.delete.success}"
+        th:data-payment-delete-error="#{backoffice.payment.delete.error}"
+        th:data-payment-denom-required="#{backoffice.payment.denom.required}"
+        th:data-payment-reset-success="#{backoffice.payment.reset.success}"
         th:data-button-delete="#{button.delete}"
         th:data-button-cancel="#{button.cancel}"
         th:data-button-ok="#{button.close}"

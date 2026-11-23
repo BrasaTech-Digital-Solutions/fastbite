@@ -1356,7 +1356,7 @@ async function showTableForm(tableId = null) {
     const list = document.getElementById('tables-list');
 
     // Hide list while editing
-    list.style.display = 'none';
+    if (list) list.hidden = true;
 
     let table = null;
     if (tableId) {
@@ -1370,7 +1370,7 @@ async function showTableForm(tableId = null) {
 
     // Populate fields if editing
     if (table) {
-        document.getElementById('table-form-title').textContent = 'Edit Table';
+        document.getElementById('table-form-title').textContent = i18n.tablesEditTitle || 'Edit Table';
         document.getElementById('table-id').value = table.id;
         document.getElementById('table-name').value = table.name;
         document.getElementById('table-seats').value = table.seats;
@@ -1414,13 +1414,13 @@ async function handleTableSubmit(e) {
         if (response.ok) {
             await loadData();
             cancelForm();
-            showToast('Table saved successfully!');
+            showToast(i18n.tablesSaveSuccess || 'Table saved successfully!');
         } else {
-            showToast('Error saving table', 'error');
+            showToast(i18n.tablesSaveError || 'Error saving table', 'error');
         }
     } catch (error) {
         console.error('Error saving table:', error);
-        showToast('Error saving table', 'error');
+        showToast(i18n.tablesSaveError || 'Error saving table', 'error');
     }
 }
 
@@ -1445,13 +1445,13 @@ async function deleteTable(id) {
 
             if (response.ok) {
                 await loadData();
-                showToast('Table deleted successfully!');
+                showToast(i18n.tablesDeleteSuccess || 'Table deleted successfully!');
             } else {
-                showToast('Error deleting table', 'error');
+                showToast(i18n.tablesDeleteError || 'Error deleting table', 'error');
             }
         } catch (error) {
             console.error('Error deleting table:', error);
-            showToast('Error deleting table', 'error');
+            showToast(i18n.tablesDeleteError || 'Error deleting table', 'error');
         }
     }
 }
@@ -1485,7 +1485,7 @@ async function renderPaymentConfig() {
             };
 
             if (modes.length === 0) {
-                showToast('Please select at least one active payment mode.', 'warning');
+                showToast(i18n.paymentModeRequired || 'Please select at least one active payment mode.', 'warning');
                 return;
             }
 
@@ -1500,17 +1500,17 @@ async function renderPaymentConfig() {
                 });
 
                 if (response.ok) {
-                    showToast('Payment configuration saved successfully!');
+                    showToast(i18n.paymentSavedSuccess || 'Payment configuration saved successfully!');
                     await loadData();
                     // Keep the saved one selected
                     selectedPaymentConfig = allPaymentConfigs.find(c => c.id === id);
                     renderPaymentConfig();
                 } else {
-                    showToast('Error saving payment configuration', 'error');
+                    showToast(i18n.paymentSaveError || 'Error saving payment configuration', 'error');
                 }
             } catch (error) {
                 console.error('Error saving payment config:', error);
-                showToast('Error saving payment config', 'error');
+                showToast(i18n.paymentSaveError || 'Error saving payment configuration', 'error');
             }
         });
     }
@@ -1531,15 +1531,15 @@ async function setPaymentConfigDefault(id) {
         });
 
         if (response.ok) {
-            showToast('Default payment configuration updated!');
+            showToast(i18n.paymentDefaultSuccess || 'Default payment configuration updated!');
             await loadData();
             renderPaymentConfig();
         } else {
-            showToast('Error setting default configuration', 'error');
+            showToast(i18n.paymentDefaultError || 'Error setting default configuration', 'error');
         }
     } catch (error) {
         console.error('Error setting default payment config:', error);
-        showToast('Error setting default payment config', 'error');
+        showToast(i18n.paymentDefaultError || 'Error setting default configuration', 'error');
     }
 }
 
@@ -1562,7 +1562,7 @@ async function deletePaymentConfig(id) {
         });
 
         if (response.ok) {
-            showToast('Configuration deleted successfully!');
+            showToast(i18n.paymentDeleteSuccess || 'Configuration deleted successfully!');
             await loadData();
             // Reset selection if deleted
             if (selectedPaymentConfig && selectedPaymentConfig.id === id) {
@@ -1570,11 +1570,11 @@ async function deletePaymentConfig(id) {
             }
             renderPaymentConfig();
         } else {
-            showToast('Error deleting configuration', 'error');
+            showToast(i18n.paymentDeleteError || 'Error deleting configuration', 'error');
         }
     } catch (error) {
         console.error('Error deleting payment config:', error);
-        showToast('Error deleting payment config', 'error');
+        showToast(i18n.paymentDeleteError || 'Error deleting configuration', 'error');
     }
 }
 
@@ -1588,16 +1588,29 @@ function createNewPaymentConfig() {
     renderPaymentConfig();
 }
 
+function syncSelectedPaymentModes() {
+    if (!selectedPaymentConfig) return;
+    const cashEl = document.getElementById('mode-cash');
+    const cardEl = document.getElementById('mode-card');
+    if (cashEl && cardEl) {
+        const modes = [];
+        if (cashEl.checked) modes.push('CASH');
+        if (cardEl.checked) modes.push('CARD');
+        selectedPaymentConfig.activeModes = modes;
+    }
+}
+
 function addDenomination() {
     const value = document.getElementById('new-denom-value').value;
     const type = document.getElementById('new-denom-type').value;
     const image = document.getElementById('new-denom-image').value;
 
     if (!value || !image) {
-        showToast('Please provide value and image for the denomination', 'warning');
+        showToast(i18n.paymentDenomRequired || 'Please provide value and image for the denomination', 'warning');
         return;
     }
 
+    syncSelectedPaymentModes();
     if (!selectedPaymentConfig.moneyDenominations) selectedPaymentConfig.moneyDenominations = [];
 
     selectedPaymentConfig.moneyDenominations.push({
@@ -1611,6 +1624,7 @@ function addDenomination() {
 }
 
 function removeDenomination(index) {
+    syncSelectedPaymentModes();
     selectedPaymentConfig.moneyDenominations.splice(index, 1);
     renderPaymentConfig();
 }
@@ -1618,7 +1632,7 @@ function removeDenomination(index) {
 async function resetPaymentConfig() {
     await loadData();
     renderPaymentConfig();
-    showToast('Payment configuration reset to database state.');
+    showToast(i18n.paymentResetSuccess || 'Payment configuration reset to database state.');
 }
 
 let denomImageCallback = null;
@@ -1634,11 +1648,11 @@ const originalCancelForm = cancelForm;
 window.cancelForm = function () {
     const tableList = document.getElementById('tables-list');
     const tableFormContainer = document.getElementById('table-form-container');
-    if (tableList) tableList.style.display = 'block';
+    if (tableList) tableList.hidden = false;
     if (tableFormContainer) tableFormContainer.innerHTML = '';
     const discountList = document.getElementById('discounts-list');
     const discountFormContainer = document.getElementById('discount-form-container');
-    if (discountList) discountList.style.display = 'block';
+    if (discountList) discountList.hidden = false;
     if (discountFormContainer) discountFormContainer.innerHTML = '';
     originalCancelForm();
 };
@@ -1655,7 +1669,7 @@ async function showDiscountForm(ruleId = null) {
     const container = document.getElementById('discount-form-container');
     const list = document.getElementById('discounts-list');
 
-    if (list) list.style.display = 'none';
+    if (list) list.hidden = true;
 
     let rule = null;
     if (ruleId) {
@@ -1667,7 +1681,7 @@ async function showDiscountForm(ruleId = null) {
     });
 
     if (rule) {
-        document.getElementById('discount-form-title').textContent = 'Edit Discount';
+        document.getElementById('discount-form-title').textContent = i18n.discountsEditTitle || 'Edit Discount';
         document.getElementById('discount-id').value = rule.id;
         document.getElementById('discount-name').value = rule.name;
         document.getElementById('discount-scope').value = rule.scope;
@@ -1722,11 +1736,11 @@ async function handleDiscountSubmit(e) {
             cancelForm();
             showToast(i18n.discountsSaveSuccess || 'Discount saved successfully!');
         } else {
-            showToast('Error saving discount', 'error');
+            showToast(i18n.discountsSaveError || 'Error saving discount', 'error');
         }
     } catch (error) {
         console.error('Error saving discount:', error);
-        showToast('Error saving discount', 'error');
+        showToast(i18n.discountsSaveError || 'Error saving discount', 'error');
     }
 }
 
@@ -1753,11 +1767,11 @@ async function deleteDiscount(id) {
                 await loadData();
                 showToast(i18n.discountsDeleteSuccess || 'Discount deleted successfully!');
             } else {
-                showToast('Error deleting discount', 'error');
+                showToast(i18n.discountsDeleteError || 'Error deleting discount', 'error');
             }
         } catch (error) {
             console.error('Error deleting discount:', error);
-            showToast('Error deleting discount', 'error');
+            showToast(i18n.discountsDeleteError || 'Error deleting discount', 'error');
         }
     }
 }

@@ -998,3 +998,145 @@
     transform: rotate(360deg);
   }
 }
+
+/* Slice 4c-3: Tables, Payment & Discounts */
+.bo-icon-btn-success {
+  border-color: var(--color-payment-success);
+  color: var(--color-payment-success);
+}
+
+.bo-icon-btn-success:hover {
+  background: var(--color-payment-success);
+  color: var(--color-on-primary);
+}
+
+.bo-form-grid-equal-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .bo-form-grid-equal-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.bo-check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.bo-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.bo-payment-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bo-payment-card:hover {
+  border-color: var(--color-action);
+}
+
+.bo-payment-card.is-active {
+  border: 2px solid var(--color-action);
+}
+
+.bo-payment-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.bo-payment-card-title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-strong);
+  font-size: 1rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bo-payment-modes {
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.bo-payment-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.bo-denom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.bo-denom-card {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface);
+}
+
+.bo-denom-img {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  object-fit: contain;
+}
+
+.bo-denom-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bo-denom-value {
+  color: var(--color-text-strong);
+  font-weight: 700;
+}
+
+.bo-denom-add-card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: min(var(--radius), 8px);
+  background: var(--color-surface-alt);
+}
+
+.bo-denom-add-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+@media (min-width: 768px) {
+  .bo-denom-add-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) auto;
+  }
+}

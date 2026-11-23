@@ -289,86 +289,90 @@
 
 <!-- Tables List -->
 <div th:fragment="tables-list" th:remove="tag">
-    <div th:if="${#lists.isEmpty(tables)}" class="text-center text-muted py-5">
-        <i class="fas fa-table fa-3x mb-3"></i>
+    <div th:if="${#lists.isEmpty(tables)}" class="bo-empty">
+        <svg class="icon icon-3x" aria-hidden="true"><use href="#i-table"></use></svg>
         <p th:text="#{backoffice.tables.empty}">No tables found</p>
     </div>
-    <div th:each="table : ${tables}" class="cart-item mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-1">
-                    <i class="fas fa-table me-2"></i>
-                    <span th:text="${table.name}">Table Name</span>
-                </h5>
-                <div class="small">
-                    <span class="badge bg-secondary"><span th:text="#{label.seats} + ':'">Seats:</span> <span
-                            th:text="${table.seats}">0</span></span>
-                    <span class="badge bg-info" th:text="${table.status}">AVAILABLE</span>
-                    <span th:class="|badge ${table.active ? 'bg-success' : 'bg-secondary'}|"
-                        th:text="${table.active ? 'Active' : 'Inactive'}">Active</span>
-                </div>
+    <div th:each="table : ${tables}" class="bo-item-card">
+        <div class="bo-item-body">
+            <h2 class="bo-item-title">
+                <svg class="icon" aria-hidden="true"><use href="#i-table"></use></svg>
+                <span th:text="${table.name}">Table Name</span>
+            </h2>
+            <div class="bo-badges">
+                <span class="bo-badge">
+                    <span th:text="#{label.seats} + ':'">Seats:</span>
+                    <span th:text="${table.seats}">0</span>
+                </span>
+                <span class="bo-badge bo-badge-primary"
+                    th:text="#{${'table.status.' + #strings.toLowerCase(table.status)}}">AVAILABLE</span>
+                <span th:class="|bo-badge ${table.active ? 'bo-badge-success' : ''}|"
+                    th:text="${table.active ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline-dark" th:data-id="${table.id}" title="QR code"
-                    onclick="openTableQr(this.dataset.id)">
-                    <i class="fas fa-qrcode"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-primary" th:data-id="${table.id}"
-                    onclick="editTable(this.dataset.id)">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" th:data-id="${table.id}"
-                    onclick="manageTableTranslations(this.dataset.id)">
-                    <i class="fas fa-language"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" th:data-id="${table.id}"
-                    onclick="deleteTable(this.dataset.id)">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+        </div>
+        <div class="bo-item-actions">
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${table.id}"
+                th:aria-label="#{backoffice.tables.qr.single}" th:title="#{backoffice.tables.qr.single}"
+                onclick="openTableQr(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-qrcode"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-primary" th:data-id="${table.id}"
+                th:aria-label="#{backoffice.action.edit}" th:title="#{backoffice.action.edit}"
+                onclick="editTable(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${table.id}"
+                th:aria-label="#{backoffice.action.translations}" th:title="#{backoffice.action.translations}"
+                onclick="manageTableTranslations(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-danger" th:data-id="${table.id}"
+                th:aria-label="#{backoffice.action.delete}" th:title="#{backoffice.action.delete}"
+                onclick="deleteTable(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Table Form Fragment -->
 <div th:fragment="table-form" th:remove="tag">
-    <div class="card product-card mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0" id="table-form-title" th:text="#{backoffice.tables.create.title}">Create New Table</h5>
+    <div class="bo-card">
+        <div class="bo-card-header">
+            <h3 id="table-form-title" th:text="#{backoffice.tables.create.title}">Create New Table</h3>
         </div>
-        <div class="card-body">
+        <div class="bo-card-body">
             <form id="tableFormElement">
                 <input type="hidden" id="table-id">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="table-name" class="form-label" th:text="#{backoffice.tables.label.name}">Table Name
-                            *</label>
-                        <input type="text" class="form-control" id="table-name" required>
+                <div class="bo-form-grid-3">
+                    <div class="bo-field">
+                        <label for="table-name" class="bo-label" th:text="#{backoffice.tables.label.name}">Table Name *</label>
+                        <input type="text" class="bo-input" id="table-name" required>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="table-seats" class="form-label" th:text="#{backoffice.tables.label.seats}">Seats
-                            *</label>
-                        <input type="number" class="form-control" id="table-seats" min="1" required>
+                    <div class="bo-field">
+                        <label for="table-seats" class="bo-label" th:text="#{backoffice.tables.label.seats}">Seats *</label>
+                        <input type="number" class="bo-input" id="table-seats" min="1" required>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="table-status" class="form-label" th:text="#{backoffice.tables.label.status}">Status
-                            *</label>
-                        <select class="form-select" id="table-status" required>
-                            <option th:each="status : ${statuses}" th:value="${status}" th:text="${status}">AVAILABLE
-                            </option>
+                    <div class="bo-field">
+                        <label for="table-status" class="bo-label" th:text="#{backoffice.tables.label.status}">Status *</label>
+                        <select class="bo-select" id="table-status" required>
+                            <option th:each="status : ${statuses}" th:value="${status}"
+                                th:text="#{${'table.status.' + #strings.toLowerCase(status)}}">AVAILABLE</option>
                         </select>
                     </div>
                 </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="table-active" checked>
-                    <label class="form-check-label" for="table-active" th:text="#{label.active}">Active</label>
+                <div class="bo-field bo-check-row bo-check-inline">
+                    <input type="checkbox" id="table-active" checked>
+                    <label for="table-active" th:text="#{label.active}">Active</label>
                 </div>
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> <span th:text="#{backoffice.tables.button.save}">Save Table</span>
+                <div class="bo-form-actions">
+                    <button type="submit" class="bo-btn bo-btn-success">
+                        <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                        <span th:text="#{backoffice.tables.button.save}">Save Table</span>
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="cancelForm()">
-                        <i class="fas fa-times"></i> <span th:text="#{button.cancel}">Cancel</span>
+                    <button type="button" class="bo-btn bo-btn-secondary" onclick="cancelForm()">
+                        <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                        <span th:text="#{button.cancel}">Cancel</span>
                     </button>
                 </div>
             </form>
@@ -379,156 +383,150 @@
 <!-- Payment Section Fragment -->
 <div th:fragment="payment-section" th:remove="tag">
     <!-- List of designs -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 th:text="#{backoffice.payment.designs.title}">Payment Designs</h5>
-                <button class="btn btn-outline-primary btn-sm" onclick="createNewPaymentConfig()">
-                    <i class="fas fa-plus"></i> <span th:text="#{backoffice.payment.button.new}">New Design</span>
-                </button>
-            </div>
-            <div class="row g-3">
-                <div th:each="config : ${allConfigs}" class="col-md-4">
-                    <div th:class="|card h-100 ${config.active ? 'border-primary border-2' : 'border-light'}|"
-                        style="cursor: pointer;" th:data-id="${config.id}" onclick="selectPaymentConfig(this.dataset.id)">
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h6 class="mb-0 text-truncate" style="max-width: 150px;" th:text="${config.id}">Default
-                                </h6>
-                                <span th:if="${config.active}" class="badge bg-primary">Active</span>
-                            </div>
-                            <div class="small text-muted mb-3">
-                                <span th:each="mode, iter : ${config.activeModes}">
-                                    <span th:text="${mode}">CASH</span>
-                                    <span th:if="${!iter.last}">, </span>
-                                </span>
-                            </div>
-                            <div class="d-flex gap-1 justify-content-end">
-                                <button th:if="${!config.active}" class="btn btn-xs btn-outline-success"
-                                    th:data-id="${config.id}" onclick="event.stopPropagation(); setPaymentConfigDefault(this.dataset.id)"
-                                    title="Set as Default">
-                                    <i class="fas fa-check-circle"></i>
-                                </button>
-                                <button th:if="${config.id != 'default'}" class="btn btn-xs btn-outline-danger"
-                                    th:data-id="${config.id}" onclick="event.stopPropagation(); deletePaymentConfig(this.dataset.id)"
-                                    title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+    <div class="bo-section-header">
+        <h1 class="bo-section-title">
+            <svg class="icon" aria-hidden="true"><use href="#i-credit-card"></use></svg>
+            <span th:text="#{backoffice.payment.designs.title}">Payment Designs</span>
+        </h1>
+        <button type="button" class="bo-btn bo-btn-outline-primary" id="btn-new-payment" onclick="createNewPaymentConfig()">
+            <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+            <span th:text="#{backoffice.payment.button.new}">New Design</span>
+        </button>
+    </div>
+
+    <div class="bo-payment-grid">
+        <div th:each="config : ${allConfigs}"
+            th:class="|bo-payment-card ${config.active ? 'is-active' : ''}|"
+            th:data-id="${config.id}" onclick="selectPaymentConfig(this.dataset.id)">
+            <div>
+                <div class="bo-payment-card-head">
+                    <h2 class="bo-payment-card-title" th:text="${config.id}">Default</h2>
+                    <span th:if="${config.active}" class="bo-badge bo-badge-primary" th:text="#{label.active}">Active</span>
                 </div>
+                <div class="bo-payment-modes">
+                    <span th:each="mode, iter : ${config.activeModes}">
+                        <span th:text="#{${'label.payment.' + #strings.toLowerCase(mode)}}">CASH</span>
+                        <span th:if="${!iter.last}">, </span>
+                    </span>
+                </div>
+            </div>
+            <div class="bo-payment-card-actions">
+                <button type="button" th:if="${!config.active}" class="bo-icon-btn bo-icon-btn-success"
+                    th:data-id="${config.id}" onclick="event.stopPropagation(); setPaymentConfigDefault(this.dataset.id)"
+                    th:title="#{backoffice.payment.action.set.default}"
+                    th:aria-label="#{backoffice.payment.action.set.default}">
+                    <svg class="icon" aria-hidden="true"><use href="#i-check-circle"></use></svg>
+                </button>
+                <button type="button" th:if="${config.id != 'default'}" class="bo-icon-btn bo-icon-btn-danger"
+                    th:data-id="${config.id}" onclick="event.stopPropagation(); deletePaymentConfig(this.dataset.id)"
+                    th:title="#{backoffice.action.delete}"
+                    th:aria-label="#{backoffice.action.delete}">
+                    <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Configuration form -->
-    <div class="card product-card shadow-sm border-0 mb-4" th:if="${paymentConfig != null}">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">
+    <div class="bo-card" th:if="${paymentConfig != null}">
+        <div class="bo-card-header">
+            <h3>
                 <span th:text="#{backoffice.payment.edit.title}">Edit Design:</span>
-                <span class="ms-1" th:text="${paymentConfig.id}">default</span>
-            </h5>
+                <span th:text="${paymentConfig.id}">default</span>
+            </h3>
         </div>
-        <div class="card-body">
+        <div class="bo-card-body">
             <form id="paymentConfigForm">
-                <div class="mb-4">
-                    <label for="payment-config-id" class="form-label fw-bold">Design ID/Name</label>
-                    <input type="text" class="form-control" id="payment-config-id" th:value="${paymentConfig.id}"
+                <div class="bo-field">
+                    <label for="payment-config-id" class="bo-label" th:text="#{backoffice.payment.label.id}">Design ID/Name</label>
+                    <input type="text" class="bo-input" id="payment-config-id" th:value="${paymentConfig.id}"
                         th:readonly="${paymentConfig.id != null && paymentConfig.id != '' && paymentConfig.id != 'new'}"
-                        placeholder="e.g., Summer Promo, Default Design" required>
-                    <small class="text-muted" th:if="${paymentConfig.id != 'new'}">ID cannot be changed after
-                        creation.</small>
+                        th:placeholder="#{backoffice.payment.placeholder.id}" required>
+                    <p class="bo-hint" th:if="${paymentConfig.id != 'new'}"
+                        th:text="#{backoffice.payment.hint.id}">ID cannot be changed after creation.</p>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label fw-bold" th:text="#{backoffice.payment.active.modes}">Active Payment
-                        Modes</label>
-                    <div class="d-flex gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="CASH" id="mode-cash"
+                <fieldset class="bo-field bo-fieldset">
+                    <legend class="bo-label" th:text="#{backoffice.payment.active.modes}">Active Payment Modes</legend>
+                    <div class="bo-check-group">
+                        <div class="bo-check-row bo-check-inline">
+                            <input type="checkbox" value="CASH" id="mode-cash"
                                 th:checked="${#lists.contains(paymentConfig.activeModes, 'CASH')}">
-                            <label class="form-check-label" for="mode-cash" th:text="#{label.payment.cash}">Cash</label>
+                            <label for="mode-cash" th:text="#{label.payment.cash}">Cash</label>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value="CARD" id="mode-card"
+                        <div class="bo-check-row bo-check-inline">
+                            <input type="checkbox" value="CARD" id="mode-card"
                                 th:checked="${#lists.contains(paymentConfig.activeModes, 'CARD')}">
-                            <label class="form-check-label" for="mode-card" th:text="#{label.payment.card}">Credit/Debit
-                                Card</label>
+                            <label for="mode-card" th:text="#{label.payment.card}">Credit/Debit Card</label>
                         </div>
                     </div>
-                </div>
+                </fieldset>
 
-                <div class="mb-4">
-                    <label class="form-label fw-bold" th:text="#{backoffice.payment.denominations.title}">Money
-                        Denominations (for Counter UI)</label>
-                    <div id="payment-denominations-list" class="row g-3 mb-3">
-                        <div th:each="denom, iter : ${paymentConfig.moneyDenominations}" class="col-md-4">
-                            <div class="card h-100 position-relative">
-                                <div class="card-body p-2 d-flex align-items-center">
-                                    <img th:src="${denom.image}" class="me-2"
-                                        style="width: 50px; height: 50px; object-fit: contain;">
-                                    <div>
-                                        <div class="fw-bold" th:text="${#numbers.formatDecimal(denom.value, 1, 2)}">0.00
-                                        </div>
-                                        <small class="text-muted" th:text="${denom.type}">BANKNOTE</small>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
-                                    th:onclick="|removeDenomination(${iter.index})|">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                                <input type="hidden" th:name="|moneyDenominations[${iter.index}].value|"
-                                    th:value="${denom.value}">
-                                <input type="hidden" th:name="|moneyDenominations[${iter.index}].image|"
-                                    th:value="${denom.image}">
-                                <input type="hidden" th:name="|moneyDenominations[${iter.index}].type|"
-                                    th:value="${denom.type}">
+                <div class="bo-field">
+                    <label class="bo-label" th:text="#{backoffice.payment.denominations.title}">Money Denominations (for Counter UI)</label>
+                    <div id="payment-denominations-list" class="bo-denom-grid">
+                        <div th:each="denom, iter : ${paymentConfig.moneyDenominations}" class="bo-denom-card">
+                            <img th:src="${denom.image}" class="bo-denom-img" th:alt="${#numbers.formatDecimal(denom.value, 1, 2)}">
+                            <div class="bo-denom-info">
+                                <div class="bo-denom-value" th:text="${#numbers.formatDecimal(denom.value, 1, 2)}">0.00</div>
+                                <span class="bo-quick-meta"
+                                    th:text="#{${'backoffice.payment.denom.type.' + #strings.toLowerCase(denom.type)}}">Banknote</span>
                             </div>
+                            <button type="button" class="bo-icon-btn bo-icon-btn-danger"
+                                th:onclick="|removeDenomination(${iter.index})|"
+                                th:aria-label="#{backoffice.action.remove}" th:title="#{backoffice.action.remove}">
+                                <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                            </button>
+                            <input type="hidden" th:name="|moneyDenominations[${iter.index}].value|" th:value="${denom.value}">
+                            <input type="hidden" th:name="|moneyDenominations[${iter.index}].image|" th:value="${denom.image}">
+                            <input type="hidden" th:name="|moneyDenominations[${iter.index}].type|" th:value="${denom.type}">
                         </div>
                     </div>
 
-                    <div class="card bg-light p-3">
-                        <h6 th:text="#{backoffice.payment.denominations.new}">Add New Denomination</h6>
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-3">
-                                <label class="small" th:text="#{label.value}">Value</label>
-                                <input type="number" step="0.01" id="new-denom-value"
-                                    class="form-control form-control-sm" placeholder="0.00">
+                    <div class="bo-denom-add-card">
+                        <h4 class="bo-quick-heading" th:text="#{backoffice.payment.denominations.new}">Add New Denomination</h4>
+                        <div class="bo-denom-add-grid">
+                            <div>
+                                <label for="new-denom-value" class="bo-label" th:text="#{label.value}">Value</label>
+                                <input type="number" step="0.01" id="new-denom-value" class="bo-input" placeholder="0.00">
                             </div>
-                            <div class="col-md-3">
-                                <label class="small" th:text="#{label.type}">Type</label>
-                                <select id="new-denom-type" class="form-select form-select-sm">
-                                    <option value="BANKNOTE">Banknote</option>
-                                    <option value="COIN">Coin</option>
+                            <div>
+                                <label for="new-denom-type" class="bo-label" th:text="#{label.type}">Type</label>
+                                <select id="new-denom-type" class="bo-select">
+                                    <option value="BANKNOTE" th:text="#{backoffice.payment.denom.type.banknote}">Banknote</option>
+                                    <option value="COIN" th:text="#{backoffice.payment.denom.type.coin}">Coin</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="small" th:text="#{label.image}">Image</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" id="new-denom-image" class="form-control" readonly>
-                                    <button class="btn btn-outline-secondary" type="button"
+                            <div>
+                                <label for="new-denom-image" class="bo-label" th:text="#{label.image}">Image</label>
+                                <div class="bo-input-group">
+                                    <input type="text" id="new-denom-image" class="bo-input" readonly>
+                                    <button class="bo-icon-btn bo-icon-btn-neutral" type="button" id="btn-select-denom-image"
+                                        th:aria-label="#{backoffice.products.button.select.image}"
+                                        th:title="#{backoffice.products.button.select.image}"
                                         onclick="openDenomImageSelector()">
-                                        <i class="fas fa-image"></i>
+                                        <svg class="icon" aria-hidden="true"><use href="#i-image"></use></svg>
                                     </button>
                                 </div>
                             </div>
-                            <div class="col-md-2">
-                                <button type="button" class="btn btn-primary btn-sm w-100" onclick="addDenomination()">
-                                    <i class="fas fa-plus"></i> <span th:text="#{button.add}">Add</span>
+                            <div>
+                                <button type="button" class="bo-btn bo-btn-primary bo-btn-block" id="btn-add-denom" onclick="addDenomination()">
+                                    <svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>
+                                    <span th:text="#{button.add}">Add</span>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save me-1"></i> <span th:text="#{backoffice.payment.button.save}">Save
-                            Configuration</span>
+                <div class="bo-form-actions">
+                    <button type="submit" class="bo-btn bo-btn-success">
+                        <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                        <span th:text="#{backoffice.payment.button.save}">Save Configuration</span>
                     </button>
-                    <button type="button" class="btn btn-secondary ms-2" onclick="resetPaymentConfig()">
-                        <i class="fas fa-undo me-1"></i> <span>Reset</span>
+                    <button type="button" class="bo-btn bo-btn-secondary" onclick="resetPaymentConfig()">
+                        <svg class="icon" aria-hidden="true"><use href="#i-undo"></use></svg>
+                        <span th:text="#{backoffice.payment.button.reset}">Reset</span>
                     </button>
                 </div>
             </form>
@@ -538,113 +536,125 @@
 
 <!-- Discounts List -->
 <div th:fragment="discounts-list" th:remove="tag">
-    <div th:if="${#lists.isEmpty(discounts)}" class="text-center text-muted py-5">
-        <i class="fas fa-percentage fa-3x mb-3"></i>
+    <div th:if="${#lists.isEmpty(discounts)}" class="bo-empty">
+        <svg class="icon icon-3x" aria-hidden="true"><use href="#i-percent"></use></svg>
         <p th:text="#{backoffice.discounts.empty}">No discount rules found</p>
     </div>
-    <div th:each="rule : ${discounts}" class="cart-item mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-1">
-                    <i class="fas fa-percentage me-2"></i>
-                    <span th:text="${rule.name}">Promo Name</span>
-                </h5>
-                <div class="small">
-                    <span class="badge bg-secondary"><span th:text="#{backoffice.discounts.label.scope} + ':'">Scope:</span> <span th:text="${rule.scope}">ORDER</span></span>
-                    <span class="badge bg-info" th:text="${rule.type}">PERCENTAGE</span>
-                    <span class="badge bg-dark"><span th:text="#{label.value} + ':'">Value:</span> <span th:text="${rule.value}">10</span></span>
-                    <span th:if="${rule.couponCode != null && !rule.couponCode.empty}" class="badge bg-warning text-dark">
-                        <span th:text="#{backoffice.discounts.label.code} + ':'">Code:</span> <span th:text="${rule.couponCode}">SUMMER</span>
-                    </span>
-                    <span th:class="|badge ${rule.accumulative ? 'bg-primary' : 'bg-secondary'}|"
-                        th:text="${rule.accumulative ? 'Accumulative' : 'Not Accumulative'}">Accumulative</span>
-                    <span th:class="|badge ${rule.applyOnCounter ? 'bg-success' : 'bg-secondary'}|"
-                        th:text="${rule.applyOnCounter ? 'Counter POS Active' : 'Counter POS Inactive'}">Counter POS Active</span>
-                    <span th:class="|badge ${rule.active ? 'bg-success' : 'bg-secondary'}|"
-                        th:text="${rule.active ? 'Active' : 'Inactive'}">Active</span>
-                </div>
+    <div th:each="rule : ${discounts}" class="bo-item-card">
+        <div class="bo-item-body">
+            <h2 class="bo-item-title">
+                <svg class="icon" aria-hidden="true"><use href="#i-percent"></use></svg>
+                <span th:text="${rule.name}">Promo Name</span>
+            </h2>
+            <div class="bo-badges">
+                <span class="bo-badge">
+                    <span th:text="#{backoffice.discounts.label.scope} + ':'">Scope:</span>
+                    <span th:text="#{${'backoffice.discounts.scope.' + #strings.toLowerCase(rule.scope)}}">ORDER</span>
+                </span>
+                <span class="bo-badge bo-badge-primary"
+                    th:text="#{${'backoffice.discounts.type.' + #strings.toLowerCase(rule.type)}}">PERCENTAGE</span>
+                <span class="bo-badge">
+                    <span th:text="#{label.value} + ':'">Value:</span>
+                    <span th:text="${rule.value}">10</span>
+                </span>
+                <span th:if="${rule.couponCode != null && !#strings.isEmpty(rule.couponCode)}" class="bo-badge bo-badge-warning">
+                    <span th:text="#{backoffice.discounts.label.code} + ':'">Code:</span>
+                    <span th:text="${rule.couponCode}">SUMMER</span>
+                </span>
+                <span th:class="|bo-badge ${rule.accumulative ? 'bo-badge-primary' : ''}|"
+                    th:text="${rule.accumulative ? #messages.msg('backoffice.discounts.badge.accumulative') : #messages.msg('backoffice.discounts.badge.not.accumulative')}">Accumulative</span>
+                <span th:class="|bo-badge ${rule.applyOnCounter ? 'bo-badge-success' : ''}|"
+                    th:text="${rule.applyOnCounter ? #messages.msg('backoffice.discounts.badge.counter.active') : #messages.msg('backoffice.discounts.badge.counter.inactive')}">Counter POS Active</span>
+                <span th:class="|bo-badge ${rule.active ? 'bo-badge-success' : ''}|"
+                    th:text="${rule.active ? #messages.msg('label.active') : #messages.msg('label.inactive')}">Active</span>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-sm btn-outline-primary" th:data-id="${rule.id}"
-                    onclick="editDiscount(this.dataset.id)">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" th:data-id="${rule.id}"
-                    onclick="manageDiscountTranslations(this.dataset.id)">
-                    <i class="fas fa-language"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger" th:data-id="${rule.id}"
-                    onclick="deleteDiscount(this.dataset.id)">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+        </div>
+        <div class="bo-item-actions">
+            <button type="button" class="bo-icon-btn bo-icon-btn-primary" th:data-id="${rule.id}"
+                th:aria-label="#{backoffice.action.edit}" th:title="#{backoffice.action.edit}"
+                onclick="editDiscount(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-neutral" th:data-id="${rule.id}"
+                th:aria-label="#{backoffice.action.translations}" th:title="#{backoffice.action.translations}"
+                onclick="manageDiscountTranslations(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-languages"></use></svg>
+            </button>
+            <button type="button" class="bo-icon-btn bo-icon-btn-danger" th:data-id="${rule.id}"
+                th:aria-label="#{backoffice.action.delete}" th:title="#{backoffice.action.delete}"
+                onclick="deleteDiscount(this.dataset.id)">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
         </div>
     </div>
 </div>
 
 <!-- Discount Form -->
 <div th:fragment="discount-form" th:remove="tag">
-    <div class="card product-card mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0" id="discount-form-title" th:text="#{backoffice.discounts.create.title}">Create New Discount</h5>
+    <div class="bo-card">
+        <div class="bo-card-header">
+            <h3 id="discount-form-title" th:text="#{backoffice.discounts.create.title}">Create New Discount</h3>
         </div>
-        <div class="card-body">
+        <div class="bo-card-body">
             <form id="discountFormElement">
                 <input type="hidden" id="discount-id">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="discount-name" class="form-label" th:text="#{backoffice.discounts.label.name}">Discount Name *</label>
-                        <input type="text" class="form-control" id="discount-name" required>
+                <div class="bo-form-grid-3">
+                    <div class="bo-field">
+                        <label for="discount-name" class="bo-label" th:text="#{backoffice.discounts.label.name}">Discount Name *</label>
+                        <input type="text" class="bo-input" id="discount-name" required>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="discount-scope" class="form-label" th:text="#{backoffice.discounts.label.scope}">Scope *</label>
-                        <select class="form-select" id="discount-scope" required>
-                            <option value="ORDER">Individual Order</option>
-                            <option value="TABLE">Whole Table Session</option>
+                    <div class="bo-field">
+                        <label for="discount-scope" class="bo-label" th:text="#{backoffice.discounts.label.scope}">Scope *</label>
+                        <select class="bo-select" id="discount-scope" required>
+                            <option value="ORDER" th:text="#{backoffice.discounts.scope.order}">Individual Order</option>
+                            <option value="TABLE" th:text="#{backoffice.discounts.scope.table}">Whole Table Session</option>
                         </select>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="discount-type" class="form-label" th:text="#{backoffice.discounts.label.type}">Type *</label>
-                        <select class="form-select" id="discount-type" required>
-                            <option value="PERCENTAGE">Percentage (%)</option>
-                            <option value="FIXED_AMOUNT">Fixed Value</option>
+                    <div class="bo-field">
+                        <label for="discount-type" class="bo-label" th:text="#{backoffice.discounts.label.type}">Type *</label>
+                        <select class="bo-select" id="discount-type" required>
+                            <option value="PERCENTAGE" th:text="#{backoffice.discounts.type.percentage}">Percentage (%)</option>
+                            <option value="FIXED_AMOUNT" th:text="#{backoffice.discounts.type.fixed_amount}">Fixed Value</option>
                         </select>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="discount-value" class="form-label" th:text="#{label.value}">Value *</label>
-                        <input type="number" step="0.01" class="form-control" id="discount-value" required>
+                <div class="bo-form-grid-equal-3">
+                    <div class="bo-field">
+                        <label for="discount-value" class="bo-label" th:text="#{label.value}">Value *</label>
+                        <input type="number" step="0.01" class="bo-input" id="discount-value" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="discount-minSubtotal" class="form-label" th:text="#{backoffice.discounts.label.minsubtotal}">Min Subtotal *</label>
-                        <input type="number" step="0.01" class="form-control" id="discount-minSubtotal" value="0.00" required>
+                    <div class="bo-field">
+                        <label for="discount-minSubtotal" class="bo-label" th:text="#{backoffice.discounts.label.minsubtotal}">Min Subtotal *</label>
+                        <input type="number" step="0.01" class="bo-input" id="discount-minSubtotal" value="0.00" required>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="discount-couponCode" class="form-label" th:text="#{backoffice.discounts.label.code}">Coupon Code (leave blank if automatic)</label>
-                        <input type="text" class="form-control" id="discount-couponCode">
-                    </div>
-                </div>
-                <div class="mb-3 d-flex gap-4">
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="discount-active" checked>
-                        <label class="form-check-label" for="discount-active" th:text="#{label.active}">Active</label>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="discount-accumulative">
-                        <label class="form-check-label" for="discount-accumulative" th:text="#{backoffice.discounts.label.accumulative}">Accumulative</label>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="discount-applyOnCounter">
-                        <label class="form-check-label" for="discount-applyOnCounter" th:text="#{backoffice.discounts.label.applyoncounter}">Apply on Counter POS</label>
+                    <div class="bo-field">
+                        <label for="discount-couponCode" class="bo-label" th:text="#{backoffice.discounts.label.code}">Coupon Code</label>
+                        <input type="text" class="bo-input" id="discount-couponCode"
+                            th:placeholder="#{backoffice.discounts.placeholder.code}">
                     </div>
                 </div>
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> <span th:text="#{backoffice.discounts.button.save}">Save Discount</span>
+                <div class="bo-check-group">
+                    <div class="bo-check-row bo-check-inline">
+                        <input type="checkbox" id="discount-active" checked>
+                        <label for="discount-active" th:text="#{label.active}">Active</label>
+                    </div>
+                    <div class="bo-check-row bo-check-inline">
+                        <input type="checkbox" id="discount-accumulative">
+                        <label for="discount-accumulative" th:text="#{backoffice.discounts.label.accumulative}">Accumulative</label>
+                    </div>
+                    <div class="bo-check-row bo-check-inline">
+                        <input type="checkbox" id="discount-applyOnCounter">
+                        <label for="discount-applyOnCounter" th:text="#{backoffice.discounts.label.applyoncounter}">Apply on Counter POS</label>
+                    </div>
+                </div>
+                <div class="bo-form-actions">
+                    <button type="submit" class="bo-btn bo-btn-success">
+                        <svg class="icon" aria-hidden="true"><use href="#i-save"></use></svg>
+                        <span th:text="#{backoffice.discounts.button.save}">Save Discount</span>
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="cancelForm()">
-                        <i class="fas fa-times"></i> <span th:text="#{button.cancel}">Cancel</span>
+                    <button type="button" class="bo-btn bo-btn-secondary" onclick="cancelForm()">
+                        <svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg>
+                        <span th:text="#{button.cancel}">Cancel</span>
                     </button>
                 </div>
             </form>

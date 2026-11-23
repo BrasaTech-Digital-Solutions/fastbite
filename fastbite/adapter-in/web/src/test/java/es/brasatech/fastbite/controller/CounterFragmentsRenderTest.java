@@ -1,7 +1,13 @@
 package es.brasatech.fastbite.controller;
 
 import es.brasatech.fastbite.config.PriceDialect;
+import es.brasatech.fastbite.domain.discount.DiscountRule;
+import es.brasatech.fastbite.domain.discount.DiscountScope;
+import es.brasatech.fastbite.domain.discount.DiscountType;
 import es.brasatech.fastbite.domain.group.Group;
+import es.brasatech.fastbite.domain.payment.MoneyDenomination;
+import es.brasatech.fastbite.domain.payment.MoneyType;
+import es.brasatech.fastbite.domain.payment.PaymentConfig;
 import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import es.brasatech.fastbite.domain.table.Table;
 import es.brasatech.fastbite.domain.table.TableStatus;
@@ -92,6 +98,46 @@ class CounterFragmentsRenderTest {
         assertThat(html).contains("status-available", "status-occupied", "status-billing");
         assertThat(visibleText).contains("DISPONIBLE", "OCUPADA", "FACTURACIÓN")
                 .doesNotContain("AVAILABLE", "OCCUPIED", "BILLING");
+    }
+
+    @Test
+    void backOfficeTablesListAndFormRenderTranslatedStatusWithRealTableRecords() {
+        Context listCtx = new Context(Locale.forLanguageTag("es"));
+        listCtx.setVariable("tables", oneTablePerStatus());
+        String listHtml = engine.process("templates/fastfood/fragments/backOffice.html", Set.of("tables-list"), listCtx);
+        String listText = listHtml.replaceAll("<[^>]+>", " ");
+        assertThat(listHtml).contains("bo-item-card", "bo-icon-btn", "openTableQr(this.dataset.id)")
+                .doesNotContain("cart-item", "btn-group", "fa-");
+        assertThat(listText).contains("DISPONIBLE", "OCUPADA", "FACTURACIÓN", "Activo")
+                .doesNotContain("AVAILABLE", "OCCUPIED", "BILLING", "Active");
+
+        Context formCtx = new Context(Locale.forLanguageTag("es"));
+        formCtx.setVariable("statuses", List.of(TableStatus.values()));
+        String formHtml = engine.process("templates/fastfood/fragments/backOffice.html", Set.of("table-form"), formCtx);
+        assertThat(formHtml).contains("bo-card", "value=\"AVAILABLE\"", "value=\"OCCUPIED\"", "value=\"BILLING\"")
+                .contains(">DISPONIBLE<", ">OCUPADA<", ">FACTURACIÓN<")
+                .doesNotContain("form-select", "form-control", "fa-");
+    }
+
+    @Test
+    void backOfficePaymentAndDiscountsRenderNativeSpanishWithRealRecords() {
+        PaymentConfig cfg = new PaymentConfig("default", List.of("CASH", "CARD"),
+                List.of(new MoneyDenomination(new BigDecimal("20.00"), "/images/money/20.png", MoneyType.BANKNOTE)), true);
+        Context payCtx = new Context(Locale.forLanguageTag("es"));
+        payCtx.setVariable("paymentConfig", cfg);
+        payCtx.setVariable("allConfigs", List.of(cfg));
+        String payHtml = engine.process("templates/fastfood/fragments/backOffice.html", Set.of("payment-section"), payCtx);
+        assertThat(payHtml).contains("bo-payment-grid", "bo-denom-grid", "openDenomImageSelector()",
+                        "Efectivo", "Tarjeta", "Billete", "Activo")
+                .doesNotContain("style=", "form-select", "fa-", "Design ID/Name");
+
+        DiscountRule rule = new DiscountRule("d-1", "Promo Verano", DiscountScope.ORDER, DiscountType.PERCENTAGE,
+                new BigDecimal("10"), new BigDecimal("5.00"), "VERANO10", true, false, true);
+        Context discCtx = new Context(Locale.forLanguageTag("es"));
+        discCtx.setVariable("discounts", List.of(rule));
+        String discHtml = engine.process("templates/fastfood/fragments/backOffice.html", Set.of("discounts-list"), discCtx);
+        assertThat(discHtml).contains("bo-item-card", "Promo Verano", "VERANO10", "Activo", "Activo en caja", "No acumulable")
+                .doesNotContain("cart-item", "btn-group", "fa-", "Counter POS Active", "Not Accumulative");
     }
 
     @Test
