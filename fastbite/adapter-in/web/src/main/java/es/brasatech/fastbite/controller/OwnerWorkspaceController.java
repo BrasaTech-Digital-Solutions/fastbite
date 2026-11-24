@@ -80,7 +80,7 @@ public class OwnerWorkspaceController {
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
             @RequestParam(required=false) String location,@RequestParam(defaultValue="general") String section,
-            Locale locale) {
+            @RequestParam(defaultValue="false") boolean opening, Locale locale) {
         if(owner==null) return "redirect:/login";
         if(!Set.of("overview","locations","team","location-settings","settings", "restaurants", "billing", "account", "today", "menu", "tickets", "location-config", "data").contains(view)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if(!Set.of("general","legal","appearance","payments","domain","backup","advanced").contains(section)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
@@ -153,6 +153,7 @@ public class OwnerWorkspaceController {
         model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
         model.addAttribute("marketingConsent",acceptances.mayReceiveOffers(owner.getName()));
         model.addAttribute("selected",selected);model.addAttribute("view",view);model.addAttribute("section",section);model.addAttribute("workspaceArea",area);
+        model.addAttribute("showOpening", opening);
         model.addAttribute("themes",themes.all());
         model.addAttribute("ownerTheme",themes.resolve(appearance.ownerTheme(owner.getName())));
         model.addAttribute("demoTemplates",backups.getAvailableTemplates(locale!=null?locale:Locale.getDefault()));
@@ -172,8 +173,8 @@ public class OwnerWorkspaceController {
             } else {
                 model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
                 model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
-                if (!environment.sandbox() && view.equals("overview") && verifactuAuthorizations != null
-                        && !workspace.isOpened(owner.getName(), selected.tenantId())) {
+                if (view.equals("overview") && verifactuAuthorizations != null
+                        && (environment.sandbox() || !workspace.isOpened(owner.getName(), selected.tenantId()))) {
                     FiscalProfile currentFiscal = workspace.fiscalProfile(owner.getName(), selected.tenantId());
                     if (currentFiscal != null && currentFiscal.taxId() != null && !currentFiscal.taxId().isBlank()) {
                         verifactuAuthorizations.refreshForNifOnPageLoad(currentFiscal.taxId());
@@ -189,9 +190,11 @@ public class OwnerWorkspaceController {
                     model.addAttribute("trialEndsSoon", updatedTrialEnd != null && updatedTrialEnd.isAfter(clock.instant())
                             && !updatedTrialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
                 }
-                if (!environment.sandbox() && view.equals("overview")) {
+                if (view.equals("overview")) {
                     model.addAttribute("verifactuStep", buildVerifactuStep(setup.fiscal()));
-                    model.addAttribute("ordersNeedingRefund", workspace.ordersNeedingRefund(owner.getName(), selected.tenantId()));
+                    if (!environment.sandbox()) {
+                        model.addAttribute("ordersNeedingRefund", workspace.ordersNeedingRefund(owner.getName(), selected.tenantId()));
+                    }
                 }
                 if (view.equals("overview") && setup.opened() && !environment.sandbox()) {
                     model.addAttribute("todayVerifactu", workspace.verifactuSummary(owner.getName(), selected.tenantId(), false));
@@ -557,7 +560,6 @@ public class OwnerWorkspaceController {
      * Starts or resumes Digital Sign VERI*FACTU Anexo I signing for this location's NIF.
      * Redirects directly to the signing URL (opened in a new tab by the form) without logging or storing it.
      */
-    @ProductionOnly
     @PostMapping("/owner/workspace/{tenant}/verifactu/authorize")
     public String startVerifactuAuthorization(@PathVariable String tenant, Principal owner,
             RedirectAttributes flash, Locale locale) {
@@ -574,6 +576,11 @@ public class OwnerWorkspaceController {
         String ownerEmail = signerOpt.map(OwnerWorkspacePort.OwnerSigner::verifiedEmail)
                 .filter(email -> email != null && !email.isBlank())
                 .orElse(null);
+        if (ownerEmail == null && environment.sandbox()) {
+            ownerEmail = fiscal != null && fiscal.email() != null && !fiscal.email().isBlank()
+                    ? fiscal.email().strip()
+                    : "sandbox@brasatech.es";
+        }
         String lang = locale != null ? locale.getLanguage() : "es";
         StartSigningResult result = verifactuAuthorizations.startSigning(
                 fiscal, owner.getName(), ownerName, ownerEmail, lang);
@@ -591,6 +598,7 @@ public class OwnerWorkspaceController {
                 String msgKey = switch (result.reason() == null ? "" : result.reason()) {
                     case "DOWNLOAD_FAILED" -> "opening.verifactu.reason.download_failed";
                     case "TEST_ENVIRONMENT" -> "opening.verifactu.reason.test_environment";
+                    case "LIVE_ENVIRONMENT" -> "opening.verifactu.reason.live_environment";
                     default -> "opening.verifactu.reason.signing_unavailable";
                 };
                 flash.addFlashAttribute("error", workspaceMessage(msgKey));
@@ -600,7 +608,6 @@ public class OwnerWorkspaceController {
     }
 
     /** User-driven status refresh ("Comprobar ahora") for an active VERI*FACTU authorisation. */
-    @ProductionOnly
     @PostMapping("/owner/workspace/{tenant}/verifactu/refresh")
     public String refreshVerifactuAuthorization(@PathVariable String tenant, Principal owner,
             RedirectAttributes flash) {
@@ -654,7 +661,7 @@ public class OwnerWorkspaceController {
         }
         VerifactuAuthorization auth = currentOpt.get();
         if (auth.isCurrentlyValid()) {
-            if (verifactuAuthorizations.isCollaborationActive()) {
+            if (environment.sandbox() || verifactuAuthorizations.isCollaborationActive()) {
                 return new VerifactuStepView(
                         true, nif, legalName, "VALID",
                         "opening.verifactu.status.valid", null,
@@ -684,6 +691,7 @@ public class OwnerWorkspaceController {
             case NIF_MISMATCH -> "opening.verifactu.reason.nif_mismatch";
             case NIF_UNVERIFIED -> "opening.verifactu.reason.nif_unverified";
             case TEST_ENVIRONMENT -> "opening.verifactu.reason.test_environment";
+            case LIVE_ENVIRONMENT -> "opening.verifactu.reason.live_environment";
             case DOCUMENTS_GONE -> {
                 if ("REQUEST_NOT_FOUND".equals(auth.failureReason())) {
                     yield "opening.verifactu.reason.request_not_found";

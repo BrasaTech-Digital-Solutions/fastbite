@@ -303,4 +303,50 @@ class VerifactuBannerAndAdminWebTest {
                     .andExpect(status().isNotFound());
         }
     }
+
+    @Nested
+    @TestPropertySource(properties = {
+            "fastbite.environment=production",
+            "fastbite.platform.admins=ricardo",
+            "fastbite.link.url=https://sandbox.example",
+            "fastbite.link.secret=0123456789abcdef0123456789abcdef"
+    })
+    class LinkedProductionTests extends BaseWebTest {
+
+        @Test
+        void holdBannerLinkLandsOnVerifactuStepEvenWhenLocationNeedsStart() throws Exception {
+            FiscalProfile profile = new FiscalProfile(
+                    "La Casita S.L.", "La Casita", "B12345674", "Calle Mayor 1", "28013", "Madrid", "Madrid",
+                    null, null, "LC", new BigDecimal("10"));
+            OwnerWorkspaceService.Summary needsStartSummary = new OwnerWorkspaceService.Summary(
+                    SetupProgress.EMPTY, 0, RestaurantSettings.DEFAULTS,
+                    profile, null, false, false, false);
+            when(workspace.summary(OWNER, TENANT)).thenReturn(needsStartSummary);
+            when(gate.holdReason(TENANT)).thenReturn(Optional.of(HoldReason.NOT_SIGNED));
+
+            // Initial screen shows the sandbox card and the yellow on-hold banner with ?opening=1#opening-step-verifactu
+            String initialHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                            .locale(Locale.forLanguageTag("es"))
+                            .with(user(ownerPrincipal(OWNER))))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+
+            assertThat(initialHtml)
+                    .contains("production-sandbox-card")
+                    .contains("/owner/console?view=today&amp;location=" + TENANT + "&amp;opening=1#opening-step-verifactu")
+                    .doesNotContain("id=\"opening-step-verifactu\"");
+
+            // Following the banner link renders the opening checklist containing id="opening-step-verifactu"
+            String targetHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT + "&opening=1")
+                            .locale(Locale.forLanguageTag("es"))
+                            .with(user(ownerPrincipal(OWNER))))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+
+            assertThat(targetHtml)
+                    .contains("id=\"opening-step-verifactu\"")
+                    .contains("B12345674")
+                    .doesNotContain("production-sandbox-card");
+        }
+    }
 }

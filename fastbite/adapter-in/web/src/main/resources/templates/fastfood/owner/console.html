@@ -26,7 +26,7 @@
 <p id="workspace-feedback" class="alert" role="status" hidden></p>
 <section th:if="${view=='overview' && workspaceArea!='menu' && selected!=null && (locationClosed==null || !locationClosed)}">
 <div class="page-heading"><div><p class="eyebrow" th:text="#{workspace.heading.eyebrow}">A LITTLE MORE FLOW, EVERY DAY</p><h1 th:text="${setup.sandbox() ? #messages.msg('workspace.heading.ready.title') : (setup.opened() ? #messages.msg('workspace.today.title', selected.tenantId) : #messages.msg('opening.title', selected.tenantId))}">Let’s get your restaurant ready.</h1><p th:text="${setup.sandbox() ? #messages.msg('workspace.heading.ready.subtitle') : (setup.opened() ? #messages.msg('workspace.today.subtitle') : #messages.msg('opening.subtitle'))}">A few simple steps, at your pace. We’ll save your progress as you go.</p></div><a class="status-pill" th:unless="${linkedSandbox}" th:href="@{/owner/billing/{tenant}(tenant=${selected.tenantId})}" th:text="${#messages.msg('workspace.heading.billing.status', billingStatusLabel)}"></a><a class="status-pill" th:if="${linkedSandbox}" th:href="${platform.productionUrl()+'/owner/billing/'+selected.tenantId}" target="_blank" rel="noopener" th:text="#{workspace.heading.billing.sandbox}">Billing in FastBite ↗</a></div>
-<section class="production-sandbox-card" th:if="${linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
+<section class="production-sandbox-card" th:if="${linkedProduction && setup.needsStart() && !setup.progress.dismissed && !(showOpening == true)}">
 <div>
 <p class="eyebrow" th:text="#{workspace.prod.sandbox.eyebrow}">START IN THE SANDBOX</p>
 <h2 th:text="${#messages.msg('workspace.prod.sandbox.title', selected.tenantId)}">Set up your restaurant in the sandbox</h2>
@@ -213,6 +213,23 @@
 </div>
 </aside>
 </div>
+<section id="opening-step-verifactu" class="panel" th:if="${setup.sandbox() && verifactuStep != null}">
+<div class="panel-heading"><h2><span th:text="#{opening.verifactu.title}">VERI*FACTU</span> <span class="opening-tag opening-tag-conditional" th:text="#{opening.verifactu.sandbox.tag}">Test signature</span></h2></div>
+<p th:text="#{opening.verifactu.sandbox.desc}">Test signature with no legal value. Try the AEAT representation authorisation (Anexo I) flow in this practice space; training tickets are always allowed.</p>
+<th:block th:if="${verifactuStep.fiscalComplete()}">
+<p class="fine" th:text="#{opening.verifactu.fiscal.summary(${verifactuStep.legalName()}, ${verifactuStep.nif()})}"></p>
+<p><strong th:text="${#messages.msg(verifactuStep.statusMessageKey())}"></strong><span th:if="${verifactuStep.reasonMessageKey() != null}" th:text="${' — ' + #messages.msg(verifactuStep.reasonMessageKey())}"></span></p>
+<div class="billing-actions">
+<form th:if="${verifactuStep.canSign()}" th:action="@{/owner/workspace/{tenant}/verifactu/authorize(tenant=${selected.tenantId})}" method="post" target="_blank"><button type="submit" class="button" th:text="#{opening.verifactu.action.sign}">Sign with digital certificate</button></form>
+<form th:if="${verifactuStep.canRetry()}" th:action="@{/owner/workspace/{tenant}/verifactu/authorize(tenant=${selected.tenantId})}" method="post" target="_blank"><button type="submit" class="button" th:text="#{opening.verifactu.action.retry}">Sign again</button></form>
+<form th:if="${verifactuStep.canRefresh()}" th:action="@{/owner/workspace/{tenant}/verifactu/refresh(tenant=${selected.tenantId})}" method="post"><button type="submit" class="quiet-button" th:text="#{opening.verifactu.action.refresh}">Check now</button></form>
+</div>
+</th:block>
+<th:block th:unless="${verifactuStep.fiscalComplete()}">
+<p class="fine" th:text="#{opening.verifactu.status.fiscal_required}"></p>
+<a class="text-link" th:href="@{/owner/console(view='tickets',location=${selected.tenantId})}" th:text="#{opening.fiscal.action}"></a>
+</th:block>
+</section>
 <th:block th:unless="${setup.sandbox()}">
 <section th:replace="~{fastfood/owner/opening :: content}"></section>
 </th:block>

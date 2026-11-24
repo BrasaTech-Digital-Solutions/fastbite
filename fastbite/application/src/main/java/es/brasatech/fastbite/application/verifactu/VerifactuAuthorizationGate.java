@@ -121,6 +121,7 @@ public class VerifactuAuthorizationGate {
             case NIF_MISMATCH -> HoldReason.NIF_MISMATCH;
             case NIF_UNVERIFIED -> HoldReason.NIF_UNVERIFIED;
             case TEST_ENVIRONMENT -> HoldReason.TEST_ENVIRONMENT;
+            case LIVE_ENVIRONMENT -> HoldReason.NOT_SIGNED;
             case DOCUMENTS_GONE -> HoldReason.DOCUMENTS_GONE;
             case REVOKED -> HoldReason.REVOKED;
             case VALID -> {

@@ -72,7 +72,7 @@ function templatePayload(id) {
   };
 }
 
-function postWebhook(eventType, requestId) {
+function postWebhook(eventType, requestId, webhookUrl) {
   const eventId = `evt_mock_${crypto.randomUUID()}`;
   const rawBody = Buffer.from(JSON.stringify({
     id: eventId,
@@ -87,7 +87,7 @@ function postWebhook(eventType, requestId) {
     .digest('hex');
 
   return new Promise((resolve, reject) => {
-    const target = new URL(WEBHOOK_URL);
+    const target = new URL(webhookUrl || WEBHOOK_URL);
     const req = http.request({
       hostname: target.hostname,
       port: target.port || 80,
@@ -179,7 +179,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       const eventType = targetStatus === 'COMPLETED' ? 'request.completed' : `request.${targetStatus.toLowerCase()}`;
-      const webhookResult = await postWebhook(eventType, id);
+      const webhookResult = await postWebhook(eventType, id, opts.webhookUrl);
       return sendJson(res, 200, {
         requestId: id,
         status: stored.status,

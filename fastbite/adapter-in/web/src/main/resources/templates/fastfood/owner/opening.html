@@ -1,5 +1,5 @@
 <!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><body>
-<section th:fragment="content" th:unless="${linkedProduction && setup.needsStart() && !setup.progress.dismissed}">
+<section th:fragment="content" th:unless="${linkedProduction && setup.needsStart() && !setup.progress.dismissed && !(showOpening == true)}">
 <div class="opening-layout">
 <section class="panel" th:if="${ordersNeedingRefund != null && !#lists.isEmpty(ordersNeedingRefund)}" role="alert">
 <h2 th:text="#{workspace.refunds.needed.title}">Online orders needing refund</h2>

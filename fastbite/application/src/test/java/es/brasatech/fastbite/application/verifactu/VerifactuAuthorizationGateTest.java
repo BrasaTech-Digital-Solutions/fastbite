@@ -144,6 +144,14 @@ class VerifactuAuthorizationGateTest {
                 new PlatformEnvironment("sandbox"), fiscalProfiles, authorizations);
         assertThat(sandboxGate.mayIssueTickets("bistro")).isTrue();
         assertThat(sandboxGate.holdReason("bistro")).isEmpty();
+
+        VerifactuAuthorization liveEnv = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Kebab House SL", VerifactuAuthorizationStatus.LIVE_ENVIRONMENT,
+                "req-live", "verifactu-B09767898-2", 2, "tpl-1", "Ana", null,
+                null, null, null, null, "LIVE_ENVIRONMENT", "ana", now, now, null, null, now, 1);
+        when(authorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(liveEnv));
+        assertThat(sandboxGate.mayIssueTickets("bistro")).isTrue();
+        assertThat(sandboxGate.holdReason("bistro")).isEmpty();
     }
 
     @Test

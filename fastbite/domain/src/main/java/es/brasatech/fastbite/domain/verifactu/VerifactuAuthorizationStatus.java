@@ -19,6 +19,8 @@ public enum VerifactuAuthorizationStatus {
     NIF_UNVERIFIED,
     /** Signed or created in Digital Sign's test environment; never valid in production. */
     TEST_ENVIRONMENT,
+    /** Signed or created in Digital Sign's live environment; never valid in the sandbox. */
+    LIVE_ENVIRONMENT,
     /** Signer declined the request in Digital Sign. */
     DECLINED,
     /** Signing request expired in Digital Sign. */

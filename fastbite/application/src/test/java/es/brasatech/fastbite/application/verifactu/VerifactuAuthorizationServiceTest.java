@@ -13,6 +13,7 @@ import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate;
 import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate.TemplateField;
 import es.brasatech.fastbite.application.digitalsign.DigitalSignTemplate.TemplateSigner;
 import es.brasatech.fastbite.application.digitalsign.SigningUrlResponse;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationDocumentStorage.StoredDocument;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.ReconcileSummary;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
@@ -617,6 +618,145 @@ class VerifactuAuthorizationServiceTest {
         assertThat(inserted.getValue().failureReason()).isEqualTo("TEST_ENVIRONMENT");
         assertThat(inserted.getValue().validFrom()).isNull();
         verify(client, never()).createSigningUrl(anyString(), anyString());
+    }
+
+    @Test
+    void sandboxAcceptsTestRequestOnCreateAndSyncToValid() {
+        VerifactuAuthorizationService sandboxService = new VerifactuAuthorizationService(
+                store, storage, client, properties,
+                new PlatformEnvironment("sandbox"), Clock.fixed(NOW, ZoneOffset.UTC), false,
+                "BRASATECH DIGITAL SOLUTIONS, S.L.U.", "B09767898",
+                "Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España");
+
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setLegalName("fld_legal");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(1);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(
+                        new TemplateField("fld_legal", "Razón social", "TEXT", true, "NONE"),
+                        new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+        RequestSigner pendingSigner = new RequestSigner(
+                "Representante", "Ana Lopez", "ana@example.es", "es", "PENDING", null,
+                "https://digital-sign.brasatech.es/sign/sandbox-test-url", List.of(),
+                "CERTIFICATE", "B09767898", "PENDING", null);
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1")))
+                .thenReturn(new CreateRequestResult(
+                        new DigitalSignRequest("req-sbx-test", "IN_PROGRESS", "ext", "Anexo I", NOW, null, null,
+                                List.of(pendingSigner), new RequestDocuments(false, false), true),
+                        false));
+
+        StartSigningResult started = sandboxService.startSigning(
+                completeProfile("B09767898"), "owner1", "Ana Lopez", "ana@example.es", "es");
+
+        assertThat(started.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_URL);
+        assertThat(started.signingUrl()).isEqualTo("https://digital-sign.brasatech.es/sign/sandbox-test-url");
+        assertThat(started.authorization().status()).isEqualTo(VerifactuAuthorizationStatus.IN_PROGRESS);
+
+        VerifactuAuthorization inProgress = started.authorization();
+        when(store.findByDigitalSignRequestId("req-sbx-test")).thenReturn(Optional.of(inProgress));
+        RequestSigner signedSigner = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW,
+                null, List.of(), "CERTIFICATE", "B09767898", "READY",
+                Map.of("subject", "CN=ANA LOPEZ, OID.2.5.4.97=VATES-B09767898"));
+        when(client.getRequest(eq("req-sbx-test"), any())).thenReturn(new DigitalSignRequest(
+                "req-sbx-test", "COMPLETED", inProgress.id().toString(), "Anexo I", NOW.minusSeconds(60), null, NOW,
+                List.of(signedSigner), new RequestDocuments(true, true), true));
+        byte[] pdfBytes = "%PDF-1.4\n%test\n".getBytes();
+        when(client.downloadSignedDocument(eq("req-sbx-test"), any())).thenReturn(pdfBytes);
+        when(client.downloadEvidenceReport(eq("req-sbx-test"), any())).thenReturn(pdfBytes);
+        when(storage.storeSignedPdf(eq("B09767898"), eq(inProgress.id()), any()))
+                .thenReturn(new StoredDocument("B09767898/signed.pdf", "sha-s"));
+        when(storage.storeEvidencePdf(eq("B09767898"), eq(inProgress.id()), any()))
+                .thenReturn(new StoredDocument("B09767898/evidence.pdf", "sha-e"));
+
+        VerifactuAuthorization synced = sandboxService.syncRequestForWebhook("req-sbx-test").orElseThrow();
+
+        assertThat(synced.status()).isEqualTo(VerifactuAuthorizationStatus.VALID);
+        assertThat(synced.isCurrentlyValid()).isTrue();
+        assertThat(synced.validFrom()).isNotNull();
+    }
+
+    @Test
+    void sandboxRefusesLiveRequestOnCreateWithoutReturningSigningUrl() {
+        VerifactuAuthorizationService sandboxService = new VerifactuAuthorizationService(
+                store, storage, client, properties,
+                new PlatformEnvironment("sandbox"), Clock.fixed(NOW, ZoneOffset.UTC), false,
+                "BRASATECH DIGITAL SOLUTIONS, S.L.U.", "B09767898",
+                "Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España");
+
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setLegalName("fld_legal");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(1);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(
+                        new TemplateField("fld_legal", "Razón social", "TEXT", true, "NONE"),
+                        new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+        RequestSigner signer = new RequestSigner(
+                "Representante", "Ana Lopez", "ana@example.es", "es", "PENDING", null,
+                "https://digital-sign.brasatech.es/sign/live-secret-url", List.of(),
+                "CERTIFICATE", "B09767898", "PENDING", null);
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1")))
+                .thenReturn(new CreateRequestResult(
+                        new DigitalSignRequest("req-live-create", "IN_PROGRESS", "ext", "Anexo I", NOW, null, null,
+                                List.of(signer), new RequestDocuments(false, false), false),
+                        false));
+
+        StartSigningResult result = sandboxService.startSigning(
+                completeProfile("B09767898"), "owner1", "Ana Lopez", "ana@example.es", "es");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_UNAVAILABLE);
+        assertThat(result.reason()).isEqualTo("LIVE_ENVIRONMENT");
+        assertThat(result.signingUrl()).isNull();
+        ArgumentCaptor<VerifactuAuthorization> inserted = ArgumentCaptor.forClass(VerifactuAuthorization.class);
+        verify(store).insert(inserted.capture());
+        assertThat(inserted.getValue().status()).isEqualTo(VerifactuAuthorizationStatus.LIVE_ENVIRONMENT);
+        assertThat(inserted.getValue().failureReason()).isEqualTo("LIVE_ENVIRONMENT");
+        assertThat(inserted.getValue().validFrom()).isNull();
+        verify(client, never()).createSigningUrl(anyString(), anyString());
+    }
+
+    @Test
+    void sandboxRefusesLiveRequestOnSyncEvenWhenCompleted() {
+        VerifactuAuthorizationService sandboxService = new VerifactuAuthorizationService(
+                store, storage, client, properties,
+                new PlatformEnvironment("sandbox"), Clock.fixed(NOW, ZoneOffset.UTC), false,
+                "BRASATECH DIGITAL SOLUTIONS, S.L.U.", "B09767898",
+                "Calle Ganaderos, 24, bajo, 03130 Santa Pola (Alicante), España");
+
+        VerifactuAuthorization auth = inProgressAuth("B09767898", "req-live-completed");
+        when(store.findByDigitalSignRequestId("req-live-completed")).thenReturn(Optional.of(auth));
+
+        RequestSigner restaurantSigner = new RequestSigner(
+                "Representante", "Ana Lopez", null, "es", "SIGNED", NOW,
+                "https://digital-sign.brasatech.es/sign/live-secret-token", List.of(),
+                "CERTIFICATE", "B09767898", "READY",
+                Map.of("subject", "CN=ANA LOPEZ, OID.2.5.4.97=VATES-B09767898"));
+
+        when(client.getRequest(eq("req-live-completed"), any())).thenReturn(new DigitalSignRequest(
+                "req-live-completed", "COMPLETED", auth.id().toString(), "Anexo I", NOW.minusSeconds(60), null, NOW,
+                List.of(restaurantSigner), new RequestDocuments(true, true), false));
+
+        VerifactuAuthorization result = sandboxService.syncRequestForWebhook("req-live-completed").orElseThrow();
+
+        assertThat(result.status()).isEqualTo(VerifactuAuthorizationStatus.LIVE_ENVIRONMENT);
+        assertThat(result.status().isTerminal()).isTrue();
+        assertThat(result.isCurrentlyValid()).isFalse();
+        assertThat(result.validFrom()).isNull();
+        assertThat(result.failureReason()).isEqualTo("LIVE_ENVIRONMENT");
+        verify(client, never()).downloadSignedDocument(any(), any());
+        verify(client, never()).downloadEvidenceReport(any(), any());
     }
 
     @Test

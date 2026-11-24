@@ -410,6 +410,38 @@ public class VerifactuAuthorizationService {
             store.insert(refused);
             return StartSigningResult.unavailable("TEST_ENVIRONMENT");
         }
+        if (environment.sandbox() && !remoteRequest.test()) {
+            String remoteId = truncate(remoteRequest.id().strip(), 64);
+            log.warn("Refusing Digital Sign live-environment request {} on create in sandbox for VERI*FACTU authorisation {} (nif={})",
+                    remoteId, authorizationId, maskNif(nif));
+            VerifactuAuthorization refused = new VerifactuAuthorization(
+                    authorizationId,
+                    nif,
+                    legalName,
+                    VerifactuAuthorizationStatus.LIVE_ENVIRONMENT,
+                    remoteId,
+                    idempotencyKey,
+                    attempt,
+                    truncate(templateId, 64),
+                    signerName,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "LIVE_ENVIRONMENT",
+                    truncate(ownerUsername, 160),
+                    now,
+                    now,
+                    null,
+                    null,
+                    now,
+                    0,
+                    0,
+                    null);
+            store.insert(refused);
+            return StartSigningResult.unavailable("LIVE_ENVIRONMENT");
+        }
 
         VerifactuAuthorization record = new VerifactuAuthorization(
                 authorizationId,
@@ -775,6 +807,24 @@ public class VerifactuAuthorizationService {
                     current.evidencePdfPath(),
                     current.evidencePdfSha256(),
                     "TEST_ENVIRONMENT",
+                    null,
+                    now,
+                    0,
+                    null);
+            return persistWithCasRetry(candidate, requestId, deadline, allowRetries, countFailure, casAttempt);
+        }
+        if (environment.sandbox() && !remote.test()) {
+            log.warn("Refusing Digital Sign live-environment request {} in sandbox for VERI*FACTU authorisation {} (nif={}, remoteStatus={})",
+                    current.digitalSignRequestId(), current.id(), maskNif(current.nif()), remoteStatus);
+            VerifactuAuthorization candidate = current.withSync(
+                    VerifactuAuthorizationStatus.LIVE_ENVIRONMENT,
+                    signerName,
+                    current.certificateNif(),
+                    current.signedPdfPath(),
+                    current.signedPdfSha256(),
+                    current.evidencePdfPath(),
+                    current.evidencePdfSha256(),
+                    "LIVE_ENVIRONMENT",
                     null,
                     now,
                     0,

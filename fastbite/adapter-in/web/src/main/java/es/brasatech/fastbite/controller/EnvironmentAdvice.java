@@ -137,7 +137,7 @@ public class EnvironmentAdvice {
                     tenantId,
                     "verifactu.banner.owner",
                     holdReasonMessageKey(hold.get()),
-                    "/owner/console?view=today&location=" + tenantId + "#opening-step-verifactu",
+                    "/owner/console?view=today&location=" + tenantId + "&opening=1#opening-step-verifactu",
                     "verifactu.banner.owner.action");
         };
     }
