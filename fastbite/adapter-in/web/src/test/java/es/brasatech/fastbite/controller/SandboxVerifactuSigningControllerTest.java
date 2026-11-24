@@ -51,6 +51,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -60,6 +61,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -139,8 +141,11 @@ class SandboxVerifactuSigningControllerTest {
                 .andReturn().getResponse().getContentAsString();
         assertThat(esHtml)
                 .contains("id=\"opening-step-verifactu\"")
+                .contains("data-verifactu-status-url=\"/owner/workspace/bistro/verifactu/status\"")
+                .contains("data-verifactu-sign-form")
                 .contains("Firma de prueba sin validez legal")
-                .contains("Firmar con certificado digital");
+                .contains("Firmar con certificado digital")
+                .contains("Se abre una pestaña nueva. Cuando termines de firmar, vuelve aquí.");
 
         String enHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.ENGLISH)
@@ -149,7 +154,8 @@ class SandboxVerifactuSigningControllerTest {
                 .andReturn().getResponse().getContentAsString();
         assertThat(enHtml)
                 .contains("Test signature with no legal value")
-                .contains("Sign with digital certificate");
+                .contains("Sign with digital certificate")
+                .contains("Opens in a new tab. When you finish signing, come back here.");
 
         String ptHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.forLanguageTag("pt"))
@@ -158,7 +164,8 @@ class SandboxVerifactuSigningControllerTest {
                 .andReturn().getResponse().getContentAsString();
         assertThat(ptHtml)
                 .contains("Assinatura de teste sem valor legal")
-                .contains("Assinar com certificado digital");
+                .contains("Assinar com certificado digital")
+                .contains("Abre num novo separador. Quando terminares de assinar, volta aqui.");
     }
 
     @Test
@@ -316,5 +323,36 @@ class SandboxVerifactuSigningControllerTest {
         assertThat(afterHtml)
                 .contains("Firmar de nuevo")
                 .doesNotContain("data-verifactu-revoke");
+    }
+
+    @Test
+    void sandboxVerifactuStatusEndpointReturnsJsonAndRejectsForeignOwner() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization valid = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.VALID, "req-sbx-status", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", "B09767898", "B09767898/signed.pdf", "sha1",
+                "B09767898/evidence.pdf", "sha2", null, OWNER,
+                now, now, now, null, now, 1, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(false);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(valid));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/status")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.status").value("VALID"))
+                .andExpect(jsonPath("$.message").value("Firmada y verificada"))
+                .andExpect(jsonPath("$.finalState").value(true));
+
+        verify(verifactuAuthorizations).refreshForNifOnPageLoad("B09767898");
+
+        doThrow(new IllegalArgumentException("You do not own this location."))
+                .when(workspace).requireOwner(OWNER, "other");
+        mockMvc.perform(get("/owner/workspace/other/verifactu/status")
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isNotFound());
     }
 }

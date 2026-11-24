@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -64,6 +65,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -467,5 +469,93 @@ class OwnerVerifactuOpeningControllerTest {
         assertThat(afterHtml)
                 .contains("Firmar de nuevo")
                 .doesNotContain("data-verifactu-revoke");
+    }
+
+    @Test
+    void verifactuStatusEndpointUsesBudgetedRefreshThrottlesRepeatCallsAndRejectsForeignOwner() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization inProgress = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS, "req-status-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
+                now, now, null, null, now, 0, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(inProgress));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/status")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.message").value("Esperando la firma"))
+                .andExpect(jsonPath("$.finalState").value(false));
+
+        // Immediate repeat call within cooldown must NOT hammer Digital Sign again
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/status")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        verify(verifactuAuthorizations, times(1)).refreshForNifOnPageLoad("B09767898");
+        verify(verifactuAuthorizations, never()).refreshForNif(anyString());
+
+        // Transition to VALID reports finalState=true
+        VerifactuAuthorization valid = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.VALID, "req-status-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", "B09767898", "B09767898/signed.pdf", "sha1",
+                "B09767898/evidence.pdf", "sha2", null, OWNER,
+                now, now, now, null, now, 1, 0, null);
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(true);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(valid));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/status")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("VALID"))
+                .andExpect(jsonPath("$.message").value("Firmada y verificada"))
+                .andExpect(jsonPath("$.finalState").value(true));
+
+        // Foreign location -> 404
+        doThrow(new IllegalArgumentException("You do not own this location."))
+                .when(workspace).requireOwner(OWNER, "other");
+        mockMvc.perform(get("/owner/workspace/other/verifactu/status")
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void openingStepRendersNewTabHintAndStatusAttributesInAllLocales() throws Exception {
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.empty());
+
+        String esHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(esHtml)
+                .contains("data-verifactu-tenant=\"bistro\"")
+                .contains("data-verifactu-status-url=\"/owner/workspace/bistro/verifactu/status\"")
+                .contains("data-verifactu-state=\"NOT_SIGNED\"")
+                .contains("data-verifactu-sign-form")
+                .contains("Se abre una pestaña nueva. Cuando termines de firmar, vuelve aquí.");
+
+        String enHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                        .locale(Locale.ENGLISH)
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(enHtml).contains("Opens in a new tab. When you finish signing, come back here.");
+
+        String ptHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
+                        .locale(Locale.forLanguageTag("pt"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(ptHtml).contains("Abre num novo separador. Quando terminares de assinar, volta aqui.");
     }
 }

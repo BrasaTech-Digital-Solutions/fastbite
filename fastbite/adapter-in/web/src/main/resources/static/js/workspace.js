@@ -436,3 +436,151 @@ window.addEventListener('hashchange',openSection);openSection();
  if(cancelBtn){cancelBtn.addEventListener('click',()=>dialog.close());}
  dialog.addEventListener('close',()=>{trigger?.focus();});
 })();
+
+// VERI*FACTU signing return detection and bounded polling
+(() => {
+ const box=document.getElementById('opening-step-verifactu');
+ if(!box)return;
+ const statusUrl=box.dataset.verifactuStatusUrl;
+ if(!statusUrl)return;
+ const tenant=box.dataset.verifactuTenant||'';
+ const initialState=box.dataset.verifactuState||'';
+ const initialReasonKey=box.dataset.verifactuReasonKey||'';
+ const storageKey='fastbite.verifactu.signing.'+tenant;
+ const POLL_INTERVAL_MS=10000;
+ const MAX_POLL_MS=300000;
+ const DEBOUNCE_MS=1500;
+
+ const readStartedAt=()=>{
+  try{
+   const raw=window.sessionStorage.getItem(storageKey);
+   if(!raw)return null;
+   const ts=Number(raw);
+   if(!Number.isFinite(ts)||Date.now()-ts>=MAX_POLL_MS){
+    window.sessionStorage.removeItem(storageKey);
+    return null;
+   }
+   return ts;
+  }catch(_){
+   return null;
+  }
+ };
+ const clearStartedAt=()=>{
+  startedAt=null;
+  try{window.sessionStorage.removeItem(storageKey);}catch(_){}
+ };
+ const markStartedAt=()=>{
+  const now=Date.now();
+  startedAt=now;
+  try{window.sessionStorage.setItem(storageKey,String(now));}catch(_){}
+ };
+
+ let startedAt=readStartedAt();
+ if(initialState==='VALID'||initialState==='COLLABORATION_INACTIVE'){
+  clearStartedAt();
+ }
+ const inProgressAnchor=initialState==='IN_PROGRESS'?Date.now():null;
+ let pollTimer=null;
+ let inFlight=false;
+ let reloading=false;
+ let lastCheckAt=0;
+
+ const activeAnchor=()=>{
+  if(startedAt!==null){
+   if(Date.now()-startedAt<MAX_POLL_MS)return startedAt;
+   clearStartedAt();
+  }
+  if(inProgressAnchor!==null&&Date.now()-inProgressAnchor<MAX_POLL_MS){
+   return inProgressAnchor;
+  }
+  return null;
+ };
+
+ const stopPolling=()=>{
+  if(pollTimer!==null){
+   window.clearInterval(pollTimer);
+   pollTimer=null;
+  }
+ };
+
+ const checkStatus=async()=>{
+  if(inFlight||reloading)return;
+  if(activeAnchor()===null){stopPolling();return;}
+  const now=Date.now();
+  if(now-lastCheckAt<DEBOUNCE_MS)return;
+  inFlight=true;
+  lastCheckAt=now;
+  try{
+   const res=await fetch(statusUrl,{
+    method:'GET',
+    headers:{'Accept':'application/json'},
+    credentials:'same-origin',
+    cache:'no-store'
+   });
+   if(!res.ok||res.redirected){
+    stopPolling();
+    return;
+   }
+   const data=await res.json();
+   const nextState=data&&typeof data.status==='string'?data.status:'';
+   const nextReasonKey=data&&typeof data.reasonKey==='string'?data.reasonKey:'';
+   const changed=nextState!==initialState||nextReasonKey!==initialReasonKey;
+   const reachedValid=nextState==='VALID'||nextState==='COLLABORATION_INACTIVE';
+   if(data&&data.finalState&&(changed||reachedValid)){
+    clearStartedAt();
+    stopPolling();
+   }
+   if(changed){
+    reloading=true;
+    stopPolling();
+    window.location.reload();
+    return;
+   }
+   if(data&&data.finalState&&startedAt===null){
+    stopPolling();
+   }
+  }catch(_){
+   // Keep waiting until next visibility change or poll tick.
+  }finally{
+   inFlight=false;
+  }
+ };
+
+ const startPolling=()=>{
+  if(reloading||document.visibilityState!=='visible')return;
+  if(activeAnchor()===null){stopPolling();return;}
+  if(pollTimer!==null)return;
+  pollTimer=window.setInterval(()=>{
+   if(document.visibilityState!=='visible'){stopPolling();return;}
+   if(activeAnchor()===null){stopPolling();return;}
+   checkStatus();
+  },POLL_INTERVAL_MS);
+ };
+
+ box.addEventListener('submit',event=>{
+  const form=event.target.closest('[data-verifactu-sign-form]');
+  if(!form)return;
+  markStartedAt();
+  startPolling();
+ });
+
+ const handleReturn=()=>{
+  if(document.visibilityState!=='visible')return;
+  if(activeAnchor()===null){stopPolling();return;}
+  checkStatus();
+  startPolling();
+ };
+
+ document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+   handleReturn();
+  }else{
+   stopPolling();
+  }
+ });
+ window.addEventListener('focus',handleReturn);
+
+ if(activeAnchor()!==null&&document.visibilityState==='visible'){
+  startPolling();
+ }
+})();

@@ -105,7 +105,8 @@ class WebAdapterHintsTest {
         for (Class<?> type : new Class<?>[]{
                 es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.Summary.class,
                 es.brasatech.fastbite.application.tenant.OwnerWorkspaceService.PracticeTable.class,
-                es.brasatech.fastbite.domain.tenant.SetupProgress.class}) {
+                es.brasatech.fastbite.domain.tenant.SetupProgress.class,
+                es.brasatech.fastbite.controller.OwnerWorkspaceController.VerifactuStatusResponse.class}) {
             for (var method : type.getDeclaredMethods()) {
                 if (java.lang.reflect.Modifier.isPublic(method.getModifiers()) && !method.isSynthetic()) {
                     assertThat(RuntimeHintsPredicates.reflection().onMethodInvocation(method))

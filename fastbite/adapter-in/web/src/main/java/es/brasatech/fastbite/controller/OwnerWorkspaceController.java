@@ -20,6 +20,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -27,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import java.math.BigDecimal;
 import java.security.Principal;
+import java.time.Duration;
 import java.time.Year;
 import java.time.Instant;
 import java.time.Clock;
@@ -35,9 +37,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 @Controller
 public class OwnerWorkspaceController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OwnerWorkspaceController.class);
+    private static final Duration STATUS_REFRESH_MIN_INTERVAL = Duration.ofSeconds(5);
+    private static final int MAX_STATUS_REFRESH_ENTRIES = 1000;
+    private final Map<String, Instant> lastStatusRefreshByNif = new ConcurrentHashMap<>();
     private final TenantLocationService locations;
     private final OwnerWorkspaceService workspace;
     private final OwnerStaffService staff;
@@ -581,6 +587,10 @@ public class OwnerWorkspaceController {
             return "redirect:/owner/console?location=" + tenant;
         }
         FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+        String normalizedNif = normalizeNif(fiscal == null ? null : fiscal.taxId());
+        if (normalizedNif != null) {
+            lastStatusRefreshByNif.remove(normalizedNif);
+        }
         Optional<OwnerWorkspacePort.OwnerSigner> signerOpt = workspace.ownerSigner(owner.getName());
         String ownerName = signerOpt.map(OwnerWorkspacePort.OwnerSigner::fullName)
                 .filter(name -> name != null && !name.isBlank())
@@ -633,6 +643,57 @@ public class OwnerWorkspaceController {
         }
         flash.addFlashAttribute("notice", workspaceMessage("opening.verifactu.refreshed"));
         return "redirect:/owner/console?location=" + tenant;
+    }
+
+    /**
+     * Owner-only status check for the VERI*FACTU signing step (sandbox and production).
+     * Reuses the budgeted page-load refresh with a short per-NIF minimum interval so callers cannot
+     * hammer Digital Sign.
+     */
+    @GetMapping("/owner/workspace/{tenant}/verifactu/status")
+    @ResponseBody
+    public ResponseEntity<VerifactuStatusResponse> verifactuStatus(
+            @PathVariable String tenant,
+            Principal owner,
+            Locale locale) {
+        check(owner, tenant);
+        FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+        boolean closed = subscriptions.isClosed(tenant) || locations.isClosed(tenant);
+        if (!closed && verifactuAuthorizations != null && fiscal != null
+                && fiscal.taxId() != null && !fiscal.taxId().isBlank()) {
+            String normalizedNif = normalizeNif(fiscal.taxId());
+            if (normalizedNif != null && tryAcquireStatusRefreshSlot(normalizedNif)) {
+                verifactuAuthorizations.refreshForNifOnPageLoad(fiscal.taxId());
+            }
+        }
+        VerifactuStepView step = buildVerifactuStep(owner.getName(), tenant, fiscal);
+        String message = messages.getMessage(step.statusMessageKey(), null, locale);
+        String reason = step.reasonMessageKey() != null
+                ? messages.getMessage(step.reasonMessageKey(), null, locale)
+                : null;
+        boolean finalState = !"IN_PROGRESS".equals(step.state())
+                && !"NOT_SIGNED".equals(step.state())
+                && !step.canRefresh();
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(new VerifactuStatusResponse(step.state(), message, reason, step.reasonMessageKey(), finalState));
+    }
+
+    private boolean tryAcquireStatusRefreshSlot(String normalizedNif) {
+        Instant now = clock.instant();
+        if (lastStatusRefreshByNif.size() > MAX_STATUS_REFRESH_ENTRIES) {
+            Instant cutoff = now.minus(STATUS_REFRESH_MIN_INTERVAL);
+            lastStatusRefreshByNif.entrySet().removeIf(entry -> entry.getValue().isBefore(cutoff));
+        }
+        boolean[] acquired = {false};
+        lastStatusRefreshByNif.compute(normalizedNif, (key, previous) -> {
+            if (previous == null || !now.isBefore(previous.plus(STATUS_REFRESH_MIN_INTERVAL))) {
+                acquired[0] = true;
+                return now;
+            }
+            return previous;
+        });
+        return acquired[0];
     }
 
     /** Revokes the currently VALID VERI*FACTU authorisation for this location's NIF. */
@@ -895,6 +956,14 @@ public class OwnerWorkspaceController {
             boolean canRetry,
             boolean canRevoke,
             List<String> affectedLocations) {
+    }
+
+    public record VerifactuStatusResponse(
+            String status,
+            String message,
+            String reason,
+            String reasonKey,
+            boolean finalState) {
     }
 
     private void check(Principal owner,String tenant) {

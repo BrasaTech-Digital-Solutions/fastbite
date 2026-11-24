@@ -259,6 +259,7 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationService.RevokeResult.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationService.RevokeResult.Outcome.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(OwnerWorkspaceController.VerifactuStepView.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(OwnerWorkspaceController.VerifactuStatusResponse.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationGate.HoldReason.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(VerifactuAuthorizationRequiredException.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(EnvironmentAdvice.VerifactuBannerView.class), MemberCategory.values());
