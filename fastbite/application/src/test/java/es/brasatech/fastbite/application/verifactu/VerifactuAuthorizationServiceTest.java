@@ -861,6 +861,73 @@ class VerifactuAuthorizationServiceTest {
         assertThat(result.authorization().idempotencyKey()).isEqualTo("verifactu-B09767898-2");
     }
 
+    @Test
+    void startSigningPassesRedirectUrlAndRetriesOnceWithoutItOnInvalidRedirectUrl() {
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(1);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1")))
+                .thenThrow(new DigitalSignException(
+                        DigitalSignException.Kind.BAD_REQUEST, 400, "invalid_redirect_url", "redirectUrl",
+                        "Invalid redirectUrl"));
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1-noredir")))
+                .thenReturn(new CreateRequestResult(
+                        new DigitalSignRequest("req-fallback-1", "IN_PROGRESS", "ext-1", "Anexo I", NOW, null, null,
+                                List.of(new RequestSigner("Representante", "Ana", "ana@example.es", "es", "PENDING", null,
+                                        "https://digital-sign.brasatech.es/sign/fallback-token", List.of(), "CERTIFICATE", "B09767898", null, null)),
+                                new RequestDocuments(false, false), false),
+                        false));
+
+        StartSigningResult result = service.startSigning(
+                completeProfile("B09767898"), "ana", "Ana Lopez", "ana@example.es", "es",
+                "http://bad.example/owner/workspace/bistro/verifactu/return");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_URL);
+        assertThat(result.signingUrl()).isEqualTo("https://digital-sign.brasatech.es/sign/fallback-token");
+        assertThat(result.authorization().idempotencyKey()).isEqualTo("verifactu-B09767898-1-noredir");
+
+        ArgumentCaptor<CreateRequestCommand> firstCaptor = ArgumentCaptor.forClass(CreateRequestCommand.class);
+        ArgumentCaptor<CreateRequestCommand> retryCaptor = ArgumentCaptor.forClass(CreateRequestCommand.class);
+        verify(client).createRequest(firstCaptor.capture(), eq("verifactu-B09767898-1"));
+        verify(client).createRequest(retryCaptor.capture(), eq("verifactu-B09767898-1-noredir"));
+        assertThat(firstCaptor.getValue().redirectUrl())
+                .isEqualTo("http://bad.example/owner/workspace/bistro/verifactu/return");
+        assertThat(retryCaptor.getValue().redirectUrl()).isNull();
+    }
+
+    @Test
+    void startSigningDoesNotRetryOnOtherBadRequestErrors() {
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(1);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+        when(client.createRequest(any(CreateRequestCommand.class), eq("verifactu-B09767898-1")))
+                .thenThrow(new DigitalSignException(
+                        DigitalSignException.Kind.BAD_REQUEST, 400, "invalid_field", "fld_nif",
+                        "Invalid NIF"));
+
+        StartSigningResult result = service.startSigning(
+                completeProfile("B09767898"), "ana", "Ana Lopez", "ana@example.es", "es",
+                "https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_UNAVAILABLE);
+        verify(client, times(1)).createRequest(any(CreateRequestCommand.class), anyString());
+    }
+
     private static FiscalProfile completeProfile(String nif) {
         return new FiscalProfile("Restaurante Prueba SL", "Prueba", nif,
                 "Calle Mayor 1", "28013", "Madrid", "Madrid", "600123456", "ana@example.es", "RP", new BigDecimal("10"));

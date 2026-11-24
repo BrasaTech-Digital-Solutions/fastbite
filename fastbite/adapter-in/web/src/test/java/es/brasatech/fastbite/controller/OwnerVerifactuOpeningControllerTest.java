@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
@@ -78,6 +79,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @TestPropertySource(properties = {
         "fastbite.environment=production",
+        "fastbite.public-url=https://fastbite.brasatech.es",
         "fastbite.link.url=",
         "fastbite.link.standalone=true"
 })
@@ -286,10 +288,13 @@ class OwnerVerifactuOpeningControllerTest {
                 VerifactuAuthorizationStatus.IN_PROGRESS, "req-1", "verifactu-B09767898-1", 1,
                 "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
                 Instant.now(), Instant.now(), null, null, Instant.now(), 0, 0, null);
-        when(verifactuAuthorizations.startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/secret-token", auth));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
+                        .header("Host", "evil.example")
                         .locale(Locale.forLanguageTag("es"))
                         .with(user(ownerPrincipal()))
                         .with(csrf()))
@@ -328,7 +333,7 @@ class OwnerVerifactuOpeningControllerTest {
                         .with(csrf()))
                 .andExpect(status().isNotFound());
 
-        verify(verifactuAuthorizations, never()).startSigning(any(), anyString(), anyString(), anyString(), anyString());
+        verify(verifactuAuthorizations, never()).startSigning(any(), anyString(), anyString(), anyString(), anyString(), any());
         verify(verifactuAuthorizations, never()).refreshForNif(anyString());
     }
 
@@ -336,7 +341,9 @@ class OwnerVerifactuOpeningControllerTest {
     void authorizePostDoesNotFallbackToUnverifiedOrFiscalEmailWhenVerifiedEmailIsMissing() throws Exception {
         // Owner has no verified email, even though subscriptions.resolveOwnerEmail and fiscal.email() both have emails
         when(workspace.ownerSigner(OWNER)).thenReturn(Optional.of(new OwnerWorkspacePort.OwnerSigner("Ana García", null)));
-        when(verifactuAuthorizations.startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), isNull(), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), isNull(), eq("es"),
+                eq("https://fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.unavailable("SIGNING_UNAVAILABLE"));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
@@ -347,7 +354,9 @@ class OwnerVerifactuOpeningControllerTest {
                 .andExpect(redirectedUrl("/owner/console?location=" + TENANT))
                 .andExpect(flash().attributeExists("error"));
 
-        verify(verifactuAuthorizations).startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), isNull(), eq("es"));
+        verify(verifactuAuthorizations).startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), isNull(), eq("es"),
+                eq("https://fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return"));
     }
 
     @Test
@@ -528,7 +537,7 @@ class OwnerVerifactuOpeningControllerTest {
     }
 
     @Test
-    void openingStepRendersNewTabHintAndStatusAttributesInAllLocales() throws Exception {
+    void openingStepRendersSameTabFormAutoReturnHintAndStatusAttributesInAllLocales() throws Exception {
         when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
         when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.empty());
 
@@ -542,20 +551,176 @@ class OwnerVerifactuOpeningControllerTest {
                 .contains("data-verifactu-status-url=\"/owner/workspace/bistro/verifactu/status\"")
                 .contains("data-verifactu-state=\"NOT_SIGNED\"")
                 .contains("data-verifactu-sign-form")
-                .contains("Se abre una pestaña nueva. Cuando termines de firmar, vuelve aquí.");
+                .contains("name=\"returnTo\" value=\"/owner/console?view=today&amp;location=bistro\"")
+                .contains("Cuando termines de firmar, volverás aquí automáticamente.")
+                .doesNotContain("verifactu/authorize\" method=\"post\" target=\"_blank\"");
 
         String enHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.ENGLISH)
                         .with(user(ownerPrincipal())))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        assertThat(enHtml).contains("Opens in a new tab. When you finish signing, come back here.");
+        assertThat(enHtml).contains("When you finish signing, you will return here automatically.");
 
         String ptHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.forLanguageTag("pt"))
                         .with(user(ownerPrincipal())))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        assertThat(ptHtml).contains("Abre num novo separador. Quando terminares de assinar, volta aqui.");
+        assertThat(ptHtml).contains("Quando terminares de assinar, voltarás aqui automaticamente.");
+    }
+
+    @Test
+    void verifactuReturnSyncsOnMatchingRequestIdShowsOurStateAndRemembersOriginatingConsolePage() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization inProgress = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS, "req-ret-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
+                now, now, null, null, now, 0, 0, null);
+        VerifactuAuthorization valid = new VerifactuAuthorization(
+                inProgress.id(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.VALID, "req-ret-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", "B09767898", "B09767898/signed.pdf", "sha1",
+                "B09767898/evidence.pdf", "sha2", null, OWNER,
+                now, now, now, null, now, 1, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(true);
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
+                .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/ret-1", inProgress));
+
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
+                        .param("returnTo", "/owner/console?view=tickets&location=" + TENANT)
+                        .session(session)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal()))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", "https://digital-sign.example/sign/ret-1"));
+
+        when(verifactuAuthorizations.findCurrentForNif("B09767898"))
+                .thenReturn(Optional.of(inProgress))
+                .thenReturn(Optional.of(valid));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-ret-1")
+                        .param("status", "signed")
+                        .session(session)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?view=tickets&location=" + TENANT))
+                .andExpect(flash().attribute("notice", "Firmada y verificada"));
+
+        verify(verifactuAuthorizations).refreshForNifOnPageLoad("B09767898");
+        // Session attribute is cleared after consuming
+        assertThat(session.getAttribute("verifactu.returnPath." + TENANT)).isNull();
+    }
+
+    @Test
+    void verifactuReturnIgnoresForgedStatusParamShowsDeclinedAndIgnoresWrongRequestId() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization inProgress = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS, "req-forged-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
+                now, now, null, null, now, 0, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(inProgress));
+
+        // Forged ?status=signed while our synced state is still IN_PROGRESS must NOT show "Firmada y verificada"
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-forged-1")
+                        .param("status", "signed")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?location=" + TENANT))
+                .andExpect(flash().attribute("notice", "Esperando la firma"));
+
+        // Forged ?status=signed while our synced state is DECLINED must show "Has rechazado la firma"
+        VerifactuAuthorization declined = new VerifactuAuthorization(
+                inProgress.id(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.DECLINED, "req-forged-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, "DECLINED", OWNER,
+                now, now, null, null, now, 1, 0, null);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(declined));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-forged-1")
+                        .param("status", "signed")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?location=" + TENANT))
+                .andExpect(flash().attribute("error", "Has rechazado la firma"));
+
+        verify(verifactuAuthorizations, times(2)).refreshForNifOnPageLoad("B09767898");
+
+        // Wrong requestId must be ignored (no additional refresh call and no flash notice)
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-other-999")
+                        .param("status", "signed")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?location=" + TENANT))
+                .andExpect(flash().attributeCount(0));
+
+        verify(verifactuAuthorizations, times(2)).refreshForNifOnPageLoad("B09767898");
+    }
+
+    @Test
+    void verifactuReturnRejectsForeignOwnerRedirectsAnonymousToLoginAndBlocksOpenRedirects() throws Exception {
+        // Anonymous (expired session) -> redirect to /login
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("/login")));
+
+        // Foreign owner -> 404
+        doThrow(new IllegalArgumentException("You do not own this location."))
+                .when(workspace).requireOwner(OWNER, "other");
+        mockMvc.perform(get("/owner/workspace/other/verifactu/return")
+                        .param("requestId", "req-1")
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isNotFound());
+
+        // Open-redirect attempts via returnTo or tampered session must all fall back to /owner/console?location=bistro
+        VerifactuAuthorization auth = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS, "req-open-1", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
+                Instant.now(), Instant.now(), null, null, Instant.now(), 0, 0, null);
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
+                .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/open-1", auth));
+
+        for (String badTarget : List.of(
+                "https://evil.test/owner/console",
+                "//evil.test/owner/console",
+                "/counter",
+                "/owner/console\\evil",
+                "/owner/console/../admin")) {
+            MockHttpSession session = new MockHttpSession();
+            mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
+                            .param("returnTo", badTarget)
+                            .session(session)
+                            .locale(Locale.forLanguageTag("es"))
+                            .with(user(ownerPrincipal()))
+                            .with(csrf()))
+                    .andExpect(status().is3xxRedirection());
+
+            mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                            .session(session)
+                            .locale(Locale.forLanguageTag("es"))
+                            .with(user(ownerPrincipal())))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/owner/console?location=" + TENANT));
+        }
     }
 }

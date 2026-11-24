@@ -317,6 +317,22 @@ public class VerifactuAuthorizationService {
             String ownerName,
             String ownerEmail,
             String language) {
+        return startSigning(fiscalProfile, ownerUsername, ownerName, ownerEmail, language, null);
+    }
+
+    /**
+     * Starts or resumes a VERI*FACTU Anexo I signing request in Digital Sign for the location's NIF,
+     * optionally passing a {@code redirectUrl} so Digital Sign returns the owner after signing.
+     *
+     * <p>The returned {@code signingUrl} is a secret and is never logged or persisted.
+     */
+    public StartSigningResult startSigning(
+            FiscalProfile fiscalProfile,
+            String ownerUsername,
+            String ownerName,
+            String ownerEmail,
+            String language,
+            String redirectUrl) {
         if (fiscalProfile == null || !fiscalProfile.complete()) {
             return StartSigningResult.fiscalIncomplete();
         }
@@ -409,6 +425,7 @@ public class VerifactuAuthorizationService {
                 dsLang,
                 "CERTIFICATE",
                 nif);
+        String normalizedRedirectUrl = (redirectUrl == null || redirectUrl.isBlank()) ? null : redirectUrl.strip();
         CreateRequestCommand command = new CreateRequestCommand(
                 templateId,
                 "Autorización VERI*FACTU - " + legalName,
@@ -419,15 +436,30 @@ public class VerifactuAuthorizationService {
                 false,
                 List.of(signerInput),
                 values,
-                null);
+                null,
+                normalizedRedirectUrl);
 
+        String effectiveIdempotencyKey = idempotencyKey;
         CreateRequestResult created;
         try {
-            created = digitalSignClient.createRequest(command, idempotencyKey);
+            created = digitalSignClient.createRequest(command, effectiveIdempotencyKey);
         } catch (DigitalSignException e) {
-            log.warn("VERI*FACTU signing unavailable: POST /requests failed ({}, code={}, field={})",
-                    e.getKind(), e.getErrorCode(), e.getField());
-            return StartSigningResult.unavailable("SIGNING_UNAVAILABLE");
+            if (command.redirectUrl() != null && isInvalidRedirectUrlError(e)) {
+                log.warn("Digital Sign rejected redirectUrl (HTTP {}, code={}); retrying POST /requests once without redirectUrl",
+                        e.getHttpStatus(), e.getErrorCode());
+                effectiveIdempotencyKey = idempotencyKey + "-noredir";
+                try {
+                    created = digitalSignClient.createRequest(command.withoutRedirectUrl(), effectiveIdempotencyKey);
+                } catch (DigitalSignException retryError) {
+                    log.warn("VERI*FACTU signing unavailable: retry POST /requests without redirectUrl failed ({}, code={}, field={})",
+                            retryError.getKind(), retryError.getErrorCode(), retryError.getField());
+                    return StartSigningResult.unavailable("SIGNING_UNAVAILABLE");
+                }
+            } else {
+                log.warn("VERI*FACTU signing unavailable: POST /requests failed ({}, code={}, field={})",
+                        e.getKind(), e.getErrorCode(), e.getField());
+                return StartSigningResult.unavailable("SIGNING_UNAVAILABLE");
+            }
         }
 
         DigitalSignRequest remoteRequest = created.request();
@@ -447,7 +479,7 @@ public class VerifactuAuthorizationService {
                     legalName,
                     VerifactuAuthorizationStatus.TEST_ENVIRONMENT,
                     remoteId,
-                    idempotencyKey,
+                    effectiveIdempotencyKey,
                     attempt,
                     truncate(templateId, 64),
                     signerName,
@@ -479,7 +511,7 @@ public class VerifactuAuthorizationService {
                     legalName,
                     VerifactuAuthorizationStatus.LIVE_ENVIRONMENT,
                     remoteId,
-                    idempotencyKey,
+                    effectiveIdempotencyKey,
                     attempt,
                     truncate(templateId, 64),
                     signerName,
@@ -508,7 +540,7 @@ public class VerifactuAuthorizationService {
                 legalName,
                 VerifactuAuthorizationStatus.IN_PROGRESS,
                 truncate(remoteRequest.id().strip(), 64),
-                idempotencyKey,
+                effectiveIdempotencyKey,
                 attempt,
                 truncate(templateId, 64),
                 signerName,
@@ -594,6 +626,12 @@ public class VerifactuAuthorizationService {
                     active.digitalSignRequestId(), e.getKind(), e.getErrorCode());
             return StartSigningResult.unavailable("SIGNING_UNAVAILABLE");
         }
+    }
+
+    private static boolean isInvalidRedirectUrlError(DigitalSignException e) {
+        return e.getHttpStatus() == 400
+                && e.getErrorCode() != null
+                && "invalid_redirect_url".equalsIgnoreCase(e.getErrorCode().strip());
     }
 
     private String configuredSignerRole() {

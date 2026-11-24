@@ -54,6 +54,57 @@ function checkAuth(req, res) {
   return true;
 }
 
+function validateRedirectUrl(raw) {
+  if (raw === undefined || raw === null) {
+    return { valid: true, value: null };
+  }
+  const trimmed = String(raw).trim();
+  if (!trimmed) {
+    return { valid: true, value: null };
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.username || parsed.password) {
+      return { valid: false, value: null };
+    }
+    const host = (parsed.hostname || '').toLowerCase();
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost');
+    if (parsed.protocol === 'https:' || (parsed.protocol === 'http:' && isLocalhost)) {
+      return { valid: true, value: trimmed };
+    }
+    return { valid: false, value: null };
+  } catch {
+    return { valid: false, value: null };
+  }
+}
+
+function applyCompletion(stored, targetStatus, opts = {}) {
+  const nowIso = new Date().toISOString();
+  stored.status = targetStatus;
+  if (typeof opts.test === 'boolean') {
+    stored.test = opts.test;
+  }
+  if (targetStatus === 'COMPLETED') {
+    stored.completedAt = nowIso;
+    stored.documents = { signedDocument: true, evidenceReport: true };
+    for (const s of stored.signers) {
+      const certNif = String(opts.certificateNif || s.nif || '').toUpperCase();
+      s.status = 'SIGNED';
+      s.signedAt = nowIso;
+      s.certificateStatus = 'VERIFIED';
+      s.certificate = {
+        subject: `CN=REPRESENTANTE MOCK, SERIALNUMBER=IDCES-12345678Z, 2.5.4.97=VATES-${certNif}`,
+        organizationIdentifier: `VATES-${certNif}`,
+        serialNumber: 'IDCES-12345678Z'
+      };
+    }
+  } else if (targetStatus === 'DECLINED') {
+    for (const s of stored.signers) {
+      s.status = 'DECLINED';
+    }
+  }
+}
+
 function templatePayload(id) {
   return {
     id,
@@ -139,9 +190,59 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { test: defaultTestMode });
     }
 
+    const mockSignCompleteMatch = path.match(/^\/_mock\/sign\/([^/]+)\/complete$/);
+    if (method === 'POST' && mockSignCompleteMatch) {
+      const id = decodeURIComponent(mockSignCompleteMatch[1]);
+      const stored = requests.get(id);
+      if (!stored) {
+        return sendJson(res, 404, { error: 'request_not_found' });
+      }
+      const raw = await readBody(req);
+      let action = 'signed';
+      if (raw && raw.trim()) {
+        if ((req.headers['content-type'] || '').includes('application/json')) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.action) {
+            action = String(parsed.action).toLowerCase();
+          }
+        } else {
+          const params = new URLSearchParams(raw);
+          if (params.get('action')) {
+            action = String(params.get('action')).toLowerCase();
+          }
+        }
+      }
+      const isDeclined = action === 'declined';
+      const targetStatus = isDeclined ? 'DECLINED' : 'COMPLETED';
+      const redirectStatus = isDeclined ? 'declined' : 'signed';
+      applyCompletion(stored, targetStatus);
+      const eventType = targetStatus === 'COMPLETED' ? 'request.completed' : `request.${targetStatus.toLowerCase()}`;
+      try {
+        await postWebhook(eventType, id);
+      } catch {
+        // Ignore webhook delivery failures during interactive browser completion; return endpoint syncs directly.
+      }
+      if (stored.redirectUrl) {
+        const target = new URL(stored.redirectUrl);
+        target.searchParams.set('requestId', id);
+        target.searchParams.set('status', redirectStatus);
+        res.writeHead(303, { Location: target.toString() });
+        return res.end();
+      }
+      const doneBody = `<!doctype html><html><body><h1>Digital Sign Local Mock</h1><p>Status: ${escapeHtml(redirectStatus)}</p></body></html>`;
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(doneBody);
+    }
+
     if (method === 'GET' && path.startsWith('/_mock/sign/')) {
       const id = decodeURIComponent(path.slice('/_mock/sign/'.length));
-      const body = `<!doctype html><html><body><h1>Digital Sign Local Mock</h1><p>Request: ${escapeHtml(id)}</p></body></html>`;
+      const stored = requests.get(id);
+      const title = stored ? stored.title : 'VERI*FACTU';
+      const redirectInfo = stored && stored.redirectUrl
+        ? `<p>Return URL: <code>${escapeHtml(stored.redirectUrl)}</code></p>`
+        : '<p>No return URL configured.</p>';
+      const actionUrl = `/_mock/sign/${encodeURIComponent(id)}/complete`;
+      const body = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Digital Sign Mock</title></head><body><h1>Digital Sign Local Mock</h1><p>Request: ${escapeHtml(id)}</p><p>Title: ${escapeHtml(title)}</p>${redirectInfo}<form method="post" action="${escapeHtml(actionUrl)}"><button type="submit" name="action" value="signed" id="mock-sign-btn">Firmar (mock)</button> <button type="submit" name="action" value="declined" id="mock-decline-btn">Rechazar (mock)</button></form></body></html>`;
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(body);
     }
@@ -158,26 +259,7 @@ const server = http.createServer(async (req, res) => {
         opts = JSON.parse(raw);
       }
       const targetStatus = String(opts.status || 'COMPLETED').toUpperCase();
-      const nowIso = new Date().toISOString();
-      stored.status = targetStatus;
-      if (typeof opts.test === 'boolean') {
-        stored.test = opts.test;
-      }
-      if (targetStatus === 'COMPLETED') {
-        stored.completedAt = nowIso;
-        stored.documents = { signedDocument: true, evidenceReport: true };
-        for (const s of stored.signers) {
-          const certNif = String(opts.certificateNif || s.nif || '').toUpperCase();
-          s.status = 'SIGNED';
-          s.signedAt = nowIso;
-          s.certificateStatus = 'VERIFIED';
-          s.certificate = {
-            subject: `CN=REPRESENTANTE MOCK, SERIALNUMBER=IDCES-12345678Z, 2.5.4.97=VATES-${certNif}`,
-            organizationIdentifier: `VATES-${certNif}`,
-            serialNumber: 'IDCES-12345678Z'
-          };
-        }
-      }
+      applyCompletion(stored, targetStatus, opts);
       const eventType = targetStatus === 'COMPLETED' ? 'request.completed' : `request.${targetStatus.toLowerCase()}`;
       const webhookResult = await postWebhook(eventType, id, opts.webhookUrl);
       return sendJson(res, 200, {
@@ -202,6 +284,10 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, templatePayload(id));
       }
 
+      if (method === 'GET' && path === '/api/v1/requests') {
+        return sendJson(res, 200, { items: Array.from(requests.values()) });
+      }
+
       if (method === 'POST' && path === '/api/v1/requests') {
         const raw = await readBody(req);
         const key = req.headers['idempotency-key'];
@@ -209,6 +295,16 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 200, requests.get(idempotency.get(key)));
         }
         const input = JSON.parse(raw || '{}');
+        const redirectCheck = validateRedirectUrl(input.redirectUrl);
+        if (!redirectCheck.valid) {
+          return sendJson(res, 400, {
+            error: {
+              code: 'invalid_redirect_url',
+              message: 'redirectUrl must use https (http is allowed only for localhost)',
+              field: 'redirectUrl'
+            }
+          });
+        }
         const id = `req_mock_${crypto.randomUUID()}`;
         const nowIso = new Date().toISOString();
         const signers = (input.signers || []).map(s => ({
@@ -230,6 +326,7 @@ const server = http.createServer(async (req, res) => {
           status: 'IN_PROGRESS',
           externalReference: input.externalReference || null,
           title: input.title || 'VERI*FACTU',
+          redirectUrl: redirectCheck.value,
           createdAt: nowIso,
           expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString(),
           completedAt: null,

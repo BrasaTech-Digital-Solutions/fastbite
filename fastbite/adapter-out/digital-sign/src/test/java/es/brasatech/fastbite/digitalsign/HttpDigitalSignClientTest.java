@@ -526,6 +526,89 @@ class HttpDigitalSignClientTest {
     }
 
     @Test
+    void createRequestSerializesRedirectUrlWhenPresentOmitsWhenNullAndParsesResponse() {
+        AtomicReference<String> firstBody = new AtomicReference<>();
+        AtomicReference<String> secondBody = new AtomicReference<>();
+        AtomicInteger calls = new AtomicInteger();
+
+        server.createContext("/api/v1/requests", exchange -> {
+            int call = calls.incrementAndGet();
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            if (call == 1) {
+                firstBody.set(body);
+                respondJson(exchange, 201, """
+                        {
+                          "id": "req-redir-1",
+                          "status": "IN_PROGRESS",
+                          "redirectUrl": "https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return",
+                          "signers": []
+                        }
+                        """);
+            } else {
+                secondBody.set(body);
+                respondJson(exchange, 201, """
+                        {
+                          "id": "req-redir-2",
+                          "status": "IN_PROGRESS",
+                          "signers": []
+                        }
+                        """);
+            }
+        });
+        server.createContext("/api/v1/requests/req-redir-1", exchange -> respondJson(exchange, 200, """
+                {
+                  "id": "req-redir-1",
+                  "status": "COMPLETED",
+                  "redirectUrl": "https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return",
+                  "signers": []
+                }
+                """));
+
+        CreateRequestCommand withRedirect = new CreateRequestCommand(
+                "tpl-1", "VERI*FACTU", null, null, "es", "ext-1", false,
+                List.of(new SignerInput("Representante", "Ana", "ana@example.com", "es", "CERTIFICATE", "B09767898")),
+                Map.of(), null, "https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return");
+        CreateRequestResult first = client.createRequest(withRedirect, "key-1");
+        assertThat(firstBody.get()).contains("\"redirectUrl\":\"https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return\"");
+        assertThat(first.request().redirectUrl()).isEqualTo("https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return");
+
+        CreateRequestResult second = client.createRequest(withRedirect.withoutRedirectUrl(), "key-2");
+        assertThat(secondBody.get()).doesNotContain("redirectUrl");
+        assertThat(second.request().redirectUrl()).isNull();
+
+        DigitalSignRequest fetched = client.getRequest("req-redir-1");
+        assertThat(fetched.redirectUrl()).isEqualTo("https://fastbite.brasatech.es/owner/workspace/bistro/verifactu/return");
+    }
+
+    @Test
+    void createRequestMapsInvalidRedirectUrlBadRequest() {
+        server.createContext("/api/v1/requests", exchange -> respondJson(exchange, 400, """
+                {
+                  "error": {
+                    "code": "invalid_redirect_url",
+                    "message": "redirectUrl must use https",
+                    "field": "redirectUrl"
+                  }
+                }
+                """));
+
+        CreateRequestCommand cmd = new CreateRequestCommand(
+                "tpl-1", "VERI*FACTU", null, null, "es", "ext-1", false,
+                List.of(new SignerInput("Representante", "Ana", "ana@example.com", "es", "CERTIFICATE", "B09767898")),
+                Map.of(), null, "http://fastbite.example/return");
+
+        assertThatThrownBy(() -> client.createRequest(cmd, "key-bad-redir"))
+                .isInstanceOf(DigitalSignException.class)
+                .satisfies(ex -> {
+                    DigitalSignException dse = (DigitalSignException) ex;
+                    assertThat(dse.getKind()).isEqualTo(Kind.BAD_REQUEST);
+                    assertThat(dse.getHttpStatus()).isEqualTo(400);
+                    assertThat(dse.getErrorCode()).isEqualTo("invalid_redirect_url");
+                    assertThat(dse.getField()).isEqualTo("redirectUrl");
+                });
+    }
+
+    @Test
     void unconfiguredClientThrowsWithoutMakingNetworkCalls() {
         DigitalSignProperties unconfigured = new DigitalSignProperties();
         unconfigured.setApiToken("");

@@ -476,7 +476,11 @@ window.addEventListener('hashchange',openSection);openSection();
  };
 
  let startedAt=readStartedAt();
- if(initialState==='VALID'||initialState==='COLLABORATION_INACTIVE'){
+ const isFinalInitialState=initialState==='VALID'
+  ||initialState==='COLLABORATION_INACTIVE'
+  ||initialState==='SIGNING_UNAVAILABLE'
+  ||(initialState==='ON_HOLD'&&initialReasonKey!=='opening.verifactu.reason.download_failed');
+ if(isFinalInitialState){
   clearStartedAt();
  }
  const inProgressAnchor=initialState==='IN_PROGRESS'?Date.now():null;
@@ -525,8 +529,7 @@ window.addEventListener('hashchange',openSection);openSection();
    const nextState=data&&typeof data.status==='string'?data.status:'';
    const nextReasonKey=data&&typeof data.reasonKey==='string'?data.reasonKey:'';
    const changed=nextState!==initialState||nextReasonKey!==initialReasonKey;
-   const reachedValid=nextState==='VALID'||nextState==='COLLABORATION_INACTIVE';
-   if(data&&data.finalState&&(changed||reachedValid)){
+   if(data&&data.finalState){
     clearStartedAt();
     stopPolling();
    }
@@ -535,9 +538,6 @@ window.addEventListener('hashchange',openSection);openSection();
     stopPolling();
     window.location.reload();
     return;
-   }
-   if(data&&data.finalState&&startedAt===null){
-    stopPolling();
    }
   }catch(_){
    // Keep waiting until next visibility change or poll tick.

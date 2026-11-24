@@ -33,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
@@ -74,6 +75,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @TestPropertySource(properties = {
         "fastbite.environment=sandbox",
+        "fastbite.public-url=https://sandbox.fastbite.brasatech.es",
         "fastbite.link.url=https://fastbite.example",
         "fastbite.link.secret=0123456789abcdef0123456789abcdef"
 })
@@ -145,7 +147,8 @@ class SandboxVerifactuSigningControllerTest {
                 .contains("data-verifactu-sign-form")
                 .contains("Firma de prueba sin validez legal")
                 .contains("Firmar con certificado digital")
-                .contains("Se abre una pestaña nueva. Cuando termines de firmar, vuelve aquí.");
+                .contains("Cuando termines de firmar, volverás aquí automáticamente.")
+                .doesNotContain("verifactu/authorize\" method=\"post\" target=\"_blank\"");
 
         String enHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.ENGLISH)
@@ -155,7 +158,7 @@ class SandboxVerifactuSigningControllerTest {
         assertThat(enHtml)
                 .contains("Test signature with no legal value")
                 .contains("Sign with digital certificate")
-                .contains("Opens in a new tab. When you finish signing, come back here.");
+                .contains("When you finish signing, you will return here automatically.");
 
         String ptHtml = mockMvc.perform(get("/owner/console?view=today&location=" + TENANT)
                         .locale(Locale.forLanguageTag("pt"))
@@ -165,7 +168,7 @@ class SandboxVerifactuSigningControllerTest {
         assertThat(ptHtml)
                 .contains("Assinatura de teste sem valor legal")
                 .contains("Assinar com certificado digital")
-                .contains("Abre num novo separador. Quando terminares de assinar, volta aqui.");
+                .contains("Quando terminares de assinar, voltarás aqui automaticamente.");
     }
 
     @Test
@@ -175,10 +178,13 @@ class SandboxVerifactuSigningControllerTest {
                 VerifactuAuthorizationStatus.IN_PROGRESS, "req-sbx-1", "verifactu-B09767898-1", 1,
                 "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
                 Instant.now(), Instant.now(), null, null, Instant.now(), 0, 0, null);
-        when(verifactuAuthorizations.startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://sandbox.fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/sandbox-token", auth));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
+                        .header("Host", "evil.example")
                         .locale(Locale.forLanguageTag("es"))
                         .with(user(ownerPrincipal()))
                         .with(csrf()))
@@ -204,7 +210,9 @@ class SandboxVerifactuSigningControllerTest {
                 Instant.now(), Instant.now(), null, null, Instant.now(), 1, 0, null);
         when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
         when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(liveRefused));
-        when(verifactuAuthorizations.startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://sandbox.fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.unavailable("LIVE_ENVIRONMENT"));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
@@ -251,7 +259,9 @@ class SandboxVerifactuSigningControllerTest {
                 VerifactuAuthorizationStatus.IN_PROGRESS, "req-sbx-fb", "verifactu-B09767898-1", 1,
                 "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
                 Instant.now(), Instant.now(), null, null, Instant.now(), 0, 0, null);
-        when(verifactuAuthorizations.startSigning(eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana@bistro.es"), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana@bistro.es"), eq("es"),
+                eq("https://sandbox.fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/sandbox-fb", auth));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
@@ -266,7 +276,9 @@ class SandboxVerifactuSigningControllerTest {
                 "Calle Mayor 1", "28013", "Madrid", "Madrid",
                 "600123456", null, "BA", new BigDecimal("10"));
         when(workspace.fiscalProfile(OWNER, TENANT)).thenReturn(noEmail);
-        when(verifactuAuthorizations.startSigning(eq(noEmail), eq(OWNER), eq("Ana García"), eq("sandbox@brasatech.es"), eq("es")))
+        when(verifactuAuthorizations.startSigning(
+                eq(noEmail), eq(OWNER), eq("Ana García"), eq("sandbox@brasatech.es"), eq("es"),
+                eq("https://sandbox.fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
                 .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/sandbox-default", auth));
 
         mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
@@ -354,5 +366,52 @@ class SandboxVerifactuSigningControllerTest {
         mockMvc.perform(get("/owner/workspace/other/verifactu/status")
                         .with(user(ownerPrincipal())))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void sandboxVerifactuReturnSyncsAndRedirectsToOriginatingPageWithSignedNotice() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization inProgress = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.IN_PROGRESS, "req-sbx-ret", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", null, null, null, null, null, null, OWNER,
+                now, now, null, null, now, 0, 0, null);
+        VerifactuAuthorization valid = new VerifactuAuthorization(
+                inProgress.id(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.VALID, "req-sbx-ret", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", "B09767898", "B09767898/signed.pdf", "sha1",
+                "B09767898/evidence.pdf", "sha2", null, OWNER,
+                now, now, now, null, now, 1, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.isCollaborationActive()).thenReturn(false);
+        when(verifactuAuthorizations.startSigning(
+                eq(COMPLETE), eq(OWNER), eq("Ana García"), eq("ana.verified@bistro.es"), eq("es"),
+                eq("https://sandbox.fastbite.brasatech.es/owner/workspace/" + TENANT + "/verifactu/return")))
+                .thenReturn(StartSigningResult.signingUrl("https://digital-sign.example/sign/sbx-ret", inProgress));
+
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/authorize")
+                        .param("returnTo", "/owner/console?view=today&location=" + TENANT)
+                        .session(session)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal()))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        when(verifactuAuthorizations.findCurrentForNif("B09767898"))
+                .thenReturn(Optional.of(inProgress))
+                .thenReturn(Optional.of(valid));
+
+        mockMvc.perform(get("/owner/workspace/" + TENANT + "/verifactu/return")
+                        .param("requestId", "req-sbx-ret")
+                        .param("status", "signed")
+                        .session(session)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?view=today&location=" + TENANT))
+                .andExpect(flash().attribute("notice", "Firmada y verificada"));
+
+        verify(verifactuAuthorizations).refreshForNifOnPageLoad("B09767898");
     }
 }

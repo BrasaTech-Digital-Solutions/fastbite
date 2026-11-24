@@ -13,7 +13,10 @@ import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.domain.user.Role;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -25,8 +28,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriUtils;
 import org.springframework.http.HttpStatus;
 import java.math.BigDecimal;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.time.Duration;
 import java.time.Year;
@@ -43,6 +49,7 @@ public class OwnerWorkspaceController {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OwnerWorkspaceController.class);
     private static final Duration STATUS_REFRESH_MIN_INTERVAL = Duration.ofSeconds(5);
     private static final int MAX_STATUS_REFRESH_ENTRIES = 1000;
+    private static final String VERIFACTU_RETURN_SESSION_PREFIX = "verifactu.returnPath.";
     private final Map<String, Instant> lastStatusRefreshByNif = new ConcurrentHashMap<>();
     private final TenantLocationService locations;
     private final OwnerWorkspaceService workspace;
@@ -62,6 +69,7 @@ public class OwnerWorkspaceController {
     private final es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices;
     private final java.time.Clock clock;
     private final String termsVersion;
+    private final String publicUrl;
     private final VerifactuAuthorizationService verifactuAuthorizations;
     private final LocationLifecycleService locationLifecycle;
     private final TenantRoutingResolver routingResolver;
@@ -72,9 +80,10 @@ public class OwnerWorkspaceController {
             LegalAcceptancePort acceptances,
             es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService privacyNotices,
             java.time.Clock clock,
-            @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
+            @Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
             es.brasatech.fastbite.application.platform.PromotionService promotionService,
-            @org.springframework.beans.factory.annotation.Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone,
+            @Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone,
+            @Value("${fastbite.public-url:}") String publicUrl,
             ObjectProvider<VerifactuAuthorizationService> verifactuAuthorizations,
             ObjectProvider<LocationLifecycleService> locationLifecycle,
             ObjectProvider<TenantRoutingResolver> routingResolver) {
@@ -88,6 +97,7 @@ public class OwnerWorkspaceController {
         this.termsVersion=java.util.Objects.requireNonNull(termsVersion, "termsVersion");
         this.promotionService=java.util.Objects.requireNonNull(promotionService, "promotionService");
         this.ordersTimeZone = (ordersTimeZone != null && !ordersTimeZone.isBlank()) ? ordersTimeZone : "Europe/Madrid";
+        this.publicUrl = (publicUrl != null && !publicUrl.isBlank()) ? publicUrl.strip().replaceAll("/+$", "") : null;
         this.verifactuAuthorizations = verifactuAuthorizations != null ? verifactuAuthorizations.getIfAvailable() : null;
         this.locationLifecycle = locationLifecycle != null ? locationLifecycle.getIfAvailable() : null;
         this.routingResolver = routingResolver != null ? routingResolver.getIfAvailable() : null;
@@ -95,8 +105,11 @@ public class OwnerWorkspaceController {
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
             @RequestParam(required=false) String location,@RequestParam(defaultValue="general") String section,
-            @RequestParam(defaultValue="false") boolean opening, Locale locale) {
+            @RequestParam(defaultValue="false") boolean opening, Locale locale, HttpServletRequest request) {
         if(owner==null) return "redirect:/login";
+        String query = request != null ? request.getQueryString() : null;
+        String currentConsolePath = "/owner/console" + (query != null && !query.isBlank() ? "?" + query : "");
+        model.addAttribute("verifactuReturnTo", sanitizeConsoleReturnPath(currentConsolePath));
         if(!Set.of("overview","locations","team","location-settings","settings", "restaurants", "billing", "account", "today", "menu", "tickets", "location-config", "data").contains(view)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         if(!Set.of("general","legal","appearance","payments","domain","backup","advanced").contains(section)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         var list=locations.getLocationsByOwner(owner.getName()).stream().sorted(Comparator.comparing(es.brasatech.fastbite.domain.tenant.TenantLocation::tenantId)).toList();
@@ -576,15 +589,21 @@ public class OwnerWorkspaceController {
 
     /**
      * Starts or resumes Digital Sign VERI*FACTU Anexo I signing for this location's NIF.
-     * Redirects directly to the signing URL (opened in a new tab by the form) without logging or storing it.
+     * Redirects directly to the signing URL in the same tab without logging or storing it.
      */
     @PostMapping("/owner/workspace/{tenant}/verifactu/authorize")
-    public String startVerifactuAuthorization(@PathVariable String tenant, Principal owner,
-            RedirectAttributes flash, Locale locale) {
+    public String startVerifactuAuthorization(
+            @PathVariable String tenant,
+            @RequestParam(name = "returnTo", required = false) String returnTo,
+            Principal owner,
+            HttpServletRequest request,
+            RedirectAttributes flash,
+            Locale locale) {
         checkOpen(owner, tenant);
+        String fallbackReturnPath = resolveVerifactuReturnPath(request, tenant, returnTo);
         if (verifactuAuthorizations == null) {
             flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.reason.signing_unavailable"));
-            return "redirect:/owner/console?location=" + tenant;
+            return "redirect:" + fallbackReturnPath;
         }
         FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
         String normalizedNif = normalizeNif(fiscal == null ? null : fiscal.taxId());
@@ -604,17 +623,21 @@ public class OwnerWorkspaceController {
                     : "sandbox@brasatech.es";
         }
         String lang = locale != null ? locale.getLanguage() : "es";
+        String redirectUrl = buildVerifactuReturnUrl(tenant);
         StartSigningResult result = verifactuAuthorizations.startSigning(
-                fiscal, owner.getName(), ownerName, ownerEmail, lang);
+                fiscal, owner.getName(), ownerName, ownerEmail, lang, redirectUrl);
         return switch (result.outcome()) {
-            case SIGNING_URL -> "redirect:" + result.signingUrl();
+            case SIGNING_URL -> {
+                rememberVerifactuReturnPath(request, tenant, fallbackReturnPath);
+                yield "redirect:" + result.signingUrl();
+            }
             case ALREADY_VALID -> {
                 flash.addFlashAttribute("notice", workspaceMessage("opening.verifactu.already.valid"));
-                yield "redirect:/owner/console?location=" + tenant;
+                yield "redirect:" + fallbackReturnPath;
             }
             case FISCAL_INCOMPLETE -> {
                 flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.status.fiscal_required"));
-                yield "redirect:/owner/console?location=" + tenant;
+                yield "redirect:" + fallbackReturnPath;
             }
             case SIGNING_UNAVAILABLE -> {
                 String msgKey = switch (result.reason() == null ? "" : result.reason()) {
@@ -624,9 +647,154 @@ public class OwnerWorkspaceController {
                     default -> "opening.verifactu.reason.signing_unavailable";
                 };
                 flash.addFlashAttribute("error", workspaceMessage(msgKey));
-                yield "redirect:/owner/console?location=" + tenant;
+                yield "redirect:" + fallbackReturnPath;
             }
         };
+    }
+
+    /**
+     * Return landing endpoint after Digital Sign finishes or declines signing (sandbox and production).
+     * Never trusts {@code status} from the query string; only syncs via our budgeted refresh when
+     * {@code requestId} matches the current authorisation of this location's NIF, then redirects back
+     * to the remembered {@code /owner/console...} page with a notice built from our synced state.
+     */
+    @GetMapping("/owner/workspace/{tenant}/verifactu/return")
+    public String verifactuReturn(
+            @PathVariable String tenant,
+            @RequestParam(name = "requestId", required = false) String requestId,
+            @RequestParam(name = "status", required = false) String ignoredStatus,
+            Principal owner,
+            HttpServletRequest request,
+            RedirectAttributes flash,
+            Locale locale) {
+        check(owner, tenant);
+        String targetPath = consumeVerifactuReturnPath(request, tenant);
+        FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+        boolean closed = subscriptions.isClosed(tenant) || locations.isClosed(tenant);
+        String normalizedNif = normalizeNif(fiscal == null ? null : fiscal.taxId());
+        String trimmedRequestId = requestId == null ? null : requestId.strip();
+        if (!closed && verifactuAuthorizations != null && normalizedNif != null
+                && trimmedRequestId != null && !trimmedRequestId.isBlank()) {
+            Optional<VerifactuAuthorization> currentOpt = verifactuAuthorizations.findCurrentForNif(normalizedNif);
+            if (currentOpt.isPresent()
+                    && trimmedRequestId.equals(currentOpt.get().digitalSignRequestId())) {
+                lastStatusRefreshByNif.remove(normalizedNif);
+                if (tryAcquireStatusRefreshSlot(normalizedNif)) {
+                    verifactuAuthorizations.refreshForNifOnPageLoad(fiscal.taxId());
+                }
+                workspace.summary(owner.getName(), tenant);
+                VerifactuStepView step = buildVerifactuStep(owner.getName(), tenant, fiscal);
+                applyVerifactuReturnFlash(step, flash, locale);
+            }
+        }
+        return "redirect:" + targetPath;
+    }
+
+    private void applyVerifactuReturnFlash(VerifactuStepView step, RedirectAttributes flash, Locale locale) {
+        if (step == null) {
+            return;
+        }
+        if ("VALID".equals(step.state())) {
+            flash.addFlashAttribute("notice", messages.getMessage("opening.verifactu.status.valid", null, locale));
+        } else if ("COLLABORATION_INACTIVE".equals(step.state())) {
+            flash.addFlashAttribute("notice", messages.getMessage("opening.verifactu.status.signed_waiting_switch", null, locale));
+        } else if ("opening.verifactu.reason.declined".equals(step.reasonMessageKey())) {
+            flash.addFlashAttribute("error", messages.getMessage("opening.verifactu.return.declined", null, locale));
+        } else if (step.reasonMessageKey() != null) {
+            flash.addFlashAttribute("error", messages.getMessage(step.reasonMessageKey(), null, locale));
+        } else if ("IN_PROGRESS".equals(step.state())) {
+            flash.addFlashAttribute("notice", messages.getMessage("opening.verifactu.status.in_progress", null, locale));
+        }
+    }
+
+    private String buildVerifactuReturnUrl(String tenant) {
+        if (publicUrl == null || publicUrl.isBlank() || tenant == null || tenant.isBlank()) {
+            return null;
+        }
+        String encodedTenant = UriUtils.encodePathSegment(tenant, StandardCharsets.UTF_8);
+        return publicUrl + "/owner/workspace/" + encodedTenant + "/verifactu/return";
+    }
+
+    private String resolveVerifactuReturnPath(HttpServletRequest request, String tenant, String returnTo) {
+        if (returnTo != null && !returnTo.isBlank()) {
+            String safe = sanitizeConsoleReturnPath(returnTo);
+            return safe != null ? safe : defaultConsoleReturnPath(tenant);
+        }
+        if (request != null) {
+            String referer = request.getHeader("Referer");
+            if (referer != null && !referer.isBlank()) {
+                try {
+                    URI refUri = URI.create(referer.strip());
+                    String rawPath = refUri.getRawPath();
+                    if (rawPath != null && !rawPath.isBlank()) {
+                        String candidate = rawPath + (refUri.getRawQuery() != null ? "?" + refUri.getRawQuery() : "");
+                        String safe = sanitizeConsoleReturnPath(candidate);
+                        if (safe != null) {
+                            return safe;
+                        }
+                    }
+                } catch (IllegalArgumentException ignored) {
+                    // Malformed Referer; fall back to default console URL.
+                }
+            }
+        }
+        return defaultConsoleReturnPath(tenant);
+    }
+
+    private void rememberVerifactuReturnPath(HttpServletRequest request, String tenant, String safePath) {
+        if (request == null || tenant == null || tenant.isBlank()) {
+            return;
+        }
+        String sanitized = sanitizeConsoleReturnPath(safePath);
+        if (sanitized != null) {
+            request.getSession(true).setAttribute(VERIFACTU_RETURN_SESSION_PREFIX + tenant, sanitized);
+        }
+    }
+
+    private String consumeVerifactuReturnPath(HttpServletRequest request, String tenant) {
+        String key = VERIFACTU_RETURN_SESSION_PREFIX + tenant;
+        HttpSession session = request != null ? request.getSession(false) : null;
+        if (session != null) {
+            Object raw = session.getAttribute(key);
+            session.removeAttribute(key);
+            if (raw instanceof String stored) {
+                String safe = sanitizeConsoleReturnPath(stored);
+                if (safe != null) {
+                    return safe;
+                }
+            }
+        }
+        return defaultConsoleReturnPath(tenant);
+    }
+
+    private static String defaultConsoleReturnPath(String tenant) {
+        return "/owner/console?location=" + tenant;
+    }
+
+    static String sanitizeConsoleReturnPath(String candidate) {
+        if (candidate == null || candidate.isBlank()) {
+            return null;
+        }
+        String trimmed = candidate.strip();
+        if (trimmed.startsWith("//")
+                || trimmed.indexOf('\\') >= 0
+                || trimmed.indexOf('\r') >= 0
+                || trimmed.indexOf('\n') >= 0
+                || trimmed.indexOf('\0') >= 0) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(trimmed);
+            if (uri.getScheme() != null || uri.getRawAuthority() != null) {
+                return null;
+            }
+            if (!"/owner/console".equals(uri.getRawPath())) {
+                return null;
+            }
+            return trimmed;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** User-driven status refresh ("Comprobar ahora") for an active VERI*FACTU authorisation. */

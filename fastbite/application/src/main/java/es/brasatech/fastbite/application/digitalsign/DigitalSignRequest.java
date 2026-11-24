@@ -19,7 +19,8 @@ public record DigitalSignRequest(
         Instant completedAt,
         List<RequestSigner> signers,
         RequestDocuments documents,
-        boolean test) {
+        boolean test,
+        String redirectUrl) {
 
     public DigitalSignRequest(
             String id,
@@ -31,7 +32,21 @@ public record DigitalSignRequest(
             Instant completedAt,
             List<RequestSigner> signers,
             RequestDocuments documents) {
-        this(id, status, externalReference, title, createdAt, expiresAt, completedAt, signers, documents, false);
+        this(id, status, externalReference, title, createdAt, expiresAt, completedAt, signers, documents, false, null);
+    }
+
+    public DigitalSignRequest(
+            String id,
+            String status,
+            String externalReference,
+            String title,
+            Instant createdAt,
+            Instant expiresAt,
+            Instant completedAt,
+            List<RequestSigner> signers,
+            RequestDocuments documents,
+            boolean test) {
+        this(id, status, externalReference, title, createdAt, expiresAt, completedAt, signers, documents, test, null);
     }
 
     public DigitalSignRequest {

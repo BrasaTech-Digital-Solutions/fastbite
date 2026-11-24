@@ -605,6 +605,9 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                 f.put("required", file.required());
             }
         }
+        if (command.redirectUrl() != null && !command.redirectUrl().isBlank()) {
+            root.put("redirectUrl", command.redirectUrl());
+        }
 
         return json.writeValueAsBytes(root);
     }
@@ -712,7 +715,8 @@ public class HttpDigitalSignClient implements DigitalSignClient {
                 instantOrNull(root, "completedAt"),
                 signers,
                 docs,
-                boolOrFalse(root, "test"));
+                boolOrFalse(root, "test"),
+                textOrNull(root, "redirectUrl"));
     }
 
     private static Object toPlainObject(JsonNode node) {
