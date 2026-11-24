@@ -785,6 +785,82 @@ class VerifactuAuthorizationServiceTest {
         verify(store).markWebhookEventProcessed(eq("evt-notify-1"), any());
     }
 
+    @Test
+    void revokeMarksValidRowRevokedPreservesPdfsNotifiesAndBlocksLaterWebhookOrRefresh() {
+        Instant validFrom = NOW.minusSeconds(3600);
+        VerifactuAuthorization valid = inProgressAuth("B09767898", "req-rev-1").withSync(
+                VerifactuAuthorizationStatus.VALID, "Ana Lopez", "B09767898",
+                "B09767898/signed.pdf", "a".repeat(64),
+                "B09767898/evidence.pdf", "b".repeat(64),
+                null, validFrom, validFrom);
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.of(valid));
+
+        VerifactuNotificationService notifier = mock(VerifactuNotificationService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<VerifactuNotificationService> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(notifier);
+        service.setNotificationServiceProvider(provider);
+
+        var revokeResult = service.revoke("B09767898", "ana");
+
+        assertThat(revokeResult.outcome()).isEqualTo(VerifactuAuthorizationService.RevokeResult.Outcome.REVOKED);
+        VerifactuAuthorization revoked = revokeResult.authorization();
+        assertThat(revoked.status()).isEqualTo(VerifactuAuthorizationStatus.REVOKED);
+        assertThat(revoked.revokedAt()).isEqualTo(NOW);
+        assertThat(revoked.revokedBy()).isEqualTo("ana");
+        assertThat(revoked.validFrom()).isEqualTo(validFrom);
+        assertThat(revoked.hasStoredDocuments()).isTrue();
+        assertThat(revoked.isCurrentlyValid()).isFalse();
+        assertThat(revoked.wasValidAt(NOW.minusSeconds(1))).isTrue();
+        assertThat(revoked.wasValidAt(NOW)).isFalse();
+        verify(notifier).evaluateForNifEnqueueOnly("B09767898");
+
+        // A later webhook or sync for the revoked request MUST NOT touch Digital Sign or restore VALID
+        when(store.recordWebhookEventIfNew(eq("evt-late-1"), eq("request.completed"), eq("req-rev-1"), any())).thenReturn(true);
+        when(store.findByDigitalSignRequestId("req-rev-1")).thenReturn(Optional.of(revoked));
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findLatestByNif("B09767898")).thenReturn(Optional.of(revoked));
+
+        WebhookOutcome webhookOutcome = service.handleWebhook("evt-late-1", "request.completed", "req-rev-1");
+        assertThat(webhookOutcome).isEqualTo(WebhookOutcome.PROCESSED);
+        Optional<VerifactuAuthorization> refreshed = service.refreshForNif("B09767898");
+        assertThat(refreshed).contains(revoked);
+        assertThat(refreshed.get().status()).isEqualTo(VerifactuAuthorizationStatus.REVOKED);
+        verify(client, never()).getRequest(eq("req-rev-1"), any());
+
+        // Revoking again when no VALID row exists returns NOT_VALID
+        assertThat(service.revoke("B09767898", "ana").outcome())
+                .isEqualTo(VerifactuAuthorizationService.RevokeResult.Outcome.NOT_VALID);
+    }
+
+    @Test
+    void startSigningAfterRevokeCreatesIncrementedAttemptAndNewIdempotencyKey() {
+        properties.setApiToken("secret-token");
+        properties.getVerifactu().setTemplateId("tpl-anexo-1");
+        properties.getVerifactu().getFields().setNif("fld_nif");
+        when(store.findValidByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.findActiveByNif("B09767898")).thenReturn(Optional.empty());
+        when(store.nextAttemptForNif("B09767898")).thenReturn(2);
+        when(client.getTemplate("tpl-anexo-1")).thenReturn(new DigitalSignTemplate(
+                "tpl-anexo-1", "Anexo I",
+                List.of(new TemplateSigner(0, "Representante", true, List.of())),
+                List.of(new TemplateField("fld_nif", "NIF", "TEXT", true, "NONE"))));
+        when(client.createRequest(any(), eq("verifactu-B09767898-2"))).thenReturn(new CreateRequestResult(
+                new DigitalSignRequest("req-attempt-2", "IN_PROGRESS", "ext-2", "Anexo I", NOW, null, null,
+                        List.of(new RequestSigner("Representante", "Ana", "ana@example.es", "es", "PENDING", null,
+                                "https://digital-sign.brasatech.es/sign/attempt-2", List.of(), "CERTIFICATE", "B09767898", null, null)),
+                        new RequestDocuments(false, false), false),
+                false));
+
+        StartSigningResult result = service.startSigning(
+                completeProfile("B09767898"), "ana", "Ana Lopez", "ana@example.es", "es");
+
+        assertThat(result.outcome()).isEqualTo(StartSigningResult.Outcome.SIGNING_URL);
+        assertThat(result.authorization().attempt()).isEqualTo(2);
+        assertThat(result.authorization().idempotencyKey()).isEqualTo("verifactu-B09767898-2");
+    }
+
     private static FiscalProfile completeProfile(String nif) {
         return new FiscalProfile("Restaurante Prueba SL", "Prueba", nif,
                 "Calle Mayor 1", "28013", "Madrid", "Madrid", "600123456", "ana@example.es", "RP", new BigDecimal("10"));

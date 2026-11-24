@@ -379,3 +379,31 @@ window.addEventListener('hashchange',openSection);openSection();
     });
   });
 })();
+// VERI*FACTU authorisation revoke confirmation dialog
+(() => {
+ const dialog=document.getElementById('verifactu-revoke-dialog');
+ if(!dialog)return;
+ const form=document.getElementById('verifactu-revoke-form');
+ const cancelBtn=document.getElementById('verifactu-revoke-cancel');
+ const confirmBtn=document.getElementById('verifactu-revoke-confirm');
+ const nifInput=document.getElementById('verifactu-revoke-nif-input');
+ const normalize=v=>String(v||'').trim().replace(/[\s-]+/g,'').toUpperCase();
+ let trigger=null;
+ const syncConfirmState=()=>{
+  if(!nifInput||!confirmBtn)return;
+  confirmBtn.disabled=normalize(nifInput.value)!==normalize(nifInput.dataset.expectedNif);
+ };
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-verifactu-revoke]');
+  if(!button)return;
+  event.preventDefault();
+  trigger=button;
+  if(form)form.reset();
+  syncConfirmState();
+  dialog.showModal();
+  if(nifInput){nifInput.focus();}else if(cancelBtn){cancelBtn.focus();}
+ });
+ if(nifInput){nifInput.addEventListener('input',syncConfirmState);}
+ if(cancelBtn){cancelBtn.addEventListener('click',()=>dialog.close());}
+ dialog.addEventListener('close',()=>{trigger?.focus();});
+})();

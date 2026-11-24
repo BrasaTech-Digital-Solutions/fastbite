@@ -29,7 +29,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
             id, nif, legal_name, status, digital_sign_request_id, idempotency_key, attempt, template_id,
             signer_name, certificate_nif,
             signed_pdf_path, signed_pdf_sha256, evidence_pdf_path, evidence_pdf_sha256,
-            failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at,
+            failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, revoked_by, last_synced_at,
             version, sync_failure_count, sync_failure_since
             """;
 
@@ -50,9 +50,9 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                     digital_sign_request_id, idempotency_key, attempt, template_id,
                     signer_name, certificate_nif,
                     signed_pdf_path, signed_pdf_sha256, evidence_pdf_path, evidence_pdf_sha256,
-                    failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, last_synced_at,
+                    failure_reason, created_by, created_at, updated_at, valid_from, revoked_at, revoked_by, last_synced_at,
                     version, sync_failure_count, sync_failure_since
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 auth.id().toString(),
                 auth.nif(),
@@ -76,6 +76,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 toTimestamp(auth.updatedAt()),
                 toTimestamp(auth.validFrom()),
                 toTimestamp(auth.revokedAt()),
+                auth.revokedBy(),
                 toTimestamp(auth.lastSyncedAt()),
                 auth.version(),
                 auth.syncFailureCount(),
@@ -111,6 +112,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                     updated_at = ?,
                     valid_from = ?,
                     revoked_at = ?,
+                    revoked_by = ?,
                     last_synced_at = ?,
                     version = ?,
                     sync_failure_count = ?,
@@ -134,6 +136,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 toTimestamp(auth.updatedAt()),
                 toTimestamp(auth.validFrom()),
                 toTimestamp(auth.revokedAt()),
+                auth.revokedBy(),
                 toTimestamp(auth.lastSyncedAt()),
                 nextVersion,
                 auth.syncFailureCount(),
@@ -176,7 +179,8 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
             return Optional.empty();
         }
         List<VerifactuAuthorization> rows = jdbc.query(
-                "SELECT " + SELECT_COLUMNS + " FROM public.verifactu_authorizations WHERE valid_nif = ?",
+                "SELECT " + SELECT_COLUMNS + " FROM public.verifactu_authorizations"
+                        + " WHERE valid_nif = ? AND status = 'VALID' AND revoked_at IS NULL",
                 ROW_MAPPER,
                 nif.strip());
         return rows.stream().findFirst();
@@ -355,6 +359,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
                 fromTimestamp(rs.getTimestamp("updated_at")),
                 fromTimestamp(rs.getTimestamp("valid_from")),
                 fromTimestamp(rs.getTimestamp("revoked_at")),
+                rs.getString("revoked_by"),
                 fromTimestamp(rs.getTimestamp("last_synced_at")),
                 rs.getInt("version"),
                 rs.getInt("sync_failure_count"),
@@ -362,7 +367,7 @@ public class VerifactuAuthorizationJdbcAdapter implements VerifactuAuthorization
     }
 
     private static String validNifColumn(VerifactuAuthorization auth) {
-        return auth.status() == VerifactuAuthorizationStatus.VALID ? auth.nif() : null;
+        return auth.status() == VerifactuAuthorizationStatus.VALID && auth.revokedAt() == null ? auth.nif() : null;
     }
 
     private static String activeNifColumn(VerifactuAuthorization auth) {

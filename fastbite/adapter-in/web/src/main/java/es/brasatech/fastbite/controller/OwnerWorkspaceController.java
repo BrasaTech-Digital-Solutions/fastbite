@@ -1,12 +1,14 @@
 package es.brasatech.fastbite.controller;
 import es.brasatech.fastbite.application.tenant.*;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.RevokeResult;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
 import es.brasatech.fastbite.config.ProductionOnly;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.fiscal.SpanishProvinces;
 import es.brasatech.fastbite.domain.fiscal.VatRates;
+import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.domain.user.Role;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
 import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
@@ -191,7 +193,7 @@ public class OwnerWorkspaceController {
                             && !updatedTrialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
                 }
                 if (view.equals("overview")) {
-                    model.addAttribute("verifactuStep", buildVerifactuStep(setup.fiscal()));
+                    model.addAttribute("verifactuStep", buildVerifactuStep(owner.getName(), selected.tenantId(), setup.fiscal()));
                     if (!environment.sandbox()) {
                         model.addAttribute("ordersNeedingRefund", workspace.ordersNeedingRefund(owner.getName(), selected.tenantId()));
                     }
@@ -623,7 +625,41 @@ public class OwnerWorkspaceController {
         return "redirect:/owner/console?location=" + tenant;
     }
 
-    private VerifactuStepView buildVerifactuStep(FiscalProfile fiscal) {
+    /** Revokes the currently VALID VERI*FACTU authorisation for this location's NIF. */
+    @PostMapping("/owner/workspace/{tenant}/verifactu/revoke")
+    public String revokeVerifactuAuthorization(
+            @PathVariable String tenant,
+            @RequestParam(name = "confirmNif", required = false) String confirmNif,
+            Principal owner,
+            RedirectAttributes flash) {
+        checkOpen(owner, tenant);
+        if (verifactuAuthorizations == null) {
+            flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.reason.signing_unavailable"));
+            return "redirect:/owner/console?location=" + tenant;
+        }
+        FiscalProfile fiscal = workspace.fiscalProfile(owner.getName(), tenant);
+        String normalizedNif = normalizeNif(fiscal == null ? null : fiscal.taxId());
+        if (normalizedNif == null) {
+            flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.status.fiscal_required"));
+            return "redirect:/owner/console?location=" + tenant;
+        }
+        if (!environment.sandbox()) {
+            String normalizedConfirm = normalizeNif(confirmNif);
+            if (normalizedConfirm == null || !normalizedNif.equals(normalizedConfirm)) {
+                flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.revoke.error.nif_mismatch"));
+                return "redirect:/owner/console?location=" + tenant;
+            }
+        }
+        RevokeResult result = verifactuAuthorizations.revoke(normalizedNif, owner.getName());
+        if (result.outcome() == RevokeResult.Outcome.REVOKED) {
+            flash.addFlashAttribute("notice", workspaceMessage("opening.verifactu.revoke.success"));
+        } else {
+            flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.revoke.error.not_valid"));
+        }
+        return "redirect:/owner/console?location=" + tenant;
+    }
+
+    private VerifactuStepView buildVerifactuStep(String ownerUsername, String selectedTenantId, FiscalProfile fiscal) {
         if (fiscal == null || !fiscal.complete()) {
             return new VerifactuStepView(
                     false,
@@ -635,7 +671,9 @@ public class OwnerWorkspaceController {
                     null,
                     false,
                     false,
-                    false);
+                    false,
+                    false,
+                    List.of());
         }
         String nif = fiscal.taxId();
         String legalName = fiscal.legalName();
@@ -643,7 +681,7 @@ public class OwnerWorkspaceController {
             return new VerifactuStepView(
                     true, nif, legalName, "SIGNING_UNAVAILABLE",
                     "opening.verifactu.status.on_hold", "opening.verifactu.reason.signing_unavailable",
-                    null, false, false, false);
+                    null, false, false, false, false, List.of());
         }
         boolean signingConfigured = verifactuAuthorizations.isSigningConfigured();
         Optional<VerifactuAuthorization> currentOpt = verifactuAuthorizations.findCurrentForNif(nif);
@@ -652,37 +690,38 @@ public class OwnerWorkspaceController {
                 return new VerifactuStepView(
                         true, nif, legalName, "SIGNING_UNAVAILABLE",
                         "opening.verifactu.status.on_hold", "opening.verifactu.reason.signing_unavailable",
-                        null, false, false, false);
+                        null, false, false, false, false, List.of());
             }
             return new VerifactuStepView(
                     true, nif, legalName, "NOT_SIGNED",
                     "opening.verifactu.status.not_signed", null,
-                    null, true, false, false);
+                    null, true, false, false, false, List.of());
         }
         VerifactuAuthorization auth = currentOpt.get();
         if (auth.isCurrentlyValid()) {
+            List<String> affected = locationsSharingNif(ownerUsername, selectedTenantId, nif);
             if (environment.sandbox() || verifactuAuthorizations.isCollaborationActive()) {
                 return new VerifactuStepView(
                         true, nif, legalName, "VALID",
                         "opening.verifactu.status.valid", null,
-                        auth.signerName(), false, false, false);
+                        auth.signerName(), false, false, false, true, affected);
             }
             return new VerifactuStepView(
                     true, nif, legalName, "COLLABORATION_INACTIVE",
                     "opening.verifactu.status.signed_waiting_switch", "opening.verifactu.reason.collaboration_inactive",
-                    auth.signerName(), false, false, false);
+                    auth.signerName(), false, false, false, true, affected);
         }
         if (auth.status() == VerifactuAuthorizationStatus.IN_PROGRESS) {
             return new VerifactuStepView(
                     true, nif, legalName, "IN_PROGRESS",
                     "opening.verifactu.status.in_progress", null,
-                    auth.signerName(), signingConfigured, true, false);
+                    auth.signerName(), signingConfigured, true, false, false, List.of());
         }
         if (auth.status() == VerifactuAuthorizationStatus.DOWNLOAD_FAILED) {
             return new VerifactuStepView(
                     true, nif, legalName, "ON_HOLD",
                     "opening.verifactu.status.on_hold", "opening.verifactu.reason.download_failed",
-                    auth.signerName(), false, true, false);
+                    auth.signerName(), false, true, false, false, List.of());
         }
         String reasonKey = switch (auth.status()) {
             case DECLINED -> "opening.verifactu.reason.declined";
@@ -708,7 +747,41 @@ public class OwnerWorkspaceController {
         return new VerifactuStepView(
                 true, nif, legalName, "ON_HOLD",
                 "opening.verifactu.status.on_hold", reasonKey,
-                auth.signerName(), false, false, retryable);
+                auth.signerName(), false, false, retryable, false, List.of());
+    }
+
+    private List<String> locationsSharingNif(String ownerUsername, String selectedTenantId, String nif) {
+        String normalized = normalizeNif(nif);
+        if (normalized == null || ownerUsername == null) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (TenantLocation loc : locations.getLocationsByOwner(ownerUsername)) {
+            if (loc.isClosed()) {
+                continue;
+            }
+            if (loc.tenantId().equals(selectedTenantId)) {
+                result.add(loc.tenantId());
+                continue;
+            }
+            FiscalProfile other = workspace.fiscalProfile(ownerUsername, loc.tenantId());
+            if (other != null && normalized.equals(normalizeNif(other.taxId()))) {
+                result.add(loc.tenantId());
+            }
+        }
+        if (result.isEmpty() && selectedTenantId != null) {
+            result.add(selectedTenantId);
+        }
+        return List.copyOf(result);
+    }
+
+    private static String normalizeNif(String nif) {
+        if (nif == null || nif.isBlank()) {
+            return null;
+        }
+        return SpanishTaxId.parse(nif)
+                .map(SpanishTaxId::value)
+                .orElseGet(() -> nif.strip().replaceAll("[\\s-]+", "").toUpperCase(Locale.ROOT));
     }
 
     public record VerifactuStepView(
@@ -721,7 +794,9 @@ public class OwnerWorkspaceController {
             String signerName,
             boolean canSign,
             boolean canRefresh,
-            boolean canRetry) {
+            boolean canRetry,
+            boolean canRevoke,
+            List<String> affectedLocations) {
     }
 
     private void check(Principal owner,String tenant) {

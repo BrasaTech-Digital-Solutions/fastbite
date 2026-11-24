@@ -86,6 +86,22 @@ public class VerifactuAuthorizationService {
         public static final ReconcileSummary EMPTY = new ReconcileSummary(0, 0, 0);
     }
 
+    public record RevokeResult(Outcome outcome, VerifactuAuthorization authorization) {
+
+        public enum Outcome {
+            REVOKED,
+            NOT_VALID
+        }
+
+        public static RevokeResult revoked(VerifactuAuthorization auth) {
+            return new RevokeResult(Outcome.REVOKED, auth);
+        }
+
+        public static RevokeResult notValid() {
+            return new RevokeResult(Outcome.NOT_VALID, null);
+        }
+    }
+
     public record StartSigningResult(
             Outcome outcome,
             String signingUrl,
@@ -215,6 +231,49 @@ public class VerifactuAuthorizationService {
         return store.findValidByNif(normalized)
                 .or(() -> store.findActiveByNif(normalized))
                 .or(() -> store.findLatestByNif(normalized));
+    }
+
+    /**
+     * Revokes the currently {@code VALID} authorisation for the given NIF.
+     *
+     * <p>The row and its stored PDFs are kept intact so {@link #wasAuthorizedAt(String, Instant)}
+     * continues to prove past tickets were authorised before {@code revokedAt}.
+     */
+    public RevokeResult revoke(String nif, String ownerUsername) {
+        String normalized = normalizeNif(nif);
+        if (normalized == null || ownerUsername == null || ownerUsername.isBlank()) {
+            return RevokeResult.notValid();
+        }
+        Optional<VerifactuAuthorization> validOpt = store.findValidByNif(normalized);
+        if (validOpt.isEmpty() || !validOpt.get().isCurrentlyValid()) {
+            return RevokeResult.notValid();
+        }
+        VerifactuAuthorization current = validOpt.get();
+        Instant now = clock.instant();
+        VerifactuAuthorization revoked = current.withRevoked(now, truncate(ownerUsername.strip(), 160));
+        UpdateResult result = store.compareAndSet(revoked);
+        if (!result.applied()) {
+            VerifactuAuthorization latest = store.findById(current.id()).orElse(result.authorization());
+            if (latest.status() == VerifactuAuthorizationStatus.REVOKED) {
+                return RevokeResult.revoked(latest);
+            }
+            return RevokeResult.notValid();
+        }
+        VerifactuAuthorization applied = result.authorization();
+        log.info("VERI*FACTU authorisation {} revoked for nif={} by owner={}",
+                applied.id(), maskNif(applied.nif()), applied.revokedBy());
+        VerifactuNotificationService notifier = notificationServiceProvider == null
+                ? null
+                : notificationServiceProvider.getIfAvailable();
+        if (notifier != null) {
+            try {
+                notifier.evaluateForNifEnqueueOnly(applied.nif());
+            } catch (RuntimeException e) {
+                log.warn("Failed to enqueue VERI*FACTU on-hold notification after revoke of {}: {}",
+                        applied.id(), e.getMessage());
+            }
+        }
+        return RevokeResult.revoked(applied);
     }
 
     /**
@@ -761,7 +820,7 @@ public class VerifactuAuthorizationService {
             return Optional.empty();
         }
         VerifactuAuthorization current = existingOpt.get();
-        if (!current.status().isActive()) {
+        if (!current.status().isActive() || current.revokedAt() != null) {
             return Optional.of(current);
         }
         if (!digitalSignClient.isConfigured()) {
@@ -924,7 +983,7 @@ public class VerifactuAuthorizationService {
             return Optional.of(applied);
         }
         VerifactuAuthorization latest = store.findById(candidate.id()).orElse(result.authorization());
-        if (casAttempt < MAX_CAS_RETRIES && latest.status().isActive()) {
+        if (casAttempt < MAX_CAS_RETRIES && latest.status().isActive() && latest.revokedAt() == null) {
             log.debug("Lost CAS update for VERI*FACTU authorisation {} while still {}; retrying sync once",
                     candidate.id(), latest.status());
             return syncRequest(requestId, deadline, allowRetries, countFailure, casAttempt + 1);

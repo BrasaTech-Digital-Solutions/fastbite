@@ -202,6 +202,44 @@ class VerifactuAuthorizationJdbcAdapterTest {
         assertThat(stale.authorization().syncFailureSince()).isEqualTo(T0.plusSeconds(5));
     }
 
+    @Test
+    void revokePersistsRevokedByClearsValidNifPreservesPdfsAndAllowsNewSigningAttempt() {
+        Instant validFrom = T0.plusSeconds(30);
+        VerifactuAuthorization valid1 = store.insert(makeValid(
+                auth("B09767898", VerifactuAuthorizationStatus.IN_PROGRESS, 1, "req-rev-1", T0), validFrom));
+        assertThat(store.findValidByNif("B09767898")).contains(valid1);
+
+        Instant revokedAt = T0.plusSeconds(120);
+        var revokedRes = store.compareAndSet(valid1.withRevoked(revokedAt, "ana"));
+        assertThat(revokedRes.applied()).isTrue();
+        VerifactuAuthorization revoked = revokedRes.authorization();
+        assertThat(revoked.status()).isEqualTo(VerifactuAuthorizationStatus.REVOKED);
+        assertThat(revoked.revokedAt()).isEqualTo(revokedAt);
+        assertThat(revoked.revokedBy()).isEqualTo("ana");
+        assertThat(revoked.hasStoredDocuments()).isTrue();
+        assertThat(revoked.signedPdfPath()).isEqualTo(valid1.signedPdfPath());
+        assertThat(revoked.evidencePdfPath()).isEqualTo(valid1.evidencePdfPath());
+
+        assertThat(store.findValidByNif("B09767898")).isEmpty();
+        assertThat(store.hasValidAuthorization("B09767898")).isFalse();
+        assertThat(store.findLatestByNif("B09767898")).contains(revoked);
+        assertThat(store.wasAuthorizedAt("B09767898", T0.plusSeconds(60))).isTrue();
+        assertThat(store.wasAuthorizedAt("B09767898", revokedAt)).isFalse();
+
+        // New signing attempt + new VALID row for the same NIF succeeds cleanly
+        assertThat(store.nextAttemptForNif("B09767898")).isEqualTo(2);
+        VerifactuAuthorization attempt2 = store.insert(
+                auth("B09767898", VerifactuAuthorizationStatus.IN_PROGRESS, 2, "req-rev-2", T0.plusSeconds(180)));
+        assertThat(store.findActiveByNif("B09767898")).contains(attempt2);
+
+        VerifactuAuthorization valid2 = store.compareAndSet(makeValid(attempt2, T0.plusSeconds(240))).authorization();
+        assertThat(store.findValidByNif("B09767898")).contains(valid2);
+        assertThat(store.hasValidAuthorization("B09767898")).isTrue();
+        assertThat(store.wasAuthorizedAt("B09767898", T0.plusSeconds(60))).isTrue();
+        assertThat(store.wasAuthorizedAt("B09767898", T0.plusSeconds(150))).isFalse();
+        assertThat(store.wasAuthorizedAt("B09767898", T0.plusSeconds(240))).isTrue();
+    }
+
     private static VerifactuAuthorization auth(
             String nif, VerifactuAuthorizationStatus status, int attempt, String requestId, Instant createdAt) {
         return new VerifactuAuthorization(

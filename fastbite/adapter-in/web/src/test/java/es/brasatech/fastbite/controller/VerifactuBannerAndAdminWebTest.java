@@ -33,6 +33,8 @@ import es.brasatech.fastbite.domain.settings.RestaurantSettings;
 import es.brasatech.fastbite.domain.tenant.SetupProgress;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorization;
+import es.brasatech.fastbite.domain.verifactu.VerifactuAuthorizationStatus;
 import es.brasatech.fastbite.security.SecurityConfig;
 import es.brasatech.fastbite.security.TenantUser;
 import org.junit.jupiter.api.AfterEach;
@@ -49,10 +51,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -281,6 +285,34 @@ class VerifactuBannerAndAdminWebTest {
                     .contains("#77")
                     .contains("Lucia")
                     .contains("24,00\u00A0€");
+        }
+
+        @Test
+        void platformAdminPageListsRevokedLocationsWithRevokedHoldReason() throws Exception {
+            TenantLocation loc1 = new TenantLocation("1", OWNER, TENANT, "RESTAURANT", null, null, false, false, null);
+            TenantLocation loc2 = new TenantLocation("2", OWNER, "lacasita2", "RESTAURANT", null, null, false, false, null);
+            when(tenantLocationService.getAllLocations()).thenReturn(List.of(loc1, loc2));
+            when(gate.holdReason(TENANT)).thenReturn(Optional.of(HoldReason.REVOKED));
+            when(gate.holdReason("lacasita2")).thenReturn(Optional.of(HoldReason.REVOKED));
+            Instant now = Instant.now();
+            VerifactuAuthorization revoked = new VerifactuAuthorization(
+                    UUID.randomUUID(), "B12345674", "La Casita S.L.",
+                    VerifactuAuthorizationStatus.REVOKED, "req-rev", "verifactu-B12345674-1", 1,
+                    "tpl-1", "Ana", "B12345674", "p1", "sha1", "p2", "sha2", null, OWNER,
+                    now.minusSeconds(60), now, now.minusSeconds(60), now, OWNER, now, 2, 0, null);
+            when(authorizations.findCurrentForNif("B12345674")).thenReturn(Optional.of(revoked));
+
+            String html = mockMvc.perform(get("/owner/platform/verifactu-holds")
+                            .locale(Locale.forLanguageTag("es"))
+                            .with(user(ownerPrincipal(ADMIN))))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+
+            assertThat(html)
+                    .contains("lacasita")
+                    .contains("lacasita2")
+                    .contains("B12345674")
+                    .contains("REVOKED");
         }
     }
 

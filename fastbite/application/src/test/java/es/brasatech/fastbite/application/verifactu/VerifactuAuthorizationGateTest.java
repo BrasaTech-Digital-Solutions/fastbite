@@ -170,4 +170,30 @@ class VerifactuAuthorizationGateTest {
         assertThat(gate.mayIssueTickets("target-tenant")).isTrue();
         assertThat(TenantContext.getCurrentTenant()).isEqualTo("other-tenant");
     }
+
+    @Test
+    void revokedAuthorizationBlocksEveryLocationSharingTheNifWhilePastTicketsRemainAuthorized() {
+        when(authorizations.isCollaborationActive()).thenReturn(true);
+        when(authorizations.hasValidAuthorization("B09767898")).thenReturn(false);
+        Instant validFrom = Instant.parse("2026-11-20T10:00:00Z");
+        Instant revokedAt = Instant.parse("2026-11-20T12:00:00Z");
+        VerifactuAuthorization revoked = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Kebab House SL", VerifactuAuthorizationStatus.REVOKED,
+                "req-1", "verifactu-B09767898-1", 1, "tpl-1", "Ana", "B09767898",
+                "p1", "sha1", "p2", "sha2", null, "ana", validFrom, revokedAt, validFrom, revokedAt, "ana",
+                validFrom, 2, 0, null);
+        when(authorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(revoked));
+        when(authorizations.wasAuthorizedAt("B09767898", Instant.parse("2026-11-20T11:00:00Z"))).thenReturn(true);
+        when(authorizations.wasAuthorizedAt("B09767898", revokedAt)).thenReturn(false);
+
+        VerifactuAuthorizationGate gate = new VerifactuAuthorizationGate(
+                new PlatformEnvironment("production"), fiscalProfiles, authorizations);
+
+        assertThat(gate.mayIssueTickets("bistro-north")).isFalse();
+        assertThat(gate.holdReason("bistro-north")).contains(HoldReason.REVOKED);
+        assertThat(gate.mayIssueTickets("bistro-south")).isFalse();
+        assertThat(gate.holdReason("bistro-south")).contains(HoldReason.REVOKED);
+        assertThat(authorizations.wasAuthorizedAt("B09767898", Instant.parse("2026-11-20T11:00:00Z"))).isTrue();
+        assertThat(authorizations.wasAuthorizedAt("B09767898", revokedAt)).isFalse();
+    }
 }

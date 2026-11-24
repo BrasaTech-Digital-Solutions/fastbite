@@ -16,6 +16,7 @@ import es.brasatech.fastbite.application.tenant.SubscriptionService;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
+import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.RevokeResult;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.ThemeCatalog;
@@ -267,5 +268,53 @@ class SandboxVerifactuSigningControllerTest {
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "https://digital-sign.example/sign/sandbox-default"));
+    }
+
+    @Test
+    void sandboxRevokeDialogUsesPracticeWordingWithoutNifInputAndAllowsRetryAfterRevoke() throws Exception {
+        Instant now = Instant.now();
+        VerifactuAuthorization valid = new VerifactuAuthorization(
+                UUID.randomUUID(), "B09767898", "Bistro Ana SL",
+                VerifactuAuthorizationStatus.VALID, "req-sbx-ok", "verifactu-B09767898-1", 1,
+                "tpl-1", "Ana García", "B09767898", "B09767898/signed.pdf", "sha1",
+                "B09767898/evidence.pdf", "sha2", null, OWNER,
+                now, now, now, null, now, 1, 0, null);
+        when(verifactuAuthorizations.isSigningConfigured()).thenReturn(true);
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(valid));
+
+        String html = mockMvc.perform(get("/owner/console").param("location", TENANT)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html)
+                .contains("Revocar autorización")
+                .contains("id=\"verifactu-revoke-dialog\"")
+                .contains("Esto revoca la firma de prueba en este espacio de pruebas")
+                .contains("<li>bistro</li>")
+                .doesNotContain("id=\"verifactu-revoke-nif-input\"");
+
+        // Sandbox revoke succeeds without confirmNif parameter
+        VerifactuAuthorization revoked = valid.withRevoked(now.plusSeconds(30), OWNER);
+        when(verifactuAuthorizations.revoke("B09767898", OWNER)).thenReturn(RevokeResult.revoked(revoked));
+        mockMvc.perform(post("/owner/workspace/" + TENANT + "/verifactu/revoke")
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal()))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/owner/console?location=" + TENANT))
+                .andExpect(flash().attribute("notice", containsString("Autorización VERI*FACTU revocada")));
+        verify(verifactuAuthorizations).revoke("B09767898", OWNER);
+
+        // After revoke, sandbox overview offers "Firmar de nuevo"
+        when(verifactuAuthorizations.findCurrentForNif("B09767898")).thenReturn(Optional.of(revoked));
+        String afterHtml = mockMvc.perform(get("/owner/console").param("location", TENANT)
+                        .locale(Locale.forLanguageTag("es"))
+                        .with(user(ownerPrincipal())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(afterHtml)
+                .contains("Firmar de nuevo")
+                .doesNotContain("data-verifactu-revoke");
     }
 }

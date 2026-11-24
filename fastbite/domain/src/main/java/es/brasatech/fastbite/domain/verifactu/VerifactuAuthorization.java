@@ -31,6 +31,7 @@ public record VerifactuAuthorization(
         Instant updatedAt,
         Instant validFrom,
         Instant revokedAt,
+        String revokedBy,
         Instant lastSyncedAt,
         int version,
         int syncFailureCount,
@@ -61,7 +62,7 @@ public record VerifactuAuthorization(
             int version) {
         this(id, nif, legalName, status, digitalSignRequestId, idempotencyKey, attempt, templateId,
                 signerName, certificateNif, signedPdfPath, signedPdfSha256, evidencePdfPath, evidencePdfSha256,
-                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, lastSyncedAt, version, 0, null);
+                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, null, lastSyncedAt, version, 0, null);
     }
 
     public VerifactuAuthorization(
@@ -90,7 +91,38 @@ public record VerifactuAuthorization(
             int syncFailureCount) {
         this(id, nif, legalName, status, digitalSignRequestId, idempotencyKey, attempt, templateId,
                 signerName, certificateNif, signedPdfPath, signedPdfSha256, evidencePdfPath, evidencePdfSha256,
-                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, lastSyncedAt, version, syncFailureCount, null);
+                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, null, lastSyncedAt, version, syncFailureCount, null);
+    }
+
+    public VerifactuAuthorization(
+            UUID id,
+            String nif,
+            String legalName,
+            VerifactuAuthorizationStatus status,
+            String digitalSignRequestId,
+            String idempotencyKey,
+            int attempt,
+            String templateId,
+            String signerName,
+            String certificateNif,
+            String signedPdfPath,
+            String signedPdfSha256,
+            String evidencePdfPath,
+            String evidencePdfSha256,
+            String failureReason,
+            String createdBy,
+            Instant createdAt,
+            Instant updatedAt,
+            Instant validFrom,
+            Instant revokedAt,
+            Instant lastSyncedAt,
+            int version,
+            int syncFailureCount,
+            Instant syncFailureSince) {
+        this(id, nif, legalName, status, digitalSignRequestId, idempotencyKey, attempt, templateId,
+                signerName, certificateNif, signedPdfPath, signedPdfSha256, evidencePdfPath, evidencePdfSha256,
+                failureReason, createdBy, createdAt, updatedAt, validFrom, revokedAt, null, lastSyncedAt, version,
+                syncFailureCount, syncFailureSince);
     }
 
     public VerifactuAuthorization {
@@ -213,10 +245,45 @@ public record VerifactuAuthorization(
                 syncedAt,
                 nextValidFrom,
                 revokedAt,
+                revokedBy,
                 syncedAt,
                 version,
                 nextSyncFailureCount,
                 nextSyncFailureSince);
+    }
+
+    /** Returns a copy of this authorisation marked {@code REVOKED}, keeping stored PDFs and {@code validFrom}. */
+    public VerifactuAuthorization withRevoked(Instant revokedTimestamp, String revoker) {
+        Objects.requireNonNull(revokedTimestamp, "revokedTimestamp");
+        if (revoker == null || revoker.isBlank()) {
+            throw new IllegalArgumentException("revoker must not be blank");
+        }
+        return new VerifactuAuthorization(
+                id,
+                nif,
+                legalName,
+                VerifactuAuthorizationStatus.REVOKED,
+                digitalSignRequestId,
+                idempotencyKey,
+                attempt,
+                templateId,
+                signerName,
+                certificateNif,
+                signedPdfPath,
+                signedPdfSha256,
+                evidencePdfPath,
+                evidencePdfSha256,
+                null,
+                createdBy,
+                createdAt,
+                revokedTimestamp,
+                validFrom,
+                revokedTimestamp,
+                revoker.strip(),
+                lastSyncedAt,
+                version,
+                syncFailureCount,
+                syncFailureSince);
     }
 
     public VerifactuAuthorization withVersion(int nextVersion) {
@@ -241,6 +308,7 @@ public record VerifactuAuthorization(
                 updatedAt,
                 validFrom,
                 revokedAt,
+                revokedBy,
                 lastSyncedAt,
                 nextVersion,
                 syncFailureCount,

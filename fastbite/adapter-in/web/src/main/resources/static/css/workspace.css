@@ -96,6 +96,7 @@
 .billing-row:last-child{border:0}
 .danger-zone{border:1px solid #e6b7ab;background:#fff9f7;border-radius:10px;padding:22px;margin-top:30px}
 .danger-button{background:#ad3e2b;border:1px solid #ad3e2b;color:#fff;border-radius:8px;padding:12px 18px;min-height:44px;font:inherit;cursor:pointer}
+.danger-button:disabled{opacity:.5;cursor:not-allowed}
 .workspace button:disabled{opacity:.55;cursor:wait}
 .workspace-footer{padding:20px 38px;border-top:1px solid #dedfd5;font-size:12px;color:#6d796e;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .workspace dialog{width:min(570px,calc(100vw - 32px));border:1px solid #dedfd5;border-radius:16px;padding:30px;color:#1c3029;background:#fcfaf5;max-height:90vh;overflow:auto}
