@@ -62,7 +62,6 @@ public class OwnerConsoleController {
         }
     }
 
-    @ProductionOnly
     @PostMapping("/owner/delete-location")
     public String deleteLocation(
             @RequestParam String tenantId,
@@ -72,8 +71,7 @@ public class OwnerConsoleController {
         }
         String ownerUsername = principal.getName();
         if (tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
-            // Keep the owner-to-location mapping so billing, cancellation and data export stay reachable.
-            return "redirect:/owner/billing/" + tenantId;
+            return "redirect:/owner/console?view=location-settings&section=general&location=" + tenantId;
         }
         return "redirect:/owner/console?view=locations";
     }

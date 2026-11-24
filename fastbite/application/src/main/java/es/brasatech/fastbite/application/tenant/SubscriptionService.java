@@ -116,6 +116,43 @@ public class SubscriptionService {
         account = account(tenant, owner);
         if (account.subscriptionId() != null) refreshSubscription(account.subscriptionId());
     }
+    public void cancelSubscriptionImmediately(String tenant, String owner) {
+        var existingOpt = billing.find(tenant);
+        if (existingOpt.isEmpty()) return;
+        var existing = existingOpt.get();
+        requireOwner(existing, owner);
+        if (existing.subscriptionId() == null || Set.of("canceled", "incomplete_expired").contains(existing.status())) {
+            return;
+        }
+        if (!gateway.configured()) {
+            throw new IllegalStateException("Billing is temporarily unavailable. Please try again shortly.");
+        }
+        gateway.cancelImmediately(existing.subscriptionId());
+    }
+    public void cancelSubscriptionAtPeriodEnd(String tenant, String owner) {
+        var existingOpt = billing.find(tenant);
+        if (existingOpt.isEmpty()) return;
+        var existing = existingOpt.get();
+        requireOwner(existing, owner);
+        if (existing.subscriptionId() == null
+                || Set.of("canceled", "incomplete_expired").contains(existing.status())
+                || existing.cancelAtPeriodEnd()) {
+            return;
+        }
+        if (!gateway.configured()) {
+            throw new IllegalStateException("Billing is temporarily unavailable. Please try again shortly.");
+        }
+        var updated = gateway.cancelAtPeriodEnd(existing.subscriptionId());
+        if (updated != null) {
+            billing.updateLocked(tenant, account -> account.subscribed(
+                    updated.customerId() != null ? updated.customerId() : account.customerId(),
+                    updated.id() != null ? updated.id() : account.subscriptionId(),
+                    updated.status() != null ? updated.status() : account.status(),
+                    updated.periodEnd() > 0 ? updated.periodEnd() : account.periodEnd(),
+                    updated.trialEnd() > 0 ? updated.trialEnd() : account.stripeTrialEnd(),
+                    updated.cancelAtPeriodEnd()));
+        }
+    }
     private BillingAccount apply(BillingAccount account, SubscriptionGateway.Subscription sub) {
         if (!account.tenantId().equals(sub.tenant()) || !account.owner().equals(sub.owner())
                 || !account.billingKey().equals(sub.billingKey()) || !sub.supportedPrice()

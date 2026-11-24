@@ -4,6 +4,8 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.Price;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
+import com.stripe.param.SubscriptionCancelParams;
+import com.stripe.param.SubscriptionUpdateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import es.brasatech.fastbite.application.tenant.SubscriptionGateway;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
@@ -15,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class StripeBillingGateway implements SubscriptionGateway {
@@ -86,16 +89,39 @@ public class StripeBillingGateway implements SubscriptionGateway {
     }
     @Override public Subscription subscription(String id) {
         try {
-            var s = com.stripe.model.Subscription.retrieve(id, options(null));
-            var m = s.getMetadata() == null ? Map.<String,String>of() : s.getMetadata();
-            var items = s.getItems().getData();
-            boolean supported = items.size() == 1 && Long.valueOf(1).equals(items.getFirst().getQuantity())
-                    && priceId.equals(items.getFirst().getPrice().getId()) && validPrice(items.getFirst().getPrice())
-                    && "PLATFORM_SUBSCRIPTION".equals(m.get("type")) && "RESTAURANT".equals(m.get("plan"));
-            return new Subscription(s.getId(), s.getCustomer(), m.get("tenantId"), m.get("ownerUsername"), m.get("billingKey"),
-                    s.getStatus(), s.getCurrentPeriodEnd() == null ? 0 : s.getCurrentPeriodEnd(), s.getTrialEnd() == null ? 0 : s.getTrialEnd(),
-                    Boolean.TRUE.equals(s.getCancelAtPeriodEnd()), supported);
+            return mapSubscription(com.stripe.model.Subscription.retrieve(id, options(null)));
         } catch (StripeException e) { throw unavailable(); }
+    }
+    @Override public void cancelImmediately(String subscriptionId) {
+        try {
+            var s = com.stripe.model.Subscription.retrieve(subscriptionId, options(null));
+            if (!Set.of("canceled", "incomplete_expired").contains(s.getStatus())) {
+                s.cancel(SubscriptionCancelParams.builder().build(), options("fastbite-cancel-now-" + subscriptionId));
+            }
+        } catch (StripeException e) { throw unavailable(); }
+    }
+    @Override public Subscription cancelAtPeriodEnd(String subscriptionId) {
+        try {
+            var s = com.stripe.model.Subscription.retrieve(subscriptionId, options(null));
+            if (!Set.of("canceled", "incomplete_expired").contains(s.getStatus())
+                    && !Boolean.TRUE.equals(s.getCancelAtPeriodEnd())) {
+                var params = SubscriptionUpdateParams.builder()
+                        .setCancelAtPeriodEnd(true)
+                        .build();
+                s = s.update(params, options("fastbite-cancel-period-end-" + subscriptionId));
+            }
+            return mapSubscription(s);
+        } catch (StripeException e) { throw unavailable(); }
+    }
+    private Subscription mapSubscription(com.stripe.model.Subscription s) {
+        var m = s.getMetadata() == null ? Map.<String,String>of() : s.getMetadata();
+        var items = s.getItems().getData();
+        boolean supported = items.size() == 1 && Long.valueOf(1).equals(items.getFirst().getQuantity())
+                && priceId.equals(items.getFirst().getPrice().getId()) && validPrice(items.getFirst().getPrice())
+                && "PLATFORM_SUBSCRIPTION".equals(m.get("type")) && "RESTAURANT".equals(m.get("plan"));
+        return new Subscription(s.getId(), s.getCustomer(), m.get("tenantId"), m.get("ownerUsername"), m.get("billingKey"),
+                s.getStatus(), s.getCurrentPeriodEnd() == null ? 0 : s.getCurrentPeriodEnd(), s.getTrialEnd() == null ? 0 : s.getTrialEnd(),
+                Boolean.TRUE.equals(s.getCancelAtPeriodEnd()), supported);
     }
     static boolean validPrice(Price p) {
         return p != null && "eur".equals(p.getCurrency()) && Long.valueOf(SubscriptionPlan.MONTHLY_CENTS).equals(p.getUnitAmount())

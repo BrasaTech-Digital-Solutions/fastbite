@@ -4,6 +4,7 @@ import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.RevokeResult;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService.StartSigningResult;
 import es.brasatech.fastbite.config.ProductionOnly;
+import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.fiscal.FiscalProfile;
 import es.brasatech.fastbite.domain.fiscal.SpanishTaxId;
 import es.brasatech.fastbite.domain.fiscal.SpanishProvinces;
@@ -56,6 +57,8 @@ public class OwnerWorkspaceController {
     private final java.time.Clock clock;
     private final String termsVersion;
     private final VerifactuAuthorizationService verifactuAuthorizations;
+    private final LocationLifecycleService locationLifecycle;
+    private final TenantRoutingResolver routingResolver;
     public OwnerWorkspaceController(TenantLocationService locations,OwnerWorkspaceService workspace,OwnerStaffService staff,SubscriptionService subscriptions,TenantBackupRestorePort backups,AppearancePort appearance,es.brasatech.fastbite.config.ThemeCatalog themes,
             MessageSource messages, es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
             es.brasatech.fastbite.application.platform.PlatformLink link, FreePlanLock freePlanLock,
@@ -66,7 +69,9 @@ public class OwnerWorkspaceController {
             @org.springframework.beans.factory.annotation.Value("${fastbite.legal.updated:27/10/2026}") String termsVersion,
             es.brasatech.fastbite.application.platform.PromotionService promotionService,
             @org.springframework.beans.factory.annotation.Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone,
-            ObjectProvider<VerifactuAuthorizationService> verifactuAuthorizations) {
+            ObjectProvider<VerifactuAuthorizationService> verifactuAuthorizations,
+            ObjectProvider<LocationLifecycleService> locationLifecycle,
+            ObjectProvider<TenantRoutingResolver> routingResolver) {
         this.locations=locations;this.workspace=workspace;this.staff=staff;this.subscriptions=subscriptions;this.backups=backups;
         this.appearance=appearance;this.themes=themes;this.messages=messages;this.environment=environment;this.link=link;
         this.freePlanLock=java.util.Objects.requireNonNull(freePlanLock, "freePlanLock");
@@ -78,6 +83,8 @@ public class OwnerWorkspaceController {
         this.promotionService=java.util.Objects.requireNonNull(promotionService, "promotionService");
         this.ordersTimeZone = (ordersTimeZone != null && !ordersTimeZone.isBlank()) ? ordersTimeZone : "Europe/Madrid";
         this.verifactuAuthorizations = verifactuAuthorizations != null ? verifactuAuthorizations.getIfAvailable() : null;
+        this.locationLifecycle = locationLifecycle != null ? locationLifecycle.getIfAvailable() : null;
+        this.routingResolver = routingResolver != null ? routingResolver.getIfAvailable() : null;
     }
     @GetMapping("/owner/console")
     public String show(Principal owner,Model model,@RequestParam(defaultValue="overview") String view,
@@ -203,6 +210,9 @@ public class OwnerWorkspaceController {
                 }
                 if(view.equals("location-settings") && section.equals("general")) {
                     model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
+                    if (locationLifecycle != null) {
+                        model.addAttribute("removalMode", locationLifecycle.removalAction(owner.getName(), selected.tenantId()).name());
+                    }
                 }
                 if(view.equals("location-settings") && section.equals("backup")) {
                     promotionService.getUndoablePromotion(selected.tenantId(), owner.getName())
@@ -657,6 +667,94 @@ public class OwnerWorkspaceController {
             flash.addFlashAttribute("error", workspaceMessage("opening.verifactu.revoke.error.not_valid"));
         }
         return "redirect:/owner/console?location=" + tenant;
+    }
+
+    /**
+     * Permanently deletes a sandbox location, or a production location that has never issued a
+     * ticket or recorded a paid order. Refuses deletion if the production location has tickets.
+     */
+    @PostMapping("/owner/workspace/{tenant}/delete")
+    public String deleteLocation(
+            @PathVariable String tenant,
+            @RequestParam(name = "confirmName", required = false) String confirmName,
+            Principal owner,
+            RedirectAttributes flash) {
+        checkOpen(owner, tenant);
+        if (locationLifecycle == null) {
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
+            return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+        }
+        try {
+            LocationLifecycleService.DeleteResult result = locationLifecycle.deleteLocation(owner.getName(), tenant, confirmName);
+            return switch (result.outcome()) {
+                case DELETED -> {
+                    evictTenantRoutes(tenant, result.customDomain());
+                    flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.deleted", tenant));
+                    yield "redirect:/owner/console?view=locations";
+                }
+                case NAME_MISMATCH -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.confirm.mismatch"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case HAS_TICKETS -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.delete.has_tickets"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+            };
+        } catch (IllegalStateException e) {
+            log.warn("Could not delete location {}: {}", tenant, e.getMessage());
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.billing.unavailable"));
+            return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+        }
+    }
+
+    /**
+     * Permanently closes a production location that has issued tickets, stopping service,
+     * scheduling Stripe cancellation at period end, and retaining fiscal &amp; VERI*FACTU records.
+     */
+    @PostMapping("/owner/workspace/{tenant}/close")
+    public String closeLocation(
+            @PathVariable String tenant,
+            @RequestParam(name = "confirmName", required = false) String confirmName,
+            Principal owner,
+            RedirectAttributes flash) {
+        checkOpen(owner, tenant);
+        if (locationLifecycle == null) {
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
+            return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+        }
+        try {
+            LocationLifecycleService.CloseResult result = locationLifecycle.closeLocation(owner.getName(), tenant, confirmName);
+            return switch (result.outcome()) {
+                case CLOSED -> {
+                    evictTenantRoutes(tenant, result.customDomain());
+                    flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.closed", tenant));
+                    yield "redirect:/owner/console?view=locations";
+                }
+                case NAME_MISMATCH -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.confirm.mismatch"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case SANDBOX_USE_DELETE -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.close.sandbox"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+            };
+        } catch (IllegalStateException e) {
+            log.warn("Could not close location {}: {}", tenant, e.getMessage());
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.billing.unavailable"));
+            return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+        }
+    }
+
+    private void evictTenantRoutes(String tenant, String customDomain) {
+        if (routingResolver == null) {
+            return;
+        }
+        routingResolver.evictTenant(tenant);
+        if (customDomain != null && !customDomain.isBlank()) {
+            routingResolver.evictCache(customDomain);
+        }
     }
 
     private VerifactuStepView buildVerifactuStep(String ownerUsername, String selectedTenantId, FiscalProfile fiscal) {

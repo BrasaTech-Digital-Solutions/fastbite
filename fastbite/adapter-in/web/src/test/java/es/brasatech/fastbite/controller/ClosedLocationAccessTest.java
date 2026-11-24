@@ -108,7 +108,7 @@ class ClosedLocationAccessTest {
         for (String tenant : List.of("missingrestaurant", "malformed-tenant", "foreignrestaurant")) {
             doThrow(new IllegalArgumentException("You do not own this location.")).when(workspace).requireOwner(eq("ana"), eq(tenant));
             String root = "/owner/workspace/" + tenant;
-            for (String action : List.of("setup", "cash-float", "service", "legal", "promote/preview", "promote/confirm", "promote/undo", "privacy-notice/generated", "verifactu/authorize", "verifactu/refresh")) {
+            for (String action : List.of("setup", "cash-float", "service", "legal", "promote/preview", "promote/confirm", "promote/undo", "privacy-notice/generated", "verifactu/authorize", "verifactu/refresh", "delete", "close")) {
                 mockMvc.perform(post(root + "/" + action).with(user(owner)).with(csrf())
                         .param("action", "start").contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"token\":\"valid\"}"))
                         .andExpect(status().isNotFound());

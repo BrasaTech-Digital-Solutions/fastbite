@@ -1,5 +1,6 @@
 package es.brasatech.fastbite.config;
 
+import es.brasatech.fastbite.application.tenant.LocationLifecycleService;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationGate;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationRequiredException;
 import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService;
@@ -263,5 +264,12 @@ public class WebAdapterHints implements RuntimeHintsRegistrar {
         hints.reflection().registerType(TypeReference.of(EnvironmentAdvice.VerifactuBannerView.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(PlatformVerifactuAdminController.HeldLocationRow.class), MemberCategory.values());
         hints.reflection().registerType(TypeReference.of(PlatformVerifactuAdminController.NeedsRefundOrderRow.class), MemberCategory.values());
+
+        // Location delete / close lifecycle hints
+        hints.reflection().registerType(TypeReference.of(LocationLifecycleService.RemovalAction.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(LocationLifecycleService.DeleteResult.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(LocationLifecycleService.DeleteResult.Outcome.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(LocationLifecycleService.CloseResult.class), MemberCategory.values());
+        hints.reflection().registerType(TypeReference.of(LocationLifecycleService.CloseResult.Outcome.class), MemberCategory.values());
     }
 }

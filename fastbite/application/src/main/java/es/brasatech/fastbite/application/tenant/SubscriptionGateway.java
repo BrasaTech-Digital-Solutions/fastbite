@@ -9,6 +9,8 @@ public interface SubscriptionGateway {
     Checkout createCheckout(BillingAccount account, String idempotencyKey);
     Checkout checkout(String id);
     Subscription subscription(String id);
+    default void cancelImmediately(String subscriptionId) { }
+    default Subscription cancelAtPeriodEnd(String subscriptionId) { return subscription(subscriptionId); }
     String portal(String customerId);
     boolean configured();
 }

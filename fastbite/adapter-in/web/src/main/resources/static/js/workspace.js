@@ -407,3 +407,32 @@ window.addEventListener('hashchange',openSection);openSection();
  if(cancelBtn){cancelBtn.addEventListener('click',()=>dialog.close());}
  dialog.addEventListener('close',()=>{trigger?.focus();});
 })();
+
+// Location delete / close confirmation dialog
+(() => {
+ const dialog=document.getElementById('location-removal-dialog');
+ if(!dialog)return;
+ const form=document.getElementById('location-removal-form');
+ const cancelBtn=document.getElementById('location-removal-cancel');
+ const confirmBtn=document.getElementById('location-removal-confirm');
+ const nameInput=document.getElementById('location-removal-name-input');
+ const normalize=v=>String(v||'').trim().toLowerCase();
+ let trigger=null;
+ const syncConfirmState=()=>{
+  if(!nameInput||!confirmBtn)return;
+  confirmBtn.disabled=normalize(nameInput.value)!==normalize(nameInput.dataset.expectedName);
+ };
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-location-removal]');
+  if(!button)return;
+  event.preventDefault();
+  trigger=button;
+  if(form)form.reset();
+  syncConfirmState();
+  dialog.showModal();
+  if(nameInput){nameInput.focus();}else if(cancelBtn){cancelBtn.focus();}
+ });
+ if(nameInput){nameInput.addEventListener('input',syncConfirmState);}
+ if(cancelBtn){cancelBtn.addEventListener('click',()=>dialog.close());}
+ dialog.addEventListener('close',()=>{trigger?.focus();});
+})();
