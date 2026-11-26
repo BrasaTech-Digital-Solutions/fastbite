@@ -50,13 +50,13 @@ class NifTrialServiceAndMigrationTest {
     }
 
     @Test
-    void v40BackfillsEarliestOpenedLocationPerNif() throws Exception {
+    void v40BackfillsLatestTrialStartPerNif() throws Exception {
         JdbcDataSource ds = freshDb("v40_backfill");
         migratePlatform(ds, "39");
 
         Instant t1 = Instant.parse("2026-10-01T10:00:00Z");
         Instant t2 = Instant.parse("2026-10-15T10:00:00Z");
-        Instant tUnopened = Instant.parse("2026-09-01T10:00:00Z");
+        Instant tUnopened = Instant.parse("2026-11-01T10:00:00Z");
 
         try (var c = ds.getConnection()) {
             try (var ps = c.prepareStatement(
@@ -84,8 +84,9 @@ class NifTrialServiceAndMigrationTest {
         var adapter = new NifTrialJdbcAdapter(ds);
         var trial = adapter.findByNif("b12345674");
         assertThat(trial).isPresent();
-        assertThat(trial.get().trialStartedAt()).isEqualTo(t1);
-        assertThat(trial.get().trialEndsAt()).isEqualTo(t1.plus(30, ChronoUnit.DAYS));
+        // MAX(trial_started_at) wins so admin-extended trials do not lose granted days; unopened location is excluded.
+        assertThat(trial.get().trialStartedAt()).isEqualTo(t2);
+        assertThat(trial.get().trialEndsAt()).isEqualTo(t2.plus(30, ChronoUnit.DAYS));
     }
 
     @Test

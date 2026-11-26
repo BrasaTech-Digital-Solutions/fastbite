@@ -43,6 +43,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, TenantLocationService tenantLocationService,
+            ObjectProvider<TenantRoutingResolver> routingResolver,
             SessionCookie sessionCookie, Environment configuration, ObjectProvider<OwnerEmailService> ownerEmail,
             ObjectProvider<UserDetailsServiceImpl> users, PasswordEncoder encoder,
             ObjectProvider<PendingSignupService> pendingSignup,
@@ -97,7 +98,7 @@ public class SecurityConfig {
                         // Everything else requires authentication
                         .anyRequest().authenticated())
                 // Roles only count inside the restaurant they belong to; see TenantAccessFilter.
-                .addFilterBefore(new TenantAccessFilter(tenantLocationService), AnonymousAuthenticationFilter.class)
+                .addFilterBefore(new TenantAccessFilter(tenantLocationService, routingResolver.getIfAvailable()), AnonymousAuthenticationFilter.class)
                 .formLogin(form -> form
                         .loginPage("/login")
                         .successHandler(new TenantAuthenticationSuccessHandler())

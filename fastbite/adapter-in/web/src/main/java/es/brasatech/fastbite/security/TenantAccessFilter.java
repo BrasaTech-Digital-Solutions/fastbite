@@ -2,6 +2,7 @@ package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantContextFilter;
+import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,9 +38,15 @@ public class TenantAccessFilter extends OncePerRequestFilter {
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private final TenantLocationService tenantLocationService;
+    private final TenantRoutingResolver routingResolver;
 
     public TenantAccessFilter(TenantLocationService tenantLocationService) {
+        this(tenantLocationService, null);
+    }
+
+    public TenantAccessFilter(TenantLocationService tenantLocationService, TenantRoutingResolver routingResolver) {
         this.tenantLocationService = tenantLocationService;
+        this.routingResolver = routingResolver;
     }
 
     @Override
@@ -53,9 +60,10 @@ public class TenantAccessFilter extends OncePerRequestFilter {
                     || path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/images/");
             if (!exemptPath && authentication.getPrincipal() instanceof TenantUser user && !user.isPlatformAccount()) {
                 String homeTenant = user.getHomeTenantId();
-                boolean active = homeTenant != null
-                        && tenantLocationService.getLocation(homeTenant).filter(loc -> !loc.isClosed()).isPresent()
-                        && !tenantLocationService.isClosed(homeTenant);
+                boolean active = homeTenant != null && (routingResolver != null
+                        ? routingResolver.exists(homeTenant)
+                        : tenantLocationService.getLocation(homeTenant).filter(loc -> !loc.isClosed()).isPresent()
+                          && !tenantLocationService.isClosed(homeTenant));
                 if (!active) {
                     HttpSession session = request.getSession(false);
                     if (session != null) {

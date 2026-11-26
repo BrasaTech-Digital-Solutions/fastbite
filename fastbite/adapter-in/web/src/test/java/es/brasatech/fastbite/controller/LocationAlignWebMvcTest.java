@@ -39,7 +39,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class LocationAlignWebMvcTest {
@@ -200,7 +202,7 @@ class LocationAlignWebMvcTest {
         assertThat(staffPageRes.getRedirectedUrl()).isEqualTo("/login");
 
         // Staff session hitting API -> invalidated + 401
-        var accessFilter = new TenantAccessFilter(locations);
+        var accessFilter = new TenantAccessFilter(locations, resolver);
         var apiSession = new MockHttpSession();
         SecurityContextHolder.setContext(sc);
         try {
@@ -214,5 +216,40 @@ class LocationAlignWebMvcTest {
         } finally {
             SecurityContextHolder.clearContext();
         }
+    }
+
+    @Test
+    void staffRequestDoesNotHitLocationPortWhenTenantIsCached() throws Exception {
+        var locations = mock(TenantLocationService.class);
+        when(locations.getLocation("bistro")).thenReturn(Optional.of(
+                new TenantLocation("1", "owner@example.com", "bistro", "PRO", null)));
+        when(locations.isClosed("bistro")).thenReturn(false);
+
+        var resolver = new TenantRoutingResolver(locations);
+        assertThat(resolver.exists("bistro")).isTrue();
+        verify(locations, times(1)).getLocation("bistro");
+        verify(locations, times(1)).isClosed("bistro");
+
+        var accessFilter = new TenantAccessFilter(locations, resolver);
+        var staffUser = new TenantUser("cook1", "pw", true,
+                List.of(new SimpleGrantedAuthority("ROLE_COOK")), "bistro");
+        var auth = UsernamePasswordAuthenticationToken.authenticated(staffUser, null, staffUser.getAuthorities());
+        var sc = SecurityContextHolder.createEmptyContext();
+        sc.setAuthentication(auth);
+        FilterChain chain = mock(FilterChain.class);
+
+        SecurityContextHolder.setContext(sc);
+        try {
+            for (int i = 0; i < 5; i++) {
+                var req = new MockHttpServletRequest("GET", "/bistro/dashboard/api/orders");
+                var res = new MockHttpServletResponse();
+                accessFilter.doFilter(req, res, chain);
+                assertThat(res.getStatus()).isEqualTo(200);
+            }
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        // Zero additional DB lookups after tenant is cached in TenantRoutingResolver!
+        verifyNoMoreInteractions(locations);
     }
 }
