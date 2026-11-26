@@ -31,7 +31,13 @@
 <div th:if="${billing.status != 'FREE' && billing.status != 'free'}">
 <dt th:text="#{workspace.rebuild.more.57}">Free trial ends (UTC)</dt>
 <dd th:if="${billing.trialEndsAt() != null}" th:text="${#temporals.format(billing.trialEndsAt(), 'd MMMM yyyy, HH:mm', 'UTC')}"></dd>
-<dd th:if="${billing.trialEndsAt() == null}" th:text="#{workspace.billing.status.trial.pending}"></dd>
+<dd th:if="${billing.trialEndsAt() == null && pendingNifTrialEndsAt != null}" th:text="${#temporals.format(pendingNifTrialEndsAt, 'd MMMM yyyy, HH:mm', 'UTC')}"></dd>
+<dd th:if="${billing.trialEndsAt() == null && pendingNifTrialEndsAt == null}" th:text="#{workspace.billing.status.trial.pending}"></dd>
+</div>
+<div th:if="${billing.status != 'FREE' && billing.status != 'free' && trialRemainingDays != null}">
+<dt th:text="#{workspace.billing.trial.days.label}">Trial days remaining</dt>
+<dd th:if="${trialRemainingDays > 0}" th:text="#{workspace.billing.trial.days.value(${trialRemainingDays})}">14 days</dd>
+<dd th:if="${trialRemainingDays == 0}" th:text="#{workspace.billing.trial.nif.ended}">Free trial ended</dd>
 </div>
 <div th:if="${billing.periodEnd > 0}">
 <dt th:text="#{workspace.rebuild.more.58}">Current subscription period ends (UTC)</dt>

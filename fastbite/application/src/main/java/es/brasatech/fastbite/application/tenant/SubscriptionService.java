@@ -1,35 +1,64 @@
 package es.brasatech.fastbite.application.tenant;
 
+import es.brasatech.fastbite.application.platform.PlatformAdmins;
+import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.domain.tenant.BillingAccount;
+import es.brasatech.fastbite.domain.tenant.SubscriptionPlan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class SubscriptionService {
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SubscriptionService.class);
+    private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
     private final BillingPort billing;
     private final SubscriptionGateway gateway;
-    private final es.brasatech.fastbite.application.platform.PlatformEnvironment environment;
-    private final es.brasatech.fastbite.application.platform.PlatformAdmins admins;
+    private final PlatformEnvironment environment;
+    private final PlatformAdmins admins;
+    private final NifTrialPort nifTrials;
+    private final Clock clock;
     private static final Set<String> STATES = Set.of("active", "trialing", "past_due", "unpaid", "canceled", "incomplete", "incomplete_expired", "paused");
+
+    @Autowired
     public SubscriptionService(BillingPort billing, SubscriptionGateway gateway,
-            es.brasatech.fastbite.application.platform.PlatformEnvironment environment,
-            es.brasatech.fastbite.application.platform.PlatformAdmins admins) {
-        this.billing = java.util.Objects.requireNonNull(billing, "billing");
-        this.gateway = java.util.Objects.requireNonNull(gateway, "gateway");
-        this.environment = java.util.Objects.requireNonNull(environment, "environment");
-        this.admins = java.util.Objects.requireNonNull(admins, "admins");
+            PlatformEnvironment environment,
+            PlatformAdmins admins,
+            @Autowired(required = false) NifTrialPort nifTrials,
+            @Autowired(required = false) Clock clock) {
+        this.billing = Objects.requireNonNull(billing, "billing");
+        this.gateway = Objects.requireNonNull(gateway, "gateway");
+        this.environment = Objects.requireNonNull(environment, "environment");
+        this.admins = Objects.requireNonNull(admins, "admins");
+        this.nifTrials = nifTrials;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
     }
+
+    public SubscriptionService(BillingPort billing, SubscriptionGateway gateway,
+            PlatformEnvironment environment,
+            PlatformAdmins admins) {
+        this(billing, gateway, environment, admins, null, Clock.systemUTC());
+    }
+
     public BillingAccount account(String tenant, String owner) {
         BillingAccount account = billing.find(tenant).orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
         requireOwner(account, owner);
-        return account;
+        return overlayNifTrial(account);
     }
     public boolean configured() { return gateway.configured(); }
     public boolean canTakeOrders(String tenant) {
-        return tenant != null && billing.find(tenant).map(a -> a.canTakeOrders(Instant.now(), environment.production())).orElse(false);
+        return tenant != null && billing.find(tenant)
+                .map(this::overlayNifTrial)
+                .map(a -> a.canTakeOrders(clock.instant(), environment.production()))
+                .orElse(false);
     }
     public boolean isFreePlan(String tenant) {
         return tenant != null && billing.find(tenant).map(BillingAccount::isFreePlan).orElse(false);
@@ -41,9 +70,58 @@ public class SubscriptionService {
         return tenant != null && billing.find(tenant).map(BillingAccount::isClosed).orElse(false);
     }
     public void startTrialIfNeeded(String tenant, Instant now) {
-        if (tenant != null && now != null) {
-            billing.startTrialIfNeeded(tenant, now);
+        startTrialIfNeeded(tenant, null, now);
+    }
+    public void startTrialIfNeeded(String tenant, String taxId, Instant now) {
+        if (tenant == null || now == null) {
+            return;
         }
+        Instant effectiveStart = now;
+        if (environment.production() && nifTrials != null) {
+            String resolvedNif = (taxId != null && !taxId.isBlank())
+                    ? taxId
+                    : nifTrials.findNifForTenant(tenant).orElse(null);
+            if (resolvedNif != null && !resolvedNif.isBlank()) {
+                NifTrialPort.NifTrial nifTrial = nifTrials.startOrGet(resolvedNif, now, SubscriptionPlan.TRIAL_DAYS);
+                effectiveStart = nifTrial.trialEndsAt().minus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS);
+            }
+        }
+        billing.startTrialIfNeeded(tenant, effectiveStart);
+    }
+    public Optional<NifTrialPort.NifTrial> findNifTrial(String taxId) {
+        if (!environment.production() || nifTrials == null || taxId == null || taxId.isBlank()) {
+            return Optional.empty();
+        }
+        return nifTrials.findByNif(taxId);
+    }
+    public Optional<NifTrialPort.NifTrial> findNifTrialForTenant(String tenantId) {
+        if (!environment.production() || nifTrials == null || tenantId == null || tenantId.isBlank()) {
+            return Optional.empty();
+        }
+        return nifTrials.findNifForTenant(tenantId).flatMap(nifTrials::findByNif);
+    }
+    public static long remainingTrialDays(Instant trialEndsAt, Instant now) {
+        if (trialEndsAt == null || now == null || !trialEndsAt.isAfter(now)) {
+            return 0L;
+        }
+        long seconds = Duration.between(now, trialEndsAt).toSeconds();
+        return Math.max(1L, (seconds + 86_399L) / 86_400L);
+    }
+    private BillingAccount overlayNifTrial(BillingAccount account) {
+        if (!environment.production() || nifTrials == null || account == null
+                || !"LOCAL_TRIAL".equals(account.status()) || account.trialStartedAt() == null) {
+            return account;
+        }
+        Optional<NifTrialPort.NifTrial> nifTrial = nifTrials.findNifForTenant(account.tenantId())
+                .flatMap(nifTrials::findByNif);
+        if (nifTrial.isEmpty()) {
+            return account;
+        }
+        Instant effectiveStart = nifTrial.get().trialEndsAt().minus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS);
+        if (effectiveStart.equals(account.trialStartedAt())) {
+            return account;
+        }
+        return account.withTrialStartedAt(effectiveStart);
     }
     public Optional<String> resolveOwnerEmail(String tenant, String ownerUsername) {
         return tenant == null ? Optional.empty() : billing.resolveOwnerEmail(tenant, ownerUsername);
@@ -74,7 +152,7 @@ public class SubscriptionService {
             if (!account.checkoutId().startsWith("pending:")) return account;
             if (account.checkoutExpires() < Instant.now().getEpochSecond() + 31 * 60)
                 throw new IllegalArgumentException("This checkout needs a billing review. Contact support before trying again.");
-            var session = gateway.createCheckout(account, "fastbite-subscription-" + account.billingKey() + "-" + account.attempt());
+            var session = gateway.createCheckout(overlayNifTrial(account), "fastbite-subscription-" + account.billingKey() + "-" + account.attempt());
             return account.checkout(session.id(), session.url(), session.expires());
         });
         return ready.checkoutUrl() != null ? ready.checkoutUrl() : "/owner/billing/" + tenant;
@@ -194,7 +272,18 @@ public class SubscriptionService {
         if (existing.isClosed()) throw new IllegalArgumentException("This location is closed and its contract has ended.");
         if (existing.trialNotStarted()) throw new IllegalArgumentException("Trial has not started yet.");
         billing.extendTenantTrial(tenantId, extraDays);
+        if (environment.production() && nifTrials != null) {
+            nifTrials.findNifForTenant(tenantId).ifPresent(nif ->
+                    nifTrials.extendByDays(nif, extraDays, clock.instant()).ifPresent(extended -> {
+                        Instant effectiveStart = extended.trialEndsAt().minus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS);
+                        List<String> siblings = nifTrials.findTenantsForNif(nif);
+                        for (String sibling : siblings) {
+                            billing.setTrialStartedAt(sibling, effectiveStart);
+                        }
+                    }));
+        }
         BillingAccount updated = billing.find(tenantId)
+                .map(this::overlayNifTrial)
                 .orElseThrow(() -> new IllegalArgumentException("Billing is not available for this location."));
         log.info("Platform admin '{}' extended trial for location '{}' by {} days (new trial end: {})",
                 admin.trim(), tenantId, extraDays, updated.trialEndsAt());

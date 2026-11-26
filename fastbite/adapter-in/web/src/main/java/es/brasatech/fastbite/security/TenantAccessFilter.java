@@ -1,11 +1,13 @@
 package es.brasatech.fastbite.security;
 
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.config.TenantContextFilter;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -46,6 +48,30 @@ public class TenantAccessFilter extends OncePerRequestFilter {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken)) {
+            String path = request.getRequestURI().substring(request.getContextPath().length());
+            boolean exemptPath = path.equals("/error") || path.equals("/login") || path.equals("/logout")
+                    || path.startsWith("/css/") || path.startsWith("/js/") || path.startsWith("/images/");
+            if (!exemptPath && authentication.getPrincipal() instanceof TenantUser user && !user.isPlatformAccount()) {
+                String homeTenant = user.getHomeTenantId();
+                boolean active = homeTenant != null
+                        && tenantLocationService.getLocation(homeTenant).filter(loc -> !loc.isClosed()).isPresent()
+                        && !tenantLocationService.isClosed(homeTenant);
+                if (!active) {
+                    HttpSession session = request.getSession(false);
+                    if (session != null) {
+                        session.invalidate();
+                    }
+                    SecurityContextHolder.clearContext();
+                    if (TenantContextFilter.isApiOrJsonRequest(request)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"error\":\"session_invalidated\"}");
+                    } else {
+                        response.sendRedirect(request.getContextPath() + "/login");
+                    }
+                    return;
+                }
+            }
             Authentication scoped = scope(authentication, TenantContext.getCurrentTenant());
             if (scoped != authentication) {
                 // A fresh context, so the one stored in the session stays untouched.

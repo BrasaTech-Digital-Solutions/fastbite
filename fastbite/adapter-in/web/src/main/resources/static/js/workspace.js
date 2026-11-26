@@ -435,6 +435,15 @@ window.addEventListener('hashchange',openSection);openSection();
  if(nameInput){nameInput.addEventListener('input',syncConfirmState);}
  if(cancelBtn){cancelBtn.addEventListener('click',()=>dialog.close());}
  dialog.addEventListener('close',()=>{trigger?.focus();});
+ try{
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('confirmDelete')==='1'&&!dialog.open){
+   if(form)form.reset();
+   syncConfirmState();
+   dialog.showModal();
+   if(nameInput){nameInput.focus();}
+  }
+ }catch(_){}
 })();
 
 // VERI*FACTU signing return detection and bounded polling

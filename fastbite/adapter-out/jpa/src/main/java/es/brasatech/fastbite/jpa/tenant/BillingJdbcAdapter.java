@@ -124,6 +124,14 @@ public class BillingJdbcAdapter implements BillingPort {
         });
     }
 
+    @Override public void setTrialStartedAt(String tenantId, Instant trialStartedAt) {
+        transaction(source, c -> {
+            update(c, "UPDATE public.tenant_billing SET trial_started_at = ? WHERE tenant_id = ? AND trial_started_at IS NOT NULL",
+                    toTimestamp(trialStartedAt), tenantId);
+            return null;
+        });
+    }
+
     private static final java.util.regex.Pattern EMAIL_PATTERN =
             java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
@@ -155,6 +163,14 @@ public class BillingJdbcAdapter implements BillingPort {
                 }
             }
             if (ownerUsername != null && !ownerUsername.isBlank()) {
+                try (var q = statement(c, "SELECT email FROM public.users WHERE username = ? AND email IS NOT NULL", ownerUsername);
+                        var r = q.executeQuery()) {
+                    if (r.next()) {
+                        String userEmail = r.getString("email");
+                        if (isValidEmail(userEmail)) return Optional.of(userEmail.strip());
+                    }
+                } catch (Exception ignored) {
+                }
                 try (var q = statement(c, "SELECT email FROM public.owner_setup_tokens WHERE username = ? AND email IS NOT NULL ORDER BY expires_at DESC", ownerUsername);
                         var r = q.executeQuery()) {
                     while (r.next()) {

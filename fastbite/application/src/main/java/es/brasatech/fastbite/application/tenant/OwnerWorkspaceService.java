@@ -109,7 +109,8 @@ public class OwnerWorkspaceService {
     }
     public boolean isOpened(String owner, String tenant) {
         requireOwner(owner, tenant);
-        return progress.read(tenant).opened();
+        SetupProgress current = progress.read(tenant);
+        return current != null && current.opened();
     }
     public Optional<OwnerWorkspacePort.OwnerSigner> ownerSigner(String owner) {
         return owner == null || owner.isBlank() ? Optional.empty() : progress.findOwnerSigner(owner);
@@ -138,16 +139,24 @@ public class OwnerWorkspaceService {
             if (!environment.sandbox() && !updated.opened() && summary.ready()) {
                 progress.update(tenant, p -> p.withOpening(p.workAlone(), true));
                 updated = progress.read(tenant);
+                if (fiscal.taxId() != null && SpanishTaxId.isValid(fiscal.taxId())) {
+                    SpanishTaxId.parse(fiscal.taxId()).ifPresent(taxId ->
+                            fiscalIssuers.recordIfAbsent(taxId.value(), tenant, clock.instant()));
+                }
                 if (subscriptions != null) {
                     trialStartedNow = subscriptions.isTrialNotStarted(tenant);
-                    subscriptions.startTrialIfNeeded(tenant, clock.instant());
+                    subscriptions.startTrialIfNeeded(tenant, fiscal.taxId(), clock.instant());
                 }
                 summary = new Summary(updated, productCount, serviceSettings, fiscal, firstTable,
                         hasStaff, chargesEnabled, false, verifactuAuthorized, verifactuCollaborationActive);
             }
             if (!environment.sandbox() && updated.opened() && subscriptions != null
                     && subscriptions.isTrialNotStarted(tenant)) {
-                subscriptions.startTrialIfNeeded(tenant, clock.instant());
+                if (fiscal.taxId() != null && SpanishTaxId.isValid(fiscal.taxId())) {
+                    SpanishTaxId.parse(fiscal.taxId()).ifPresent(taxId ->
+                            fiscalIssuers.recordIfAbsent(taxId.value(), tenant, clock.instant()));
+                }
+                subscriptions.startTrialIfNeeded(tenant, fiscal.taxId(), clock.instant());
                 trialStartedNow = true;
             }
             if (!environment.sandbox() && verifactuNotifications != null) {
@@ -315,13 +324,22 @@ public class OwnerWorkspaceService {
         requireOwner(owner, tenant);
         return inTenant(tenant, () -> {
             Map<String, String> wrong = new LinkedHashMap<>(profile.problems());
-            if (tickets.anyRealTicket()) {
+            boolean hasRealTickets = tickets.anyRealTicket();
+            boolean openedInProduction = environment.production() && isOpened(owner, tenant);
+            if (hasRealTickets) {
                 // Issued tickets carry this NIF and series: they stay, and the details stay complete
                 FiscalProfile saved = fiscalProfiles.get();
                 if (!Objects.equals(saved.taxId(), profile.taxId())) wrong.put("taxId", "fiscal.error.taxId.locked");
                 if (!Objects.equals(saved.seriesPrefix(), profile.seriesPrefix())) wrong.put("seriesPrefix", "fiscal.error.seriesPrefix.locked");
             } else {
                 wrong.values().removeIf("fiscal.error.required"::equals);
+                if (openedInProduction) {
+                    FiscalProfile saved = fiscalProfiles.get();
+                    if (saved.taxId() != null && !saved.taxId().isBlank()
+                            && !Objects.equals(saved.taxId(), profile.taxId())) {
+                        wrong.put("taxId", "fiscal.error.taxId.locked.opened");
+                    }
+                }
             }
             if (wrong.isEmpty()) {
                 fiscalProfiles.save(profile);
@@ -392,6 +410,17 @@ public class OwnerWorkspaceService {
     /** True once the location has issued a real ticket, which fixes its NIF and series code. */
     public boolean fiscalLocked(String owner, String tenant) {
         requireOwner(owner, tenant);
+        return inTenant(tenant, tickets::anyRealTicket);
+    }
+
+    /**
+     * Returns {@code true} once the location has issued a real ticket or has opened in production.
+     */
+    public boolean taxIdLocked(String owner, String tenant) {
+        requireOwner(owner, tenant);
+        if (environment.production() && isOpened(owner, tenant)) {
+            return true;
+        }
         return inTenant(tenant, tickets::anyRealTicket);
     }
 

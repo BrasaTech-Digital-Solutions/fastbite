@@ -93,6 +93,23 @@ class OwnerWorkspaceServiceTest {
         verify(fiscal).save(moved);
         verify(fiscal,never()).save(otherNif);
     }
+    @Test void afterOpeningInProductionTheNifIsLockedEvenWithoutTickets(){
+        var prodService=createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
+        when(locations.isOwnerOf("owner","cafe")).thenReturn(true);
+        when(tickets.anyRealTicket()).thenReturn(false);
+        when(port.read("cafe")).thenReturn(SetupProgress.EMPTY.withOpening(false, true));
+        when(fiscal.get()).thenReturn(COMPLETE);
+
+        assertTrue(prodService.taxIdLocked("owner","cafe"));
+        var otherNif=new FiscalProfile("Ana García","Kebab Ana","B12345674","Calle Mayor 1","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
+        var problems=prodService.saveFiscalProfile("owner","cafe",otherNif);
+        assertEquals("fiscal.error.taxId.locked.opened",problems.get("taxId"));
+        verify(fiscal,never()).save(otherNif);
+
+        var sameNif=new FiscalProfile("Ana García","Kebab Ana","12345678Z","Calle Nueva 5","28013","Madrid","Madrid",null,null,"KA",new BigDecimal("10"));
+        assertTrue(prodService.saveFiscalProfile("owner","cafe",sameNif).isEmpty());
+        verify(fiscal).save(sameNif);
+    }
     @Test void recordsValidNifInProductionOnly(){
         var issuers=mock(es.brasatech.fastbite.application.fiscal.FiscalIssuerPort.class);
         var prodService=createService(new es.brasatech.fastbite.application.platform.PlatformEnvironment("production"), issuers);
@@ -265,7 +282,7 @@ class OwnerWorkspaceServiceTest {
         // Both valid authorisation and switch active -> opens and starts trial
         when(verifactuAuth.isCollaborationActive()).thenReturn(true);
         assertTrue(production.summary("owner", "cafe").opened());
-        verify(subscriptions).startTrialIfNeeded("cafe", now);
+        verify(subscriptions).startTrialIfNeeded("cafe", "12345678Z", now);
 
         // Remains latched even if menu is later emptied
         when(products.findAll()).thenReturn(java.util.List.of());
@@ -292,7 +309,7 @@ class OwnerWorkspaceServiceTest {
         when(subscriptions.isTrialNotStarted("cafe")).thenReturn(true);
 
         assertTrue(production.summary("owner", "cafe").opened());
-        verify(subscriptions).startTrialIfNeeded("cafe", now);
+        verify(subscriptions).startTrialIfNeeded("cafe", "12345678Z", now);
     }
     @Test void saveFiscalProfileEvaluatesVerifactuNotificationsInProduction() {
         var verifactuAuth = mock(VerifactuAuthorizationService.class);

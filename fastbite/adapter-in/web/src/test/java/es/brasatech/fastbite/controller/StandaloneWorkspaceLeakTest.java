@@ -9,6 +9,7 @@ import es.brasatech.fastbite.application.settings.GuestPrivacyNoticeService;
 import es.brasatech.fastbite.application.tenant.AppearancePort;
 import es.brasatech.fastbite.application.tenant.FreePlanLock;
 import es.brasatech.fastbite.application.tenant.LegalAcceptancePort;
+import es.brasatech.fastbite.application.tenant.LocationLifecycleService;
 import es.brasatech.fastbite.application.tenant.OwnerStaffService;
 import es.brasatech.fastbite.application.tenant.OwnerWorkspaceService;
 import es.brasatech.fastbite.application.tenant.SubscriptionService;
@@ -116,6 +117,7 @@ class StandaloneWorkspaceLeakTest {
         @MockitoBean FreePlanLock freePlanLock;
         @MockitoBean LegalAcceptancePort acceptances;
         @MockitoBean GuestPrivacyNoticeService privacyNotices;
+        @MockitoBean LocationLifecycleService locationLifecycle;
 
         TenantUser ownerPrincipal() {
             return new TenantUser(OWNER, "secret", true, List.of(new SimpleGrantedAuthority("ROLE_OWNER")), null);
@@ -128,6 +130,8 @@ class StandaloneWorkspaceLeakTest {
             when(tenantLocationService.getLocation(TENANT)).thenReturn(Optional.of(loc));
             when(tenantLocationService.isClosed(TENANT)).thenReturn(false);
             when(tenantLocationService.getLocationsByOwner(OWNER)).thenReturn(List.of(loc));
+            when(locationLifecycle.removalAction(OWNER, TENANT))
+                    .thenReturn(LocationLifecycleService.RemovalAction.SANDBOX_DELETE);
             when(tenantLocationService.isOwnerOf(OWNER, TENANT)).thenReturn(true);
             when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
 
@@ -188,12 +192,15 @@ class StandaloneWorkspaceLeakTest {
             List<String> views = List.of(
                     "/owner/console?view=menu&location=" + TENANT,
                     "/owner/console?view=team&location=" + TENANT,
+                    "/owner/console?view=location-settings&section=general&location=" + TENANT,
                     "/owner/console?view=location-settings&section=backup&location=" + TENANT,
                     "/owner/console?view=location-settings&section=advanced&location=" + TENANT,
                     "/owner/console?view=locations",
                     "/owner/console?view=account",
                     "/owner/console?view=billing"
             );
+            when(locationLifecycle.removalAction(OWNER, TENANT))
+                    .thenReturn(LocationLifecycleService.RemovalAction.PRODUCTION_DELETE);
 
             for (String url : views) {
                 for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {
@@ -226,6 +233,19 @@ class StandaloneWorkspaceLeakTest {
             assertThat(html).doesNotContain("data-undo-success");
             assertThat(html).doesNotContain("data-service-replaced");
             assertThat(html).contains("data-version-mismatch=\"Esta copia de seguridad");
+        }
+        @Test
+        void standaloneGeneralCloseDialogContainsNoSandboxCopy() throws Exception {
+            when(locationLifecycle.removalAction(OWNER, TENANT))
+                    .thenReturn(LocationLifecycleService.RemovalAction.PRODUCTION_CLOSE);
+            for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {
+                String html = page("/owner/console?view=location-settings&section=general&location=" + TENANT, locale);
+                String readable = extractReadableText(html);
+                List<String> forbidden = locale.getLanguage().equals("es") ? FORBIDDEN_SPANISH : FORBIDDEN_ENGLISH;
+                for (String phrase : forbidden) {
+                    assertThat(readable).as("general close in %s must not contain '%s'", locale, phrase).doesNotContain(phrase);
+                }
+            }
         }
     }
 

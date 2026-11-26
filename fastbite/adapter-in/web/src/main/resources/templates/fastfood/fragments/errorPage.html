@@ -29,10 +29,10 @@
 <main class="container guest-main">
     <div class="page-column page-column-narrow">
         <div class="confirmation-card confirmation-card-centered error-card">
-            <th:block th:if="${code == 404 && unknown}">
+            <th:block th:if="${code == 410 || (code == 404 && unknown)}">
                 <svg class="icon icon-5x error-icon" aria-hidden="true"><use href="#i-store-slash"></use></svg>
-                <h1 class="error-title" th:text="#{error.restaurant.title}">We couldn't find this restaurant</h1>
-                <p class="error-text" th:text="#{error.restaurant.text}">Check the address, or ask the restaurant for its link.</p>
+                <h1 class="error-title" th:text="#{error.restaurant.unavailable.title}">This restaurant is no longer available</h1>
+                <p class="error-text" th:text="#{error.restaurant.unavailable.text}">This restaurant has closed or is no longer active on FastBite.</p>
             </th:block>
             <th:block th:if="${code == 404 && !unknown}">
                 <svg class="icon icon-5x error-icon" aria-hidden="true"><use href="#i-map-signs"></use></svg>

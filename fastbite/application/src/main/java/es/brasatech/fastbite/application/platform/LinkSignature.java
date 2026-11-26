@@ -27,6 +27,13 @@ public final class LinkSignature {
         return "t=" + time + ",v1=" + hmac(secret, time, content);
     }
 
+    /** Canonical payload signed for GET /internal/link/location-status. */
+    public static byte[] locationStatusPayload(String owner, String tenant) {
+        String safeOwner = owner == null ? "" : owner;
+        String safeTenant = tenant == null ? "" : tenant;
+        return ("location-status:" + safeOwner + ":" + safeTenant).getBytes(StandardCharsets.UTF_8);
+    }
+
     /** Whether the header signs this content with the secret, recently enough. */
     public static boolean verify(String secret, String header, byte[] content, Instant now) {
         if (secret == null || header == null) {

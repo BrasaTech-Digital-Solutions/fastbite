@@ -210,10 +210,16 @@ public class OwnerWorkspaceController {
                 }
                 var setup=workspace.summary(owner.getName(),selected.tenantId());
                 model.addAttribute("setup",setup);
-                if (!environment.sandbox() && setup.opened() && billing != null && billing.trialNotStarted()) {
-                    billing = subscriptions.account(selected.tenantId(), owner.getName());
-                    model.addAttribute("billing", billing);
-                    model.addAttribute("billingStatusLabel", localizedBillingStatus(billing, locale, messages, clock, ordersTimeZone));
+                if (!environment.sandbox() && billing != null && billing.trialNotStarted()) {
+                    if (setup.opened()) {
+                        billing = subscriptions.account(selected.tenantId(), owner.getName());
+                        model.addAttribute("billing", billing);
+                    }
+                    NifTrialPort.NifTrial pendingNifTrial = (billing.trialNotStarted() && setup.fiscal() != null)
+                            ? subscriptions.findNifTrial(setup.fiscal().taxId()).orElse(null)
+                            : null;
+                    model.addAttribute("billingStatusLabel",
+                            localizedBillingStatus(billing, pendingNifTrial, locale, messages, clock, ordersTimeZone));
                     Instant updatedTrialEnd = trialEnd(billing);
                     model.addAttribute("trialEndsSoon", updatedTrialEnd != null && updatedTrialEnd.isAfter(clock.instant())
                             && !updatedTrialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
@@ -231,6 +237,25 @@ public class OwnerWorkspaceController {
                     model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
                     if (locationLifecycle != null) {
                         model.addAttribute("removalMode", locationLifecycle.removalAction(owner.getName(), selected.tenantId()).name());
+                        if (environment.sandbox()) {
+                            try {
+                                var prodStatus = locationLifecycle.queryProductionStatus(owner.getName(), selected.tenantId());
+                                if (prodStatus != null) {
+                                    boolean hasProdCopy = prodStatus.exists();
+                                    boolean prodHasTickets = hasProdCopy && (prodStatus.hasFiscalOrPaidActivity() || prodStatus.closed());
+                                    model.addAttribute("sandboxHasProductionCopy", hasProdCopy);
+                                    model.addAttribute("sandboxProductionHasTickets", prodHasTickets);
+                                    if (hasProdCopy) {
+                                        model.addAttribute("sandboxProductionSettingsUrl",
+                                                locationLifecycle.productionGeneralSettingsUrl(selected.tenantId()));
+                                    }
+                                }
+                            } catch (RuntimeException e) {
+                                log.warn("Could not check production status for sandbox location {}: {}",
+                                        selected.tenantId(), e.getMessage());
+                                model.addAttribute("sandboxProductionUnreachable", true);
+                            }
+                        }
                     }
                 }
                 if(view.equals("location-settings") && section.equals("backup")) {
@@ -251,6 +276,7 @@ public class OwnerWorkspaceController {
                 if(section.equals("legal")) {
                     addLegal(model,setup.fiscal(),selected.tenantId(),owner.getName());
                     model.addAttribute("fiscalLocked",workspace.fiscalLocked(owner.getName(),selected.tenantId()));
+                    model.addAttribute("taxIdLocked",workspace.taxIdLocked(owner.getName(),selected.tenantId()));
                     model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
                     model.addAttribute("issuedTickets", workspace.fiscalTickets(owner.getName(), selected.tenantId()));
                     model.addAttribute("activePrivacyNotice",privacyNotices.findActive(selected.tenantId()).orElse(null));
@@ -280,11 +306,28 @@ public class OwnerWorkspaceController {
     }
 
     static String localizedBillingStatus(BillingAccount account, Locale locale, MessageSource messages, Clock clock, String ordersTimeZone) {
+        return localizedBillingStatus(account, null, locale, messages, clock, ordersTimeZone);
+    }
+
+    static String localizedBillingStatus(BillingAccount account, NifTrialPort.NifTrial pendingNifTrial,
+            Locale locale, MessageSource messages, Clock clock, String ordersTimeZone) {
         if (account == null) return "";
+        Instant now = clock.instant();
         Instant end = trialEnd(account);
-        if (end != null && end.isAfter(clock.instant())) {
+        if (end != null && end.isAfter(now)) {
             String date = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.of(ordersTimeZone)).format(end);
-            return messages.getMessage("workspace.billing.trial.until", new Object[]{date}, "Free trial until " + date, locale);
+            long daysLeft = SubscriptionService.remainingTrialDays(end, now);
+            return messages.getMessage("workspace.billing.trial.until.days", new Object[]{date, daysLeft},
+                    "Free trial until " + date + " (" + daysLeft + " days left)", locale);
+        }
+        if (account.trialNotStarted() && pendingNifTrial != null) {
+            long daysLeft = SubscriptionService.remainingTrialDays(pendingNifTrial.trialEndsAt(), now);
+            if (daysLeft > 0) {
+                return messages.getMessage("workspace.billing.trial.nif.remaining", new Object[]{daysLeft},
+                        daysLeft + " days remaining in this NIF's free trial", locale);
+            }
+            return messages.getMessage("workspace.billing.trial.nif.ended", null,
+                    "Free trial for this NIF has ended", locale);
         }
         String key;
         if (account.isClosed()) key = "closed";
@@ -914,7 +957,8 @@ public class OwnerWorkspaceController {
             return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
         }
         try {
-            LocationLifecycleService.DeleteResult result = locationLifecycle.deleteLocation(owner.getName(), tenant, confirmName);
+            LocationLifecycleService.DeleteResult result = locationLifecycle.deleteLocation(
+                    owner.getName(), tenant, confirmName);
             return switch (result.outcome()) {
                 case DELETED -> {
                     evictTenantRoutes(tenant, result.customDomain());
@@ -929,6 +973,23 @@ public class OwnerWorkspaceController {
                     flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.delete.has_tickets"));
                     yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
                 }
+                case ORDERS_IN_PROGRESS -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.orders_in_progress"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case PRODUCTION_UNREACHABLE -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.production_unreachable"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case PRODUCTION_HAS_TICKETS -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.production_has_tickets"));
+                    if (result.redirectUrl() != null) {
+                        flash.addFlashAttribute("errorActionUrl", result.redirectUrl());
+                        flash.addFlashAttribute("errorActionLabel", workspaceMessage("location.danger.go.production"));
+                    }
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case REDIRECT_TO_PRODUCTION -> "redirect:" + result.redirectUrl();
             };
         } catch (IllegalStateException e) {
             log.warn("Could not delete location {}: {}", tenant, e.getMessage());
@@ -953,7 +1014,8 @@ public class OwnerWorkspaceController {
             return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
         }
         try {
-            LocationLifecycleService.CloseResult result = locationLifecycle.closeLocation(owner.getName(), tenant, confirmName);
+            LocationLifecycleService.CloseResult result = locationLifecycle.closeLocation(
+                    owner.getName(), tenant, confirmName);
             return switch (result.outcome()) {
                 case CLOSED -> {
                     evictTenantRoutes(tenant, result.customDomain());
@@ -966,6 +1028,10 @@ public class OwnerWorkspaceController {
                 }
                 case SANDBOX_USE_DELETE -> {
                     flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.close.sandbox"));
+                    yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
+                }
+                case ORDERS_IN_PROGRESS -> {
+                    flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.orders_in_progress"));
                     yield "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
                 }
             };

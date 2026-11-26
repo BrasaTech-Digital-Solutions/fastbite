@@ -18,6 +18,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -55,7 +57,7 @@ public class TenantDeletionJdbcAdapter implements TenantDeletionPort {
     @Override
     public boolean hasFiscalOrPaidActivity(String tenantId) {
         String cleanTenant = TenantRegistrationRules.tenantId(tenantId);
-        if (isProtectedTenant(cleanTenant)) {
+        if (isProtectedCleanTenant(cleanTenant)) {
             return true;
         }
         String schema = "tenant_" + cleanTenant;
@@ -72,9 +74,40 @@ public class TenantDeletionJdbcAdapter implements TenantDeletionPort {
     }
 
     @Override
+    public boolean hasOrdersInProgressToday(String tenantId, LocalDateTime todayStart, LocalDateTime tomorrowStart) {
+        String cleanTenant = TenantRegistrationRules.tenantId(tenantId);
+        String schema = "tenant_" + cleanTenant;
+        return transaction(source, c -> {
+            if (!tableExists(c, schema, "orders")) {
+                return false;
+            }
+            // OrderStatus: 0=CREATED, 1=ACCEPTED, 2=PROCESSING, 3=DONE, 4=DELIVERED, 5=COMPLETE, 6=CANCELLED
+            // OrderPaymentStatus: 0=UNPAID, 1=PAID; OrderChannel: 0=ONLINE
+            String sql = "SELECT 1 FROM " + schema + ".orders"
+                    + " WHERE created_at >= ? AND created_at < ?"
+                    + " AND status NOT IN (5, 6)"
+                    + " AND NOT (status = 4 AND payment_status = 1)"
+                    + " AND NOT (service_type = 'TAKEAWAY' AND order_channel = 0 AND payment_status = 0 AND status = 0)"
+                    + " LIMIT 1";
+            try (var q = statement(c, sql, Timestamp.valueOf(todayStart), Timestamp.valueOf(tomorrowStart));
+                 var r = q.executeQuery()) {
+                return r.next();
+            }
+        });
+    }
+
+    @Override
+    public boolean isProtectedTenant(String tenantId) {
+        if (tenantId == null) {
+            return true;
+        }
+        return isProtectedCleanTenant(TenantRegistrationRules.tenantId(tenantId));
+    }
+
+    @Override
     public void deleteTenantCompletely(String tenantId) {
         String cleanTenant = TenantRegistrationRules.tenantId(tenantId);
-        if (isProtectedTenant(cleanTenant)) {
+        if (isProtectedCleanTenant(cleanTenant)) {
             throw new IllegalArgumentException("Protected tenant cannot be deleted: " + cleanTenant);
         }
         String schema = "tenant_" + cleanTenant;
@@ -95,7 +128,7 @@ public class TenantDeletionJdbcAdapter implements TenantDeletionPort {
                 cleanTenant);
     }
 
-    private static boolean isProtectedTenant(String cleanTenant) {
+    private static boolean isProtectedCleanTenant(String cleanTenant) {
         return "kebab".equals(cleanTenant) || "default".equals(cleanTenant) || "public".equals(cleanTenant);
     }
 

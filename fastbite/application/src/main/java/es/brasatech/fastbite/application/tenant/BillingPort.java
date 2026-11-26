@@ -18,6 +18,8 @@ public interface BillingPort {
     void extendTenantTrial(String tenantId, int extraDays);
     default void startTrialIfNeeded(String tenantId, Instant now) {
     }
+    default void setTrialStartedAt(String tenantId, Instant trialStartedAt) {
+    }
     default Optional<String> resolveOwnerEmail(String tenantId, String ownerUsername) {
         return Optional.empty();
     }

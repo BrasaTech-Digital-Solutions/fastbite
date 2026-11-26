@@ -6,6 +6,7 @@ import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
 import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.config.WebConfig;
+import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import es.brasatech.fastbite.security.SecurityConfig;
 import es.brasatech.fastbite.security.TenantUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,9 +49,9 @@ class ErrorPageMatrixTest {
             "en", "We couldn&#39;t find this page",
             "pt", "Não encontrámos esta página");
     static final Map<String, String> TITLE_UNKNOWN = Map.of(
-            "es", "No encontramos este restaurante",
-            "en", "We couldn&#39;t find this restaurant",
-            "pt", "Não encontrámos este restaurante");
+            "es", "Este restaurante ya no está disponible",
+            "en", "This restaurant is no longer available",
+            "pt", "Este restaurante já não está disponível");
     static final Map<String, String> TITLE_403 = Map.of(
             "es", "No tienes acceso a esta página",
             "en", "This page isn&#39;t available to you",
@@ -90,6 +91,8 @@ class ErrorPageMatrixTest {
         @BeforeEach
         void setUp() {
             when(tenantLocationService.getLocationByCustomDomain(anyString())).thenReturn(Optional.empty());
+            when(tenantLocationService.getLocation("kebab")).thenReturn(Optional.of(
+                    new TenantLocation("1", "owner", "kebab", "PRO", null)));
         }
 
         abstract boolean expectSandboxBanner();

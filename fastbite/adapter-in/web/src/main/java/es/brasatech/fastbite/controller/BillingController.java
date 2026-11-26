@@ -41,9 +41,20 @@ public class BillingController {
     public String show(@PathVariable String tenant, Principal owner, Model model) {
         try {
             var account = subscriptions.account(tenant, owner.getName());
+            var pendingNifTrial = account.trialNotStarted()
+                    ? subscriptions.findNifTrialForTenant(tenant).orElse(null)
+                    : null;
             model.addAttribute("billing", account);
             model.addAttribute("billingStatusLabel", OwnerWorkspaceController.localizedBillingStatus(account,
-                    LocaleContextHolder.getLocale(), messages, clock, ordersTimeZone));
+                    pendingNifTrial, LocaleContextHolder.getLocale(), messages, clock, ordersTimeZone));
+            if (account.trialEndsAt() != null) {
+                model.addAttribute("trialRemainingDays",
+                        SubscriptionService.remainingTrialDays(account.trialEndsAt(), clock.instant()));
+            } else if (pendingNifTrial != null) {
+                model.addAttribute("trialRemainingDays",
+                        SubscriptionService.remainingTrialDays(pendingNifTrial.trialEndsAt(), clock.instant()));
+                model.addAttribute("pendingNifTrialEndsAt", pendingNifTrial.trialEndsAt());
+            }
         }
         catch (IllegalArgumentException e) { throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND); }
         model.addAttribute("billingConfigured", subscriptions.configured());

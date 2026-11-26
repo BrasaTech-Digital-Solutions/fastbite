@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -33,6 +34,8 @@ public class HttpSandboxLink implements SandboxLinkPort {
     public static final String VERSION = "X-FastBite-Version";
     static final String LOCATIONS = "/internal/link/locations";
     static final String PRODUCTION_BUNDLE = "/internal/link/production-bundle";
+    static final String LOCATION_STATUS = "/internal/link/location-status";
+    static final String DELETE_LOCATION = "/internal/link/delete-location";
 
     private static final ScheduledExecutorService WATCHDOG_EXECUTOR =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -170,6 +173,76 @@ public class HttpSandboxLink implements SandboxLinkPort {
         }
 
         return WatchdogInputStream.wrap(response.body(), WATCHDOG_EXECUTOR, remaining, maxBytes);
+    }
+
+    @Override
+    public ProductionLocationStatus fetchProductionLocationStatus(String tenantId, String ownerUsername) {
+        if (!link.linked()) {
+            throw new Unavailable(Reason.UNREACHABLE, "No partner environment is linked");
+        }
+        byte[] payload = LinkSignature.locationStatusPayload(ownerUsername, tenantId);
+        String query = "?owner=" + URLEncoder.encode(ownerUsername, StandardCharsets.UTF_8)
+                + "&tenant=" + URLEncoder.encode(tenantId, StandardCharsets.UTF_8);
+        HttpResponse<String> response;
+        try {
+            response = http.send(HttpRequest.newBuilder(URI.create(link.internalUrl() + LOCATION_STATUS + query))
+                    .timeout(Duration.ofSeconds(10))
+                    .header(SIGNATURE, LinkSignature.header(link.secret(), Instant.now(), payload))
+                    .header(VERSION, version)
+                    .GET()
+                    .build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new Unavailable(Reason.UNREACHABLE, "Interrupted while checking production location status", e);
+        } catch (Exception e) {
+            throw new Unavailable(Reason.UNREACHABLE, "Production could not be reached: " + e.getMessage(), e);
+        }
+        if (response.statusCode() == 404) {
+            return ProductionLocationStatus.ABSENT;
+        }
+        if (response.statusCode() / 100 != 2) {
+            String reason = response.body() == null ? "" : response.body();
+            throw new Unavailable(response.statusCode() == 409 ? Reason.OTHER_VERSION : Reason.UNREACHABLE,
+                    "Production answered " + response.statusCode() + ": "
+                            + reason.substring(0, Math.min(300, reason.length())));
+        }
+        try {
+            return json.readValue(response.body(), ProductionLocationStatus.class);
+        } catch (Exception e) {
+            throw new Unavailable(Reason.UNREACHABLE, "Could not parse production status response: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void deleteSandboxLocation(String tenantId, String ownerUsername) {
+        if (!link.linked()) {
+            throw new Unavailable(Reason.UNREACHABLE, "No sandbox is linked");
+        }
+        var body = json.createObjectNode()
+                .put("tenantId", tenantId)
+                .put("ownerUsername", ownerUsername);
+        byte[] content = json.writeValueAsBytes(body);
+        HttpResponse<String> response;
+        try {
+            response = http.send(HttpRequest.newBuilder(URI.create(link.internalUrl() + DELETE_LOCATION))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Content-Type", "application/json")
+                    .header(SIGNATURE, LinkSignature.header(link.secret(), Instant.now(), content))
+                    .header(VERSION, version)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(content))
+                    .build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new Unavailable(Reason.UNREACHABLE, "Interrupted while deleting sandbox location", e);
+        } catch (Exception e) {
+            throw new Unavailable(Reason.UNREACHABLE, "The sandbox could not be reached: " + e.getMessage(), e);
+        }
+        if (response.statusCode() / 100 != 2) {
+            String reason = response.body() == null ? "" : response.body();
+            throw new Unavailable(response.statusCode() == 409 ? Reason.OTHER_VERSION : Reason.UNREACHABLE,
+                    "The sandbox answered " + response.statusCode() + ": "
+                            + reason.substring(0, Math.min(300, reason.length())));
+        }
     }
 
     private Unavailable mapSandboxError(int statusCode) {

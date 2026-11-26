@@ -7,28 +7,39 @@ import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.platform.PlatformLink;
 import es.brasatech.fastbite.application.platform.SandboxLinkPort;
 import es.brasatech.fastbite.application.tenant.TenantBackupRestorePort;
+import es.brasatech.fastbite.application.tenant.TenantDeletionPort;
 import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.config.TenantRoutingResolver;
 import es.brasatech.fastbite.domain.tenant.TenantContext;
+import es.brasatech.fastbite.domain.tenant.TenantLocation;
+import es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The sandbox's side of the link: production sets up here every location it creates. Only a linked
@@ -49,11 +60,20 @@ public class LinkController {
     private final TenantLocationService tenantLocationService;
     private final ProductService productService;
     private final TenantBackupRestorePort backupRestorePort;
+    private final TenantDeletionPort deletionPort;
+    private final TenantRoutingResolver routingResolver;
+    private final Clock clock;
+    private final ZoneId ordersTimeZone;
 
+    @Autowired
     public LinkController(PlatformEnvironment environment, PlatformLink link, LinkedLocationService locations,
             PasswordEncoder passwords, ObjectMapper json, @Value("${fastbite.version:dev}") String version,
             TenantLocationService tenantLocationService, ProductService productService,
-            TenantBackupRestorePort backupRestorePort) {
+            TenantBackupRestorePort backupRestorePort,
+            @Autowired(required = false) TenantDeletionPort deletionPort,
+            @Autowired(required = false) TenantRoutingResolver routingResolver,
+            @Autowired(required = false) Clock clock,
+            @Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone) {
         this.environment = environment;
         this.link = link;
         this.locations = locations;
@@ -63,6 +83,18 @@ public class LinkController {
         this.tenantLocationService = tenantLocationService;
         this.productService = productService;
         this.backupRestorePort = backupRestorePort;
+        this.deletionPort = deletionPort;
+        this.routingResolver = routingResolver;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
+        this.ordersTimeZone = ZoneId.of(ordersTimeZone == null || ordersTimeZone.isBlank() ? "Europe/Madrid" : ordersTimeZone);
+    }
+
+    public LinkController(PlatformEnvironment environment, PlatformLink link, LinkedLocationService locations,
+            PasswordEncoder passwords, ObjectMapper json, String version,
+            TenantLocationService tenantLocationService, ProductService productService,
+            TenantBackupRestorePort backupRestorePort) {
+        this(environment, link, locations, passwords, json, version, tenantLocationService, productService,
+                backupRestorePort, null, null, Clock.systemUTC(), "Europe/Madrid");
     }
 
     @PostMapping("/internal/link/locations")
@@ -89,7 +121,7 @@ public class LinkController {
         } catch (IllegalArgumentException e) {
             log.warn("Refused to set up location {} in the sandbox: {}", location.tenantId(), e.getMessage());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
-        } catch (es.brasatech.fastbite.domain.tenant.TenantProvisioningInProgressException e) {
+        } catch (TenantProvisioningInProgressException e) {
             log.info("Location {} setup is already in progress in the sandbox", location.tenantId());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .header("Retry-After", "5")
@@ -152,6 +184,103 @@ public class LinkController {
         // Returning null tells Spring MVC that the response body was written directly
         // to HttpServletResponse.getOutputStream() (streaming chunked zip).
         return null;
+    }
+
+    /**
+     * Production-only read-only status endpoint queried by a linked sandbox before deleting a location.
+     * Production never exposes a delete endpoint over the link.
+     */
+    @GetMapping("/internal/link/location-status")
+    public ResponseEntity<?> locationStatus(
+            @RequestParam("owner") String owner,
+            @RequestParam("tenant") String tenant,
+            @RequestHeader(value = "X-FastBite-Signature", required = false) String signature,
+            @RequestHeader(value = "X-FastBite-Version", required = false) String senderVersion) {
+        if (!environment.production() || !link.linked()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (owner == null || owner.isBlank() || tenant == null || tenant.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "owner and tenant are required"));
+        }
+        byte[] payload = LinkSignature.locationStatusPayload(owner, tenant);
+        if (!LinkSignature.verify(link.secret(), signature, payload, clock.instant())) {
+            log.warn("Refused a location-status link call without a valid signature");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not signed by sandbox"));
+        }
+        if (!version.equals(senderVersion)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "Production runs FastBite " + version + ", sandbox " + senderVersion));
+        }
+        Optional<TenantLocation> location = tenantLocationService.getLocation(tenant);
+        if (location.isEmpty()) {
+            return ResponseEntity.ok(SandboxLinkPort.ProductionLocationStatus.ABSENT);
+        }
+        if (!tenantLocationService.isOwnerOf(owner, tenant)) {
+            return ResponseEntity.notFound().build();
+        }
+        boolean closed = tenantLocationService.isClosed(tenant);
+        boolean hasActivity = closed || (deletionPort != null && deletionPort.hasFiscalOrPaidActivity(tenant));
+        LocalDateTime todayStart = LocalDate.now(clock.withZone(ordersTimeZone)).atStartOfDay();
+        boolean hasOrdersInProgress = !closed
+                && deletionPort != null
+                && deletionPort.hasOrdersInProgressToday(tenant, todayStart, todayStart.plusDays(1));
+        return ResponseEntity.ok(new SandboxLinkPort.ProductionLocationStatus(
+                true, closed, hasActivity, hasOrdersInProgress));
+    }
+
+    /**
+     * Sandbox-only cleanup endpoint called by production after production deleted or closed a location.
+     * Link-signed only, owner + location must match, refuses protected tenants, idempotent when already gone.
+     */
+    @PostMapping("/internal/link/delete-location")
+    public ResponseEntity<Map<String, String>> deleteLocation(@RequestBody(required = false) byte[] content,
+            @RequestHeader(value = "X-FastBite-Signature", required = false) String signature,
+            @RequestHeader(value = "X-FastBite-Version", required = false) String senderVersion) {
+        if (!environment.sandbox() || !link.linked()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (content == null || content.length == 0 || !LinkSignature.verify(link.secret(), signature, content, clock.instant())) {
+            log.warn("Refused a delete-location link call that is not signed with the shared secret, or too old");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not signed by production"));
+        }
+        if (!version.equals(senderVersion)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "The sandbox runs FastBite " + version + ", production " + senderVersion));
+        }
+        JsonNode body = json.readTree(content);
+        String tenantId = text(body, "tenantId");
+        String ownerUsername = text(body, "ownerUsername");
+        if (tenantId == null || tenantId.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "tenantId and ownerUsername are required"));
+        }
+        if (deletionPort == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("message", "Sandbox deletion is not available"));
+        }
+        if (deletionPort.isProtectedTenant(tenantId)) {
+            log.warn("Refused link delete for protected tenant {}", tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Protected tenant cannot be deleted"));
+        }
+        Optional<TenantLocation> existing = tenantLocationService.getLocation(tenantId);
+        if (existing.isEmpty()) {
+            log.info("Sandbox location {} already absent during linked delete for owner {}", tenantId, ownerUsername);
+            return ResponseEntity.ok(Map.of("status", "already_deleted"));
+        }
+        if (!tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
+            log.warn("Refused link delete: owner {} does not own sandbox location {}", ownerUsername, tenantId);
+            return ResponseEntity.notFound().build();
+        }
+        String customDomain = existing.get().customDomain();
+        deletionPort.deleteTenantCompletely(tenantId);
+        if (routingResolver != null) {
+            routingResolver.evictTenant(tenantId);
+            if (customDomain != null && !customDomain.isBlank()) {
+                routingResolver.evictCache(customDomain);
+            }
+        }
+        log.info("Deleted sandbox location {} for owner {} via production link", tenantId, ownerUsername);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
     }
 
     private static String text(JsonNode body, String field) {

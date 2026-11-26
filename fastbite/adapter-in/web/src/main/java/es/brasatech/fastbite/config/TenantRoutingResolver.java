@@ -172,6 +172,15 @@ public class TenantRoutingResolver {
         return exists;
     }
 
+    /** True if the tenant exists as a closed location (retaining fiscal archive). */
+    public boolean isClosed(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return false;
+        }
+        return tenantLocationService.isClosed(tenantId)
+                || tenantLocationService.getLocation(tenantId).map(TenantLocation::isClosed).orElse(false);
+    }
+
     /** True if the path segment is a tenant prefix rather than a platform path. */
     public static boolean isTenantSegment(String segment) {
         return segment != null && TENANT_SEGMENT.matcher(segment).matches() && !RESERVED.contains(segment);

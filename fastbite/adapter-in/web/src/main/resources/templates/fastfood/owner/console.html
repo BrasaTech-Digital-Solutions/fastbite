@@ -21,7 +21,7 @@
 <aside th:replace="~{fastfood/owner/workspace-shell :: sidebar}"></aside>
 <div class="workspace-content"><header th:replace="~{fastfood/owner/workspace-shell :: topbar}"></header>
 <main id="workspace-main" class="workspace-main">
-<div th:if="${error}" class="alert error" role="alert" th:text="${error}"></div><div th:if="${notice}" class="alert success" role="status" th:text="${notice}"></div>
+<div th:if="${error}" class="alert error" role="alert"><span th:text="${error}"></span> <a th:if="${errorActionUrl != null}" class="text-link" th:href="${errorActionUrl}" th:text="${errorActionLabel}"></a></div><div th:if="${notice}" class="alert success" role="status" th:text="${notice}"></div>
 <div th:if="${freePlanPaymentsMissing}" class="alert error" role="status"><span th:text="#{opening.free.paused}">New orders are paused.</span> <a th:href="@{/owner/console(view='location-settings',section='payments',location=${selected.tenantId})}" th:text="#{opening.payments.action}">Connect payments →</a></div>
 <p id="workspace-feedback" class="alert" role="status" hidden></p>
 <section th:if="${view=='overview' && workspaceArea!='menu' && selected!=null && (locationClosed==null || !locationClosed)}">
@@ -328,11 +328,11 @@
 <p><strong th:text="#{location.danger.dialog.kept.label}">Kept:</strong> <span th:if="${linkedSandbox}" th:text="#{location.danger.dialog.sandbox.linked.kept}">Your owner account and your live location with the same name.</span><span th:unless="${linkedSandbox}" th:text="#{location.danger.dialog.sandbox.standalone.kept}">Your owner account and any other locations.</span></p>
 </th:block>
 <th:block th:if="${removalMode == 'PRODUCTION_DELETE'}">
-<p><strong th:text="#{location.danger.dialog.deleted.label}">Deleted:</strong> <span th:text="#{location.danger.dialog.prod.deleted(${selected.tenantId})}">Menu, tables, orders, staff, files, database schema and mapping for this location. Any active trial or subscription is cancelled immediately.</span></p>
+<p><strong th:text="#{location.danger.dialog.deleted.label}">Deleted:</strong> <span th:if="${linkedProduction}" th:text="#{location.danger.dialog.prod.deleted.linked(${selected.tenantId})}">Menu, tables, orders, staff, files, database schema and mapping for this location in production, plus its sandbox practice copy automatically. Any active trial or subscription is cancelled immediately.</span><span th:unless="${linkedProduction}" th:text="#{location.danger.dialog.prod.deleted(${selected.tenantId})}">Menu, tables, orders, staff, files, database schema and mapping for this location. Any active trial or subscription is cancelled immediately.</span></p>
 <p><strong th:text="#{location.danger.dialog.kept.label}">Kept:</strong> <span th:text="#{location.danger.dialog.prod.delete.kept}">Your owner account and any other locations.</span></p>
 </th:block>
 <th:block th:if="${removalMode == 'PRODUCTION_CLOSE'}">
-<p><strong th:text="#{location.danger.dialog.stopped.label}">Stopped and removed:</strong> <span th:text="#{location.danger.dialog.prod.closed.removed}">Guest pages close immediately, operational data (menu, tables, staff) is removed, and any active subscription is cancelled at the end of the billing period.</span></p>
+<p><strong th:text="#{location.danger.dialog.stopped.label}">Stopped and removed:</strong> <span th:if="${linkedProduction}" th:text="#{location.danger.dialog.prod.closed.removed.linked}">Guest pages close immediately, operational data (menu, tables, staff) is removed, its sandbox practice copy is deleted automatically, and any active subscription is cancelled at the end of the billing period.</span><span th:unless="${linkedProduction}" th:text="#{location.danger.dialog.prod.closed.removed}">Guest pages close immediately, operational data (menu, tables, staff) is removed, and any active subscription is cancelled at the end of the billing period.</span></p>
 <p><strong th:text="#{location.danger.dialog.kept.label}">Kept (4 years by law):</strong> <span th:text="#{location.danger.dialog.prod.closed.kept}">Issued tickets, VERI*FACTU billing records and VERI*FACTU authorisation evidence, available under Closed locations with ticket view and JSON export.</span></p>
 <p><a class="text-link" th:href="@{/{tenant}/api/backoffice/maintenance/backup(tenant=${selected.tenantId})}" th:text="#{workspace.rebuild.51}">Download backup ZIP →</a></p>
 </th:block>

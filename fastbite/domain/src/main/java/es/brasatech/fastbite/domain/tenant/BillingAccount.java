@@ -34,6 +34,12 @@ public record BillingAccount(String tenantId, String owner, String billingKey, I
                 null, null, null, null, null, null);
     }
     public Instant trialEndsAt() { return trialStartedAt == null ? null : trialStartedAt.plus(SubscriptionPlan.TRIAL_DAYS, ChronoUnit.DAYS); }
+    public BillingAccount withTrialStartedAt(Instant newTrialStartedAt) {
+        return new BillingAccount(tenantId, owner, billingKey, newTrialStartedAt, status, customerId, subscriptionId,
+                periodEnd, stripeTrialEnd, cancelAtPeriodEnd, checkoutId, checkoutUrl, checkoutExpires, attempt,
+                stripeAccountId, stripeChargesEnabled, pausedSince, pauseNotifiedAt, warningNotifiedAt,
+                contractEndedAt, closingStartedAt, closedAt);
+    }
     public boolean trialNotStarted() { return "LOCAL_TRIAL".equals(status) && trialStartedAt == null; }
     public boolean isFreePlan() { return "FREE".equalsIgnoreCase(status); }
     public boolean isClosed() { return closedAt != null; }

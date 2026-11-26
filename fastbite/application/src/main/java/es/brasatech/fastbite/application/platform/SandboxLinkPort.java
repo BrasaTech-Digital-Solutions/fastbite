@@ -17,6 +17,18 @@ public interface SandboxLinkPort {
     record LinkedLocation(String tenantId, String ownerUsername, String ownerName, String plan) {
     }
 
+    /**
+     * Read-only status of a location on production, queried by a linked sandbox before deletion.
+     */
+    record ProductionLocationStatus(
+            boolean exists,
+            boolean closed,
+            boolean hasFiscalOrPaidActivity,
+            boolean hasOrdersInProgress) {
+        public static final ProductionLocationStatus ABSENT =
+                new ProductionLocationStatus(false, false, false, false);
+    }
+
     enum Reason { UNREACHABLE, OTHER_VERSION, NOTHING_TO_PROMOTE, TOO_LARGE, TIMED_OUT, REFUSED }
 
     /** The sandbox could not take it now: it is down, on another version during a release, or refused it. */
@@ -76,5 +88,21 @@ public interface SandboxLinkPort {
      */
     default InputStream streamBundle(String tenantId, String ownerUsername) {
         return streamBundle(tenantId, ownerUsername, DEFAULT_MAX_BUNDLE_BYTES);
+    }
+
+    /**
+     * Queries production's read-only location status from a linked sandbox.
+     * Throws {@link Unavailable} if production cannot be reached or refuses the call.
+     */
+    default ProductionLocationStatus fetchProductionLocationStatus(String tenantId, String ownerUsername) {
+        throw new Unavailable(Reason.UNREACHABLE, "Production status check is not supported");
+    }
+
+    /**
+     * Tells a linked sandbox to delete its copy of a location after production deleted or closed it.
+     * Idempotent: an already-deleted sandbox copy succeeds.
+     */
+    default void deleteSandboxLocation(String tenantId, String ownerUsername) {
+        throw new Unavailable(Reason.UNREACHABLE, "Sandbox deletion over link is not supported");
     }
 }

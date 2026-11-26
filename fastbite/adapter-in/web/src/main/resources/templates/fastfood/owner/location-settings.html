@@ -9,18 +9,26 @@
 <h2 id="location-danger-title" th:text="#{location.danger.title}">Danger zone</h2>
 <th:block th:if="${removalMode == 'SANDBOX_DELETE'}">
 <h3 th:text="#{location.danger.sandbox.heading}">Delete this practice location</h3>
-<p th:if="${linkedSandbox}" th:text="#{location.danger.sandbox.linked.desc}">Permanently deletes this practice location (its menu, tables, orders, staff, files and database). Nothing here is real and your live location with the same name is not affected.</p>
+<p th:if="${linkedSandbox && sandboxProductionHasTickets == true}" th:text="#{workspace.flash.location.production_has_tickets}">This restaurant has tickets in production. Close it in production.</p>
+<p th:if="${linkedSandbox && sandboxProductionHasTickets != true && sandboxHasProductionCopy == true}" th:text="#{location.danger.sandbox.linked.prod.desc}">This restaurant also exists in production. Deleting it must be confirmed in production and will remove both your live location and this practice copy.</p>
+<p th:if="${linkedSandbox && sandboxProductionHasTickets != true && sandboxHasProductionCopy != true}" th:text="#{location.danger.sandbox.linked.desc}">Permanently deletes this practice location (its menu, tables, orders, staff, files and database). If it also exists in production, deleting it must be confirmed in production.</p>
 <p th:unless="${linkedSandbox}" th:text="#{location.danger.sandbox.standalone.desc}">Permanently deletes this practice location (its menu, tables, orders, staff, files and database). Nothing here is real.</p>
-<button type="button" class="danger-button" data-location-removal th:text="#{location.danger.delete.button}">Delete location</button>
+<a th:if="${linkedSandbox && sandboxProductionHasTickets == true && sandboxProductionSettingsUrl != null}" class="button secondary" th:href="${sandboxProductionSettingsUrl}" th:text="#{location.danger.go.production}">Go to production →</a>
+<form th:if="${linkedSandbox && sandboxProductionHasTickets != true && sandboxHasProductionCopy == true}" th:action="@{/owner/workspace/{tenant}/delete(tenant=${selected.tenantId})}" method="post">
+<button type="submit" class="danger-button" th:text="#{location.danger.delete.in.production}">Delete in production →</button>
+</form>
+<button th:if="${!linkedSandbox || (sandboxProductionHasTickets != true && sandboxHasProductionCopy != true)}" type="button" class="danger-button" data-location-removal th:text="#{location.danger.delete.button}">Delete location</button>
 </th:block>
 <th:block th:if="${removalMode == 'PRODUCTION_DELETE'}">
 <h3 th:text="#{location.danger.prod.delete.heading}">Delete this location</h3>
-<p th:text="#{location.danger.prod.delete.desc}">This location has never issued a ticket or recorded a paid order, so it can be permanently deleted. Its menu, tables, orders, staff, files and database will be erased, and any active trial or subscription for this location will be cancelled immediately.</p>
+<p th:if="${linkedProduction}" th:text="#{location.danger.prod.delete.linked.desc}">This location has never issued a ticket or recorded a paid order, so it can be permanently deleted. Its menu, tables, orders, staff, files and database will be erased in production and its sandbox practice copy will be deleted automatically. Any active trial or subscription will be cancelled immediately.</p>
+<p th:unless="${linkedProduction}" th:text="#{location.danger.prod.delete.desc}">This location has never issued a ticket or recorded a paid order, so it can be permanently deleted. Its menu, tables, orders, staff, files and database will be erased, and any active trial or subscription for this location will be cancelled immediately.</p>
 <button type="button" class="danger-button" data-location-removal th:text="#{location.danger.delete.button}">Delete location</button>
 </th:block>
 <th:block th:if="${removalMode == 'PRODUCTION_CLOSE'}">
 <h3 th:text="#{location.danger.prod.close.heading}">Close this location</h3>
-<p th:text="#{location.danger.prod.close.desc}">This location has issued tickets, so it cannot be deleted. Closing it stops service immediately, shows guest pages as closed, cancels any subscription at the end of the billing period, and moves it to Closed locations where its tickets, VERI*FACTU records and authorisation evidence remain available for the statutory 4-year retention period.</p>
+<p th:if="${linkedProduction}" th:text="#{location.danger.prod.close.linked.desc}">This location has issued tickets, so it cannot be deleted. Closing it stops service immediately, shows guest pages as closed, cancels any subscription at the end of the billing period, removes its sandbox practice copy automatically, and moves it to Closed locations where its tickets, VERI*FACTU records and authorisation evidence remain available for the statutory 4-year retention period.</p>
+<p th:unless="${linkedProduction}" th:text="#{location.danger.prod.close.desc}">This location has issued tickets, so it cannot be deleted. Closing it stops service immediately, shows guest pages as closed, cancels any subscription at the end of the billing period, and moves it to Closed locations where its tickets, VERI*FACTU records and authorisation evidence remain available for the statutory 4-year retention period.</p>
 <button type="button" class="danger-button" data-location-removal th:text="#{location.danger.close.button}">Close location</button>
 </th:block>
 </section>
