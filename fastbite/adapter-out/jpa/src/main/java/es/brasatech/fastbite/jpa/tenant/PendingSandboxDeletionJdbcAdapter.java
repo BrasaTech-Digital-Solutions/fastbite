@@ -31,7 +31,7 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
             int updated = update(c,
                     """
                     UPDATE public.pending_sandbox_deletions
-                    SET owner_username = ?, action = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
+                    SET owner_username = ?, action = ?, last_error = ?, next_attempt_at = ?, claimed_at = NULL, updated_at = ?
                     WHERE tenant_id = ?
                     """,
                     ownerUsername, actionName, clipped, Timestamp.from(nextAttemptAt), Timestamp.from(now), tenantId);
@@ -90,6 +90,20 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
     }
 
     @Override
+    public boolean claim(String tenantId, Instant now, Instant staleBefore) {
+        return transaction(source, c -> update(c,
+                """
+                UPDATE public.pending_sandbox_deletions
+                SET claimed_at = ?, updated_at = ?
+                WHERE tenant_id = ?
+                  AND next_attempt_at <= ?
+                  AND (claimed_at IS NULL OR claimed_at <= ?)
+                """,
+                Timestamp.from(now), Timestamp.from(now), tenantId,
+                Timestamp.from(now), Timestamp.from(staleBefore)) == 1);
+    }
+
+    @Override
     public void markDone(String tenantId) {
         transaction(source, c -> {
             update(c, "DELETE FROM public.pending_sandbox_deletions WHERE tenant_id = ?", tenantId);
@@ -103,7 +117,7 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
             update(c,
                     """
                     UPDATE public.pending_sandbox_deletions
-                    SET attempts = ?, next_attempt_at = ?, last_error = ?, updated_at = ?
+                    SET attempts = ?, next_attempt_at = ?, last_error = ?, claimed_at = NULL, updated_at = ?
                     WHERE tenant_id = ?
                     """,
                     attempts, Timestamp.from(nextAttemptAt), clip(lastError), Timestamp.from(now), tenantId);

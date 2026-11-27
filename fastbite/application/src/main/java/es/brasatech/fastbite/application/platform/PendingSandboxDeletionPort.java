@@ -40,6 +40,13 @@ public interface PendingSandboxDeletionPort {
 
     List<PendingDeletion> due(Instant now, int limit);
 
+    /**
+     * Atomically claims a due sandbox sync entry so concurrent instances do not dispatch it twice.
+     */
+    default boolean claim(String tenantId, Instant now, Instant staleBefore) {
+        return true;
+    }
+
     void markDone(String tenantId);
 
     void reschedule(String tenantId, int attempts, Instant nextAttemptAt, String lastError, Instant now);

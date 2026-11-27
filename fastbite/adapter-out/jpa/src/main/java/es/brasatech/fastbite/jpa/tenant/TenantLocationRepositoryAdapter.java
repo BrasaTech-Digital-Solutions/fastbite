@@ -95,13 +95,14 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
+    public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter, Boolean stripeWasCanceling) {
         if (tenantId == null || tenantId.isBlank()) return;
         jdbc.update(
-                "UPDATE public.tenant_locations SET pending_delete_at = ?, erase_after = ?, deleted_by = ? WHERE LOWER(tenant_id) = LOWER(?)",
+                "UPDATE public.tenant_locations SET pending_delete_at = ?, erase_after = ?, deleted_by = ?, erase_claimed_at = NULL, stripe_was_canceling = ? WHERE LOWER(tenant_id) = LOWER(?)",
                 Timestamp.from(pendingDeleteAt),
                 Timestamp.from(eraseAfter),
                 deletedBy,
+                stripeWasCanceling,
                 tenantId.trim());
     }
 
@@ -110,7 +111,7 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     public void clearPendingDelete(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) return;
         jdbc.update(
-                "UPDATE public.tenant_locations SET pending_delete_at = NULL, erase_after = NULL, deleted_by = NULL WHERE LOWER(tenant_id) = LOWER(?)",
+                "UPDATE public.tenant_locations SET pending_delete_at = NULL, erase_after = NULL, deleted_by = NULL, erase_claimed_at = NULL, stripe_was_canceling = NULL WHERE LOWER(tenant_id) = LOWER(?)",
                 tenantId.trim());
     }
 
@@ -125,6 +126,26 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
                 .flatMap(Optional::stream)
                 .map(this::toDomain)
                 .toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public boolean claimForErase(String tenantId, Instant now, Instant staleBefore) {
+        if (tenantId == null || tenantId.isBlank()) return false;
+        int updated = jdbc.update(
+                """
+                UPDATE public.tenant_locations
+                SET erase_claimed_at = ?
+                WHERE LOWER(tenant_id) = LOWER(?)
+                  AND pending_delete_at IS NOT NULL
+                  AND erase_after <= ?
+                  AND (erase_claimed_at IS NULL OR erase_claimed_at <= ?)
+                """,
+                Timestamp.from(now),
+                tenantId.trim(),
+                Timestamp.from(now),
+                Timestamp.from(staleBefore));
+        return updated == 1;
     }
 
     @Override
@@ -166,6 +187,7 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
                 Boolean.TRUE.equals(entity.getStripeDetailsSubmitted()),
                 closedAt,
                 entity.getPendingDeleteAt(),
-                entity.getEraseAfter());
+                entity.getEraseAfter(),
+                entity.getStripeWasCanceling());
     }
 }

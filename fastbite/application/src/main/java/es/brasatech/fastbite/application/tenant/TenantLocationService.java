@@ -107,7 +107,11 @@ public class TenantLocationService {
     }
 
     public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
-        tenantLocationPort.markPendingDelete(tenantId, deletedBy, pendingDeleteAt, eraseAfter);
+        tenantLocationPort.markPendingDelete(tenantId, deletedBy, pendingDeleteAt, eraseAfter, null);
+    }
+
+    public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter, Boolean stripeWasCanceling) {
+        tenantLocationPort.markPendingDelete(tenantId, deletedBy, pendingDeleteAt, eraseAfter, stripeWasCanceling);
     }
 
     public void clearPendingDelete(String tenantId) {
@@ -116,6 +120,10 @@ public class TenantLocationService {
 
     public List<TenantLocation> findDueForErase(Instant now) {
         return tenantLocationPort.findDueForErase(now);
+    }
+
+    public boolean claimForErase(String tenantId, Instant now, Instant staleBefore) {
+        return tenantLocationPort.claimForErase(tenantId, now, staleBefore);
     }
 
     public Optional<TenantLocation> getLocationByStripeAccount(String stripeAccountId) {

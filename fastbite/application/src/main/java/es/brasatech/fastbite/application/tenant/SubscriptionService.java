@@ -231,6 +231,59 @@ public class SubscriptionService {
                     updated.cancelAtPeriodEnd()));
         }
     }
+    /**
+     * Prevents renewals or trial-end charges while a location is hidden during its undo window
+     * by setting Stripe {@code cancel_at_period_end = true}.
+     *
+     * @return the previous {@code cancelAtPeriodEnd} state ({@code false} if flipped by us,
+     *         {@code true} if already canceling), or {@code null} when no active Stripe subscription exists
+     */
+    public Boolean pauseBillingForPendingDelete(String tenant, String owner) {
+        var existingOpt = billing.find(tenant);
+        if (existingOpt.isEmpty()) return null;
+        var existing = existingOpt.get();
+        requireOwner(existing, owner);
+        if (existing.subscriptionId() == null
+                || Set.of("canceled", "incomplete_expired").contains(existing.status())) {
+            return null;
+        }
+        boolean wasCanceling = existing.cancelAtPeriodEnd();
+        if (!wasCanceling) {
+            cancelSubscriptionAtPeriodEnd(tenant, owner);
+        }
+        return wasCanceling;
+    }
+    /**
+     * Restores the Stripe subscription to its exact state before the location was hidden.
+     * Only clears {@code cancel_at_period_end} when {@code previousCancelAtPeriodEnd} was {@code false}.
+     */
+    public void restoreBillingAfterUndo(String tenant, String owner, Boolean previousCancelAtPeriodEnd) {
+        if (!Boolean.FALSE.equals(previousCancelAtPeriodEnd)) {
+            return;
+        }
+        var existingOpt = billing.find(tenant);
+        if (existingOpt.isEmpty()) return;
+        var existing = existingOpt.get();
+        requireOwner(existing, owner);
+        if (existing.subscriptionId() == null
+                || Set.of("canceled", "incomplete_expired").contains(existing.status())
+                || !existing.cancelAtPeriodEnd()) {
+            return;
+        }
+        if (!gateway.configured()) {
+            throw new IllegalStateException("Billing is temporarily unavailable. Please try again shortly.");
+        }
+        var updated = gateway.resumeAtPeriodEnd(existing.subscriptionId());
+        if (updated != null) {
+            billing.updateLocked(tenant, account -> account.subscribed(
+                    updated.customerId() != null ? updated.customerId() : account.customerId(),
+                    updated.id() != null ? updated.id() : account.subscriptionId(),
+                    updated.status() != null ? updated.status() : account.status(),
+                    updated.periodEnd() > 0 ? updated.periodEnd() : account.periodEnd(),
+                    updated.trialEnd() > 0 ? updated.trialEnd() : account.stripeTrialEnd(),
+                    updated.cancelAtPeriodEnd()));
+        }
+    }
     private BillingAccount apply(BillingAccount account, SubscriptionGateway.Subscription sub) {
         if (!account.tenantId().equals(sub.tenant()) || !account.owner().equals(sub.owner())
                 || !account.billingKey().equals(sub.billingKey()) || !sub.supportedPrice()

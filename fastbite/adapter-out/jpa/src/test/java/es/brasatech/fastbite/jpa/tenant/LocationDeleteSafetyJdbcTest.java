@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -103,5 +104,33 @@ class LocationDeleteSafetyJdbcTest {
 
         pendingSync.markDone("bistro");
         assertThat(pendingSync.due(NOW, 10)).isEmpty();
+    }
+
+    @Test
+    void pendingSandboxSyncClaimIsAtomicAndReclaimableAfterLeaseExpires() {
+        pendingSync.enqueue("bistro", "ana", PendingSandboxDeletionPort.Action.ERASE, "down", NOW, NOW);
+        Instant staleBefore = NOW.minus(15, ChronoUnit.MINUTES);
+
+        assertThat(pendingSync.claim("bistro", NOW, staleBefore)).isTrue();
+        // Second instance at the same time cannot claim
+        assertThat(pendingSync.claim("bistro", NOW.plus(1, ChronoUnit.MINUTES), NOW.minus(14, ChronoUnit.MINUTES))).isFalse();
+        // After 15-minute lease expires, stale claim can be reclaimed
+        Instant later = NOW.plus(16, ChronoUnit.MINUTES);
+        assertThat(pendingSync.claim("bistro", later, later.minus(15, ChronoUnit.MINUTES))).isTrue();
+    }
+
+    @Test
+    void tenantLocationEraseClaimIsAtomicAndReclaimableAfterLeaseExpires() {
+        jdbc.update("INSERT INTO public.tenant_locations (id, owner_username, tenant_id, plan, pending_delete_at, erase_after) VALUES (?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID().toString(), "ana", "duecafe", "RESTAURANT",
+                Timestamp.from(NOW.minus(7, ChronoUnit.DAYS)),
+                Timestamp.from(NOW));
+        var adapter = new TenantLocationRepositoryAdapter(null, jdbc);
+
+        assertThat(adapter.claimForErase("duecafe", NOW, NOW.minus(15, ChronoUnit.MINUTES))).isTrue();
+        assertThat(adapter.claimForErase("duecafe", NOW.plus(1, ChronoUnit.MINUTES), NOW.minus(14, ChronoUnit.MINUTES))).isFalse();
+
+        Instant later = NOW.plus(16, ChronoUnit.MINUTES);
+        assertThat(adapter.claimForErase("duecafe", later, later.minus(15, ChronoUnit.MINUTES))).isTrue();
     }
 }

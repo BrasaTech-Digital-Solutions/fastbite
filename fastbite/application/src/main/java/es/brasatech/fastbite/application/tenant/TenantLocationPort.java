@@ -22,6 +22,10 @@ public interface TenantLocationPort {
     }
 
     default void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
+        markPendingDelete(tenantId, deletedBy, pendingDeleteAt, eraseAfter, null);
+    }
+
+    default void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter, Boolean stripeWasCanceling) {
     }
 
     default void clearPendingDelete(String tenantId) {
@@ -29,6 +33,15 @@ public interface TenantLocationPort {
 
     default List<TenantLocation> findDueForErase(Instant now) {
         return List.of();
+    }
+
+    /**
+     * Atomically claims a due pending-delete location for erasure so concurrent instances
+     * cannot double-erase or double-cancel Stripe. A stale claim older than {@code staleBefore}
+     * may be reclaimed.
+     */
+    default boolean claimForErase(String tenantId, Instant now, Instant staleBefore) {
+        return true;
     }
 
     /**

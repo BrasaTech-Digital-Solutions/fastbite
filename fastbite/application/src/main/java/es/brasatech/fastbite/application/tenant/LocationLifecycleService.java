@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class LocationLifecycleService {
 
     public static final int DEFAULT_UNDO_DAYS = 7;
     public static final int DEFAULT_NAME_HOLD_DAYS = 90;
+    static final Duration ERASE_CLAIM_LEASE = Duration.ofMinutes(15);
 
     public enum RemovalAction {
         SANDBOX_DELETE,
@@ -270,8 +272,12 @@ public class LocationLifecycleService {
         String ownerEmail = resolveOwnerEmail(tenantId, ownerUsername);
         Instant now = clock.instant();
         Instant eraseAfter = now.plus(undoDays, ChronoUnit.DAYS);
-        // Soft-delete (hide): Stripe subscription is NOT cancelled until real erase.
-        locations.markPendingDelete(tenantId, ownerUsername, now, eraseAfter);
+        // Prevent renewals/trial-end charges during the undo window without cancelling immediately;
+        // remember prior cancel_at_period_end state so undo restores it verbatim.
+        Boolean stripeWasCanceling = !environment.sandbox()
+                ? subscriptions.pauseBillingForPendingDelete(tenantId, ownerUsername)
+                : null;
+        locations.markPendingDelete(tenantId, ownerUsername, now, eraseAfter, stripeWasCanceling);
 
         boolean linkedProd = isLinkedProduction();
         if (linkedProd && sandboxDeletionSync != null) {
@@ -290,8 +296,8 @@ public class LocationLifecycleService {
 
     /**
      * Undoes a pending deletion within the undo window, restoring the location (and its sandbox
-     * copy in linked production mode). In linked sandbox mode, redirects to production when a
-     * production copy exists.
+     * copy in linked production mode) and restoring the exact prior Stripe cancel-at-period-end state.
+     * In linked sandbox mode, redirects to production when a production copy exists.
      */
     public UndoResult undoDelete(String ownerUsername, String tenantId) {
         requireOwner(ownerUsername, tenantId);
@@ -318,6 +324,9 @@ public class LocationLifecycleService {
             return new UndoResult(UndoResult.Outcome.UNDO_WINDOW_EXPIRED, null);
         }
 
+        if (!environment.sandbox()) {
+            subscriptions.restoreBillingAfterUndo(tenantId, ownerUsername, loc.stripeWasCanceling());
+        }
         locations.clearPendingDelete(tenantId);
         if (isLinkedProduction() && sandboxDeletionSync != null) {
             sandboxDeletionSync.restoreNowOrEnqueue(tenantId, ownerUsername);
@@ -330,11 +339,14 @@ public class LocationLifecycleService {
 
     /**
      * Permanently erases locations whose undo window has elapsed and purges expired name holds.
-     * Production cancels Stripe and records a 90-day name hold before erasing and telling sandbox
-     * to erase; sandbox-only locations erase and release their name immediately.
+     * Each due location is claimed atomically before erasing so concurrent instances cannot
+     * double-erase or double-cancel Stripe. If a production location unexpectedly has fiscal or
+     * paid activity at erase time, it is permanently closed instead (preserving records) and the
+     * owner is emailed the close notice.
      */
     public int eraseDueLocations() {
         Instant now = clock.instant();
+        Instant staleBefore = now.minus(ERASE_CLAIM_LEASE);
         List<TenantLocation> due = locations.findDueForErase(now);
         int erased = 0;
         for (TenantLocation loc : due) {
@@ -342,10 +354,14 @@ public class LocationLifecycleService {
             if (loc.isClosed() || deletionPort.isProtectedTenant(tenantId)) {
                 continue;
             }
+            if (!locations.claimForErase(tenantId, now, staleBefore)) {
+                continue;
+            }
             try {
                 if (!environment.sandbox()) {
                     if (deletionPort.hasFiscalOrPaidActivity(tenantId)) {
-                        log.warn("Skipping scheduled erase of production location '{}' because fiscal or paid activity exists", tenantId);
+                        closeInsteadOfErase(loc, now);
+                        erased++;
                         continue;
                     }
                     subscriptions.cancelSubscriptionImmediately(tenantId, loc.ownerUsername());
@@ -368,6 +384,33 @@ public class LocationLifecycleService {
             nameHolds.purgeExpired(now);
         }
         return erased;
+    }
+
+    private void closeInsteadOfErase(TenantLocation loc, Instant now) {
+        String tenantId = loc.tenantId();
+        String ownerUsername = loc.ownerUsername();
+        String ownerEmail = resolveOwnerEmail(tenantId, ownerUsername);
+        log.warn("Scheduled erase of production location '{}' found fiscal or paid activity; closing permanently instead to preserve records",
+                tenantId);
+        subscriptions.cancelSubscriptionAtPeriodEnd(tenantId, ownerUsername);
+        backups.cleanTenantData(tenantId);
+        billing.closeLocationData(tenantId, now);
+        billing.updateLocked(tenantId, acc -> acc.withLifecycle(
+                acc.pausedSince(),
+                acc.pauseNotifiedAt(),
+                acc.warningNotifiedAt(),
+                acc.contractEndedAt(),
+                acc.closingStartedAt(),
+                now));
+        locations.clearPendingDelete(tenantId);
+        boolean linkedProd = isLinkedProduction();
+        if (linkedProd && sandboxDeletionSync != null) {
+            sandboxDeletionSync.deleteNowOrEnqueue(tenantId, ownerUsername);
+        }
+        LocationLifecycleMailPort.Scope scope = linkedProd
+                ? LocationLifecycleMailPort.Scope.BOTH
+                : LocationLifecycleMailPort.Scope.PRODUCTION;
+        sendNoticeQuietly(ownerEmail, tenantId, LocationLifecycleMailPort.Action.CLOSED, scope, now, "es");
     }
 
     public CloseResult closeLocation(String ownerUsername, String tenantId, String confirmationName) {

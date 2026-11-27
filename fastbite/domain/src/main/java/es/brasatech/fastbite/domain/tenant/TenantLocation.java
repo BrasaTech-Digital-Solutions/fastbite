@@ -15,24 +15,31 @@ public record TenantLocation(
     Boolean stripeDetailsSubmitted,
     Instant closedAt,
     Instant pendingDeleteAt,
-    Instant eraseAfter
+    Instant eraseAfter,
+    Boolean stripeWasCanceling
 ) {
     public TenantLocation(String id, String ownerUsername, String tenantId, String plan, String customDomain,
+            String stripeAccountId, Boolean stripeChargesEnabled, Boolean stripeDetailsSubmitted, Instant closedAt,
+            Instant pendingDeleteAt, Instant eraseAfter) {
+        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, stripeChargesEnabled, stripeDetailsSubmitted, closedAt, pendingDeleteAt, eraseAfter, null);
+    }
+
+    public TenantLocation(String id, String ownerUsername, String tenantId, String plan, String customDomain,
             String stripeAccountId, Boolean stripeChargesEnabled, Boolean stripeDetailsSubmitted, Instant closedAt) {
-        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, stripeChargesEnabled, stripeDetailsSubmitted, closedAt, null, null);
+        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, stripeChargesEnabled, stripeDetailsSubmitted, closedAt, null, null, null);
     }
 
     public TenantLocation(String id, String ownerUsername, String tenantId, String plan, String customDomain,
             String stripeAccountId, Boolean stripeChargesEnabled, Boolean stripeDetailsSubmitted) {
-        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, stripeChargesEnabled, stripeDetailsSubmitted, null, null, null);
+        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, stripeChargesEnabled, stripeDetailsSubmitted, null, null, null, null);
     }
 
     public TenantLocation(String id, String ownerUsername, String tenantId, String plan, String customDomain, String stripeAccountId) {
-        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, false, false, null, null, null);
+        this(id, ownerUsername, tenantId, plan, customDomain, stripeAccountId, false, false, null, null, null, null);
     }
 
     public TenantLocation(String id, String ownerUsername, String tenantId, String plan, String customDomain) {
-        this(id, ownerUsername, tenantId, plan, customDomain, null, false, false, null, null, null);
+        this(id, ownerUsername, tenantId, plan, customDomain, null, false, false, null, null, null, null);
     }
 
     public boolean isStripeVerified() {

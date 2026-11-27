@@ -59,7 +59,7 @@ class LocationAlignLifecycleTest {
         assertThat(result.outcome()).isEqualTo(LocationLifecycleService.DeleteResult.Outcome.DELETED);
         Instant expectedEraseAfter = NOW.plus(7, ChronoUnit.DAYS);
         assertThat(result.eraseAfter()).isEqualTo(expectedEraseAfter);
-        verify(locations).markPendingDelete("bistro", "owner@example.com", NOW, expectedEraseAfter);
+        verify(locations).markPendingDelete("bistro", "owner@example.com", NOW, expectedEraseAfter, null);
         verify(deletion, never()).deleteTenantCompletely(anyString());
         verify(mail, times(1)).sendLocationLifecycleNotice(
                 "owner@example.com", "bistro",
@@ -170,7 +170,7 @@ class LocationAlignLifecycleTest {
 
         assertThat(result.outcome()).isEqualTo(LocationLifecycleService.DeleteResult.Outcome.DELETED);
         Instant expectedEraseAfter = NOW.plus(7, ChronoUnit.DAYS);
-        verify(locations).markPendingDelete("bistro", "owner@example.com", NOW, expectedEraseAfter);
+        verify(locations).markPendingDelete(eq("bistro"), eq("owner@example.com"), eq(NOW), eq(expectedEraseAfter), any());
         verify(subs, never()).cancelSubscriptionImmediately(anyString(), anyString());
         verify(deletion, never()).deleteTenantCompletely(anyString());
         verify(sandboxLink).hideSandboxLocation("bistro", "owner@example.com", expectedEraseAfter);

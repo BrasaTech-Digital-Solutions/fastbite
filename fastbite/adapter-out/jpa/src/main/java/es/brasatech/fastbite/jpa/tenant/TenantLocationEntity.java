@@ -53,4 +53,10 @@ public class TenantLocationEntity {
 
     @Column(name = "deleted_by")
     private String deletedBy;
+
+    @Column(name = "erase_claimed_at")
+    private Instant eraseClaimedAt;
+
+    @Column(name = "stripe_was_canceling")
+    private Boolean stripeWasCanceling;
 }

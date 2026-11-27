@@ -108,7 +108,20 @@ public class StripeBillingGateway implements SubscriptionGateway {
                 var params = SubscriptionUpdateParams.builder()
                         .setCancelAtPeriodEnd(true)
                         .build();
-                s = s.update(params, options("fastbite-cancel-period-end-" + subscriptionId));
+                s = s.update(params, options(null));
+            }
+            return mapSubscription(s);
+        } catch (StripeException e) { throw unavailable(); }
+    }
+    @Override public Subscription resumeAtPeriodEnd(String subscriptionId) {
+        try {
+            var s = com.stripe.model.Subscription.retrieve(subscriptionId, options(null));
+            if (!Set.of("canceled", "incomplete_expired").contains(s.getStatus())
+                    && Boolean.TRUE.equals(s.getCancelAtPeriodEnd())) {
+                var params = SubscriptionUpdateParams.builder()
+                        .setCancelAtPeriodEnd(false)
+                        .build();
+                s = s.update(params, options(null));
             }
             return mapSubscription(s);
         } catch (StripeException e) { throw unavailable(); }

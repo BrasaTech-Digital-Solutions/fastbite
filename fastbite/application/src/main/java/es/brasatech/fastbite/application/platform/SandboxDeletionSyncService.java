@@ -25,6 +25,7 @@ public class SandboxDeletionSyncService {
 
     static final Duration FIRST_RETRY = Duration.ofSeconds(30);
     static final Duration LONGEST_WAIT = Duration.ofMinutes(30);
+    static final Duration CLAIM_LEASE = Duration.ofMinutes(15);
     private static final int BATCH_SIZE = 20;
 
     private final PlatformLink link;
@@ -136,6 +137,9 @@ public class SandboxDeletionSyncService {
         List<PendingSandboxDeletionPort.PendingDeletion> due = pending.due(now, BATCH_SIZE);
         int completed = 0;
         for (PendingSandboxDeletionPort.PendingDeletion item : due) {
+            if (!pending.claim(item.tenantId(), now, now.minus(CLAIM_LEASE))) {
+                continue;
+            }
             PendingSandboxDeletionPort.Action action = item.action() == null
                     ? PendingSandboxDeletionPort.Action.ERASE
                     : item.action();
