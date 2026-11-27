@@ -5,6 +5,7 @@ import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -96,6 +97,25 @@ public class TenantLocationService {
     public boolean isClosed(String tenantId) {
         if (tenantId == null || tenantId.trim().isEmpty()) return false;
         return tenantLocationPort.isClosed(tenantId.trim());
+    }
+
+    public boolean isPendingDelete(String tenantId) {
+        if (tenantId == null || tenantId.trim().isEmpty()) return false;
+        return tenantLocationPort.findByTenantId(tenantId.trim())
+                .map(TenantLocation::isPendingDelete)
+                .orElse(false);
+    }
+
+    public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
+        tenantLocationPort.markPendingDelete(tenantId, deletedBy, pendingDeleteAt, eraseAfter);
+    }
+
+    public void clearPendingDelete(String tenantId) {
+        tenantLocationPort.clearPendingDelete(tenantId);
+    }
+
+    public List<TenantLocation> findDueForErase(Instant now) {
+        return tenantLocationPort.findDueForErase(now);
     }
 
     public Optional<TenantLocation> getLocationByStripeAccount(String stripeAccountId) {

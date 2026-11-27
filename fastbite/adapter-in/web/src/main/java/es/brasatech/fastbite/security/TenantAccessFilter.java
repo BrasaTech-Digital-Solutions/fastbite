@@ -62,7 +62,8 @@ public class TenantAccessFilter extends OncePerRequestFilter {
                 String homeTenant = user.getHomeTenantId();
                 boolean active = homeTenant != null && (routingResolver != null
                         ? routingResolver.exists(homeTenant)
-                        : tenantLocationService.getLocation(homeTenant).filter(loc -> !loc.isClosed()).isPresent()
+                        : tenantLocationService.getLocation(homeTenant)
+                                .filter(loc -> !loc.isClosed() && !loc.isPendingDelete()).isPresent()
                           && !tenantLocationService.isClosed(homeTenant));
                 if (!active) {
                     HttpSession session = request.getSession(false);

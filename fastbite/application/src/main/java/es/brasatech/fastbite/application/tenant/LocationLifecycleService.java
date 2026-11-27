@@ -20,21 +20,26 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Objects;
 
 /**
- * Coordinates owner-initiated location deletion (sandbox, or production locations that have never
- * issued a ticket or recorded a paid order) and permanent location closure (production locations
- * with fiscal history that must be retained for the statutory 4-year period).
+ * Coordinates owner-initiated location deletion (soft-delete with configurable undo window, then
+ * scheduled permanent erase) and permanent location closure (production locations with fiscal
+ * history that must be retained for the statutory 4-year period).
  * <p>
  * In linked mode, production is the authority: a linked sandbox queries production's read-only
- * status endpoint and never deletes production data over the link; after production deletes or
- * closes a location, it removes the sandbox copy automatically (with retry on failure).
+ * status endpoint and never modifies production data over the link; after production hides,
+ * restores, erases, or closes a location, it syncs the sandbox copy automatically (with retry on failure).
  */
 @Service
 public class LocationLifecycleService {
 
     private static final Logger log = LoggerFactory.getLogger(LocationLifecycleService.class);
+
+    public static final int DEFAULT_UNDO_DAYS = 7;
+    public static final int DEFAULT_NAME_HOLD_DAYS = 90;
 
     public enum RemovalAction {
         SANDBOX_DELETE,
@@ -42,9 +47,13 @@ public class LocationLifecycleService {
         PRODUCTION_CLOSE
     }
 
-    public record DeleteResult(Outcome outcome, String customDomain, String redirectUrl) {
+    public record DeleteResult(Outcome outcome, String customDomain, String redirectUrl, Instant eraseAfter) {
         public DeleteResult(Outcome outcome, String customDomain) {
-            this(outcome, customDomain, null);
+            this(outcome, customDomain, null, null);
+        }
+
+        public DeleteResult(Outcome outcome, String customDomain, String redirectUrl) {
+            this(outcome, customDomain, redirectUrl, null);
         }
 
         public enum Outcome {
@@ -54,6 +63,20 @@ public class LocationLifecycleService {
             ORDERS_IN_PROGRESS,
             PRODUCTION_UNREACHABLE,
             PRODUCTION_HAS_TICKETS,
+            REDIRECT_TO_PRODUCTION
+        }
+    }
+
+    public record UndoResult(Outcome outcome, String customDomain, String redirectUrl) {
+        public UndoResult(Outcome outcome, String customDomain) {
+            this(outcome, customDomain, null);
+        }
+
+        public enum Outcome {
+            RESTORED,
+            NOT_PENDING_DELETE,
+            UNDO_WINDOW_EXPIRED,
+            PRODUCTION_UNREACHABLE,
             REDIRECT_TO_PRODUCTION
         }
     }
@@ -77,8 +100,11 @@ public class LocationLifecycleService {
     private final SandboxLinkPort sandboxLink;
     private final SandboxDeletionSyncService sandboxDeletionSync;
     private final LocationLifecycleMailPort mailPort;
+    private final LocationNameHoldPort nameHolds;
     private final Clock clock;
     private final ZoneId ordersTimeZone;
+    private final int undoDays;
+    private final int nameHoldDays;
 
     @Autowired
     public LocationLifecycleService(
@@ -92,8 +118,11 @@ public class LocationLifecycleService {
             @Autowired(required = false) SandboxLinkPort sandboxLink,
             @Autowired(required = false) SandboxDeletionSyncService sandboxDeletionSync,
             @Autowired(required = false) LocationLifecycleMailPort mailPort,
+            @Autowired(required = false) LocationNameHoldPort nameHolds,
             Clock clock,
-            @Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone) {
+            @Value("${fastbite.orders.time-zone:Europe/Madrid}") String ordersTimeZone,
+            @Value("${fastbite.locations.undo-days:7}") int undoDays,
+            @Value("${fastbite.locations.name-hold-days:90}") int nameHoldDays) {
         this.locations = Objects.requireNonNull(locations, "locations");
         this.deletionPort = Objects.requireNonNull(deletionPort, "deletionPort");
         this.billing = Objects.requireNonNull(billing, "billing");
@@ -104,8 +133,29 @@ public class LocationLifecycleService {
         this.sandboxLink = sandboxLink;
         this.sandboxDeletionSync = sandboxDeletionSync;
         this.mailPort = mailPort;
+        this.nameHolds = nameHolds;
         this.clock = Objects.requireNonNull(clock, "clock");
         this.ordersTimeZone = ZoneId.of(ordersTimeZone == null || ordersTimeZone.isBlank() ? "Europe/Madrid" : ordersTimeZone);
+        this.undoDays = Math.max(0, undoDays);
+        this.nameHoldDays = Math.max(0, nameHoldDays);
+    }
+
+    public LocationLifecycleService(
+            TenantLocationService locations,
+            TenantDeletionPort deletionPort,
+            BillingPort billing,
+            SubscriptionService subscriptions,
+            TenantBackupRestorePort backups,
+            PlatformEnvironment environment,
+            PlatformLink link,
+            SandboxLinkPort sandboxLink,
+            SandboxDeletionSyncService sandboxDeletionSync,
+            LocationLifecycleMailPort mailPort,
+            Clock clock,
+            String ordersTimeZone) {
+        this(locations, deletionPort, billing, subscriptions, backups, environment,
+                link, sandboxLink, sandboxDeletionSync, mailPort, null, clock, ordersTimeZone,
+                DEFAULT_UNDO_DAYS, DEFAULT_NAME_HOLD_DAYS);
     }
 
     public LocationLifecycleService(
@@ -117,7 +167,23 @@ public class LocationLifecycleService {
             PlatformEnvironment environment,
             Clock clock) {
         this(locations, deletionPort, billing, subscriptions, backups, environment,
-                null, null, null, null, clock, "Europe/Madrid");
+                null, null, null, null, null, clock, "Europe/Madrid",
+                DEFAULT_UNDO_DAYS, DEFAULT_NAME_HOLD_DAYS);
+    }
+
+    public int undoDays() {
+        return undoDays;
+    }
+
+    public int nameHoldDays() {
+        return nameHoldDays;
+    }
+
+    public String productionLocationsUrl() {
+        if (link == null || link.url() == null) {
+            return null;
+        }
+        return link.url() + "/owner/console?view=locations";
     }
 
     public RemovalAction removalAction(String ownerUsername, String tenantId) {
@@ -202,25 +268,106 @@ public class LocationLifecycleService {
                 .map(TenantLocation::customDomain)
                 .orElse(null);
         String ownerEmail = resolveOwnerEmail(tenantId, ownerUsername);
-        if (!environment.sandbox()) {
-            subscriptions.cancelSubscriptionImmediately(tenantId, ownerUsername);
-        }
-        deletionPort.deleteTenantCompletely(tenantId);
+        Instant now = clock.instant();
+        Instant eraseAfter = now.plus(undoDays, ChronoUnit.DAYS);
+        // Soft-delete (hide): Stripe subscription is NOT cancelled until real erase.
+        locations.markPendingDelete(tenantId, ownerUsername, now, eraseAfter);
 
         boolean linkedProd = isLinkedProduction();
         if (linkedProd && sandboxDeletionSync != null) {
-            sandboxDeletionSync.deleteNowOrEnqueue(tenantId, ownerUsername);
+            sandboxDeletionSync.hideNowOrEnqueue(tenantId, ownerUsername, eraseAfter);
         }
 
-        Instant now = clock.instant();
         LocationLifecycleMailPort.Scope scope = environment.sandbox()
                 ? LocationLifecycleMailPort.Scope.SANDBOX
                 : (linkedProd ? LocationLifecycleMailPort.Scope.BOTH : LocationLifecycleMailPort.Scope.PRODUCTION);
-        sendNoticeQuietly(ownerEmail, tenantId, LocationLifecycleMailPort.Action.DELETED, scope, now, language);
+        sendNoticeQuietly(ownerEmail, tenantId, LocationLifecycleMailPort.Action.DELETED, scope, now, eraseAfter, language);
 
-        log.info("Owner '{}' permanently deleted {} location '{}'",
+        log.info("Owner '{}' hid {} location '{}' for deletion (erase after {})",
+                ownerUsername, environment.sandbox() ? "sandbox" : "production", tenantId, eraseAfter);
+        return new DeleteResult(DeleteResult.Outcome.DELETED, customDomain, null, eraseAfter);
+    }
+
+    /**
+     * Undoes a pending deletion within the undo window, restoring the location (and its sandbox
+     * copy in linked production mode). In linked sandbox mode, redirects to production when a
+     * production copy exists.
+     */
+    public UndoResult undoDelete(String ownerUsername, String tenantId) {
+        requireOwner(ownerUsername, tenantId);
+
+        if (isLinkedSandbox()) {
+            SandboxLinkPort.ProductionLocationStatus prodStatus;
+            try {
+                prodStatus = queryProductionStatus(ownerUsername, tenantId);
+            } catch (RuntimeException e) {
+                log.warn("Could not reach production before undoing sandbox location '{}': {}", tenantId, e.getMessage());
+                return new UndoResult(UndoResult.Outcome.PRODUCTION_UNREACHABLE, null, null);
+            }
+            if (prodStatus != null && prodStatus.exists()) {
+                return new UndoResult(UndoResult.Outcome.REDIRECT_TO_PRODUCTION, null, productionLocationsUrl());
+            }
+        }
+
+        TenantLocation loc = locations.getLocation(tenantId).orElse(null);
+        if (loc == null || loc.isClosed() || !loc.isPendingDelete()) {
+            return new UndoResult(UndoResult.Outcome.NOT_PENDING_DELETE, null);
+        }
+        Instant now = clock.instant();
+        if (loc.eraseAfter() != null && !now.isBefore(loc.eraseAfter())) {
+            return new UndoResult(UndoResult.Outcome.UNDO_WINDOW_EXPIRED, null);
+        }
+
+        locations.clearPendingDelete(tenantId);
+        if (isLinkedProduction() && sandboxDeletionSync != null) {
+            sandboxDeletionSync.restoreNowOrEnqueue(tenantId, ownerUsername);
+        }
+
+        log.info("Owner '{}' undid deletion of {} location '{}'",
                 ownerUsername, environment.sandbox() ? "sandbox" : "production", tenantId);
-        return new DeleteResult(DeleteResult.Outcome.DELETED, customDomain);
+        return new UndoResult(UndoResult.Outcome.RESTORED, loc.customDomain());
+    }
+
+    /**
+     * Permanently erases locations whose undo window has elapsed and purges expired name holds.
+     * Production cancels Stripe and records a 90-day name hold before erasing and telling sandbox
+     * to erase; sandbox-only locations erase and release their name immediately.
+     */
+    public int eraseDueLocations() {
+        Instant now = clock.instant();
+        List<TenantLocation> due = locations.findDueForErase(now);
+        int erased = 0;
+        for (TenantLocation loc : due) {
+            String tenantId = loc.tenantId();
+            if (loc.isClosed() || deletionPort.isProtectedTenant(tenantId)) {
+                continue;
+            }
+            try {
+                if (!environment.sandbox()) {
+                    if (deletionPort.hasFiscalOrPaidActivity(tenantId)) {
+                        log.warn("Skipping scheduled erase of production location '{}' because fiscal or paid activity exists", tenantId);
+                        continue;
+                    }
+                    subscriptions.cancelSubscriptionImmediately(tenantId, loc.ownerUsername());
+                    if (nameHolds != null && nameHoldDays > 0) {
+                        nameHolds.hold(tenantId, loc.ownerUsername(), now.plus(nameHoldDays, ChronoUnit.DAYS), now);
+                    }
+                }
+                deletionPort.deleteTenantCompletely(tenantId);
+                if (isLinkedProduction() && sandboxDeletionSync != null) {
+                    sandboxDeletionSync.deleteNowOrEnqueue(tenantId, loc.ownerUsername());
+                }
+                erased++;
+                log.info("Permanently erased {} location '{}' after undo window expired",
+                        environment.sandbox() ? "sandbox" : "production", tenantId);
+            } catch (RuntimeException e) {
+                log.warn("Could not permanently erase due location '{}': {}", tenantId, e.getMessage());
+            }
+        }
+        if (nameHolds != null) {
+            nameHolds.purgeExpired(now);
+        }
+        return erased;
     }
 
     public CloseResult closeLocation(String ownerUsername, String tenantId, String confirmationName) {
@@ -300,11 +447,26 @@ public class LocationLifecycleService {
             LocationLifecycleMailPort.Scope scope,
             Instant when,
             String language) {
+        sendNoticeQuietly(ownerEmail, tenantId, action, scope, when, null, language);
+    }
+
+    private void sendNoticeQuietly(
+            String ownerEmail,
+            String tenantId,
+            LocationLifecycleMailPort.Action action,
+            LocationLifecycleMailPort.Scope scope,
+            Instant when,
+            Instant undoUntil,
+            String language) {
         if (mailPort == null || ownerEmail == null || !ownerEmail.contains("@")) {
             return;
         }
         try {
-            mailPort.sendLocationLifecycleNotice(ownerEmail, tenantId, action, scope, when, language);
+            if (undoUntil != null) {
+                mailPort.sendLocationLifecycleNotice(ownerEmail, tenantId, action, scope, when, undoUntil, language);
+            } else {
+                mailPort.sendLocationLifecycleNotice(ownerEmail, tenantId, action, scope, when, language);
+            }
         } catch (RuntimeException e) {
             log.warn("Could not send {} confirmation email to '{}' for location '{}': {}",
                     action, ownerEmail, tenantId, e.getMessage());

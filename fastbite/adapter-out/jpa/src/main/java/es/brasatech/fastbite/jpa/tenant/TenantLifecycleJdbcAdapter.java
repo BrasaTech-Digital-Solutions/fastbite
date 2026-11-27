@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -64,6 +65,14 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
             // Serialize lifecycle claims with pending-signup reservations.
             try (var lock = statement(connection, "SELECT id FROM public.signup_reservation_lock WHERE id = 1 FOR UPDATE"); var row = lock.executeQuery()) {
                 if (!row.next()) throw new IllegalStateException("Signup lock is missing");
+            }
+            try (var holdQuery = statement(connection,
+                    "SELECT owner FROM public.location_name_holds WHERE LOWER(slug) = LOWER(?) AND held_until > ?",
+                    tenant, Timestamp.from(Instant.now()));
+                 var holdRow = holdQuery.executeQuery()) {
+                if (holdRow.next() && !owner.equalsIgnoreCase(holdRow.getString(1))) {
+                    throw new LocalizedRejection("location.error.name_held", "This name is not available.");
+                }
             }
             try (var pending = statement(connection, "SELECT username FROM public.pending_registrations WHERE tenant_id = ? AND expires_at > ?", tenant, Instant.now().toEpochMilli()); var row = pending.executeQuery()) {
                 if (row.next() && !(operationId.equals("signup:" + tenant) && owner.equals(row.getString(1))))
@@ -157,6 +166,7 @@ public class TenantLifecycleJdbcAdapter implements TenantLifecyclePort {
             update(connection,
                     "UPDATE public.tenant_lifecycle SET state = ?, updated_at = ? WHERE tenant_id = ? AND operation_id = ? AND state = 'PROVISIONING'",
                     successState.name(), Instant.now().toEpochMilli(), tenant, operationId);
+            update(connection, "DELETE FROM public.location_name_holds WHERE LOWER(slug) = LOWER(?)", tenant);
             return null;
         });
     }

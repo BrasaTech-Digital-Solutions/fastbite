@@ -156,6 +156,11 @@ fastbite:
   # and 30 days later non-fiscal data is deleted and the location closes once deletion-enabled is true.
   contract:
     deletion-enabled: ${FASTBITE_CONTRACT_DELETION_ENABLED:false}
+  # Location deletion safety: days an owner can undo a deletion, and days a deleted production
+  # location's slug stays reserved for the same owner so printed table QRs cannot land on a stranger.
+  locations:
+    undo-days: ${FASTBITE_LOCATIONS_UNDO_DAYS:7}
+    name-hold-days: ${FASTBITE_LOCATIONS_NAME_HOLD_DAYS:90}
   # The FastBite version running. Release images bake it in (FASTBITE_VERSION), so the sandbox and
   # production report the same one when they run the same image; production only imports promotion
   # bundles exported by the same version.

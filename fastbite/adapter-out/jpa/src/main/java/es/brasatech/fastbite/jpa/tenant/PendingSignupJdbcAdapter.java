@@ -3,6 +3,7 @@ package es.brasatech.fastbite.jpa.tenant;
 import es.brasatech.fastbite.application.platform.PlatformEnvironment;
 import es.brasatech.fastbite.application.tenant.PendingSignupPort;
 import es.brasatech.fastbite.application.tenant.TenantRegistrationRules;
+import es.brasatech.fastbite.domain.exception.LocalizedRejection;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,12 @@ public class PendingSignupJdbcAdapter implements PendingSignupPort {
             expireLocked(connection, now);
             String id = UUID.randomUUID().toString();
             // Public identifiers must be checked before email ownership to avoid revealing an account.
+            String heldBy = scalar(connection,
+                    "SELECT owner FROM public.location_name_holds WHERE LOWER(slug) = LOWER(?) AND held_until > ?",
+                    signup.tenantId(), Timestamp.from(now));
+            if (heldBy != null && !heldBy.equalsIgnoreCase(signup.username())) {
+                throw new LocalizedRejection("location.error.name_held", "This name is not available.");
+            }
             if (exists(connection, "SELECT tenant_id FROM public.tenant_locations WHERE LOWER(tenant_id) = ?", signup.tenantId())
                     || exists(connection, "SELECT tenant_id FROM public.tenant_lifecycle WHERE tenant_id = ?", signup.tenantId())
                     || exists(connection, "SELECT tenant_id FROM public.pending_registrations WHERE tenant_id = ? AND email <> ?", signup.tenantId(), signup.email()))

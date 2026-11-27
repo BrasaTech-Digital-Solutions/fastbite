@@ -4,20 +4,39 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Persists sandbox deletion retries when production deleted or closed a location
- * and the immediate sandbox cleanup call failed.
+ * Persists sandbox lifecycle sync retries (hide, restore, erase) when production hides,
+ * restores, deletes, or closes a location and the immediate sandbox call fails.
  */
 public interface PendingSandboxDeletionPort {
+
+    enum Action {
+        HIDE,
+        RESTORE,
+        ERASE
+    }
 
     record PendingDeletion(
             String tenantId,
             String ownerUsername,
+            Action action,
             int attempts,
             Instant nextAttemptAt,
             String lastError) {
+        public PendingDeletion(
+                String tenantId,
+                String ownerUsername,
+                int attempts,
+                Instant nextAttemptAt,
+                String lastError) {
+            this(tenantId, ownerUsername, Action.ERASE, attempts, nextAttemptAt, lastError);
+        }
     }
 
-    void enqueue(String tenantId, String ownerUsername, String lastError, Instant now, Instant nextAttemptAt);
+    default void enqueue(String tenantId, String ownerUsername, String lastError, Instant now, Instant nextAttemptAt) {
+        enqueue(tenantId, ownerUsername, Action.ERASE, lastError, now, nextAttemptAt);
+    }
+
+    void enqueue(String tenantId, String ownerUsername, Action action, String lastError, Instant now, Instant nextAttemptAt);
 
     List<PendingDeletion> due(Instant now, int limit);
 

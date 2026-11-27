@@ -2,6 +2,7 @@ package es.brasatech.fastbite.application.tenant;
 
 import es.brasatech.fastbite.application.mail.AccountMailOutboxService;
 import es.brasatech.fastbite.domain.exception.LocalizedRejection;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +10,7 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class PendingSignupService {
@@ -17,11 +19,21 @@ public class PendingSignupService {
     private final TenantLifecyclePort lifecycle;
     private final AccountMailOutboxService mail;
     private final NewLocationListener listener;
+    private final LocationNameHoldPort nameHolds;
     private final Clock clock;
+
+    @Autowired
     public PendingSignupService(PendingSignupPort pending, TenantProvisionerPort provisioner, TenantLifecyclePort lifecycle,
-            AccountMailOutboxService mail, java.util.Optional<NewLocationListener> listener, Clock clock) {
+            AccountMailOutboxService mail, Optional<NewLocationListener> listener,
+            Optional<LocationNameHoldPort> nameHolds, Clock clock) {
         this.pending = pending; this.provisioner = provisioner; this.lifecycle = lifecycle;
-        this.mail = mail; this.listener = listener.orElse(NewLocationListener.NONE); this.clock = clock;
+        this.mail = mail; this.listener = listener.orElse(NewLocationListener.NONE);
+        this.nameHolds = nameHolds.orElse(null); this.clock = clock;
+    }
+
+    public PendingSignupService(PendingSignupPort pending, TenantProvisionerPort provisioner, TenantLifecyclePort lifecycle,
+            AccountMailOutboxService mail, Optional<NewLocationListener> listener, Clock clock) {
+        this(pending, provisioner, lifecycle, mail, listener, Optional.empty(), clock);
     }
     public PendingSignupPort.Start start(PendingSignupPort.Signup input) {
         noOuterTransaction();
@@ -33,6 +45,13 @@ public class PendingSignupService {
                 || input.passwordHash() == null || input.passwordHash().isBlank() || input.passwordHash().length() > 255
                 || input.termsVersion() == null || input.termsVersion().isBlank()) throw new IllegalArgumentException("Invalid signup details.");
         String email = email(input.email());
+        if (nameHolds != null) {
+            nameHolds.findActive(tenant, clock.instant()).ifPresent(hold -> {
+                if (!hold.owner().equalsIgnoreCase(input.username())) {
+                    throw new LocalizedRejection("location.error.name_held", "This name is not available.");
+                }
+            });
+        }
         String language = switch (input.language() == null ? "en" : input.language().toLowerCase(Locale.ROOT)) {
             case "es" -> "es"; case "pt" -> "pt"; default -> "en";
         };
@@ -67,6 +86,9 @@ public class PendingSignupService {
             if (!pending.complete(hash, item.id(), data.tenantId(), data.username(), clock.instant())) throw new IllegalStateException("Signup verification expired.");
         });
         if (!pending.alreadyVerified(hash)) return false;
+        if (nameHolds != null) {
+            nameHolds.release(data.tenantId());
+        }
         listener.locationCreated(data.tenantId(), data.username(), data.plan());
         return true;
     }

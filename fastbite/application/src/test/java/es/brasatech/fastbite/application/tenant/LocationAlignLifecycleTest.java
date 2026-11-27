@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -56,11 +57,14 @@ class LocationAlignLifecycleTest {
         var result = service.deleteLocation("owner@example.com", "bistro", "bistro", "es");
 
         assertThat(result.outcome()).isEqualTo(LocationLifecycleService.DeleteResult.Outcome.DELETED);
-        verify(deletion).deleteTenantCompletely("bistro");
+        Instant expectedEraseAfter = NOW.plus(7, ChronoUnit.DAYS);
+        assertThat(result.eraseAfter()).isEqualTo(expectedEraseAfter);
+        verify(locations).markPendingDelete("bistro", "owner@example.com", NOW, expectedEraseAfter);
+        verify(deletion, never()).deleteTenantCompletely(anyString());
         verify(mail, times(1)).sendLocationLifecycleNotice(
                 "owner@example.com", "bistro",
                 LocationLifecycleMailPort.Action.DELETED,
-                LocationLifecycleMailPort.Scope.SANDBOX, NOW, "es");
+                LocationLifecycleMailPort.Scope.SANDBOX, NOW, expectedEraseAfter, "es");
     }
 
     @Test
@@ -165,14 +169,16 @@ class LocationAlignLifecycleTest {
         var result = service.deleteLocation("owner@example.com", "bistro", "bistro", "es");
 
         assertThat(result.outcome()).isEqualTo(LocationLifecycleService.DeleteResult.Outcome.DELETED);
-        verify(subs).cancelSubscriptionImmediately("bistro", "owner@example.com");
-        verify(deletion).deleteTenantCompletely("bistro");
-        verify(sandboxLink).deleteSandboxLocation("bistro", "owner@example.com");
+        Instant expectedEraseAfter = NOW.plus(7, ChronoUnit.DAYS);
+        verify(locations).markPendingDelete("bistro", "owner@example.com", NOW, expectedEraseAfter);
+        verify(subs, never()).cancelSubscriptionImmediately(anyString(), anyString());
+        verify(deletion, never()).deleteTenantCompletely(anyString());
+        verify(sandboxLink).hideSandboxLocation("bistro", "owner@example.com", expectedEraseAfter);
         verify(pending).markDone("bistro");
         verify(mail, times(1)).sendLocationLifecycleNotice(
                 "owner@example.com", "bistro",
                 LocationLifecycleMailPort.Action.DELETED,
-                LocationLifecycleMailPort.Scope.BOTH, NOW, "es");
+                LocationLifecycleMailPort.Scope.BOTH, NOW, expectedEraseAfter, "es");
     }
 
     @Test
@@ -216,9 +222,9 @@ class LocationAlignLifecycleTest {
         var pendingList = new ArrayList<PendingSandboxDeletionPort.PendingDeletion>();
         PendingSandboxDeletionPort pending = new PendingSandboxDeletionPort() {
             @Override
-            public void enqueue(String tenantId, String ownerUsername, String lastError, Instant now, Instant nextAttemptAt) {
+            public void enqueue(String tenantId, String ownerUsername, Action action, String lastError, Instant now, Instant nextAttemptAt) {
                 pendingList.removeIf(p -> p.tenantId().equals(tenantId));
-                pendingList.add(new PendingDeletion(tenantId, ownerUsername, 1, nextAttemptAt, lastError));
+                pendingList.add(new PendingDeletion(tenantId, ownerUsername, action, 1, nextAttemptAt, lastError));
             }
 
             @Override

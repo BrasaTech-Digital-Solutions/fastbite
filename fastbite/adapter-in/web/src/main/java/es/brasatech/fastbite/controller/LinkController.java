@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
@@ -224,8 +225,116 @@ public class LinkController {
         boolean hasOrdersInProgress = !closed
                 && deletionPort != null
                 && deletionPort.hasOrdersInProgressToday(tenant, todayStart, todayStart.plusDays(1));
+        TenantLocation loc = location.get();
         return ResponseEntity.ok(new SandboxLinkPort.ProductionLocationStatus(
-                true, closed, hasActivity, hasOrdersInProgress));
+                true, closed, hasActivity, hasOrdersInProgress, loc.isPendingDelete(), loc.eraseAfter()));
+    }
+
+    /**
+     * Sandbox-only soft-delete (hide) endpoint called by production when production hides a location
+     * for its undo window. Signed, owner + location must match, refuses protected tenants, idempotent.
+     */
+    @PostMapping("/internal/link/hide-location")
+    public ResponseEntity<Map<String, String>> hideLocation(@RequestBody(required = false) byte[] content,
+            @RequestHeader(value = "X-FastBite-Signature", required = false) String signature,
+            @RequestHeader(value = "X-FastBite-Version", required = false) String senderVersion) {
+        if (!environment.sandbox() || !link.linked()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (content == null || content.length == 0 || !LinkSignature.verify(link.secret(), signature, content, clock.instant())) {
+            log.warn("Refused a hide-location link call that is not signed with the shared secret, or too old");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not signed by production"));
+        }
+        if (!version.equals(senderVersion)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "The sandbox runs FastBite " + version + ", production " + senderVersion));
+        }
+        JsonNode body = json.readTree(content);
+        String tenantId = text(body, "tenantId");
+        String ownerUsername = text(body, "ownerUsername");
+        String eraseAfterRaw = text(body, "eraseAfter");
+        if (tenantId == null || tenantId.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "tenantId and ownerUsername are required"));
+        }
+        if (deletionPort != null && deletionPort.isProtectedTenant(tenantId)) {
+            log.warn("Refused link hide for protected tenant {}", tenantId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Protected tenant cannot be deleted"));
+        }
+        Optional<TenantLocation> existing = tenantLocationService.getLocation(tenantId);
+        if (existing.isEmpty()) {
+            log.info("Sandbox location {} already absent during linked hide for owner {}", tenantId, ownerUsername);
+            return ResponseEntity.ok(Map.of("status", "already_deleted"));
+        }
+        if (!tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
+            log.warn("Refused link hide: owner {} does not own sandbox location {}", ownerUsername, tenantId);
+            return ResponseEntity.notFound().build();
+        }
+        Instant now = clock.instant();
+        Instant eraseAfter = now.plus(7, ChronoUnit.DAYS);
+        if (eraseAfterRaw != null && !eraseAfterRaw.isBlank()) {
+            try {
+                eraseAfter = Instant.parse(eraseAfterRaw);
+            } catch (Exception ignored) {
+            }
+        }
+        String customDomain = existing.get().customDomain();
+        tenantLocationService.markPendingDelete(tenantId, ownerUsername, now, eraseAfter);
+        if (routingResolver != null) {
+            routingResolver.evictTenant(tenantId);
+            if (customDomain != null && !customDomain.isBlank()) {
+                routingResolver.evictCache(customDomain);
+            }
+        }
+        log.info("Hidden sandbox location {} for owner {} via production link (erase after {})",
+                tenantId, ownerUsername, eraseAfter);
+        return ResponseEntity.ok(Map.of("status", "hidden"));
+    }
+
+    /**
+     * Sandbox-only restore endpoint called by production when the owner undoes a pending deletion.
+     * Signed, owner + location must match, idempotent.
+     */
+    @PostMapping("/internal/link/restore-location")
+    public ResponseEntity<Map<String, String>> restoreLocation(@RequestBody(required = false) byte[] content,
+            @RequestHeader(value = "X-FastBite-Signature", required = false) String signature,
+            @RequestHeader(value = "X-FastBite-Version", required = false) String senderVersion) {
+        if (!environment.sandbox() || !link.linked()) {
+            return ResponseEntity.notFound().build();
+        }
+        if (content == null || content.length == 0 || !LinkSignature.verify(link.secret(), signature, content, clock.instant())) {
+            log.warn("Refused a restore-location link call that is not signed with the shared secret, or too old");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Not signed by production"));
+        }
+        if (!version.equals(senderVersion)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message",
+                    "The sandbox runs FastBite " + version + ", production " + senderVersion));
+        }
+        JsonNode body = json.readTree(content);
+        String tenantId = text(body, "tenantId");
+        String ownerUsername = text(body, "ownerUsername");
+        if (tenantId == null || tenantId.isBlank() || ownerUsername == null || ownerUsername.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "tenantId and ownerUsername are required"));
+        }
+        Optional<TenantLocation> existing = tenantLocationService.getLocation(tenantId);
+        if (existing.isEmpty()) {
+            log.info("Sandbox location {} absent during linked restore for owner {}", tenantId, ownerUsername);
+            return ResponseEntity.ok(Map.of("status", "absent"));
+        }
+        if (!tenantLocationService.isOwnerOf(ownerUsername, tenantId)) {
+            log.warn("Refused link restore: owner {} does not own sandbox location {}", ownerUsername, tenantId);
+            return ResponseEntity.notFound().build();
+        }
+        String customDomain = existing.get().customDomain();
+        tenantLocationService.clearPendingDelete(tenantId);
+        if (routingResolver != null) {
+            routingResolver.evictTenant(tenantId);
+            if (customDomain != null && !customDomain.isBlank()) {
+                routingResolver.evictCache(customDomain);
+            }
+        }
+        log.info("Restored sandbox location {} for owner {} via production link", tenantId, ownerUsername);
+        return ResponseEntity.ok(Map.of("status", "restored"));
     }
 
     /**

@@ -24,24 +24,25 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
     }
 
     @Override
-    public void enqueue(String tenantId, String ownerUsername, String lastError, Instant now, Instant nextAttemptAt) {
+    public void enqueue(String tenantId, String ownerUsername, Action action, String lastError, Instant now, Instant nextAttemptAt) {
         String clipped = clip(lastError);
+        String actionName = (action == null ? Action.ERASE : action).name();
         transaction(source, c -> {
             int updated = update(c,
                     """
                     UPDATE public.pending_sandbox_deletions
-                    SET owner_username = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
+                    SET owner_username = ?, action = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
                     WHERE tenant_id = ?
                     """,
-                    ownerUsername, clipped, Timestamp.from(nextAttemptAt), Timestamp.from(now), tenantId);
+                    ownerUsername, actionName, clipped, Timestamp.from(nextAttemptAt), Timestamp.from(now), tenantId);
             if (updated == 0) {
                 update(c,
                         """
                         INSERT INTO public.pending_sandbox_deletions
-                            (tenant_id, owner_username, attempts, next_attempt_at, last_error, created_at, updated_at)
-                        VALUES (?, ?, 1, ?, ?, ?, ?)
+                            (tenant_id, owner_username, action, attempts, next_attempt_at, last_error, created_at, updated_at)
+                        VALUES (?, ?, ?, 1, ?, ?, ?, ?)
                         """,
-                        tenantId, ownerUsername, Timestamp.from(nextAttemptAt), clipped,
+                        tenantId, ownerUsername, actionName, Timestamp.from(nextAttemptAt), clipped,
                         Timestamp.from(now), Timestamp.from(now));
             }
             return null;
@@ -55,7 +56,7 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
             List<PendingDeletion> rows = new ArrayList<>();
             try (var q = statement(c,
                     """
-                    SELECT tenant_id, owner_username, attempts, next_attempt_at, last_error
+                    SELECT tenant_id, owner_username, action, attempts, next_attempt_at, last_error
                     FROM public.pending_sandbox_deletions
                     WHERE next_attempt_at <= ?
                     ORDER BY next_attempt_at ASC
@@ -67,6 +68,7 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
                     rows.add(new PendingDeletion(
                             r.getString("tenant_id"),
                             r.getString("owner_username"),
+                            parseAction(r.getString("action")),
                             r.getInt("attempts"),
                             r.getTimestamp("next_attempt_at").toInstant(),
                             r.getString("last_error")));
@@ -74,6 +76,17 @@ public class PendingSandboxDeletionJdbcAdapter implements PendingSandboxDeletion
             }
             return rows;
         });
+    }
+
+    private static Action parseAction(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Action.ERASE;
+        }
+        try {
+            return Action.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return Action.ERASE;
+        }
     }
 
     @Override

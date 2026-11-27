@@ -5,6 +5,8 @@ import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,6 +94,40 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
+        if (tenantId == null || tenantId.isBlank()) return;
+        jdbc.update(
+                "UPDATE public.tenant_locations SET pending_delete_at = ?, erase_after = ?, deleted_by = ? WHERE LOWER(tenant_id) = LOWER(?)",
+                Timestamp.from(pendingDeleteAt),
+                Timestamp.from(eraseAfter),
+                deletedBy,
+                tenantId.trim());
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void clearPendingDelete(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) return;
+        jdbc.update(
+                "UPDATE public.tenant_locations SET pending_delete_at = NULL, erase_after = NULL, deleted_by = NULL WHERE LOWER(tenant_id) = LOWER(?)",
+                tenantId.trim());
+    }
+
+    @Override
+    public List<TenantLocation> findDueForErase(Instant now) {
+        List<String> dueTenantIds = jdbc.query(
+                "SELECT tenant_id FROM public.tenant_locations WHERE pending_delete_at IS NOT NULL AND erase_after <= ? ORDER BY erase_after ASC",
+                (rs, rowNum) -> rs.getString("tenant_id"),
+                Timestamp.from(now));
+        return dueTenantIds.stream()
+                .map(repository::findByTenantId)
+                .flatMap(Optional::stream)
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public java.util.Map<String, Long> countLocationsEverCreatedByOwner() {
         String sql = """
             SELECT owner_username, COUNT(DISTINCT tenant_id) AS cnt
@@ -123,11 +159,13 @@ public class TenantLocationRepositoryAdapter implements TenantLocationPort {
     }
 
     private TenantLocation toDomain(TenantLocationEntity entity) {
-        java.time.Instant closedAt = findClosedAt(entity.getTenantId()).orElse(null);
+        Instant closedAt = findClosedAt(entity.getTenantId()).orElse(null);
         return new TenantLocation(entity.getId(), entity.getOwnerUsername(), entity.getTenantId(), entity.getPlan(),
                 entity.getCustomDomain(), entity.getStripeAccountId(),
                 Boolean.TRUE.equals(entity.getStripeChargesEnabled()),
                 Boolean.TRUE.equals(entity.getStripeDetailsSubmitted()),
-                closedAt);
+                closedAt,
+                entity.getPendingDeleteAt(),
+                entity.getEraseAfter());
     }
 }

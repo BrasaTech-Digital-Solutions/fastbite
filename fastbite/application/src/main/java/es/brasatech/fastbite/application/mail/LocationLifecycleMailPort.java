@@ -26,4 +26,15 @@ public interface LocationLifecycleMailPort {
             Scope scope,
             Instant when,
             String language);
+
+    default void sendLocationLifecycleNotice(
+            String ownerEmail,
+            String tenantId,
+            Action action,
+            Scope scope,
+            Instant when,
+            Instant undoUntil,
+            String language) {
+        sendLocationLifecycleNotice(ownerEmail, tenantId, action, scope, when, language);
+    }
 }

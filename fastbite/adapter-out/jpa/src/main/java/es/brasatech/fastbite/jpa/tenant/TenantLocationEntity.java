@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
  * Platform-wide registry of locations. Pinned to the platform schema so lookups work
  * the same whichever tenant schema the current request is using.
@@ -42,4 +44,13 @@ public class TenantLocationEntity {
 
     @Column(name = "stripe_details_submitted")
     private Boolean stripeDetailsSubmitted;
+
+    @Column(name = "pending_delete_at")
+    private Instant pendingDeleteAt;
+
+    @Column(name = "erase_after")
+    private Instant eraseAfter;
+
+    @Column(name = "deleted_by")
+    private String deletedBy;
 }

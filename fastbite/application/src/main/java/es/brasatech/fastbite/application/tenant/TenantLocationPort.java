@@ -2,6 +2,7 @@ package es.brasatech.fastbite.application.tenant;
 
 import es.brasatech.fastbite.domain.tenant.TenantLocation;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,16 @@ public interface TenantLocationPort {
     void delete(String tenantId);
     default boolean isClosed(String tenantId) {
         return false;
+    }
+
+    default void markPendingDelete(String tenantId, String deletedBy, Instant pendingDeleteAt, Instant eraseAfter) {
+    }
+
+    default void clearPendingDelete(String tenantId) {
+    }
+
+    default List<TenantLocation> findDueForErase(Instant now) {
+        return List.of();
     }
 
     /**

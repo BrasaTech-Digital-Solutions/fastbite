@@ -1,7 +1,10 @@
 package es.brasatech.fastbite.application.platform;
 
+import es.brasatech.fastbite.application.tenant.TenantLocationService;
+import es.brasatech.fastbite.domain.tenant.TenantLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -11,7 +14,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Keeps the linked sandbox aligned when production deletes or closes a location.
+ * Keeps the linked sandbox aligned when production hides, restores, deletes, or closes a location.
  * Runs immediately after production's own operation succeeds, and retries via
  * {@link PendingSandboxDeletionPort} if the sandbox is temporarily unreachable.
  */
@@ -27,21 +30,77 @@ public class SandboxDeletionSyncService {
     private final PlatformLink link;
     private final SandboxLinkPort sandboxLink;
     private final PendingSandboxDeletionPort pending;
+    private final TenantLocationService locations;
     private final Clock clock;
+
+    @Autowired
+    public SandboxDeletionSyncService(
+            PlatformLink link,
+            SandboxLinkPort sandboxLink,
+            PendingSandboxDeletionPort pending,
+            @Autowired(required = false) TenantLocationService locations,
+            Clock clock) {
+        this.link = Objects.requireNonNull(link, "link");
+        this.sandboxLink = Objects.requireNonNull(sandboxLink, "sandboxLink");
+        this.pending = Objects.requireNonNull(pending, "pending");
+        this.locations = locations;
+        this.clock = Objects.requireNonNull(clock, "clock");
+    }
 
     public SandboxDeletionSyncService(
             PlatformLink link,
             SandboxLinkPort sandboxLink,
             PendingSandboxDeletionPort pending,
             Clock clock) {
-        this.link = Objects.requireNonNull(link, "link");
-        this.sandboxLink = Objects.requireNonNull(sandboxLink, "sandboxLink");
-        this.pending = Objects.requireNonNull(pending, "pending");
-        this.clock = Objects.requireNonNull(clock, "clock");
+        this(link, sandboxLink, pending, null, clock);
     }
 
     /**
-     * Deletes the sandbox copy now; if the call fails, persists a retry entry.
+     * Hides the sandbox copy now; if the call fails, persists a HIDE retry entry.
+     */
+    public boolean hideNowOrEnqueue(String tenantId, String ownerUsername, Instant eraseAfter) {
+        if (!link.linkedProduction()) {
+            return false;
+        }
+        Instant now = clock.instant();
+        try {
+            sandboxLink.hideSandboxLocation(tenantId, ownerUsername, eraseAfter);
+            pending.markDone(tenantId);
+            log.info("Hidden sandbox copy of location '{}' for owner '{}'", tenantId, ownerUsername);
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Could not hide sandbox copy of location '{}' immediately; queued for retry: {}",
+                    tenantId, e.getMessage());
+            pending.enqueue(tenantId, ownerUsername, PendingSandboxDeletionPort.Action.HIDE,
+                    e.getMessage(), now, now.plus(FIRST_RETRY));
+            return false;
+        }
+    }
+
+    /**
+     * Restores the sandbox copy now; if the call fails, persists a RESTORE retry entry.
+     */
+    public boolean restoreNowOrEnqueue(String tenantId, String ownerUsername) {
+        if (!link.linkedProduction()) {
+            return false;
+        }
+        Instant now = clock.instant();
+        try {
+            sandboxLink.restoreSandboxLocation(tenantId, ownerUsername);
+            pending.markDone(tenantId);
+            log.info("Restored sandbox copy of location '{}' for owner '{}'", tenantId, ownerUsername);
+            return true;
+        } catch (RuntimeException e) {
+            log.warn("Could not restore sandbox copy of location '{}' immediately; queued for retry: {}",
+                    tenantId, e.getMessage());
+            pending.enqueue(tenantId, ownerUsername, PendingSandboxDeletionPort.Action.RESTORE,
+                    e.getMessage(), now, now.plus(FIRST_RETRY));
+            return false;
+        }
+    }
+
+    /**
+     * Deletes the sandbox copy now; if the call fails, persists an ERASE retry entry.
      *
      * @return {@code true} if the sandbox copy was deleted immediately, {@code false} if unlinked or queued for retry
      */
@@ -58,15 +117,16 @@ public class SandboxDeletionSyncService {
         } catch (RuntimeException e) {
             log.warn("Could not delete sandbox copy of location '{}' immediately; queued for retry: {}",
                     tenantId, e.getMessage());
-            pending.enqueue(tenantId, ownerUsername, e.getMessage(), now, now.plus(FIRST_RETRY));
+            pending.enqueue(tenantId, ownerUsername, PendingSandboxDeletionPort.Action.ERASE,
+                    e.getMessage(), now, now.plus(FIRST_RETRY));
             return false;
         }
     }
 
     /**
-     * Retries due pending sandbox deletions idempotently.
+     * Retries due pending sandbox hide/restore/erase calls idempotently.
      *
-     * @return number of sandbox copies successfully removed in this run
+     * @return number of sandbox sync actions completed in this run
      */
     public int sendDue() {
         if (!link.linkedProduction()) {
@@ -76,18 +136,29 @@ public class SandboxDeletionSyncService {
         List<PendingSandboxDeletionPort.PendingDeletion> due = pending.due(now, BATCH_SIZE);
         int completed = 0;
         for (PendingSandboxDeletionPort.PendingDeletion item : due) {
+            PendingSandboxDeletionPort.Action action = item.action() == null
+                    ? PendingSandboxDeletionPort.Action.ERASE
+                    : item.action();
             try {
-                sandboxLink.deleteSandboxLocation(item.tenantId(), item.ownerUsername());
+                switch (action) {
+                    case HIDE -> {
+                        Instant eraseAfter = locations == null ? null
+                                : locations.getLocation(item.tenantId()).map(TenantLocation::eraseAfter).orElse(null);
+                        sandboxLink.hideSandboxLocation(item.tenantId(), item.ownerUsername(), eraseAfter);
+                    }
+                    case RESTORE -> sandboxLink.restoreSandboxLocation(item.tenantId(), item.ownerUsername());
+                    case ERASE -> sandboxLink.deleteSandboxLocation(item.tenantId(), item.ownerUsername());
+                }
                 pending.markDone(item.tenantId());
                 completed++;
-                log.info("Retry succeeded: removed sandbox copy of location '{}' for owner '{}'",
-                        item.tenantId(), item.ownerUsername());
+                log.info("Retry succeeded: sandbox {} for location '{}' (owner '{}')",
+                        action, item.tenantId(), item.ownerUsername());
             } catch (RuntimeException e) {
                 int nextAttempts = item.attempts() + 1;
                 Instant nextAt = now.plus(backoff(item.attempts()));
                 pending.reschedule(item.tenantId(), nextAttempts, nextAt, e.getMessage(), now);
-                log.warn("Retry {} failed for sandbox deletion of location '{}'; next attempt at {}: {}",
-                        nextAttempts, item.tenantId(), nextAt, e.getMessage());
+                log.warn("Retry {} failed for sandbox {} of location '{}'; next attempt at {}: {}",
+                        nextAttempts, action, item.tenantId(), nextAt, e.getMessage());
             }
         }
         return completed;

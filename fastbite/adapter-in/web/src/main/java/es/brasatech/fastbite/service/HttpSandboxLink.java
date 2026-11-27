@@ -36,6 +36,8 @@ public class HttpSandboxLink implements SandboxLinkPort {
     static final String PRODUCTION_BUNDLE = "/internal/link/production-bundle";
     static final String LOCATION_STATUS = "/internal/link/location-status";
     static final String DELETE_LOCATION = "/internal/link/delete-location";
+    static final String HIDE_LOCATION = "/internal/link/hide-location";
+    static final String RESTORE_LOCATION = "/internal/link/restore-location";
 
     private static final ScheduledExecutorService WATCHDOG_EXECUTOR =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -215,16 +217,33 @@ public class HttpSandboxLink implements SandboxLinkPort {
 
     @Override
     public void deleteSandboxLocation(String tenantId, String ownerUsername) {
+        postSignedLocationAction(DELETE_LOCATION, tenantId, ownerUsername, null, "deleting sandbox location");
+    }
+
+    @Override
+    public void hideSandboxLocation(String tenantId, String ownerUsername, Instant eraseAfter) {
+        postSignedLocationAction(HIDE_LOCATION, tenantId, ownerUsername, eraseAfter, "hiding sandbox location");
+    }
+
+    @Override
+    public void restoreSandboxLocation(String tenantId, String ownerUsername) {
+        postSignedLocationAction(RESTORE_LOCATION, tenantId, ownerUsername, null, "restoring sandbox location");
+    }
+
+    private void postSignedLocationAction(String path, String tenantId, String ownerUsername, Instant eraseAfter, String description) {
         if (!link.linked()) {
             throw new Unavailable(Reason.UNREACHABLE, "No sandbox is linked");
         }
         var body = json.createObjectNode()
                 .put("tenantId", tenantId)
                 .put("ownerUsername", ownerUsername);
+        if (eraseAfter != null) {
+            body.put("eraseAfter", eraseAfter.toString());
+        }
         byte[] content = json.writeValueAsBytes(body);
         HttpResponse<String> response;
         try {
-            response = http.send(HttpRequest.newBuilder(URI.create(link.internalUrl() + DELETE_LOCATION))
+            response = http.send(HttpRequest.newBuilder(URI.create(link.internalUrl() + path))
                     .timeout(Duration.ofSeconds(20))
                     .header("Content-Type", "application/json")
                     .header(SIGNATURE, LinkSignature.header(link.secret(), Instant.now(), content))
@@ -233,7 +252,7 @@ public class HttpSandboxLink implements SandboxLinkPort {
                     .build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new Unavailable(Reason.UNREACHABLE, "Interrupted while deleting sandbox location", e);
+            throw new Unavailable(Reason.UNREACHABLE, "Interrupted while " + description, e);
         } catch (Exception e) {
             throw new Unavailable(Reason.UNREACHABLE, "The sandbox could not be reached: " + e.getMessage(), e);
         }

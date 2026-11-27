@@ -37,14 +37,27 @@ public class LocationLifecycleMailAdapter implements LocationLifecycleMailPort {
             Scope scope,
             Instant when,
             String language) {
+        sendLocationLifecycleNotice(ownerEmail, tenantId, action, scope, when, null, language);
+    }
+
+    @Override
+    public void sendLocationLifecycleNotice(
+            String ownerEmail,
+            String tenantId,
+            Action action,
+            Scope scope,
+            Instant when,
+            Instant undoUntil,
+            String language) {
         if (ownerEmail == null || ownerEmail.isBlank()) {
             return;
         }
         String lang = normalizeLanguage(language);
         String formattedWhen = DATE_TIME.format(when);
+        String formattedUndoUntil = undoUntil != null ? DATE_TIME.format(undoUntil) : null;
         String where = scopeLabel(scope, lang);
         String subject = buildSubject(tenantId, action, lang);
-        String body = buildBody(tenantId, action, where, formattedWhen, lang);
+        String body = buildBody(tenantId, action, where, formattedWhen, formattedUndoUntil, lang);
         renderer.send(sender, from, ownerEmail, "location-lifecycle", lang, subject, null, body, body, null, null);
     }
 
@@ -99,7 +112,29 @@ public class LocationLifecycleMailAdapter implements LocationLifecycleMailPort {
         };
     }
 
-    private static String buildBody(String tenantId, Action action, String where, String when, String lang) {
+    private static String buildBody(String tenantId, Action action, String where, String when, String undoUntil, String lang) {
+        if (action == Action.DELETED && undoUntil != null) {
+            return switch (lang) {
+                case "es" -> "Confirmamos que tu restaurante '" + tenantId + "' ha sido ocultado y programado para eliminación definitiva.\n\n"
+                        + "Entorno: " + where + "\n"
+                        + "Fecha y hora: " + when + "\n"
+                        + "Puedes deshacer esta acción hasta: " + undoUntil + "\n\n"
+                        + "Dónde encontrar «Deshacer»: inicia sesión en tu consola de propietario de FastBite, entra en «Mis restaurantes» → «Pendientes de eliminar» y pulsa «Deshacer».\n\n"
+                        + "Si no lo deshaces antes de esa fecha, el restaurante y sus datos se eliminarán de forma definitiva.";
+                case "pt" -> "Confirmamos que o teu restaurante '" + tenantId + "' foi ocultado e agendado para eliminação definitiva.\n\n"
+                        + "Ambiente: " + where + "\n"
+                        + "Data e hora: " + when + "\n"
+                        + "Podes anular esta ação até: " + undoUntil + "\n\n"
+                        + "Onde encontrar «Anular»: inicia sessão na tua consola de proprietário FastBite, abre «Os meus restaurantes» → «Pendentes de eliminar» e clica em «Anular».\n\n"
+                        + "Se não anulares antes dessa data, o restaurante e os seus dados serão eliminados definitivamente.";
+                default -> "We confirm that your restaurant '" + tenantId + "' has been hidden and scheduled for permanent deletion.\n\n"
+                        + "Environment: " + where + "\n"
+                        + "Date and time: " + when + "\n"
+                        + "You can undo this until: " + undoUntil + "\n\n"
+                        + "Where to find \"Undo\": sign in to your FastBite owner console, open \"My restaurants\" → \"Pending deletion\", and click \"Undo\".\n\n"
+                        + "If you do not undo it before that deadline, the restaurant and its data will be permanently erased.";
+            };
+        }
         return switch (lang) {
             case "es" -> action == Action.DELETED
                     ? "Confirmamos que tu restaurante '" + tenantId + "' ha sido eliminado de forma permanente.\n\n"

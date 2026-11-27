@@ -35,6 +35,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -244,6 +245,21 @@ class StandaloneWorkspaceLeakTest {
                 List<String> forbidden = locale.getLanguage().equals("es") ? FORBIDDEN_SPANISH : FORBIDDEN_ENGLISH;
                 for (String phrase : forbidden) {
                     assertThat(readable).as("general close in %s must not contain '%s'", locale, phrase).doesNotContain(phrase);
+                }
+            }
+        }
+
+        @Test
+        void standalonePendingDeleteAndDownloadContainNoSandboxCopy() throws Exception {
+            TenantLocation pending = new TenantLocation("1", OWNER, TENANT, "RESTAURANT", null, null, false, false, null,
+                    Instant.parse("2026-11-27T12:00:00Z"), Instant.parse("2026-12-04T12:00:00Z"));
+            when(tenantLocationService.getLocationsByOwner(OWNER)).thenReturn(List.of(pending));
+            for (Locale locale : List.of(Locale.forLanguageTag("es"), Locale.ENGLISH)) {
+                String html = page("/owner/console?view=locations", locale);
+                String readable = extractReadableText(html);
+                List<String> forbidden = locale.getLanguage().equals("es") ? FORBIDDEN_SPANISH : FORBIDDEN_ENGLISH;
+                for (String phrase : forbidden) {
+                    assertThat(readable).as("pending delete in %s must not contain '%s'", locale, phrase).doesNotContain(phrase);
                 }
             }
         }

@@ -161,7 +161,9 @@ public class TenantRoutingResolver {
         if (checked != null && now - checked < KNOWN_TENANT_TTL_MS) {
             return true;
         }
-        boolean exists = tenantLocationService.getLocation(tenantId).filter(loc -> !loc.isClosed()).isPresent()
+        boolean exists = tenantLocationService.getLocation(tenantId)
+                .filter(loc -> !loc.isClosed() && !loc.isPendingDelete())
+                .isPresent()
                 && !tenantLocationService.isClosed(tenantId);
         if (exists) {
             if (knownTenants.size() >= KNOWN_TENANT_LIMIT) knownTenants.clear();

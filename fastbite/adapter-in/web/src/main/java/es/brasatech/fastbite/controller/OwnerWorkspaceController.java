@@ -136,14 +136,14 @@ public class OwnerWorkspaceController {
         // Global account pages do not imply a selected location; explicit legacy location links remain authorized above.
         if (global) selected = null;
         if (location == null && requestedView.equals("overview")) {
-            if (list.size() == 1 && !list.getFirst().isClosed() && !subscriptions.isClosed(list.getFirst().tenantId()) && !locations.isClosed(list.getFirst().tenantId())) selected = list.getFirst();
+            if (list.size() == 1 && !list.getFirst().isClosed() && !list.getFirst().isPendingDelete() && !subscriptions.isClosed(list.getFirst().tenantId()) && !locations.isClosed(list.getFirst().tenantId())) selected = list.getFirst();
             else { selected = null; area = "restaurants"; }
         }
         if (area.equals("restaurants") || area.equals("billing")) {
             Map<String, OwnerWorkspaceService.Summary> locationSummaries = new LinkedHashMap<>();
             Map<String, String> locationBilling = new LinkedHashMap<>();
             for (var loc : list) {
-                if (area.equals("restaurants") && !loc.isClosed() && !subscriptions.isClosed(loc.tenantId()) && !locations.isClosed(loc.tenantId())) {
+                if (area.equals("restaurants") && !loc.isClosed() && !loc.isPendingDelete() && !subscriptions.isClosed(loc.tenantId()) && !locations.isClosed(loc.tenantId())) {
                     var locationSummary = workspace.summary(owner.getName(), loc.tenantId());
                     if (locationSummary != null) locationSummaries.put(loc.tenantId(), locationSummary);
                 }
@@ -170,13 +170,21 @@ public class OwnerWorkspaceController {
         if (requestedView.equals("data") && !Set.of("backup", "advanced").contains(section)) section = "backup";
         if (requestedView.equals("location-config") && !Set.of("general", "appearance", "payments", "domain").contains(section)) section = "general";
         Map<String, String> closedLabels = new LinkedHashMap<>();
+        Map<String, String> pendingDeleteLabels = new LinkedHashMap<>();
+        DateTimeFormatter pendingFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of(ordersTimeZone));
         for (var loc : list) {
             if (loc.closedAt() != null) {
                 String date = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.of(ordersTimeZone)).format(loc.closedAt());
                 closedLabels.put(loc.tenantId(), messages.getMessage("workspace.closed.on", new Object[]{date}, "Closed on " + date, locale));
             }
+            if (loc.isPendingDelete()) {
+                String until = loc.eraseAfter() != null ? pendingFormatter.format(loc.eraseAfter()) : "";
+                pendingDeleteLabels.put(loc.tenantId(), messages.getMessage("workspace.pending.delete.until", new Object[]{until},
+                        "Scheduled for permanent deletion on " + until, locale));
+            }
         }
         model.addAttribute("closedLabels", closedLabels);
+        model.addAttribute("pendingDeleteLabels", pendingDeleteLabels);
         model.addAttribute("ownerUsername",owner.getName());model.addAttribute("locations",list);
         model.addAttribute("platformAdmin",environment.production() && admins.isAdmin(owner.getName()));
         model.addAttribute("marketingConsent",acceptances.mayReceiveOffers(owner.getName()));
@@ -193,12 +201,17 @@ public class OwnerWorkspaceController {
             model.addAttribute("trialEndsSoon", trialEnd != null && trialEnd.isAfter(clock.instant())
                     && !trialEnd.isAfter(clock.instant().plus(7, ChronoUnit.DAYS)));
             boolean locationClosed=(billing!=null && billing.isClosed()) || selected.isClosed() || subscriptions.isClosed(selected.tenantId()) || locations.isClosed(selected.tenantId());
+            boolean locationPendingDelete = !locationClosed && selected.isPendingDelete();
             model.addAttribute("locationClosed",locationClosed);
+            model.addAttribute("locationPendingDelete", locationPendingDelete);
+            if (locationPendingDelete && selected.eraseAfter() != null) {
+                model.addAttribute("pendingDeleteDeadline", pendingFormatter.format(selected.eraseAfter()));
+            }
             if(locationClosed) {
                 model.addAttribute("verifactu",workspace.verifactuSummary(owner.getName(),selected.tenantId(),environment.sandbox()));
                 model.addAttribute("closedTickets",workspace.fiscalTickets(owner.getName(),selected.tenantId()));
                 model.addAttribute("fiscal",workspace.fiscalProfile(owner.getName(),selected.tenantId()));
-            } else {
+            } else if (!locationPendingDelete) {
                 model.addAttribute("selectedTheme",themes.resolve(appearance.effectiveTheme(selected.tenantId())));
                 model.addAttribute("themeOverride",appearance.locationTheme(selected.tenantId()));
                 if (view.equals("overview") && verifactuAuthorizations != null
@@ -237,6 +250,7 @@ public class OwnerWorkspaceController {
                     model.addAttribute("cashFloat",workspace.cashFloat(owner.getName(),selected.tenantId()));
                     if (locationLifecycle != null) {
                         model.addAttribute("removalMode", locationLifecycle.removalAction(owner.getName(), selected.tenantId()).name());
+                        model.addAttribute("undoDays", locationLifecycle.undoDays());
                         if (environment.sandbox()) {
                             try {
                                 var prodStatus = locationLifecycle.queryProductionStatus(owner.getName(), selected.tenantId());
@@ -962,7 +976,13 @@ public class OwnerWorkspaceController {
             return switch (result.outcome()) {
                 case DELETED -> {
                     evictTenantRoutes(tenant, result.customDomain());
-                    flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.deleted", tenant));
+                    if (result.eraseAfter() != null) {
+                        String deadline = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+                                .withZone(ZoneId.of(ordersTimeZone)).format(result.eraseAfter());
+                        flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.deleted.pending", tenant, deadline));
+                    } else {
+                        flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.deleted", tenant));
+                    }
                     yield "redirect:/owner/console?view=locations";
                 }
                 case NAME_MISMATCH -> {
@@ -996,6 +1016,43 @@ public class OwnerWorkspaceController {
             flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.billing.unavailable"));
             return "redirect:/owner/console?view=location-settings&section=general&location=" + tenant;
         }
+    }
+
+    /**
+     * Undoes a pending location deletion within the undo window, restoring the location
+     * (and its sandbox copy in linked production mode).
+     */
+    @PostMapping("/owner/workspace/{tenant}/undo-delete")
+    public String undoDeleteLocation(
+            @PathVariable String tenant,
+            Principal owner,
+            RedirectAttributes flash) {
+        check(owner, tenant);
+        if (locationLifecycle == null) {
+            flash.addFlashAttribute("error", workspaceMessage("workspace.flash.failed"));
+            return "redirect:/owner/console?view=locations";
+        }
+        LocationLifecycleService.UndoResult result = locationLifecycle.undoDelete(owner.getName(), tenant);
+        return switch (result.outcome()) {
+            case RESTORED -> {
+                evictTenantRoutes(tenant, result.customDomain());
+                flash.addFlashAttribute("notice", workspaceMessage("workspace.flash.location.restored", tenant));
+                yield "redirect:/owner/console?view=locations";
+            }
+            case UNDO_WINDOW_EXPIRED -> {
+                flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.undo.expired"));
+                yield "redirect:/owner/console?view=locations";
+            }
+            case NOT_PENDING_DELETE -> {
+                flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.undo.not_pending"));
+                yield "redirect:/owner/console?view=locations";
+            }
+            case PRODUCTION_UNREACHABLE -> {
+                flash.addFlashAttribute("error", workspaceMessage("workspace.flash.location.production_unreachable"));
+                yield "redirect:/owner/console?view=locations";
+            }
+            case REDIRECT_TO_PRODUCTION -> "redirect:" + result.redirectUrl();
+        };
     }
 
     /**
@@ -1209,6 +1266,9 @@ public class OwnerWorkspaceController {
         check(owner,tenant);
         if(subscriptions.isClosed(tenant) || locations.isClosed(tenant)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This location is closed.");
+        }
+        if(locations.isPendingDelete(tenant)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This location is pending deletion.");
         }
     }
 }

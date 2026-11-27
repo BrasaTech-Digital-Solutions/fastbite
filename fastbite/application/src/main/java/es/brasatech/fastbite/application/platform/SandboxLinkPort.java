@@ -2,6 +2,7 @@ package es.brasatech.fastbite.application.platform;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 
 /** Production's calls to its sandbox. */
 public interface SandboxLinkPort {
@@ -24,9 +25,19 @@ public interface SandboxLinkPort {
             boolean exists,
             boolean closed,
             boolean hasFiscalOrPaidActivity,
-            boolean hasOrdersInProgress) {
+            boolean hasOrdersInProgress,
+            boolean pendingDelete,
+            Instant eraseAfter) {
+        public ProductionLocationStatus(
+                boolean exists,
+                boolean closed,
+                boolean hasFiscalOrPaidActivity,
+                boolean hasOrdersInProgress) {
+            this(exists, closed, hasFiscalOrPaidActivity, hasOrdersInProgress, false, null);
+        }
+
         public static final ProductionLocationStatus ABSENT =
-                new ProductionLocationStatus(false, false, false, false);
+                new ProductionLocationStatus(false, false, false, false, false, null);
     }
 
     enum Reason { UNREACHABLE, OTHER_VERSION, NOTHING_TO_PROMOTE, TOO_LARGE, TIMED_OUT, REFUSED }
@@ -104,5 +115,21 @@ public interface SandboxLinkPort {
      */
     default void deleteSandboxLocation(String tenantId, String ownerUsername) {
         throw new Unavailable(Reason.UNREACHABLE, "Sandbox deletion over link is not supported");
+    }
+
+    /**
+     * Tells a linked sandbox to hide its copy of a location during the production undo window.
+     * Idempotent: an already-hidden or absent sandbox copy succeeds.
+     */
+    default void hideSandboxLocation(String tenantId, String ownerUsername, Instant eraseAfter) {
+        throw new Unavailable(Reason.UNREACHABLE, "Sandbox hide over link is not supported");
+    }
+
+    /**
+     * Tells a linked sandbox to restore its hidden copy of a location after production undid deletion.
+     * Idempotent: an already-active or absent sandbox copy succeeds.
+     */
+    default void restoreSandboxLocation(String tenantId, String ownerUsername) {
+        throw new Unavailable(Reason.UNREACHABLE, "Sandbox restore over link is not supported");
     }
 }

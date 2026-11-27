@@ -8,6 +8,7 @@ import es.brasatech.fastbite.application.verifactu.VerifactuAuthorizationService
 import es.brasatech.fastbite.application.verifactu.VerifactuNotificationService;
 import es.brasatech.fastbite.service.ContractLifecycleJob;
 import es.brasatech.fastbite.service.FiscalIssuerBackfillJob;
+import es.brasatech.fastbite.service.LocationEraseJob;
 import es.brasatech.fastbite.service.SandboxDeletionSyncJob;
 import es.brasatech.fastbite.service.SandboxProvisioningJob;
 import es.brasatech.fastbite.service.VerifactuSubmissionJob;
@@ -102,6 +103,7 @@ public class InternalJobsController {
     private final VerifactuAuthorizationService verifactuAuthorizations;
     private final VerifactuNotificationService verifactuNotifications;
     private final SandboxDeletionSyncJob sandboxDeletionSync;
+    private final LocationEraseJob locationEraseJob;
     private final String secret;
     private final Clock clock;
 
@@ -116,6 +118,7 @@ public class InternalJobsController {
             @Autowired(required = false) VerifactuAuthorizationService verifactuAuthorizations,
             @Autowired(required = false) VerifactuNotificationService verifactuNotifications,
             @Autowired(required = false) SandboxDeletionSyncJob sandboxDeletionSync,
+            @Autowired(required = false) LocationEraseJob locationEraseJob,
             @Value("${fastbite.jobs.secret:}") String secret,
             Clock clock) {
         this.sandboxProvisioning = sandboxProvisioning;
@@ -128,6 +131,7 @@ public class InternalJobsController {
         this.verifactuAuthorizations = verifactuAuthorizations;
         this.verifactuNotifications = verifactuNotifications;
         this.sandboxDeletionSync = sandboxDeletionSync;
+        this.locationEraseJob = locationEraseJob;
         this.secret = secret == null || secret.isBlank() ? null : secret;
         this.clock = clock;
         if (this.secret != null && this.secret.length() < MIN_SECRET_LENGTH) {
@@ -145,25 +149,42 @@ public class InternalJobsController {
             PendingSignupService pendingSignup,
             VerifactuAuthorizationService verifactuAuthorizations,
             VerifactuNotificationService verifactuNotifications,
+            SandboxDeletionSyncJob sandboxDeletionSync,
             String secret,
             Clock clock) {
         this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, contractLifecycle,
                 promotionService, accountMail, pendingSignup, verifactuAuthorizations, verifactuNotifications,
-                null, secret, clock);
+                sandboxDeletionSync, null, secret, clock);
+    }
+
+    public InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
+            VerifactuSubmissionJob verifactuSubmission,
+            FiscalIssuerBackfillJob fiscalIssuerBackfill,
+            ContractLifecycleJob contractLifecycle,
+            PromotionService promotionService,
+            AccountMailOutboxService accountMail,
+            PendingSignupService pendingSignup,
+            VerifactuAuthorizationService verifactuAuthorizations,
+            VerifactuNotificationService verifactuNotifications,
+            String secret,
+            Clock clock) {
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, contractLifecycle,
+                promotionService, accountMail, pendingSignup, verifactuAuthorizations, verifactuNotifications,
+                null, null, secret, clock);
     }
 
     public InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, null, null, secret, Clock.systemUTC());
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, null, null, null, secret, Clock.systemUTC());
     }
 
     InternalJobsController(SandboxProvisioningJob sandboxProvisioning,
             VerifactuSubmissionJob verifactuSubmission,
             FiscalIssuerBackfillJob fiscalIssuerBackfill,
             String secret, Clock clock) {
-        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, null, null, secret, clock);
+        this(sandboxProvisioning, verifactuSubmission, fiscalIssuerBackfill, null, null, null, null, null, null, null, null, secret, clock);
     }
 
     @PostMapping("/internal/jobs/run")
@@ -181,6 +202,9 @@ public class InternalJobsController {
         if (accountMail != null) accountMail.run(5);
         var cleaned = accountMail == null ? null : accountMail.cleanup();
         int provisioned = sandboxProvisioning.run();
+        if (locationEraseJob != null) {
+            locationEraseJob.run();
+        }
         if (sandboxDeletionSync != null) {
             sandboxDeletionSync.run();
         }
